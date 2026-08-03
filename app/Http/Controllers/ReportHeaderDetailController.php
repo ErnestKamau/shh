@@ -478,6 +478,7 @@ class ReportHeaderDetailController extends Controller
 				->amendmentViewData(max(1, $amendmentVersion));
 
 			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.report_formats', compact('sample', 'company', 'qrcode', 'report_logo', 'sadc_logo', 'ilac_logo', 'batch_approvers', 'pdf', 'batch', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'amendmentDisplay'));
+			app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf, $company);
 			$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
 
 			if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
@@ -1268,6 +1269,7 @@ class ReportHeaderDetailController extends Controller
 		} else {
 			$pdf = PDF::loadView('layouts.lab.reports.dynamic_report', $data);
 		}
+		app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf, $company ?? ($data['company'] ?? null));
 
 		$filename = $filename ?? ($customer_name . '-' . preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code) . '-' . date('d-M-Y-H-i-s') . '.pdf');
 		$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;

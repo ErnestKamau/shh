@@ -191,6 +191,7 @@
 </head>
 
 <body>
+@include('partials.report-watermark', ['company' => $company ?? null, 'forPdf' => true])
 
     @if($reportFormat->isSectionVisible('Header') ?? true)
     <div style="position: fixed; left: 0; right: 0;  background-color: #fff; z-index: 1000;">

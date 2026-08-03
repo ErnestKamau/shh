@@ -110,7 +110,10 @@ class DispatchSubcontractRequest extends Component
             if ($instance !== null) {
                 $this->selectedFormInstanceId = (string) $instance->id;
                 $this->selectedEnquiryId = (string) ($instance->sampleSubmissionRequest?->id ?? '');
-                $this->labelUrl = route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id]);
+                $this->labelUrl = route('submission-forms.instances.sample-collection-label', [
+                    'instance' => $instance->id,
+                    'type' => 'registration',
+                ]);
 
                 if ($instance->sampleSubmissionRequest !== null) {
                     $enquiry = $instance->sampleSubmissionRequest;

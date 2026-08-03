@@ -16,7 +16,7 @@
 
 <div class="amspec-signature-row">
     <div class="amspec-signature amspec-signature-lab">
-        <p class="amspec-signature-entity" style="margin-top: 0;">
+        <p class="amspec-signature-entity">
             For {{ strtoupper($copy['legal_entity'] ?: ($company->name ?? '')) }}
         </p>
         @if(!empty($reportHeader->prepared_by_signature))

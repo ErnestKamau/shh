@@ -327,7 +327,7 @@ class PlannerDashboard extends Component
                 $query->whereNull('parent_id')
                     ->orWhereColumn('id', 'parent_id')
                     ->orWhere('is_routine', '!=', 1)
-                    ->orWhereNotIn('frequency', [1, 7, 30]);
+                    ->orWhere('status', '!=', 'Pending');
             });
 
         if (! $this->canViewAllData && $userId !== '') {

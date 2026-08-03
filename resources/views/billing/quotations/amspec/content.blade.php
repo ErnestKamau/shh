@@ -5,8 +5,8 @@
 @endphp
 
 <div class="amspec-quotation" style="--quotation-primary: {{ $primaryColor }}; --quotation-accent: {{ $accentColor }};">
-    @if(!$isPdf && !empty($branding['watermarkSrc']))
-        <img src="{{ $branding['watermarkSrc'] }}" alt="" class="amspec-watermark">
+    @if(!empty($branding['watermarkSrc']))
+        <img src="{{ $branding['watermarkSrc'] }}" alt="" class="amspec-watermark" aria-hidden="true">
     @endif
 
 

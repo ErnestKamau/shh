@@ -19,5 +19,7 @@ final class RecentReportDTO
         public readonly ?string $downloadUrl,
         public readonly string $releaseStatus,
         public readonly array $availableLanguages = [],
+        public readonly ?string $batchId = null,
+        public readonly bool $canRaiseAmendment = false,
     ) {}
 }

@@ -136,7 +136,7 @@
         font-size: clamp(48px, 9vw, 84px);
         font-weight: 800;
         letter-spacing: 0.18em;
-        color: rgba(100, 116, 139, 0.32);
+        color: rgba(100, 116, 139, 0.16);
         text-transform: uppercase;
         white-space: nowrap;
         font-family: Georgia, 'Times New Roman', serif;
@@ -783,7 +783,7 @@
             print-color-adjust: exact;
         }
         .trr-preview-watermark span {
-            color: rgba(100, 116, 139, 0.38) !important;
+            color: rgba(100, 116, 139, 0.18) !important;
             font-size: 64pt;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -796,6 +796,11 @@
 @else
 <div class="trr-embedded-root" dir="{{ !empty($isRTL) ? 'rtl' : 'ltr' }}">
 @endif
+
+@include('partials.report-watermark', [
+    'company' => $company ?? null,
+    'forPdf' => !empty($isPdfMode),
+])
 
 @if(!empty($isPreviewMode) && empty($isEmbedded) && empty($isPdfMode))
     <div class="trr-preview-watermark" aria-hidden="true"><span>Draft Preview</span></div>

@@ -85,11 +85,12 @@
 
     .amspec-watermark {
         position: fixed;
-        top: 35%;
+        top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%);
-        opacity: 0.06;
-        width: 280px;
+        transform: translate(-50%, -50%) rotate(-35deg);
+        opacity: 0.08;
+        width: 48%;
+        max-width: 420px;
         z-index: 0;
         pointer-events: none;
     }
@@ -123,39 +124,46 @@
     }
 
     .amspec-page-logo {
-        margin-bottom: 10px;
+        margin-bottom: 6px;
     }
 
     .amspec-brand-row {
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
 
     .amspec-brand-left {
         width: 55%;
         vertical-align: middle;
+        padding-top: 0;
     }
 
     .amspec-brand-right {
         width: 45%;
         text-align: right;
         vertical-align: top;
+        padding-top: 0;
     }
 
     .amspec-logo-wordmark {
-        max-height: 48px;
-        max-width: 200px;
+        max-height: 62px;
+        max-width: 240px;
+        height: auto;
+        width: auto;
+        display: block;
     }
 
     .amspec-logo-wordmark-svg {
-        height: 42px;
+        height: 58px;
         width: auto;
-        max-width: 200px;
+        max-width: 240px;
+        display: block;
     }
 
     .amspec-hex-cluster {
-        width: 110px;
+        width: 118px;
         height: auto;
         display: inline-block;
+        margin-top: 0;
     }
 
     .amspec-company-name {
@@ -166,8 +174,8 @@
     }
 
     .amspec-logo {
-        max-height: 55px;
-        max-width: 180px;
+        max-height: 62px;
+        max-width: 240px;
     }
 
     .amspec-contact-line {
@@ -240,10 +248,11 @@
     }
 
     .amspec-th-sub {
-        font-weight: 400;
-        font-size: 8pt;
+        font-weight: 600;
+        font-size: 7.5pt;
         display: block;
-        margin-top: 2px;
+        margin-top: 1px;
+        line-height: 1.15;
     }
 
     .amspec-test-table .amspec-num-cell {
@@ -341,6 +350,7 @@
 
     .amspec-signature-intro {
         margin-top: 16px;
+        margin-bottom: 18px;
         width: 50%;
         padding-right: 16px;
         font-size: 10pt;
@@ -354,6 +364,8 @@
         display: table;
         width: 100%;
         table-layout: fixed;
+        margin-top: 8px;
+        margin-bottom: 40px;
     }
 
     .amspec-signature {
@@ -371,14 +383,18 @@
     }
 
     .amspec-signature-entity {
-        margin-top: 24px;
+        margin-top: 0;
         font-family: var(--amspec-font-table);
         font-weight: 700;
         font-size: 10pt;
     }
 
+    .amspec-signature-lab .amspec-signature-entity {
+        margin-top: 0;
+    }
+
     .amspec-footer-wrap {
-        margin-top: 16px;
+        margin-top: 56px;
         padding-top: 0;
         width: 100%;
     }
@@ -398,10 +414,10 @@
     .amspec-footer-disclaimer {
         margin: 0;
         font-family: var(--amspec-font-footer);
-        font-size: 7.5pt;
-        line-height: 1.35;
+        font-size: 6.25pt;
+        line-height: 1.28;
         color: var(--amspec-text);
-        text-align: center;
+        text-align: left;
     }
 
     .amspec-footer-disclaimer a {
@@ -418,10 +434,16 @@
     }
 
     .amspec-footer-qr {
-        width: 72px;
-        height: 72px;
+        width: 52px;
+        height: 52px;
         display: inline-block;
-        border: 4px solid #ffffff;
+    }
+
+    .amspec-category-banner {
+        font-family: var(--amspec-font-table);
+        font-weight: 700;
+        font-size: 10pt;
+        background-color: var(--quotation-category-bg);
     }
 
     .text-right {
@@ -477,7 +499,16 @@
         }
 
         .amspec-watermark {
-            display: none !important;
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) rotate(-35deg) !important;
+            opacity: 0.08 !important;
+            width: 48% !important;
+            max-width: 420px !important;
+            z-index: 0 !important;
+            pointer-events: none !important;
+            display: block !important;
         }
 
         .amspec-document-shell {
@@ -508,7 +539,7 @@
         }
 
         .amspec-footer-wrap {
-            margin-top: 12px;
+            margin-top: 56px;
             padding-top: 0;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -532,7 +563,8 @@
             print-color-adjust: exact !important;
         }
 
-        .amspec-category-cell {
+        .amspec-category-cell,
+        .amspec-category-banner {
             background-color: #E0E0E0 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;

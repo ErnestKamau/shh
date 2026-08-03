@@ -397,78 +397,12 @@
 
 @section('script')
 <script>
-	// Toast notification function
-	function showToastNotification(message, type = 'info') {
-		let container = document.getElementById('toast-container');
-		if (!container) {
-			container = document.createElement('div');
-			container.id = 'toast-container';
-			container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
-			document.body.appendChild(container);
+	// Backward compatibility — global SweetAlert2 toasts handle notifications
+	function showToast(message, type = 'success') {
+		if (typeof window.showAppToast === 'function') {
+			window.showAppToast(type === 'success' ? 'success' : 'error', message);
 		}
-
-		const toast = document.createElement('div');
-		toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
-		toast.style.cssText = 'margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
-		toast.setAttribute('role', 'alert');
-		
-		const icons = {
-			success: 'mdi-check-circle',
-			error: 'mdi-alert-circle',
-			warning: 'mdi-alert',
-			info: 'mdi-information'
-		};
-		
-		toast.innerHTML = `
-			<i class="mdi ${icons[type] || icons.info}"></i> ${message}
-			<button type="button" class="close" data-dismiss="alert" aria-label="Close">
-				<span aria-hidden="true">&times;</span>
-			</button>
-		`;
-		
-		container.appendChild(toast);
-		
-		setTimeout(() => {
-			toast.classList.remove('show');
-			setTimeout(() => {
-				if (toast.parentElement) {
-					toast.parentElement.removeChild(toast);
-				}
-			}, 150);
-		}, 5000);
 	}
-
-	window.showToastNotification = showToastNotification;
-
-	// Session flash messages
-	@if (\Session::has('success'))
-		setTimeout(function() {
-			showToastNotification(@json(Session::get('success')), 'success');
-		}, 300);
-	@endif
-	@if (\Session::has('error'))
-		setTimeout(function() {
-			showToastNotification(@json(Session::get('error')), 'error');
-		}, 300);
-	@endif
-	@if (\Session::has('warning'))
-		setTimeout(function() {
-			showToastNotification(@json(Session::get('warning')), 'warning');
-		}, 300);
-	@endif
-	@if (\Session::has('info'))
-		setTimeout(function() {
-			showToastNotification(@json(Session::get('info')), 'info');
-		}, 300);
-	@endif
-
-	// Livewire notification listener
-	document.addEventListener('livewire:init', function() {
-		Livewire.on('notify', (event) => {
-			const data = event[0] || event;
-			showToastNotification(data.message || 'Notification', data.type || 'info');
-		});
-	});
 </script>
 
 @yield('script2')

@@ -1034,6 +1034,11 @@ class ScheduleSamplingManager extends Component
 
             $schedule->save();
 
+            if (! $wasEditing) {
+                app(\App\Services\Planner\SamplingScheduleRecurrenceGenerator::class)
+                    ->generateFollowingOccurrences($schedule);
+            }
+
             if ($wasEditing && $previousPlan !== null) {
                 $historyRecorder->recordIfChanged(
                     $schedule,

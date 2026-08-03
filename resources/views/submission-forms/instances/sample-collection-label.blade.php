@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample Labels</title>
+    <title>
+        @if(($labelType ?? 'collection') === 'registration')
+            Registration Label
+        @else
+            Sample Collection Label
+        @endif
+    </title>
     <style>
         :root {
             --ink: #111111;
@@ -75,6 +81,8 @@
             max-width: 100%;
             max-height: 28px;
             object-fit: contain;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         .label-head-title {
@@ -175,31 +183,47 @@
             .label-card {
                 break-inside: avoid;
             }
+
+            .label-head-logo img {
+                display: block !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
     </style>
 </head>
 <body>
     @php
-        $logoSrc = null;
-        $rawLogoPath = trim((string) ($logoPath ?? ''));
-        if ($rawLogoPath !== '') {
-            if (\Illuminate\Support\Str::startsWith($rawLogoPath, ['http://', 'https://', '//', 'data:'])) {
-                $logoSrc = $rawLogoPath;
-            } elseif (\Illuminate\Support\Str::startsWith($rawLogoPath, ['storage/', '/storage/'])) {
-                $logoSrc = url('/'.ltrim($rawLogoPath, '/'));
-            } elseif (\Illuminate\Support\Str::startsWith($rawLogoPath, ['public/', '/public/'])) {
-                $logoSrc = url('/storage/'.ltrim(preg_replace('#^/?public/#', '', $rawLogoPath), '/'));
-            } else {
-                $logoSrc = asset(ltrim($rawLogoPath, '/'));
+        $selectedLabelType = ($labelType ?? 'collection') === 'registration' ? 'registration' : 'collection';
+
+        $logoSrc = trim((string) ($logoSrc ?? ''));
+        if ($logoSrc === '') {
+            $rawLogoPath = trim((string) ($logoPath ?? ''));
+            if ($rawLogoPath !== '') {
+                if (\Illuminate\Support\Str::startsWith($rawLogoPath, ['http://', 'https://', '//', 'data:'])) {
+                    $logoSrc = $rawLogoPath;
+                } elseif (\Illuminate\Support\Str::startsWith($rawLogoPath, ['storage/', '/storage/'])) {
+                    $logoSrc = url('/'.ltrim($rawLogoPath, '/'));
+                } elseif (\Illuminate\Support\Str::startsWith($rawLogoPath, ['public/', '/public/'])) {
+                    $logoSrc = url('/storage/'.ltrim(preg_replace('#^/?public/#', '', $rawLogoPath), '/'));
+                } else {
+                    $logoSrc = asset(ltrim($rawLogoPath, '/'));
+                }
             }
         }
 
-        if (!$logoSrc) {
-            $logoSrc = asset('images/logo.png');
+        if ($logoSrc === '') {
+            $logoSrc = asset('images/company_logo.png');
         }
 
-        $barcodeValue = trim((string) ($instance->form_number ?: $instance->id));
-        $barcodeValue = $barcodeValue !== '' ? $barcodeValue : trim((string) $sampleId);
+        $barcodeValue = trim((string) ($barcodeValue ?? ''));
+        if ($barcodeValue === '') {
+            $barcodeValue = trim((string) ($instance->form_number ?? ''));
+        }
+        if ($barcodeValue === '' || \Illuminate\Support\Str::isUuid($barcodeValue)) {
+            $barcodeValue = '';
+        }
+
         $normalizedDateTime = (string) $dateTimeOfCollection;
 
         try {
@@ -214,104 +238,113 @@
     @endphp
 
     <div class="toolbar">
-        <button class="print-btn" onclick="window.print()">Print Labels</button>
+        <button class="print-btn" onclick="window.print()">Print Label</button>
     </div>
 
     <main class="sheet">
-        <section class="label-card" aria-label="Sample Collection Label">
-            <header class="label-head">
-                <div class="label-head-logo">
-                    @if ($logoSrc)
-                        <img src="{{ $logoSrc }}" alt="Company logo">
-                    @endif
-                </div>
-                <div class="label-head-title">Sample Collection Label</div>
-            </header>
+        @if($selectedLabelType === 'collection')
+            <section class="label-card" aria-label="Sample Collection Label">
+                <header class="label-head">
+                    <div class="label-head-logo">
+                        @if ($logoSrc)
+                            <img src="{{ $logoSrc }}" alt="Company logo">
+                        @endif
+                    </div>
+                    <div class="label-head-title">Sample Collection Label</div>
+                </header>
 
-            <table class="label-table" role="presentation">
-                <tr>
-                    <td>Sample Name / Description:</td>
-                    <td class="wide-cell">{{ $sampleName }}</td>
-                </tr>
-                <tr>
-                    <td>Batch Number:</td>
-                    <td class="wide-cell">{{ $batchNumber }}</td>
-                </tr>
-                <tr>
-                    <td>Client Name:</td>
-                    <td class="wide-cell">{{ $clientName }}</td>
-                </tr>
-                <tr>
-                    <td>Site - Location:</td>
-                    <td class="wide-cell">{{ $siteLocation }}</td>
-                </tr>
-                <tr>
-                    <td>Date &amp; Time of Collection:</td>
-                    <td class="wide-cell">{{ $normalizedDateTime }}</td>
-                </tr>
-                <tr>
-                    <td>Sample Temperature (&deg;C):</td>
-                    <td class="wide-cell">{{ $sampleTemperature }}</td>
-                </tr>
-                <tr>
-                    <td>Collected By (Name / Sign):</td>
-                    <td class="wide-cell">{{ $collectedBy }}</td>
-                </tr>
-                <tr>
-                    <td>Preservation Applied:</td>
-                    <td class="wide-cell">[{{ strcasecmp($preservationText, 'Yes') === 0 ? 'x' : ' ' }}] Yes [{{ strcasecmp($preservationText, 'No') === 0 ? 'x' : ' ' }}] No (Specify: {{ $preservationText }})</td>
-                </tr>
-                <tr>
-                    <td>Container Type:</td>
-                    <td class="wide-cell">[{{ stripos($containerText, 'HDPE') !== false ? 'x' : ' ' }}] HDPE [{{ stripos($containerText, 'Glass') !== false ? 'x' : ' ' }}] Glass Bottle [{{ stripos($containerText, 'Zipper') !== false ? 'x' : ' ' }}] Zipper Bag</td>
-                </tr>
-                <tr>
-                    <td>Sample Collection for:</td>
-                    <td class="wide-cell">[{{ stripos($collectionForText, 'Micro') !== false ? 'x' : ' ' }}] Micro Lab [{{ stripos($collectionForText, 'Chemistry') !== false ? 'x' : ' ' }}] Chemistry Lab</td>
-                </tr>
-            </table>
-        </section>
+                <table class="label-table" role="presentation">
+                    <tr>
+                        <td>Sample Name / Description:</td>
+                        <td class="wide-cell">{{ $sampleName }}</td>
+                    </tr>
+                    <tr>
+                        <td>Batch Number:</td>
+                        <td class="wide-cell">{{ $batchNumber }}</td>
+                    </tr>
+                    <tr>
+                        <td>Client Name:</td>
+                        <td class="wide-cell">{{ $clientName }}</td>
+                    </tr>
+                    <tr>
+                        <td>Site - Location:</td>
+                        <td class="wide-cell">{{ $siteLocation }}</td>
+                    </tr>
+                    <tr>
+                        <td>Date &amp; Time of Collection:</td>
+                        <td class="wide-cell">{{ $normalizedDateTime }}</td>
+                    </tr>
+                    <tr>
+                        <td>Sample Temperature (&deg;C):</td>
+                        <td class="wide-cell">{{ $sampleTemperature }}</td>
+                    </tr>
+                    <tr>
+                        <td>Collected By (Name / Sign):</td>
+                        <td class="wide-cell">{{ $collectedBy }}</td>
+                    </tr>
+                    <tr>
+                        <td>Preservation Applied:</td>
+                        <td class="wide-cell">[{{ strcasecmp($preservationText, 'Yes') === 0 ? 'x' : ' ' }}] Yes [{{ strcasecmp($preservationText, 'No') === 0 ? 'x' : ' ' }}] No (Specify: {{ $preservationText }})</td>
+                    </tr>
+                    <tr>
+                        <td>Container Type:</td>
+                        <td class="wide-cell">[{{ stripos($containerText, 'HDPE') !== false ? 'x' : ' ' }}] HDPE [{{ stripos($containerText, 'Glass') !== false ? 'x' : ' ' }}] Glass Bottle [{{ stripos($containerText, 'Zipper') !== false ? 'x' : ' ' }}] Zipper Bag</td>
+                    </tr>
+                    <tr>
+                        <td>Sample Collection for:</td>
+                        <td class="wide-cell">[{{ stripos($collectionForText, 'Micro') !== false ? 'x' : ' ' }}] Micro Lab [{{ stripos($collectionForText, 'Chemistry') !== false ? 'x' : ' ' }}] Chemistry Lab</td>
+                    </tr>
+                </table>
 
-        <section class="label-card" aria-label="Registration Label">
-            <header class="label-head">
-                <div class="label-head-logo">
-                    @if ($logoSrc)
-                        <img src="{{ $logoSrc }}" alt="Company logo">
-                    @endif
-                </div>
-                <div class="label-head-title">Registration Label with barcode</div>
-            </header>
+                @if ($barcodeValue !== '')
+                    <div class="barcode-wrap">
+                        {!! DNS1D::getBarcodeSVG($barcodeValue, 'C128') !!}
+                        <div class="barcode-text">{{ $barcodeValue }}</div>
+                    </div>
+                @endif
+            </section>
+        @else
+            <section class="label-card" aria-label="Registration Label">
+                <header class="label-head">
+                    <div class="label-head-logo">
+                        @if ($logoSrc)
+                            <img src="{{ $logoSrc }}" alt="Company logo">
+                        @endif
+                    </div>
+                    <div class="label-head-title">Registration Label with barcode</div>
+                </header>
 
-            <table class="label-table" role="presentation">
-                <tr>
-                    <td>Job ID</td>
-                    <td class="wide-cell">{{ $jobNumber }}</td>
-                </tr>
-                <tr>
-                    <td>Sample ID</td>
-                    <td class="wide-cell">{{ $sampleId }}</td>
-                </tr>
-                <tr>
-                    <td>Sample Description</td>
-                    <td class="wide-cell">{{ $sampleDescription }}</td>
-                </tr>
-                <tr>
-                    <td>Date &amp; Time of Collection:</td>
-                    <td class="wide-cell">{{ $normalizedDateTime }}</td>
-                </tr>
-                <tr>
-                    <td>Test Requirement</td>
-                    <td class="wide-cell">{{ $testRequirement }}</td>
-                </tr>
-            </table>
+                <table class="label-table" role="presentation">
+                    <tr>
+                        <td>Job ID</td>
+                        <td class="wide-cell">{{ $jobNumber }}</td>
+                    </tr>
+                    <tr>
+                        <td>Sample ID</td>
+                        <td class="wide-cell">{{ $sampleId }}</td>
+                    </tr>
+                    <tr>
+                        <td>Sample Description</td>
+                        <td class="wide-cell">{{ $sampleDescription }}</td>
+                    </tr>
+                    <tr>
+                        <td>Date &amp; Time of Collection:</td>
+                        <td class="wide-cell">{{ $normalizedDateTime }}</td>
+                    </tr>
+                    <tr>
+                        <td>Test Requirement</td>
+                        <td class="wide-cell">{{ $testRequirement }}</td>
+                    </tr>
+                </table>
 
-            @if ($barcodeValue !== '')
-                <div class="barcode-wrap">
-                    {!! DNS1D::getBarcodeSVG($barcodeValue, 'C128') !!}
-                    <div class="barcode-text">{{ $barcodeValue }}</div>
-                </div>
-            @endif
-        </section>
+                @if ($barcodeValue !== '')
+                    <div class="barcode-wrap">
+                        {!! DNS1D::getBarcodeSVG($barcodeValue, 'C128') !!}
+                        <div class="barcode-text">{{ $barcodeValue }}</div>
+                    </div>
+                @endif
+            </section>
+        @endif
     </main>
 </body>
 </html>

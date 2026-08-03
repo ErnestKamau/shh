@@ -35,6 +35,8 @@ class CompanyManager extends Component
     public ?string $existingLogo = null;
     public $faviconFile = null;
     public ?string $existingFavicon = null;
+    public $watermarkFile = null;
+    public ?string $existingWatermark = null;
     public array $reportLogos = [];
     public array $reportLogosToDelete = [];
 
@@ -112,6 +114,8 @@ class CompanyManager extends Component
         $this->existingLogo = $company->logo;
         $this->faviconFile = null;
         $this->existingFavicon = $company->favicon;
+        $this->watermarkFile = null;
+        $this->existingWatermark = $company->watermark;
         
         $this->reportLogos = $company->reportLogos->map(function ($logo) {
             $path = (string) ($logo->logo_path ?? '');
@@ -164,6 +168,7 @@ class CompanyManager extends Component
             'fax' => ['nullable', 'string', 'max:255'],
             'logoFile' => ['nullable', 'image', 'max:5120'],
             'faviconFile' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,ico,gif,webp', 'max:2048'],
+            'watermarkFile' => ['nullable', 'image', 'max:5120'],
             'reportLogos.*.name' => ['required', 'string', 'max:255'],
             'reportLogos.*.file' => ['nullable', 'image', 'max:5120'],
             'maintenanceStartYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
@@ -201,6 +206,10 @@ class CompanyManager extends Component
 
         if ($this->faviconFile) {
             $company->favicon = '/storage/' . $this->faviconFile->store('companies/favicons', 'public');
+        }
+
+        if ($this->watermarkFile) {
+            $company->watermark = '/storage/' . $this->watermarkFile->store('companies/watermarks', 'public');
         }
 
         $company->save();
@@ -364,6 +373,8 @@ class CompanyManager extends Component
         $this->existingLogo = null;
         $this->faviconFile = null;
         $this->existingFavicon = null;
+        $this->watermarkFile = null;
+        $this->existingWatermark = null;
         $this->reportLogos = [];
         $this->reportLogosToDelete = [];
         $this->maintenanceStartYear = null;

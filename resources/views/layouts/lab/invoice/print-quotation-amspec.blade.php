@@ -9,14 +9,15 @@
         table { border-collapse: collapse; width: 100%; }
         .watermark {
             position: fixed;
-            top: 35%;
-            left: 15%;
-            width: 70%;
+            top: 50%;
+            left: 50%;
+            width: 55%;
             text-align: center;
-            opacity: 0.06;
+            opacity: 0.08;
             z-index: -1;
+            transform: translate(-50%, -50%) rotate(-35deg);
         }
-        .watermark img { max-width: 280px; max-height: 120px; }
+        .watermark img { max-width: 100%; max-height: 220px; }
         .logo-row td { vertical-align: middle; border: none; padding: 0 0 6px; }
         .logo-placeholder {
             border: 1px dashed #bbb;
@@ -66,7 +67,7 @@
         .terms-list { margin: 0; padding-left: 16px; font-size: 8.5px; line-height: 1.45; }
         .terms-list li { margin-bottom: 5px; }
         .closing { margin-top: 16px; font-size: 9px; line-height: 1.5; }
-        .signature-block { margin-top: 20px; font-size: 9px; line-height: 1.5; }
+        .signature-block { margin-top: 28px; margin-bottom: 48px; font-size: 9px; line-height: 1.5; }
         .qr-cell { width: 55px; }
     </style>
 </head>

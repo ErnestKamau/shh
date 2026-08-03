@@ -76,6 +76,7 @@ final class AmSpecQuotationPdfService
 
         $pdf = PDF::loadView('layouts.lab.invoice.print-quotation-amspec', $viewModel);
         $pdf->getDomPDF()->set_option('enable_php', true);
+        app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf, $viewModel['company'] ?? null);
         $pdf->save($directory.'/'.$filename);
 
         $header->upload_url = '/quotations/'.$customerName.'/'.$filename;
@@ -117,6 +118,8 @@ final class AmSpecQuotationPdfService
         ])));
 
         $logos = $this->resolveLogoPaths($company);
+        $watermark = app(\App\Services\Reports\ReportWatermarkService::class)->absolutePathFor($company)
+            ?? $logos['primary'];
 
         return [
             'header' => $header,
@@ -144,7 +147,7 @@ final class AmSpecQuotationPdfService
             'terms_url' => $this->resolveConfigValue('terms_url', 'https://www.amspecgroup.com/terms-conditions'),
             'logo_path' => $logos['primary'],
             'logo_secondary_path' => $logos['secondary'],
-            'watermark_path' => $logos['primary'],
+            'watermark_path' => $watermark,
             'qrcode' => '',
             'request_date_of_service' => $enquiry?->request_date_of_service,
             'service_priority' => $enquiry?->mode_of_service_priority ?? $enquiry?->priority,

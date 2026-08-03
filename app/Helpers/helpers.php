@@ -367,8 +367,12 @@ function getfrequency($frequency)
 		return 'Weekly';
 	} elseif ($frequency == 30) {
 		return 'Monthly';
+	} elseif ($frequency == 90) {
+		return 'Quarterly';
+	} elseif ($frequency == 180) {
+		return 'Semi Annually';
 	} elseif ($frequency == 365) {
-		return 'Annualy';
+		return 'Annually';
 	} else {
 		return '-';
 	}
@@ -1357,7 +1361,7 @@ function getUserEvents()
 			$query->whereNull('parent_id')
 			      ->orWhereColumn('id', 'parent_id')
 			      ->orWhere('is_routine', '!=', 1)
-			      ->orWhereNotIn('frequency', [1, 7, 30]);
+			      ->orWhere('status', '!=', 'Pending');
 		})
 		->get();
 }

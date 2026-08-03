@@ -133,7 +133,7 @@
                                         <th colspan="{{ $mandatoryFields->count() }}" class="bg-light text-warning font-weight-bold border-bottom">Mandatory Fields</th>
                                     @endif
                                     @php
-                                        $tabularSteps = $formulaSteps->whereIn('step_type', ['input', 'dataset', 'checkbox', 'derived', 'lookup'])->sortBy('step_number');
+                                        $tabularSteps = $formulaSteps->whereIn('step_type', ['input', 'dataset', 'checkbox', 'derived', 'lookup', 'parameter_result'])->sortBy('step_number');
                                     @endphp
                                     @if($tabularSteps->isNotEmpty())
                                         <th colspan="{{ $tabularSteps->count() }}" class="bg-light text-info font-weight-bold border-bottom">Formula Steps &amp; Measurands</th>
@@ -253,6 +253,24 @@
                                                     <span class="badge {{ $hasVal ? 'badge-success' : 'badge-light border' }} p-2">
                                                         {{ $val !== '' ? $val : '—' }}
                                                     </span>
+                                                @elseif($stepType === 'parameter_result')
+                                                    @php
+                                                        $prAnalytes = $this->analytesForParameterResultStep($step);
+                                                    @endphp
+                                                    <div class="d-flex flex-column gap-1 text-left">
+                                                        @forelse($prAnalytes as $prAnalyte)
+                                                            <div>
+                                                                <label class="small text-muted mb-0 d-block">{{ $prAnalyte->name }}</label>
+                                                                <input type="text"
+                                                                       class="form-control form-control-sm fws-input text-center"
+                                                                       placeholder="—"
+                                                                       wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.steps.{{ $stepId }}.{{ $prAnalyte->id }}"
+                                                                       wire:blur="saveWorksheet('{{ $crId }}')">
+                                                            </div>
+                                                        @empty
+                                                            <span class="text-muted small">No analytes</span>
+                                                        @endforelse
+                                                    </div>
                                                 @else
                                                     —
                                                 @endif
@@ -298,7 +316,7 @@
             {{-- ── Section 2: Formula steps in execution order ───────────────────────── --}}
             @php
                 $execSteps = $formulaSteps
-                    ->whereIn('step_type', ['input', 'dataset', 'checkbox', 'derived', 'lookup', 'static_text'])
+                    ->whereIn('step_type', ['input', 'dataset', 'checkbox', 'derived', 'lookup', 'static_text', 'parameter_result'])
                     ->sortBy('step_number');
                 $hasExecSteps = $execSteps->isNotEmpty();
             @endphp
@@ -318,6 +336,7 @@
                         $fieldSteps = $execSteps->whereIn('step_type', $fieldStepTypes);
                         $textSteps  = $execSteps->where('step_type', 'static_text');
                         $cbSteps    = $execSteps->where('step_type', 'checkbox');
+                        $uniqueSamplesForParameterResults = $capturedResults->unique('sample_detail_id')->values();
                     @endphp
 
                     {{-- Render all steps in strict step_number order --}}
@@ -343,6 +362,47 @@
                             @if($loop->last || !in_array($execSteps->get($loop->index + 1)?->step_type ?? '', ['input','dataset']))
                             </div>
                             @endif
+
+                        {{-- ─ PARAMETER RESULT ─ --}}
+                        @elseif($step->step_type === 'parameter_result')
+                            @php
+                                $prAnalytes = $this->analytesForParameterResultStep($step);
+                            @endphp
+                            <div class="fws-checkbox-block mb-4" wire:key="pr-{{ $step->id }}">
+                                <div class="fws-step-group-label">
+                                    <i class="mdi mdi-flask-outline"></i> {{ $step->label }}
+                                    <span class="fws-type-pill fws-type-pill--input">PARAMETER RESULT</span>
+                                </div>
+                                @if($step->description)
+                                    <p class="text-muted small mb-3">{{ $step->description }}</p>
+                                @endif
+                                @forelse($uniqueSamplesForParameterResults as $sampleCaptured)
+                                    @php
+                                        $prCrId = (string) $sampleCaptured->id;
+                                        $sampleCode = $sampleCaptured->sample->sample_code ?? 'Sample';
+                                    @endphp
+                                    <div class="mb-3" wire:key="pr-sample-{{ $step->id }}-{{ $prCrId }}">
+                                        <div class="small font-weight-bold text-muted mb-2">{{ $sampleCode }}</div>
+                                        <div class="row g-3">
+                                            @forelse($prAnalytes as $prAnalyte)
+                                                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                                                    <label class="fws-label">{{ $prAnalyte->name }}
+                                                        <span class="text-muted small">({{ $prAnalyte->code }})</span>
+                                                    </label>
+                                                    <input type="text"
+                                                           class="form-control form-control-sm fws-input"
+                                                           wire:model.live.debounce.500ms="worksheetData.{{ $prCrId }}.steps.{{ $step->id }}.{{ $prAnalyte->id }}"
+                                                           placeholder="Enter result">
+                                                </div>
+                                            @empty
+                                                <div class="col-12"><p class="text-muted small mb-0">No analytes configured.</p></div>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-muted small mb-0">No samples on this worksheet.</p>
+                                @endforelse
+                            </div>
 
                         {{-- ─ CHECKBOX ─ --}}
                         @elseif($step->step_type === 'checkbox')

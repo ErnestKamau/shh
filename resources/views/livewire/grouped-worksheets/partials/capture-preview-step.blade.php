@@ -49,6 +49,22 @@
                 </div>
                 @break
 
+            @case('parameter_result')
+                @php
+                    $prAnalyteIds = $field['analyte_ids'] ?? [];
+                    $prCount = is_array($prAnalyteIds) ? count($prAnalyteIds) : 0;
+                @endphp
+                <div class="gw-field gw-field--result">
+                    <i class="mdi mdi-flask-outline gw-field__icon"></i>
+                    <span class="gw-field__placeholder">
+                        {{ $field['placeholder'] ?? 'Enter result…' }}
+                        @if($prCount > 0)
+                            · {{ $prCount }} analyte{{ $prCount === 1 ? '' : 's' }}
+                        @endif
+                    </span>
+                </div>
+                @break
+
             @case('checkbox')
                 @php
                     $options  = $field['options'] ?? [];

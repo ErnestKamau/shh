@@ -110,6 +110,7 @@
     </style>
 </head>
 <body>
+@include('partials.report-watermark', ['company' => $company ?? null, 'forPdf' => true])
 
     @php
         $isCriminal = false;

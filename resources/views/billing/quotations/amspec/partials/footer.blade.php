@@ -6,8 +6,8 @@
 <div class="amspec-footer-wrap">
     <table class="amspec-footer" width="100%" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
         <tr>
-            <td class="amspec-footer-text" @if($isPdf) width="88%" @endif>
-                <p class="amspec-footer-disclaimer">
+            <td class="amspec-footer-text" @if($isPdf) width="88%" style="text-align: left; vertical-align: middle;" @endif>
+                <p class="amspec-footer-disclaimer" @if($isPdf) style="text-align: left; font-size: 6pt; line-height: 1.25; margin: 0;" @endif>
                     This document is issued by the Company subject to the Terms and Conditions at
                     @if($termsUrl !== '')
                         <a href="{{ $termsUrl }}" style="color: {{ $primaryColor }};" target="_blank" rel="noopener">{{ $termsUrl }}</a>.

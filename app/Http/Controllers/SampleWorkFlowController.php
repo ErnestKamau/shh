@@ -6593,6 +6593,10 @@ class SampleWorkFlowController extends Controller
             $dompdf->set_option('isFontSubsettingEnabled', true);
             $pdf->setPaper('a4', 'portrait');
 
+            // DomPDF 3 page_script paints immediately onto existing pages — render first.
+            $pdf->render();
+            app(\App\Services\Reports\ReportWatermarkService::class)->applyToDompdf($dompdf);
+
             if ($isPreviewPdf) {
                 $this->applyTestRequestReportPreviewWatermark($dompdf);
             }
@@ -6697,7 +6701,7 @@ class SampleWorkFlowController extends Controller
             $x = ($pageWidth - $textWidth) / 2;
             $y = $pageHeight / 2;
 
-            $canvas->set_opacity(0.22);
+            $canvas->set_opacity(0.12);
             $canvas->text($x, $y, $text, $font, $size, $color, 0.0, 0.0, $angle);
             $canvas->set_opacity(1.0);
         });

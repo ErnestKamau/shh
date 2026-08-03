@@ -160,6 +160,8 @@
 			$labWorkflowStatus = is_string($labRouteStatus) ? trim(urldecode($labRouteStatus)) : '';
 			$isLabDashboardActive = request()->routeIs('dashboard-lab');
 			$isLabPersonalDashboardActive = request()->routeIs('dashboard-lab-personal');
+			$isFinalisedQuotesActive = request()->routeIs('quotation-index')
+				&& request()->route('stage') === 'Quote Complete';
 			$isInSampleWorkflow = request()->routeIs(
 				'dashboard-lab-personal',
 				'sample-workflow',
@@ -173,7 +175,7 @@
 				'submission-forms.instances.*',
 				'lab.submission-requests.*',
 				'sample-workflow.submission-requests.*'
-			);
+			) || $isFinalisedQuotesActive;
 			$isWorkflowKpisActive = request()->routeIs('sample-workflow.kpis', 'lab-reports-home');
 			$isRequestForTestingActive = request()->routeIs('sample-workflow.request-for-testing', 'sample-workflow.request-for-testing.fill');
 			$isSampleWorkflowStageActive = static function (string $stage) use ($labWorkflowStatus, $labRouteName): bool {
@@ -203,7 +205,7 @@
 				</div>
 			</a>
 			@endif
-			@if($canAllSamples || $canInterLabLogs)
+			@if($canAllSamples || $canInterLabLogs || $canQuotation)
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="{{ $isInSampleWorkflow ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInSampleWorkflow ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
@@ -228,6 +230,15 @@
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.personal_dashboard') }}</span>
 					</div>
 				</a>
+				@endif
+				@if($canQuotation)
+				<a href="{{ route('quotation-index', ['stage' => 'Quote Complete']) }}" class="list-group-item list-group-item-action {{ $isFinalisedQuotesActive ? 'active' : '' }}">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.finalised_quotes') }}</span>
+					</div>
+				</a>
+				@endif
+				@if($canAllSamples)
 				<a href="{{ route('sample-workflow', ['status' => 'All Samples']) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive('All Samples') ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed">
@@ -342,10 +353,6 @@
 				</a>
 				<a href="{{route('quotation-index',['stage'=>'Quote In Preparation'])}}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.quotes_in_preparation') }}
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				<a href="{{route('quotation-index',['stage'=>'Quote Complete'])}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.finalised_quotes') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 			</div>

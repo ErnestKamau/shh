@@ -2724,12 +2724,6 @@
         });
         @endif
 
-        @if(\Session::has('success') || \Session::has('error'))
-        setTimeout(() => {
-            $('#message-section').slideUp(600);
-        }, 10000);
-        @endif
-
         $('#main-body-content').on('click', '#main-sidebar-toggler', function() {
             $("#main-sidebar").toggleClass('close');
         });
@@ -2823,6 +2817,7 @@
     });
 </script>
 <script src="{{ asset('js/method-sequences.js') }}"></script>
+@include('partials.toast-notifications')
 @yield('script')
 @stack('scripts')
 @livewireScripts

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Portal\Submissions\PortalSubmissionOptionsController;
 use App\Http\Controllers\Api\Portal\Submissions\SubmissionFormController;
 use App\Http\Controllers\Api\Portal\Submissions\SubmissionFormInstanceController;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,10 +14,14 @@ use Illuminate\Support\Facades\Route;
 | Authenticated via PORTAL_GATEWAY_API_KEY (Bearer token or X-Portal-Gateway-Key).
 | Customer scoping via X-CRM-Customer-Id (required for instance list/show/submit/delete).
 |
+| Gateway traffic is server-to-server from a shared IP, so the default API
+| throttle:60,1 would rate-limit the entire portal.
+|
 */
 
 Route::prefix('v1/portal/submissions')
     ->middleware(['portal.gateway'])
+    ->withoutMiddleware([ThrottleRequests::class])
     ->group(function (): void {
         Route::get('/forms', [SubmissionFormController::class, 'index'])->name('api.portal.submissions.forms.index');
         Route::get('/forms/customer-request', [SubmissionFormController::class, 'customerRequest'])

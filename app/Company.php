@@ -21,6 +21,7 @@ class Company extends Model implements Auditable
         'logo',
         'favicon',
         'report_logo',
+        'watermark',
         'location',
         'address',
         'country_id',

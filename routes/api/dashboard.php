@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Dashboard\DashboardController;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -11,10 +12,15 @@ use Illuminate\Support\Facades\Route;
 | Authenticated via PORTAL_GATEWAY_API_KEY (Bearer token or X-Portal-Gateway-Key).
 | Customer scoping: route {customer_id} MUST match X-CRM-Customer-Id header.
 |
+| Gateway traffic is server-to-server from a shared IP, so the default API
+| throttle:60,1 would rate-limit the entire portal. Portal.gateway auth is
+| the protection boundary for these routes.
+|
 */
 
 Route::prefix('v1/dashboard')
     ->middleware(['portal.gateway'])
+    ->withoutMiddleware([ThrottleRequests::class])
     ->group(function (): void {
         Route::get('{customer_id}', [DashboardController::class, 'show'])
             ->name('api.dashboard.show');
