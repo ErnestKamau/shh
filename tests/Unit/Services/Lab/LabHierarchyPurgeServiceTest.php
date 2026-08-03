@@ -95,4 +95,54 @@ class LabHierarchyPurgeServiceTest extends TestCase
         $this->assertDatabaseMissing('submission_form_instances', ['id' => $instance->id]);
         $this->assertDatabaseMissing('sample_submission_requests', ['id' => $enquiry->id]);
     }
+
+    public function test_purge_analysis_types_for_company_also_removes_sample_types(): void
+    {
+        $companyId = (string) Str::uuid();
+
+        $sampleType = SampleType::query()->create([
+            'code' => 'PURGE-AT-ST',
+            'name' => 'Purge AT Sample Type',
+            'company_id' => $companyId,
+            'active' => 1,
+        ]);
+
+        $keptSampleType = SampleType::query()->create([
+            'code' => 'KEEP-ST',
+            'name' => 'Keep Sample Type',
+            'company_id' => (string) Str::uuid(),
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'code' => 'PURGE-AT-ONLY',
+            'name' => 'Purge Analysis Type Only',
+            'company_id' => $companyId,
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $analyte = Analyte::query()->create([
+            'code' => 'PURGE-AT-AN',
+            'name' => 'Kept Analyte',
+            'company_id' => $companyId,
+            'active' => 1,
+        ]);
+
+        AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'active' => 1,
+        ]);
+
+        $summary = app(LabHierarchyPurgeService::class)->purgeAnalysisTypesForCompany($companyId);
+
+        $this->assertSame(1, $summary['sample_types']);
+        $this->assertSame(1, $summary['sample_types_deleted']);
+        $this->assertSame(1, $summary['analysis_types_deleted']);
+        $this->assertSame(0, SampleType::query()->where('company_id', $companyId)->count());
+        $this->assertSame(0, AnalysisType::query()->where('company_id', $companyId)->count());
+        $this->assertSame(1, SampleType::query()->whereKey($keptSampleType->id)->count());
+        $this->assertSame(1, Analyte::query()->where('company_id', $companyId)->count());
+    }
 }

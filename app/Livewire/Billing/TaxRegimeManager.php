@@ -77,7 +77,7 @@ class TaxRegimeManager extends Component
         $this->showTaxModal = true;
     }
 
-    public function showEditTaxModal($taxId): void
+    public function showEditTaxModal(string $taxId): void
     {
         $tax = TaxRegime::findOrFail($taxId);
         
@@ -143,7 +143,7 @@ class TaxRegimeManager extends Component
         }
     }
 
-    public function toggleStatus($taxId): void
+    public function toggleStatus(string $taxId): void
     {
         try {
             $tax = TaxRegime::findOrFail($taxId);

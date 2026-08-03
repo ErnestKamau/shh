@@ -185,7 +185,7 @@ class BulkImportWizard extends Component
     {
         return match ($this->selectedFormType) {
             'analysis_method' => 'DELETE ALL METHODS',
-            'analysis_type' => 'DELETE ALL ANALYSIS TYPES',
+            'analysis_type' => 'DELETE ALL SAMPLE AND ANALYSIS TYPES',
             'analyte' => 'DELETE ALL ANALYTES',
             'amspec_parameters', 'lab_hierarchy' => 'DELETE ALL LAB DATA',
             default => 'CONFIRM REPLACE',

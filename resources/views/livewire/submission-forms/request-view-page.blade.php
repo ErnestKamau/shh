@@ -417,6 +417,7 @@
     });
 
     let requestViewQuotationPad = null;
+    let requestViewQuotationPadToken = 0;
 
     function ensureSignaturePadLoaded() {
         if (typeof SignaturePad !== 'undefined') {
@@ -436,46 +437,70 @@
         return window.__signaturePadLoader;
     }
 
-    function applyRequestViewQuotationSignature(signature) {
-        if (!requestViewQuotationPad) {
+    function sizeRequestViewQuotationCanvas(canvas) {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const width = Math.max(canvas.clientWidth || canvas.offsetWidth || 0, 1);
+        const height = Math.max(canvas.clientHeight || canvas.offsetHeight || 160, 1);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        canvas.width = Math.floor(width * ratio);
+        canvas.height = Math.floor(height * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+
+    async function applyRequestViewQuotationSignature(signature, token) {
+        if (!requestViewQuotationPad || token !== requestViewQuotationPadToken) {
             return;
         }
 
         requestViewQuotationPad.clear();
         if (signature && String(signature).startsWith('data:image/')) {
             try {
-                requestViewQuotationPad.fromDataURL(String(signature));
+                await requestViewQuotationPad.fromDataURL(String(signature));
             } catch (e) {}
         }
     }
 
-    function initRequestViewQuotationPad(initialSignature) {
+    async function initRequestViewQuotationPad(initialSignature) {
         const canvas = document.getElementById('request-view-quotation-acceptance-canvas');
         const clearBtn = document.getElementById('request-view-quotation-acceptance-clear');
         if (!canvas || typeof SignaturePad === 'undefined') {
             return;
         }
 
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
+        const token = ++requestViewQuotationPadToken;
+        const existingStrokeData = (requestViewQuotationPad && !requestViewQuotationPad.isEmpty())
+            ? requestViewQuotationPad.toData()
+            : null;
 
-        requestViewQuotationPad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+        sizeRequestViewQuotationCanvas(canvas);
+        requestViewQuotationPad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255,255,255)',
+            penColor: 'rgb(0,0,0)',
+        });
 
         if (clearBtn) {
             clearBtn.onclick = function () {
+                if (!requestViewQuotationPad) {
+                    return;
+                }
                 requestViewQuotationPad.clear();
             };
         }
 
-        applyRequestViewQuotationSignature(initialSignature || '');
+        if (existingStrokeData && existingStrokeData.length) {
+            try {
+                requestViewQuotationPad.fromData(existingStrokeData);
+            } catch (e) {}
+            return;
+        }
+
+        await applyRequestViewQuotationSignature(initialSignature || '', token);
     }
 
     Livewire.on('quotation-acceptance-modal-opened', (payload) => {
         const data = payload?.detail ?? payload ?? {};
         const signature = data.signature ?? data[0]?.signature ?? '';
-        requestViewQuotationPad = null;
         ensureSignaturePadLoaded()
             .then(() => setTimeout(() => initRequestViewQuotationPad(signature), 250))
             .catch(() => {});
@@ -484,7 +509,8 @@
     Livewire.on('quotation-acceptance-signature-changed', (payload) => {
         const data = payload?.detail ?? payload ?? {};
         const signature = data.signature ?? data[0]?.signature ?? '';
-        setTimeout(() => applyRequestViewQuotationSignature(signature), 50);
+        const token = requestViewQuotationPadToken;
+        setTimeout(() => applyRequestViewQuotationSignature(signature, token), 50);
     });
 
     document.addEventListener('click', (e) => {

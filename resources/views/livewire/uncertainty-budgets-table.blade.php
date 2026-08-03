@@ -297,17 +297,18 @@
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ route('uncertainty-budgets.show', $budget->id) }}" 
-                                           class="btn btn-outline-primary" title="View Details">
+                                    <div class="uncertainty-actions d-inline-flex align-items-center justify-content-center">
+                                        <a href="{{ route('uncertainty-budgets.show', $budget->id) }}"
+                                           class="btn btn-sm btn-outline-primary uncertainty-action-btn" title="View Details">
                                             <i class="mdi mdi-eye"></i>
                                         </a>
-                                        <a href="{{ route('uncertainty-budgets.edit', $budget->id) }}" 
-                                           class="btn btn-outline-secondary" title="Edit">
+                                        <a href="{{ route('uncertainty-budgets.edit', $budget->id) }}"
+                                           class="btn btn-sm btn-outline-info uncertainty-action-btn" title="Edit">
                                             <i class="mdi mdi-pencil"></i>
                                         </a>
-                                        <button wire:click="delete({{ $budget->id }})" 
-                                                class="btn btn-outline-danger" title="Deactivate"
+                                        <button type="button"
+                                                wire:click="delete('{{ $budget->id }}')"
+                                                class="btn btn-sm btn-outline-danger uncertainty-action-btn" title="Deactivate"
                                                 onclick="return confirm('Are you sure you want to deactivate this budget?')">
                                             <i class="mdi mdi-delete"></i>
                                         </button>
@@ -484,27 +485,35 @@
             font-weight: 600;
         }
         
-        /* Button group styling */
-        .btn-group-sm > .btn,
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
+        .uncertainty-actions {
+            gap: 0.4rem;
         }
-        
-        
+
+        .uncertainty-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            padding: 0;
+            border-radius: 0.35rem;
+            line-height: 1;
+        }
+
+        .uncertainty-action-btn .mdi {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .table-responsive {
                 font-size: 0.875rem;
             }
-            
-            .btn-group {
+
+            .uncertainty-actions {
                 flex-direction: column;
-            }
-            
-            .btn-group .btn {
-                border-radius: 0.25rem !important;
-                margin-bottom: 0.25rem;
+                gap: 0.3rem;
             }
         }
     </style>

@@ -786,18 +786,7 @@ class QuotationController extends Controller
 
     public function previewQuotation(string $id)
     {
-        $header = QuotationHeader::findOrFail($id);
-        AmSpecQuotationNumberGenerator::assignIfMissing($header);
-        $header = $header->fresh();
-
-        if ($header->details()->count() === 0) {
-            return redirect()->back()->with('error', 'Add at least one line item before previewing the quotation.');
-        }
-
-        $this->recalculateQuotationTotals($header);
-        $data = $this->quotationReportService->buildViewData($header->fresh());
-
-        return view('billing.quotations.amspec.preview', $data);
+        return $this->streamQuotationPdf($id);
     }
 
     public function publicReportView(string $id, string $token)

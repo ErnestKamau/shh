@@ -58,14 +58,11 @@ final class LabHierarchyPurgeService
     }
 
     /**
-     * Replace Analysis Type import context: remove only Analysis Elements / parameters
-     * under the company's Analysis Types. Sample Types, Analysis Types, and Analytes stay.
+     * Replace Sample Types & Analysis Types import: delete Sample Types, Analysis Types,
+     * and Analysis Parameters under them. Analytes and Labs are kept.
      *
-     * @return array<string, int>
-     */
-    /**
-     * Replace Analysis Types: delete Analysis Types and their Analysis Parameters
-     * (elements). Sample Types, Analytes, and Labs are kept.
+     * Sample headers that reference the company's sample types are removed (sample_type_id
+     * is NOT NULL), along with their batch/result trees. The wider request pipeline is not wiped.
      *
      * @return array<string, int>
      */
@@ -74,53 +71,30 @@ final class LabHierarchyPurgeService
         $summary = [];
 
         DB::transaction(function () use ($companyId, &$summary): void {
+            $sampleTypeIds = SampleType::query()
+                ->where('company_id', $companyId)
+                ->pluck('id');
+
             $analysisTypeIds = AnalysisType::query()
                 ->where('company_id', $companyId)
                 ->pluck('id');
 
-            $summary['analysis_types'] = $analysisTypeIds->count();
+            $analysisElementIds = $analysisTypeIds->isEmpty()
+                ? collect()
+                : AnalysisElements::query()
+                    ->whereIn('analysis_type_id', $analysisTypeIds)
+                    ->pluck('id');
 
-            if ($analysisTypeIds->isEmpty()) {
-                $summary['analysis_elements'] = 0;
-                $summary['analysis_elements_deleted'] = 0;
-                $summary['analysis_types_deleted'] = 0;
-
-                return;
-            }
-
-            $analysisTypeIdList = $analysisTypeIds->all();
-            $analysisElementIds = AnalysisElements::query()
-                ->whereIn('analysis_type_id', $analysisTypeIdList)
-                ->pluck('id');
-
-            $summary['analysis_elements'] = $analysisElementIds->count();
-
-            if ($analysisElementIds->isNotEmpty()) {
-                $elementIdList = $analysisElementIds->all();
-                $this->deleteWhereIn('pricelist_item_elements', 'analysis_element_id', $elementIdList);
-                $this->deleteWhereIn('pricelist_items', 'analysis_element_id', $elementIdList);
-                $this->deleteWhereIn('subcontracting_dispatch_assignments', 'analysis_element_id', $elementIdList);
-                $this->deleteWhereIn('sample_submission_request_requested_analyses', 'analysis_element_id', $elementIdList);
-                $this->deleteWhereIn('analysis_acceptance_form_lines', 'analysis_element_id', $elementIdList);
-            }
-
-            $summary['analysis_guides'] = $this->deleteWhereIn('analysis_guides', 'analysis_type_id', $analysisTypeIdList);
-            $this->deleteWhereIn('qc_processed_result', 'analysis_type_id', $analysisTypeIdList);
-            $this->deleteWhereIn('qc_results', 'analysis_type_id', $analysisTypeIdList);
-            $this->deleteWhereIn('analysis_type_invoicable_item', 'analysis_type_id', $analysisTypeIdList);
-            $this->deleteWhereIn('sample_analysis_type_relation', 'analysis_type_id', $analysisTypeIdList);
-
-            if (Schema::hasTable('analysis_type_lab_relation')) {
-                $this->deleteWhereIn('analysis_type_lab_relation', 'analysis_type_id', $analysisTypeIdList);
-            }
-
-            $summary['analysis_elements_deleted'] = AnalysisElements::query()
-                ->whereIn('analysis_type_id', $analysisTypeIdList)
-                ->delete();
-
-            $summary['analysis_types_deleted'] = AnalysisType::query()
-                ->where('company_id', $companyId)
-                ->delete();
+            // Keep analytes; only purge sample/analysis hierarchy for this company.
+            $this->purgeHierarchyGraph(
+                $companyId,
+                $sampleTypeIds,
+                $analysisTypeIds,
+                collect(),
+                $analysisElementIds,
+                $summary,
+                includeRequestPipeline: false,
+            );
         });
 
         return $summary;
@@ -709,10 +683,24 @@ final class LabHierarchyPurgeService
             $this->deleteWhereIn('sampletype_sample_point_relation', 'sample_type_id', $sampleTypeIdList);
             $this->deleteWhereIn('sampletype_area_relation', 'sample_type_id', $sampleTypeIdList);
             $this->deleteWhereIn('qc_processed_result', 'sample_type_id', $sampleTypeIdList);
+            $this->deleteWhereIn('analysis_acceptance_form_lines', 'sample_type_id', $sampleTypeIdList);
+            $this->deleteWhereIn('sample_submission_request_requested_analyses', 'sample_type_id', $sampleTypeIdList);
+
+            // stage_headers.sample_type_id is ON DELETE NO ACTION (nullable).
+            if (Schema::hasTable('stage_headers') && Schema::hasColumn('stage_headers', 'sample_type_id')) {
+                DB::table('stage_headers')
+                    ->whereIn('sample_type_id', $sampleTypeIdList)
+                    ->update(['sample_type_id' => null]);
+            }
         }
 
         if ($analysisElementIds->isNotEmpty()) {
-            $this->deleteWhereIn('pricelist_items', 'analysis_element_id', $analysisElementIds->all());
+            $elementIdList = $analysisElementIds->all();
+            $this->deleteWhereIn('pricelist_item_elements', 'analysis_element_id', $elementIdList);
+            $this->deleteWhereIn('pricelist_items', 'analysis_element_id', $elementIdList);
+            $this->deleteWhereIn('subcontracting_dispatch_assignments', 'analysis_element_id', $elementIdList);
+            $this->deleteWhereIn('sample_submission_request_requested_analyses', 'analysis_element_id', $elementIdList);
+            $this->deleteWhereIn('analysis_acceptance_form_lines', 'analysis_element_id', $elementIdList);
         }
 
         if ($analysisTypeIds->isNotEmpty()) {
@@ -721,6 +709,7 @@ final class LabHierarchyPurgeService
             $this->deleteWhereIn('qc_processed_result', 'analysis_type_id', $analysisTypeIdList);
             $this->deleteWhereIn('qc_results', 'analysis_type_id', $analysisTypeIdList);
             $this->deleteWhereIn('analysis_type_invoicable_item', 'analysis_type_id', $analysisTypeIdList);
+            $this->deleteWhereIn('sample_analysis_type_relation', 'analysis_type_id', $analysisTypeIdList);
 
             if (Schema::hasTable('analysis_type_lab_relation')) {
                 $this->deleteWhereIn('analysis_type_lab_relation', 'analysis_type_id', $analysisTypeIdList);

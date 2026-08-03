@@ -5,16 +5,13 @@ namespace App\Livewire\Sampleworkflow;
 use App\Lab;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
-use App\SampleHeader;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
-use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -42,27 +39,6 @@ class DispatchSubcontractRequest extends Component
 
     /** @var array<int, array{id: string, label: string, analysis_type: string}> */
     public array $subcontractedTests = [];
-
-    /**
-     * In-house (Amspec) tests that still need analyst assignment.
-     *
-     * @var list<array{id: string, label: string, analysis_type: string, lab_section_id: ?string, lab_section_name: string}>
-     */
-    public array $inHouseTests = [];
-
-    /**
-     * Distinct lab sections for in-house analyst assignment.
-     *
-     * @var list<array{id: string, name: string, test_ids: list<string>, test_labels: list<string>}>
-     */
-    public array $inHouseLabSections = [];
-
-    /**
-     * lab_section_id => list of analyst user ids.
-     *
-     * @var array<string, array<int, string>>
-     */
-    public array $analystsByLabSection = [];
 
     /**
      * lab_id => list of analysis_element_ids assigned to that lab.
@@ -96,9 +72,6 @@ class DispatchSubcontractRequest extends Component
         $this->selectedFormInstanceId = null;
         $this->selectedLabIds = [];
         $this->subcontractedTests = [];
-        $this->inHouseTests = [];
-        $this->inHouseLabSections = [];
-        $this->analystsByLabSection = [];
         $this->labTestIds = [];
         $this->resetValidation();
 
@@ -119,13 +92,6 @@ class DispatchSubcontractRequest extends Component
                     $enquiry = $instance->sampleSubmissionRequest;
                     $assignmentService = app(SubcontractingAssignmentService::class);
                     $this->subcontractedTests = $assignmentService->resolveSubcontractedTests($enquiry);
-                    $this->inHouseTests = $assignmentService->resolveInHouseTests($enquiry);
-                    $this->inHouseLabSections = $assignmentService->resolveInHouseLabSections($enquiry);
-                    $this->analystsByLabSection = collect($this->inHouseLabSections)
-                        ->mapWithKeys(fn (array $section): array => [
-                            (string) $section['id'] => [],
-                        ])
-                        ->all();
 
                     $existing = $assignmentService->labByElementIdForRequest($enquiry);
 
@@ -219,38 +185,6 @@ class DispatchSubcontractRequest extends Component
         }
     }
 
-    public function toggleSectionAnalyst(string $labSectionId, string $userId): void
-    {
-        $labSectionId = trim($labSectionId);
-        $userId = trim($userId);
-        if ($labSectionId === '' || $userId === '') {
-            return;
-        }
-
-        $assigned = array_values(array_map(
-            'strval',
-            is_array($this->analystsByLabSection[$labSectionId] ?? null)
-                ? $this->analystsByLabSection[$labSectionId]
-                : []
-        ));
-
-        if (in_array($userId, $assigned, true)) {
-            $assigned = array_values(array_filter($assigned, fn (string $id) => $id !== $userId));
-        } else {
-            $assigned[] = $userId;
-        }
-
-        $this->analystsByLabSection[$labSectionId] = array_values(array_unique($assigned));
-    }
-
-    /**
-     * @return list<array{id: string, name: string}>
-     */
-    public function analystsForLabSection(string $labSectionId): array
-    {
-        return app(AcceptanceFormSampleConfigService::class)->analystsForLabSectionPicker($labSectionId);
-    }
-
     /**
      * @return array<int, array{id: string, label: string}>
      */
@@ -326,22 +260,6 @@ class DispatchSubcontractRequest extends Component
             }
         }
 
-        if ($this->inHouseLabSections !== []) {
-            foreach ($this->inHouseLabSections as $section) {
-                $sectionId = (string) ($section['id'] ?? '');
-                $assigned = array_filter($this->analystsByLabSection[$sectionId] ?? []);
-                if ($assigned === []) {
-                    $sectionName = (string) ($section['name'] ?? 'lab section');
-                    $this->addError(
-                        "analystsByLabSection.{$sectionId}",
-                        "Assign at least one Amspec analyst for {$sectionName}."
-                    );
-
-                    return;
-                }
-            }
-        }
-
         $user = Auth::user();
         if (! $user instanceof User) {
             $this->addError('selection', 'You must be signed in to dispatch a subcontracting request.');
@@ -374,30 +292,8 @@ class DispatchSubcontractRequest extends Component
         }
 
         $assignmentService = app(SubcontractingAssignmentService::class);
-        $configService = app(AcceptanceFormSampleConfigService::class);
-        $hasInHouseAssignments = $this->inHouseLabSections !== [];
-        $dispatchStatus = $hasInHouseAssignments
-            ? SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED_AND_ASSIGNED
-            : SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED;
-
-        $analystsBySection = [];
-        foreach ($this->analystsByLabSection as $sectionId => $analystIds) {
-            $sectionId = (string) $sectionId;
-            if ($sectionId === '' || ! Str::isUuid($sectionId) || ! is_array($analystIds)) {
-                continue;
-            }
-            $analystsBySection[$sectionId] = array_values(array_unique(array_filter(
-                array_map('strval', $analystIds),
-                fn (string $id) => $id !== '' && Str::isUuid($id)
-            )));
-        }
-
-        $pseudoConfigs = [[
-            'analysts_by_lab_section' => $analystsBySection,
-        ]];
-        $assignedAnalystIds = $configService->collectAssignedAnalystIds($pseudoConfigs);
-        $analystSectionAssignments = $configService->collectAnalystLabSectionAssignments($pseudoConfigs);
-        $leadAnalystId = $assignedAnalystIds[0] ?? null;
+        // Analyst assignment is done in Integrity Check; dispatch only records external labs.
+        $dispatchStatus = SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED_AND_ASSIGNED;
 
         DB::transaction(function () use (
             $instance,
@@ -406,11 +302,6 @@ class DispatchSubcontractRequest extends Component
             $selectedLabIds,
             $assignments,
             $dispatchStatus,
-            $assignedAnalystIds,
-            $leadAnalystId,
-            $analystSectionAssignments,
-            $analystsBySection,
-            $hasInHouseAssignments,
         ): void {
             $enquiry = $instance->sampleSubmissionRequest;
 
@@ -454,20 +345,15 @@ class DispatchSubcontractRequest extends Component
                     'status' => 'approved',
                     'reviewed_at' => $instance->reviewed_at ?? now(),
                     'reviewed_by' => $user->id,
-                    'review_notes' => $hasInHouseAssignments
-                        ? 'Subcontracting dispatch and in-house analyst assignment confirmed from Samples Receiving queue.'
-                        : 'Subcontracting dispatch confirmed from Samples Receiving queue.',
+                    'review_notes' => 'Subcontracting dispatch confirmed from Samples Receiving queue.',
                 ]);
 
                 $instance->logAction('subcontract_dispatched', $user, [
                     'status' => ['from' => $instance->getOriginal('status') ?: $instance->status, 'to' => 'approved'],
                     'labs' => $selectedLabIds->all(),
                     'assignments' => $assignments,
-                    'in_house_analysts_by_lab_section' => $analystsBySection,
                     'dispatch_status' => $dispatchStatus,
-                ], $hasInHouseAssignments
-                    ? 'Subcontracting dispatch and in-house analyst assignment confirmed.'
-                    : 'Subcontracting dispatch confirmed from Samples Receiving queue.');
+                ], 'Subcontracting dispatch confirmed from Samples Receiving queue.');
             }
 
             $hasExistingJob = ! empty($enquiry->sample_header_id)
@@ -493,9 +379,9 @@ class DispatchSubcontractRequest extends Component
                             'number_of_samples' => (int) ($prefill['number_of_samples'] ?? max(1, (int) ($enquiry->number_of_samples ?? 1))),
                             'mode_of_work' => $prefill['mode_of_work'] ?? 'Normal',
                             'date_of_sampling' => $prefill['date_of_sampling'] ?? null,
-                            'assigned_analyst_ids' => $assignedAnalystIds,
-                            'lead_analyst_id' => $leadAnalystId,
-                            'analyst_lab_section_assignments' => $analystSectionAssignments,
+                            'assigned_analyst_ids' => [],
+                            'lead_analyst_id' => null,
+                            'analyst_lab_section_assignments' => [],
                         ],
                         $lines,
                         (string) ($user->name ?? 'System Dispatch'),
@@ -514,29 +400,10 @@ class DispatchSubcontractRequest extends Component
 
             if ($sampleHeaderId !== '') {
                 $assignmentService->syncAssignmentsToSampleHeader($enquiry, $sampleHeaderId);
-
-                if ($assignedAnalystIds !== []) {
-                    $batch = SampleHeader::query()->find($sampleHeaderId);
-                    if ($batch !== null) {
-                        $acceptanceService->applyAnalystAssignmentsToBatch(
-                            $batch,
-                            $assignedAnalystIds,
-                            $leadAnalystId,
-                            $analystSectionAssignments,
-                            $analystsBySection,
-                            (string) ($batch->status ?: 'Samples In Lab'),
-                        );
-                    }
-                }
             }
         });
 
-        session()->flash(
-            'success',
-            $hasInHouseAssignments
-                ? 'Request dispatched to subcontracted lab(s) and in-house tests assigned to analysts.'
-                : 'Subcontracting request dispatched successfully.'
-        );
+        session()->flash('success', 'Subcontracting request dispatched successfully.');
         $this->dispatch('subcontract-dispatch-completed');
     }
 

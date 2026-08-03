@@ -246,21 +246,22 @@
 
                         @if ($selectedFormType === 'analysis_type')
                             <div class="alert alert-danger mb-4">
-                                <strong>Clear previous Analysis Types</strong>
+                                <strong>Clear previous Sample Types &amp; Analysis Types</strong>
                                 <p class="mb-2 small">
-                                    When enabled, all Analysis Types for your company are deleted before import,
-                                    along with Analysis Parameters under them. Sample Types, Analytes, and Labs are kept.
+                                    When enabled, all Sample Types and Analysis Types for your company are deleted before import,
+                                    along with Analysis Parameters under them and related sample batches that reference those sample types.
+                                    Analytes and Labs are kept.
                                 </p>
                                 <div class="form-check mb-3">
                                     <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_analysis_types">
                                     <label class="form-check-label" for="replace_existing_analysis_types">
-                                        Clear previous Analysis Types before import
+                                        Clear previous Sample Types &amp; Analysis Types before import
                                     </label>
                                 </div>
                                 @if ($replaceExisting)
                                     <div class="mb-0">
-                                        <label class="form-label" for="purge_confirmation_analysis_types">Type <code>DELETE ALL ANALYSIS TYPES</code> or your company name to confirm</label>
-                                        <input type="text" id="purge_confirmation_analysis_types" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL ANALYSIS TYPES">
+                                        <label class="form-label" for="purge_confirmation_analysis_types">Type <code>DELETE ALL SAMPLE AND ANALYSIS TYPES</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_analysis_types" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL SAMPLE AND ANALYSIS TYPES">
                                         @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 @endif

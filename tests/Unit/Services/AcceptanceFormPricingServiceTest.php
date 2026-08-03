@@ -239,6 +239,55 @@ class AcceptanceFormPricingServiceTest extends TestCase
         $this->assertSame($metalsPricelist->id, $resolved['pricelist']?->id);
     }
 
+    public function test_resolve_line_price_falls_back_to_master_when_customer_list_has_no_price(): void
+    {
+        $customerId = (string) \Illuminate\Support\Str::uuid();
+        $sampleTypeId = (string) \Illuminate\Support\Str::uuid();
+        $analysisTypeId = (string) \Illuminate\Support\Str::uuid();
+        $elementId = (string) \Illuminate\Support\Str::uuid();
+
+        $customerPricelist = Pricelist::query()->create([
+            'code' => 'PL-CUST-'.\Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'description' => 'Customer only — missing test',
+            'active' => true,
+            'is_master' => false,
+        ]);
+        $masterPricelist = Pricelist::query()->create([
+            'code' => 'PL-MASTER-'.\Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)),
+            'description' => 'Master fallback',
+            'active' => true,
+            'is_master' => true,
+        ]);
+
+        \App\Models\Billing\PricelistCustomer::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'customer_id' => $customerId,
+            'pricelist_id' => $customerPricelist->id,
+        ]);
+
+        PricelistItem::query()->create([
+            'pricelist_id' => $masterPricelist->id,
+            'sample_type_id' => $sampleTypeId,
+            'analysis_id' => $analysisTypeId,
+            'analysis_element_id' => $elementId,
+            'selling_price' => 420.0,
+            'active' => true,
+            'is_package' => false,
+        ]);
+
+        $service = app(AcceptanceFormPricingService::class);
+        $resolved = $service->resolveLinePriceWithPricelist(
+            $customerId,
+            $sampleTypeId,
+            $analysisTypeId,
+            $elementId,
+            $customerPricelist,
+        );
+
+        $this->assertSame(420.0, $resolved['price']);
+        $this->assertSame($masterPricelist->id, $resolved['pricelist']?->id);
+    }
+
     public function test_resolve_line_price_falls_back_to_same_analyte_on_pricelist(): void
     {
         $sampleType = \App\SampleType::query()->create([

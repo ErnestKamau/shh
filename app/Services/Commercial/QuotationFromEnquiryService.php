@@ -139,7 +139,7 @@ final class QuotationFromEnquiryService
     {
         $enquiry->loadMissing('requestedAnalyses');
         $customerId = (string) $enquiry->crm_customer_id;
-        $pricelist = $this->pricingService->resolvePricelist($customerId);
+        $preferredPricelist = $this->pricingService->resolveCustomerAssignedPricelist($customerId);
         $lines = [];
 
         foreach ($enquiry->requestedAnalyses as $index => $analysis) {
@@ -158,12 +158,15 @@ final class QuotationFromEnquiryService
                 }
             }
 
-            $unitPrice = $this->pricingService->resolveLinePrice(
-                $pricelist,
-                $sampleTypeId,
+            $resolved = $this->pricingService->resolveLinePriceWithPricelist(
+                $customerId,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
                 $analysisTypeId,
                 $elementId !== '' ? $elementId : null,
+                $preferredPricelist,
             );
+            $unitPrice = (float) $resolved['price'];
+            $pricelistForTax = $resolved['pricelist'] ?? $preferredPricelist;
 
             $lines[] = [
                 'line_no' => $index + 1,
@@ -176,7 +179,7 @@ final class QuotationFromEnquiryService
                 'quantity' => $qty,
                 'unit_price' => $unitPrice,
                 'tax' => $this->taxResolver->resolveLineTaxPercent(
-                    $pricelist,
+                    $pricelistForTax,
                     $sampleTypeId !== '' ? $sampleTypeId : null,
                     $analysisTypeId,
                     $elementId !== '' ? $elementId : null,
@@ -191,6 +194,14 @@ final class QuotationFromEnquiryService
                 $analysisTypeId = (string) ($enquiry->matrix_id ?? '');
                 $elementId = trim((string) $parameterId);
                 $qty = max(1, (int) ($enquiry->number_of_samples ?? 1));
+                $resolved = $this->pricingService->resolveLinePriceWithPricelist(
+                    $customerId,
+                    $sampleTypeId !== '' ? $sampleTypeId : null,
+                    $analysisTypeId,
+                    $elementId !== '' ? $elementId : null,
+                    $preferredPricelist,
+                );
+                $pricelistForTax = $resolved['pricelist'] ?? $preferredPricelist;
                 $lines[] = [
                     'line_no' => $index + 1,
                     'sample_type_id' => $sampleTypeId,
@@ -200,9 +211,9 @@ final class QuotationFromEnquiryService
                     'analysis_element_id' => $elementId,
                     'parameter_label' => 'Parameter',
                     'quantity' => $qty,
-                    'unit_price' => $this->pricingService->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $elementId),
+                    'unit_price' => (float) $resolved['price'],
                     'tax' => $this->taxResolver->resolveLineTaxPercent(
-                        $pricelist,
+                        $pricelistForTax,
                         $sampleTypeId !== '' ? $sampleTypeId : null,
                         $analysisTypeId,
                         $elementId,
@@ -216,7 +227,7 @@ final class QuotationFromEnquiryService
             $this->pricingService->applyPackagePricingToLines(
                 $lines,
                 $customerId,
-                $this->pricingService->resolveCustomerAssignedPricelist($customerId) ?? $pricelist,
+                $preferredPricelist,
             )
         );
     }

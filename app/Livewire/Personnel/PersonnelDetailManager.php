@@ -129,12 +129,11 @@ class PersonnelDetailManager extends Component
             ->unique()
             ->values()
             ->all();
-        $this->selectedLabSectionIds = collect(explode(',', (string) ($user->lab_section_id ?? '')))
-            ->map(fn ($id): string => trim((string) $id))
-            ->filter(fn (string $id): bool => $id !== '')
-            ->unique()
-            ->values()
-            ->all();
+        $this->selectedLabSectionIds = SampleAnalysisStage::filterExistingIds(
+            collect(explode(',', (string) ($user->lab_section_id ?? '')))
+                ->map(fn ($id): string => trim((string) $id))
+                ->all()
+        );
 
         $this->detailsFirstName = $this->plainTextNamePart($user->first_name);
         $this->detailsMiddleName = $this->plainTextNamePart($user->middle_name);
@@ -285,29 +284,45 @@ class PersonnelDetailManager extends Component
         $this->showRoleDropdown = false;
     }
 
+    public function openSelectDropdown(string $name): void
+    {
+        $this->closeSelectDropdowns();
+
+        match ($name) {
+            'designation' => $this->showDesignationDropdown = true,
+            'education' => $this->showEducationDropdown = true,
+            'position' => $this->showPositionDropdown = true,
+            'department' => $this->showDepartmentDropdown = true,
+            'lab' => $this->showLabDropdown = true,
+            'labSection' => $this->showLabSectionDropdown = true,
+            'role' => $this->showRoleDropdown = true,
+            default => null,
+        };
+    }
+
     public function searchDesignation(): void
     {
-        $this->showDesignationDropdown = true;
+        $this->openSelectDropdown('designation');
     }
 
     public function searchEducation(): void
     {
-        $this->showEducationDropdown = true;
+        $this->openSelectDropdown('education');
     }
 
     public function searchPosition(): void
     {
-        $this->showPositionDropdown = true;
+        $this->openSelectDropdown('position');
     }
 
     public function searchDepartment(): void
     {
-        $this->showDepartmentDropdown = true;
+        $this->openSelectDropdown('department');
     }
 
     public function searchLab(): void
     {
-        $this->showLabDropdown = true;
+        $this->openSelectDropdown('lab');
     }
 
     public function selectDesignation(string $id): void
@@ -408,7 +423,7 @@ class PersonnelDetailManager extends Component
 
     public function searchLabSection(): void
     {
-        $this->showLabSectionDropdown = true;
+        $this->openSelectDropdown('labSection');
     }
 
     public function saveUserDetails(): void
@@ -564,7 +579,8 @@ class PersonnelDetailManager extends Component
     private function syncLabAssignments(User $user): void
     {
         $selectedLabIds = array_values(array_unique(array_filter($this->selectedLabIds, fn ($id): bool => (string) $id !== '')));
-        $selectedLabSectionIds = array_values(array_unique(array_filter($this->selectedLabSectionIds, fn ($id): bool => (string) $id !== '')));
+        $selectedLabSectionIds = SampleAnalysisStage::filterExistingIds($this->selectedLabSectionIds);
+        $this->selectedLabSectionIds = $selectedLabSectionIds;
 
         $user->lab_section_id = implode(',', $selectedLabSectionIds);
 
@@ -636,6 +652,8 @@ class PersonnelDetailManager extends Component
         }
 
         if ($step === 2) {
+            $this->selectedLabSectionIds = SampleAnalysisStage::filterExistingIds($this->selectedLabSectionIds);
+
             $this->validate([
                 'detailsEmploymentDate' => 'nullable|date',
                 'selectedDesignationId' => ['required', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Job Description'))],
@@ -646,6 +664,8 @@ class PersonnelDetailManager extends Component
                 'selectedLabIds.*' => 'string|exists:labs,id',
                 'selectedLabSectionIds' => 'array',
                 'selectedLabSectionIds.*' => 'string|exists:sample_analysis_stages,id',
+            ], [], [
+                'selectedLabSectionIds.*' => 'lab section',
             ]);
             return;
         }
@@ -675,7 +695,7 @@ class PersonnelDetailManager extends Component
 
     public function searchRoles(): void
     {
-        $this->showRoleDropdown = true;
+        $this->openSelectDropdown('role');
     }
 
     public function toggleRoleSelection(string $roleId): void

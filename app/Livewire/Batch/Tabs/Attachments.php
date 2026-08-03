@@ -451,18 +451,6 @@ class Attachments extends Component
         return null;
     }
 
-    public function getCustomerAttachmentsProperty()
-    {
-        $instance = $this->batch->submissionFormInstance;
-        if ($instance === null) {
-            return collect();
-        }
-
-        return $instance->customAttachments->each(
-            fn ($attachment) => $attachment->setRelation('submissionFormInstance', $instance)
-        );
-    }
-
     public function getQuotationDocumentProperty()
     {
         $documentService = app(BatchWorkflowDocumentAttachmentService::class);
@@ -624,7 +612,6 @@ class Attachments extends Component
             'receiptNotification'           => $this->receiptNotification,
             'quotationDocument'             => $this->quotationDocument,
             'testRequestFormDocument'       => $this->testRequestFormDocument,
-            'customerAttachments'           => $this->customerAttachments,
             'reportAttachments'             => $this->reportAttachments,
             'sampleAttachments'             => $this->sampleAttachments,
         ]);

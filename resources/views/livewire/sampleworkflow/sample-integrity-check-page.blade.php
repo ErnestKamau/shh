@@ -425,7 +425,7 @@
                     </div>
                     <div class="modal-body">
                         <p class="mb-0">
-                            Accept these samples and create the job order and sample numbers now?
+                            Accept these samples?
                         </p>
                     </div>
                     <div class="modal-footer">
@@ -439,7 +439,7 @@
                             wire:loading.attr="disabled"
                             wire:target="confirmAcceptSamples"
                         >
-                            <span wire:loading.remove wire:target="confirmAcceptSamples">Accept &amp; create JO</span>
+                            <span wire:loading.remove wire:target="confirmAcceptSamples">Accept</span>
                             <span wire:loading wire:target="confirmAcceptSamples">Creating…</span>
                         </button>
                     </div>

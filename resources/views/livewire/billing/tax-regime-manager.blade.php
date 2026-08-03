@@ -141,11 +141,11 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <button wire:click="showEditTaxModal({{ $tax->id }})" class="btn btn-outline-primary" title="Edit">
+                                                    <button type="button" wire:click="showEditTaxModal('{{ $tax->id }}')" class="btn btn-outline-primary" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="toggleStatus({{ $tax->id }})" 
-                                                            class="btn btn-outline-{{ $tax->active ? 'warning' : 'success' }}" 
+                                                    <button type="button" wire:click="toggleStatus('{{ $tax->id }}')"
+                                                            class="btn btn-outline-{{ $tax->active ? 'warning' : 'success' }}"
                                                             title="{{ $tax->active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $tax->active ? 'close-circle' : 'check-circle' }}"></i>
                                                     </button>

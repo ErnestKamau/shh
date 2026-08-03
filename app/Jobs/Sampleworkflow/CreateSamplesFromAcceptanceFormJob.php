@@ -137,7 +137,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     if ($submissionRequest) {
                         $submissionRequest->update([
                             'sample_header_id' => $header->id,
-                            'status' => 'received_at_lab',
+                            'status' => \App\Models\SampleSubmissionRequest::STATUS_ACCEPTED,
                         ]);
                     }
                 }

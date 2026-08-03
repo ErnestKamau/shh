@@ -201,11 +201,19 @@ class AcceptanceFormPricingService
             }
         }
 
+        return $this->resolveActiveMasterPricelist()
+            ?? Pricelist::query()->where('active', 1)->orderBy('id')->first();
+    }
+
+    /**
+     * Active master pricelist used as the universal price/package fallback.
+     */
+    public function resolveActiveMasterPricelist(): ?Pricelist
+    {
         return Pricelist::query()
             ->where('active', 1)
             ->where('is_master', 1)
-            ->first()
-            ?? Pricelist::query()->where('active', 1)->orderBy('id')->first();
+            ->first();
     }
 
     /**
@@ -274,7 +282,9 @@ class AcceptanceFormPricingService
     }
 
     /**
-     * Resolve a line price by searching all pricelists assigned to the customer.
+     * Resolve a line price by searching preferred → assigned → active master.
+     * Master is always considered when assigned lists have no positive price,
+     * even if the customer is not tied to that master pricelist.
      *
      * @return array{price: float, pricelist: ?Pricelist}
      */
@@ -283,6 +293,28 @@ class AcceptanceFormPricingService
         ?string $sampleTypeId,
         string $analysisTypeId,
         ?string $analysisElementId = null,
+        ?Pricelist $preferredPricelist = null,
+    ): array {
+        $candidates = $this->candidatePricelistsForPricing($customerId, $preferredPricelist);
+
+        foreach ($candidates as $pricelist) {
+            $price = $this->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
+            if ($price > 0) {
+                return ['price' => $price, 'pricelist' => $pricelist];
+            }
+        }
+
+        return ['price' => 0.0, 'pricelist' => $candidates[0] ?? null];
+    }
+
+    /**
+     * Pricelist search order for line prices and packages:
+     * preferred → customer assignments (active, by recency) → active master.
+     *
+     * @return list<Pricelist>
+     */
+    public function candidatePricelistsForPricing(
+        ?string $customerId,
         ?Pricelist $preferredPricelist = null,
     ): array {
         $candidates = [];
@@ -300,19 +332,12 @@ class AcceptanceFormPricingService
             }
         }
 
-        $fallback = $this->resolvePricelist($customerId);
-        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
-            $candidates[] = $fallback;
+        $master = $this->resolveActiveMasterPricelist();
+        if ($master !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $master->id)) {
+            $candidates[] = $master;
         }
 
-        foreach ($candidates as $pricelist) {
-            $price = $this->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
-            if ($price > 0) {
-                return ['price' => $price, 'pricelist' => $pricelist];
-            }
-        }
-
-        return ['price' => 0.0, 'pricelist' => $candidates[0] ?? null];
+        return $candidates;
     }
 
     /**
@@ -607,27 +632,7 @@ class AcceptanceFormPricingService
             return null;
         }
 
-        $candidates = [];
-
-        if ($preferredPricelist !== null) {
-            $candidates[] = $preferredPricelist;
-        }
-
-        if ($customerId !== null && $customerId !== '') {
-            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
-                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
-                    continue;
-                }
-                $candidates[] = $pricelist;
-            }
-        }
-
-        $fallback = $this->resolvePricelist($customerId);
-        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
-            $candidates[] = $fallback;
-        }
-
-        foreach ($candidates as $pricelist) {
+        foreach ($this->candidatePricelistsForPricing($customerId, $preferredPricelist) as $pricelist) {
             $match = $this->matchPackageInPricelist($pricelist, $sampleTypeId, $analysisTypeId, $requestedElementIds);
             if ($match !== null) {
                 return [
@@ -657,27 +662,7 @@ class AcceptanceFormPricingService
             return null;
         }
 
-        $candidates = [];
-
-        if ($preferredPricelist !== null) {
-            $candidates[] = $preferredPricelist;
-        }
-
-        if ($customerId !== null && $customerId !== '') {
-            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
-                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
-                    continue;
-                }
-                $candidates[] = $pricelist;
-            }
-        }
-
-        $fallback = $this->resolvePricelist($customerId);
-        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
-            $candidates[] = $fallback;
-        }
-
-        foreach ($candidates as $pricelist) {
+        foreach ($this->candidatePricelistsForPricing($customerId, $preferredPricelist) as $pricelist) {
             $match = $this->firstPackageInPricelist($pricelist, $sampleTypeId, $analysisTypeId);
             if ($match !== null) {
                 return [

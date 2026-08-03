@@ -48,6 +48,13 @@ class SampleSubmissionRequest extends Model
 
     public const STATUS_IN_REVIEW = 'In Review';
 
+    /**
+     * Samples accepted at AmSpec (job/batch created; may be in Samples In Lab).
+     * Stored value remains `received_at_lab` for legacy rows — this is NOT
+     * "received by the subcontracting laboratory".
+     */
+    public const STATUS_ACCEPTED = 'received_at_lab';
+
     public const SUBCONTRACT_DISPATCH_AWAITING = 'awaiting_dispatch';
 
     public const SUBCONTRACT_DISPATCH_DISPATCHED = 'dispatched';
@@ -64,6 +71,24 @@ class SampleSubmissionRequest extends Model
         return [
             self::SUBCONTRACT_DISPATCH_DISPATCHED,
             self::SUBCONTRACT_DISPATCH_DISPATCHED_AND_ASSIGNED,
+        ];
+    }
+
+    /**
+     * Enquiry statuses that may appear on Sample Receiving → Sub-contracting.
+     * Includes AmSpec-accepted enquiries so pending external dispatch stays visible
+     * after the batch is routed to Samples In Lab.
+     *
+     * @return list<string>
+     */
+    public static function subcontractingQueueEnquiryStatuses(): array
+    {
+        return [
+            self::STATUS_QUOTATION_ACCEPTED,
+            self::STATUS_READY_FOR_RECEPTION,
+            self::STATUS_SAMPLE_INTEGRITY_CHECK,
+            self::STATUS_IN_REVIEW,
+            self::STATUS_ACCEPTED,
         ];
     }
 
@@ -274,7 +299,7 @@ class SampleSubmissionRequest extends Model
             self::STATUS_READY_FOR_RECEPTION => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
             // Legacy In Review folds into Ready for Reception (Accept Samples).
             self::STATUS_IN_REVIEW => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
-            'received_at_lab' => 'Accepted',
+            self::STATUS_ACCEPTED => 'Accepted',
             'Received at Lab' => 'Sales Order Created',
             default => $status,
         };

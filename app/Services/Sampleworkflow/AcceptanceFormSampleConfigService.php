@@ -2073,7 +2073,7 @@ class AcceptanceFormSampleConfigService
             ->get(['id', 'name', 'code'])
             ->map(fn (Lab $lab) => [
                 'id' => (string) $lab->id,
-                'name' => trim((string) ($lab->code ?? '').' - '.($lab->name ?? ''), ' -'),
+                'name' => trim((string) ($lab->name ?? '')),
             ])
             ->all();
     }

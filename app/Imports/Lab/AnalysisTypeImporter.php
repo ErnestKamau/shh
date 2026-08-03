@@ -18,6 +18,46 @@ class AnalysisTypeImporter extends BaseImporter
         app(MethodConfigurationResolver::class)->ensurePointerConfigurations();
     }
 
+    /**
+     * Spreadsheets often leave Analysis Type blank for method-level rows under a
+     * sample type (e.g. Swab / Food & Feed). Use the sample type name so those
+     * rows still create an Analysis Type instead of being silently skipped.
+     */
+    protected function normalizeRow(array $row): array
+    {
+        $normalized = parent::normalizeRow($row);
+
+        $sampleType = trim((string) ($normalized['sample_type']
+            ?? $normalized['sample_type_name']
+            ?? $normalized['matrix_name']
+            ?? $normalized['matrix']
+            ?? $normalized['sample_name']
+            ?? ''));
+        $sampleTypeCode = trim((string) ($normalized['sample_type_code']
+            ?? $normalized['matrix_code']
+            ?? $normalized['sample_code']
+            ?? ''));
+
+        $analysisType = trim((string) ($normalized['analysis_type']
+            ?? $normalized['analysis_type_name']
+            ?? $normalized['at_name']
+            ?? $normalized['name']
+            ?? ''));
+        $analysisTypeCode = trim((string) ($normalized['analysis_type_code']
+            ?? $normalized['at_code']
+            ?? $normalized['code']
+            ?? ''));
+
+        if ($analysisType === '' && $analysisTypeCode === '') {
+            $fallback = $sampleType !== '' ? $sampleType : $sampleTypeCode;
+            if ($fallback !== '') {
+                $normalized['analysis_type'] = $fallback;
+            }
+        }
+
+        return $normalized;
+    }
+
     protected function validateRow(array $row): array
     {
         $errors = [];

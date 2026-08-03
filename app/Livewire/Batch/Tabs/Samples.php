@@ -2174,6 +2174,7 @@ class Samples extends Component
         array $labIdByElementId,
         $labsById,
         string $fallbackDispatchLabNames = '',
+        bool $dispatchCompleted = false,
     ): array {
         $labId = trim((string) ($result->subcontracted_lab_id ?? ''));
         if ($labId === '') {
@@ -2195,26 +2196,62 @@ class Samples extends Component
             }
         }
 
-        if ((int) ($result->analyte_status_contracted ?? 0) === 1 && $fallbackDispatchLabNames !== '') {
+        if ((int) ($result->analyte_status_contracted ?? 0) !== 1) {
+            return ['', ''];
+        }
+
+        if ($fallbackDispatchLabNames !== '') {
             return ['', $fallbackDispatchLabNames];
         }
 
-        return ['', ''];
-    }
-
-    private function fallbackSubcontractDispatchLabNames(): string
-    {
-        if (! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_lab_names')) {
-            return '';
+        if ($dispatchCompleted) {
+            return ['', 'Dispatched'];
         }
 
-        return \App\Models\SampleSubmissionRequest::query()
+        return ['', 'Awaiting dispatch'];
+    }
+
+    /**
+     * @return array{completed: bool, lab_names: string}
+     */
+    private function resolveBatchSubcontractDispatchContext(): array
+    {
+        if (! Schema::hasColumn('sample_submission_requests', 'subcontracting_dispatch_status')) {
+            return ['completed' => false, 'lab_names' => ''];
+        }
+
+        $enquiries = \App\Models\SampleSubmissionRequest::query()
             ->where('sample_header_id', $this->batch->id)
+            ->get([
+                'id',
+                'subcontracting_dispatch_status',
+                'subcontracting_dispatch_lab_names',
+            ]);
+
+        if ($enquiries->isEmpty()) {
+            return ['completed' => false, 'lab_names' => ''];
+        }
+
+        $completed = $enquiries->contains(
+            fn (\App\Models\SampleSubmissionRequest $enquiry): bool => $enquiry->isSubcontractDispatchCompleted()
+        );
+
+        $labNames = $enquiries
             ->pluck('subcontracting_dispatch_lab_names')
             ->map(fn ($names) => trim((string) $names))
             ->filter()
             ->unique()
             ->implode(', ');
+
+        return [
+            'completed' => $completed,
+            'lab_names' => $labNames,
+        ];
+    }
+
+    private function fallbackSubcontractDispatchLabNames(): string
+    {
+        return $this->resolveBatchSubcontractDispatchContext()['lab_names'];
     }
 
     /**
@@ -2335,7 +2372,9 @@ class Samples extends Component
                     ->keyBy(fn (Lab $lab) => (string) $lab->id);
             }
 
-            $fallbackDispatchLabNames = $this->fallbackSubcontractDispatchLabNames();
+            $dispatchContext = $this->resolveBatchSubcontractDispatchContext();
+            $fallbackDispatchLabNames = $dispatchContext['lab_names'];
+            $dispatchCompleted = $dispatchContext['completed'];
 
             // Enrich each result with additional data
             $analysisDateRecord = SampleAnalysisDates::where('sample_header_id', $this->batch->id)
@@ -2484,6 +2523,7 @@ class Samples extends Component
                     $labIdByElementId,
                     $labsById,
                     $fallbackDispatchLabNames,
+                    $dispatchCompleted,
                 );
 
                 $parameters[$result->id] = [
@@ -3183,6 +3223,7 @@ class Samples extends Component
             $this->loadIncompleteCapturedResults();
             $this->loadNotCaptured();
             $this->dispatch('resultsUpdated');
+            $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Header::class);
 
             // Stay open when capturing multiple samples so the analyst can continue.
             if (count($this->parameterModalSampleCodes) > 1) {

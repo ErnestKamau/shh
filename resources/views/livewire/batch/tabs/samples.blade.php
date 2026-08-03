@@ -981,27 +981,7 @@
                         $parameterColspan = ($uncertaintyRequired ? 17 : 16);
                         $groupedParameters = $this->groupedParametersForm;
                         $reportingSymbols = $this->reportingSymbolOptions();
-                        $subcontractedSummary = collect($sampleParameters)
-                            ->filter(fn ($param) => ! empty($param['subcontracted']) && ! empty($param['subcontracted_lab_name']))
-                            ->groupBy('subcontracted_lab_name')
-                            ->map(fn ($rows) => $rows->pluck('analyte_name')->unique()->values()->all());
                     @endphp
-                    @if($subcontractedSummary->isNotEmpty())
-                    <div class="alert alert-info border mb-3">
-                        <div class="d-flex align-items-start">
-                            <i class="mdi mdi-earth mr-2 mt-1"></i>
-                            <div>
-                                <strong class="d-block mb-1">Subcontracted tests</strong>
-                                @foreach($subcontractedSummary as $labName => $analytes)
-                                    <div class="small mb-1">
-                                        <strong>{{ $labName }}:</strong>
-                                        {{ implode(', ', $analytes) }}
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    </div>
-                    @endif
                     <div class="table-responsive sample-parameters-modal__table-wrap">
                         <table class="table table-sm sample-parameters-table mb-0">
                             <thead>
@@ -1015,11 +995,11 @@
                                     @if($uncertaintyRequired)
                                     <th style="min-width: 80px;">M.U.</th>
                                     @endif
-                                    <th style="min-width: 150px;">Standard</th>
+                                    <th style="min-width: 110px;">Standard</th>
                                     <th style="min-width: 180px;">Remark</th>
                                     <th style="min-width: 100px;">Unit</th>
                                     <th style="min-width: 120px;">Operator</th>
-                                    <th style="min-width: 120px;">Method</th>
+                                    <th style="min-width: 200px;">Method</th>
                                     <th style="min-width: 120px;">LTM</th>
                                     <th style="min-width: 160px;">Equipment</th>
                                     <th style="min-width: 80px; text-align: center;">Sub.</th>
@@ -1110,7 +1090,7 @@
                                             @if($parametersDisabled) readonly disabled @endif>
                                     </td>
                                     @endif
-                                    <td>
+                                    <td style="min-width: 110px; max-width: 130px;">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <small>{{ $param['standard_value'] }}</small>
                                             @if($param['standard_id'] && ! $parametersDisabled)
@@ -1176,7 +1156,7 @@
                                             </small>
                                         @endforelse
                                     </td>
-                                    <td style="min-width: 140px;">
+                                    <td style="min-width: 200px;">
                                         <select class="form-control form-control-sm"
                                             wire:model.defer="parametersForm.{{ $id }}.method_id"
                                             @if($parametersDisabled) disabled @endif>
@@ -1220,11 +1200,17 @@
                                     </td>
                                     <td style="min-width: 160px;">
                                         @if(!empty($param['subcontracted_lab_name']))
-                                            <span class="badge badge-info border text-wrap text-left" title="{{ $param['subcontracted_lab_name'] }}">
-                                                <i class="mdi mdi-earth"></i> {{ $param['subcontracted_lab_name'] }}
+                                            @php
+                                                $subLabLabel = (string) $param['subcontracted_lab_name'];
+                                                $isDispatchStatusLabel = in_array($subLabLabel, ['Awaiting dispatch', 'Dispatched'], true);
+                                            @endphp
+                                            <span class="badge {{ $isDispatchStatusLabel ? 'badge-warning' : 'badge-info' }} border text-wrap text-left" title="{{ $subLabLabel }}">
+                                                <i class="mdi {{ $isDispatchStatusLabel ? 'mdi-clock-outline' : 'mdi-earth' }}"></i> {{ $subLabLabel }}
                                             </span>
                                         @elseif(!empty($parametersForm[$id]['subcontracted']) || !empty($param['subcontracted']))
-                                            <small class="text-muted">Assigned at dispatch</small>
+                                            <span class="badge badge-warning border text-wrap text-left" title="Awaiting dispatch">
+                                                <i class="mdi mdi-clock-outline"></i> Awaiting dispatch
+                                            </span>
                                         @else
                                             <small class="text-muted">—</small>
                                         @endif

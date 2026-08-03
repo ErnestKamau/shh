@@ -1553,10 +1553,6 @@
 										</button>
 									@endforeach
 								</div>
-								<p class="text-muted small mb-3">
-									Requests with any subcontracted parameter appear here first (even when other tests are in-house).
-									After dispatch &amp; assign, they move to <strong>Dispatched &amp; assigned</strong> and into <strong>Samples In Lab</strong>.
-								</p>
 							@endif
 							@if($workflowSubTab !== 'interzone_transfers')
 							<div class="workflow-brand-filters-card"
@@ -2376,7 +2372,11 @@
 														<th>Batches</th>
 													@endif
 													<th>Sample Type</th>
-													<th>Tests Required</th>
+													@if(($workflowSubTab ?? null) === 'sub_contracting')
+														<th>Subcontracted tests</th>
+													@else
+														<th>Tests Required</th>
+													@endif
 													@if($status === 'Samples Request Review')
 														<th>Acceptance</th>
 													@endif
@@ -2389,9 +2389,16 @@
 														$isSamplesReceiving = $status === 'Samples Receiving';
 														$hasBatch = $instance->batches->count() > 0;
 														$formSampleTypeNames = $instance->getReceivingSampleTypeNames();
-														$testsRequiredCount = $hasBatch
-															? (int) $instance->tests_count
-															: (int) $instance->requested_tests_count;
+														if (($workflowSubTab ?? null) === 'sub_contracting' && $instance->sampleSubmissionRequest) {
+															$testsRequiredCount = count(
+																app(\App\Services\Sampleworkflow\SubcontractingAssignmentService::class)
+																	->resolveSubcontractedElementIds($instance->sampleSubmissionRequest)
+															);
+														} else {
+															$testsRequiredCount = $hasBatch
+																? (int) $instance->tests_count
+																: (int) $instance->requested_tests_count;
+														}
 														$sampleCount = 0;
 														$instanceCustomerName = trim((string) (
 															$instance->crmCustomer->name
@@ -3021,9 +3028,6 @@
 													<th>Lab</th>
 													<th nowrap>Sample Type</th>
 												@endif
-												@if($isUniformLabWorkflowTable)
-													<th>Assigned User</th>
-												@endif
 												<th>Actions</th>
 											</tr>
 										</thead>
@@ -3115,18 +3119,6 @@
 															@endif
 														</td>
 														<td nowrap>{{ $item->sample_type->name ?? 'N/A' }}</td>
-													@endif
-													@if($isUniformLabWorkflowTable)
-														@php
-															$batchAssignee = $batchAssignmentMap[(string) $item->id] ?? null;
-														@endphp
-														<td>
-															@if($batchAssignee && ($batchAssignee['name'] ?? '') !== '')
-																<span class="badge badge-light border">{{ $batchAssignee['name'] }}</span>
-															@else
-																<span class="text-muted">Unassigned</span>
-															@endif
-														</td>
 													@endif
 													<td nowrap>
 														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}" class="btn btn-sm btn-outline-info">
@@ -3664,7 +3656,7 @@
 							<div>
 								<h5 class="modal-title mb-1">
 									<i class="mdi mdi-truck-delivery-outline text-primary mr-2"></i>
-									Dispatch &amp; assign
+									Dispatch
 								</h5>
 								<p class="text-muted small mb-0">Scan the generated system label barcode before dispatching this subcontracting request.</p>
 							</div>
@@ -7476,6 +7468,8 @@
 			});
 
 			let quotationAcceptancePad = null;
+			let quotationAcceptancePadReady = false;
+			let quotationAcceptancePadToken = 0;
 
 			function ensureSignaturePadLoaded() {
 				if (typeof SignaturePad !== 'undefined') {
@@ -7495,46 +7489,81 @@
 				return window.__signaturePadLoader;
 			}
 
-			function applyQuotationAcceptanceSignature(signature) {
-				if (!quotationAcceptancePad) {
+			function sizeQuotationAcceptanceCanvas(canvas) {
+				const ratio = Math.max(window.devicePixelRatio || 1, 1);
+				const width = Math.max(canvas.clientWidth || canvas.offsetWidth || 0, 1);
+				const height = Math.max(canvas.clientHeight || canvas.offsetHeight || 160, 1);
+				const ctx = canvas.getContext('2d');
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+				canvas.width = Math.floor(width * ratio);
+				canvas.height = Math.floor(height * ratio);
+				ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+			}
+
+			async function applyQuotationAcceptanceSignature(signature, token) {
+				if (!quotationAcceptancePad || token !== quotationAcceptancePadToken) {
 					return;
 				}
 
+				quotationAcceptancePadReady = false;
 				quotationAcceptancePad.clear();
+
 				if (signature && String(signature).startsWith('data:image/')) {
 					try {
-						quotationAcceptancePad.fromDataURL(String(signature));
+						await quotationAcceptancePad.fromDataURL(String(signature));
 					} catch (e) {}
+				}
+
+				if (token === quotationAcceptancePadToken) {
+					quotationAcceptancePadReady = true;
 				}
 			}
 
-			function initQuotationAcceptancePad(initialSignature) {
+			async function initQuotationAcceptancePad(initialSignature) {
 				const canvas = document.getElementById('quotation-acceptance-signature-canvas');
 				const clearBtn = document.getElementById('quotation-acceptance-sign-clear');
 				if (!canvas || typeof SignaturePad === 'undefined') {
 					return;
 				}
 
-				const ratio = Math.max(window.devicePixelRatio || 1, 1);
-				canvas.width = canvas.offsetWidth * ratio;
-				canvas.height = canvas.offsetHeight * ratio;
-				canvas.getContext('2d').scale(ratio, ratio);
+				const token = ++quotationAcceptancePadToken;
+				quotationAcceptancePadReady = false;
 
-				quotationAcceptancePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+				const existingStrokeData = (quotationAcceptancePad && !quotationAcceptancePad.isEmpty())
+					? quotationAcceptancePad.toData()
+					: null;
+
+				sizeQuotationAcceptanceCanvas(canvas);
+				quotationAcceptancePad = new SignaturePad(canvas, {
+					backgroundColor: 'rgb(255,255,255)',
+					penColor: 'rgb(0,0,0)',
+				});
 
 				if (clearBtn) {
 					clearBtn.onclick = function () {
+						if (!quotationAcceptancePad) {
+							return;
+						}
 						quotationAcceptancePad.clear();
 					};
 				}
 
-				applyQuotationAcceptanceSignature(initialSignature || '');
+				if (existingStrokeData && existingStrokeData.length) {
+					try {
+						quotationAcceptancePad.fromData(existingStrokeData);
+					} catch (e) {}
+					if (token === quotationAcceptancePadToken) {
+						quotationAcceptancePadReady = true;
+					}
+					return;
+				}
+
+				await applyQuotationAcceptanceSignature(initialSignature || '', token);
 			}
 
 			Livewire.on('quotation-acceptance-modal-opened', function (payload) {
 				const data = payload?.detail ?? payload ?? {};
 				const signature = data.signature ?? data[0]?.signature ?? '';
-				quotationAcceptancePad = null;
 				ensureSignaturePadLoaded().then(function () {
 					setTimeout(function () {
 						initQuotationAcceptancePad(signature);
@@ -7545,8 +7574,9 @@
 			Livewire.on('quotation-acceptance-signature-changed', function (payload) {
 				const data = payload?.detail ?? payload ?? {};
 				const signature = data.signature ?? data[0]?.signature ?? '';
+				const token = quotationAcceptancePadToken;
 				setTimeout(function () {
-					applyQuotationAcceptanceSignature(signature);
+					applyQuotationAcceptanceSignature(signature, token);
 				}, 50);
 			});
 

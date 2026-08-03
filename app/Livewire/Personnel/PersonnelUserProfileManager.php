@@ -305,7 +305,7 @@ class PersonnelUserProfileManager extends Component
                 'date_of_gazzette' => $this->detailsDateOfGazzette,
                 'gazzette_no' => $this->detailsGazzetteNo,
                 'start_of_career' => $this->detailsStartOfCareer,
-                'lab_section_ids' => $this->selectedLabSectionIds,
+                'lab_section_ids' => SampleAnalysisStage::filterExistingIds($this->selectedLabSectionIds),
                 'lab_ids' => $this->selectedLabIds,
                 'kra_pin' => $this->detailsKraPin,
                 'nssf' => $this->detailsNssf,
@@ -418,12 +418,11 @@ class PersonnelUserProfileManager extends Component
             ->unique()
             ->values()
             ->all();
-        $this->selectedLabSectionIds = collect(explode(',', (string) ($user->lab_section_id ?? '')))
-            ->map(fn ($id): string => trim((string) $id))
-            ->filter(fn (string $id): bool => $id !== '')
-            ->unique()
-            ->values()
-            ->all();
+        $this->selectedLabSectionIds = SampleAnalysisStage::filterExistingIds(
+            collect(explode(',', (string) ($user->lab_section_id ?? '')))
+                ->map(fn ($id): string => trim((string) $id))
+                ->all()
+        );
 
         $this->detailsFirstName = (string) ($user->first_name ?? '');
         $this->detailsMiddleName = (string) ($user->middle_name ?? '');
@@ -462,6 +461,8 @@ class PersonnelUserProfileManager extends Component
         }
 
         if ($step === 2) {
+            $this->selectedLabSectionIds = SampleAnalysisStage::filterExistingIds($this->selectedLabSectionIds);
+
             $this->validate([
                 'detailsEmploymentDate' => 'nullable|date',
                 'selectedDesignationId' => [
@@ -488,6 +489,8 @@ class PersonnelUserProfileManager extends Component
                 'selectedLabIds.*' => 'string|exists:labs,id',
                 'selectedLabSectionIds' => 'array',
                 'selectedLabSectionIds.*' => 'string|exists:sample_analysis_stages,id',
+            ], [], [
+                'selectedLabSectionIds.*' => 'lab section',
             ]);
 
             return;

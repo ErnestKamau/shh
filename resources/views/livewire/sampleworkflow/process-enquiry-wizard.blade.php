@@ -301,11 +301,13 @@
                                         @elseif($quotationBuilt && $quotationMode === 'build_new')
                                             <span class="badge badge-success">Quotation saved</span>
                                         @endif
+                                        {{-- Hidden for now: Sync from pricelist (Process Enquiry step 3)
                                         @if($quotationMode === 'build_new')
                                             <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="syncPricesFromPricelist" wire:loading.attr="disabled">
                                                 <i class="mdi mdi-sync"></i> Sync from pricelist
                                             </button>
                                         @endif
+                                        --}}
                                         <button
                                             type="button"
                                             class="btn btn-outline-primary btn-sm"

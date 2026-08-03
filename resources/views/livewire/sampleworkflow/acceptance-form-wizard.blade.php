@@ -65,31 +65,29 @@
                                         @error('modeOfWork') <small class="text-danger">{{ $message }}</small> @enderror
                                     </div>
                                 </div>
-                                <div class="row mt-3">
-                                    <div class="col-12">
-                                        <p class="acc-wizard-hint mb-2">
-                                            @if($this->isReceiveOnlyMode())
-                                                Confirm condition, specification, and sample details for each sample before receiving.
-                                            @else
+                                @if(! $this->isReceiveOnlyMode())
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <p class="acc-wizard-hint mb-2">
                                                 Confirm condition, specification, and sample details. Lab sections and analysts are assigned on Sample Integrity Check.
-                                            @endif
-                                        </p>
-                                        <div class="custom-control custom-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                class="custom-control-input"
-                                                id="acceptance-shelf-life-testing"
-                                                wire:model.live="isShelfLifeTesting"
-                                            >
-                                            <label class="custom-control-label font-weight-bold" for="acceptance-shelf-life-testing">
-                                                Shelf Life Testing
-                                            </label>
+                                            </p>
+                                            <div class="custom-control custom-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    class="custom-control-input"
+                                                    id="acceptance-shelf-life-testing"
+                                                    wire:model.live="isShelfLifeTesting"
+                                                >
+                                                <label class="custom-control-label font-weight-bold" for="acceptance-shelf-life-testing">
+                                                    Shelf Life Testing
+                                                </label>
+                                            </div>
+                                            <p class="acc-wizard-hint mb-0 mt-1">
+                                                When checked, this job is diverted to the Shelf Life Studies module after acceptance (same physical samples are pulled, tested, and returned at each interval).
+                                            </p>
                                         </div>
-                                        <p class="acc-wizard-hint mb-0 mt-1">
-                                            When checked, this job is diverted to the Shelf Life Studies module after acceptance (same physical samples are pulled, tested, and returned at each interval).
-                                        </p>
                                     </div>
-                                </div>
+                                @endif
                             </section>
 
                             @include('livewire.partials.acceptance-sample-config-table')
