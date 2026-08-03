@@ -271,6 +271,7 @@
 
     body.amspec-download-body .amspec-signature-intro {
         margin-top: 10px;
+        margin-bottom: 16px;
         width: 50%;
         padding-right: 12px;
         font-size: 9.5pt;
@@ -284,6 +285,8 @@
         display: table;
         width: 100%;
         table-layout: fixed;
+        margin-top: 10px;
+        margin-bottom: 40px;
     }
 
     body.amspec-download-body .amspec-signature {
@@ -306,8 +309,13 @@
     }
 
     body.amspec-download-body .amspec-signature-entity {
-        margin-top: 8px;
+        margin-top: 0;
         font-size: 9.5pt;
+    }
+
+    body.amspec-download-body .amspec-signature-lab .amspec-signature-entity {
+        margin-top: 0;
+        padding-top: 4px;
     }
 
     body.amspec-download-body .amspec-signature .amspec-sig-space {
@@ -321,6 +329,11 @@
         width: 100% !important;
         height: 15mm;
         page-break-inside: avoid;
+        margin-top: 0;
+    }
+
+    body.amspec-download-body .amspec-page-two .amspec-page-body {
+        padding-bottom: 28mm;
     }
 
     body.amspec-download-body .amspec-footer {
@@ -364,7 +377,15 @@
     }
 
     body.amspec-download-body .amspec-watermark {
-        display: none;
+        position: fixed;
+        top: 42%;
+        left: 18%;
+        width: 64%;
+        opacity: 0.08;
+        z-index: 0;
+        pointer-events: none;
+        display: block;
+        transform: rotate(-35deg);
     }
 
     body.amspec-download-body .amspec-brand-row {

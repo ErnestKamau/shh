@@ -85,11 +85,12 @@
 
     .amspec-watermark {
         position: fixed;
-        top: 35%;
+        top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%);
-        opacity: 0.06;
-        width: 280px;
+        transform: translate(-50%, -50%) rotate(-35deg);
+        opacity: 0.08;
+        width: 48%;
+        max-width: 420px;
         z-index: 0;
         pointer-events: none;
     }
@@ -349,6 +350,7 @@
 
     .amspec-signature-intro {
         margin-top: 16px;
+        margin-bottom: 18px;
         width: 50%;
         padding-right: 16px;
         font-size: 10pt;
@@ -362,6 +364,8 @@
         display: table;
         width: 100%;
         table-layout: fixed;
+        margin-top: 8px;
+        margin-bottom: 40px;
     }
 
     .amspec-signature {
@@ -379,14 +383,18 @@
     }
 
     .amspec-signature-entity {
-        margin-top: 24px;
+        margin-top: 0;
         font-family: var(--amspec-font-table);
         font-weight: 700;
         font-size: 10pt;
     }
 
+    .amspec-signature-lab .amspec-signature-entity {
+        margin-top: 0;
+    }
+
     .amspec-footer-wrap {
-        margin-top: 16px;
+        margin-top: 56px;
         padding-top: 0;
         width: 100%;
     }
@@ -491,7 +499,16 @@
         }
 
         .amspec-watermark {
-            display: none !important;
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) rotate(-35deg) !important;
+            opacity: 0.08 !important;
+            width: 48% !important;
+            max-width: 420px !important;
+            z-index: 0 !important;
+            pointer-events: none !important;
+            display: block !important;
         }
 
         .amspec-document-shell {
@@ -522,7 +539,7 @@
         }
 
         .amspec-footer-wrap {
-            margin-top: 12px;
+            margin-top: 56px;
             padding-top: 0;
             page-break-inside: avoid;
             break-inside: avoid;

@@ -761,6 +761,10 @@ class QuotationReportService
         $logoDataUri = $this->resolveCompanyLogoDataUri();
         $logoUrl = $this->resolveCompanyLogoUrl();
         $logoSrc = $forPdf ? $logoDataUri : ($logoUrl !== '' ? $logoUrl : $logoDataUri);
+        $watermarkSrc = app(\App\Services\Reports\ReportWatermarkService::class)->src(null, $forPdf);
+        if ($watermarkSrc === '') {
+            $watermarkSrc = $logoDataUri !== '' ? $logoDataUri : $logoSrc;
+        }
 
         return [
             'primary' => $primary,
@@ -768,7 +772,7 @@ class QuotationReportService
             'logoSrc' => $logoSrc,
             'logoUrl' => $logoUrl,
             'logoDataUri' => $logoDataUri,
-            'watermarkSrc' => $logoDataUri !== '' ? $logoDataUri : $logoSrc,
+            'watermarkSrc' => $watermarkSrc,
             'wordmarkDataUri' => $this->buildAmSpecWordmarkDataUri($primary),
             'hexClusterDataUri' => $this->buildHexClusterDataUri($primary),
         ];
@@ -1077,6 +1081,7 @@ class QuotationReportService
         $dompdf->set_option('defaultMediaType', 'print');
         $dompdf->set_option('isFontSubsettingEnabled', true);
         $pdf->setPaper('a4', 'portrait');
+        app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf);
 
         return $pdf;
     }

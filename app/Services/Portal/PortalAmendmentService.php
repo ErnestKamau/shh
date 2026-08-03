@@ -90,11 +90,20 @@ class PortalAmendmentService
             $batch->approval_date = null;
             $batch->report_verified_date = null;
 
-            $this->workflowSync->applyWorkflowStatus(
-                $batch,
-                'Sample Verification',
-                ($source === 'portal' ? 'Portal' : 'CRM').' amendment raised: '.$reason,
-            );
+            try {
+                $this->workflowSync->applyWorkflowStatus(
+                    $batch,
+                    'Sample Verification',
+                    ($source === 'portal' ? 'Portal' : 'CRM').' amendment raised: '.$reason,
+                    $createdByUserId,
+                );
+            } catch (\RuntimeException $e) {
+                throw PortalApiException::withMessage(
+                    'custody_actor_required',
+                    'Unable to raise amendment because no LIMS user is linked to this portal account.',
+                    422,
+                );
+            }
             $batch->save();
 
             BatchAmmendment::flagSamplesForAmendment(

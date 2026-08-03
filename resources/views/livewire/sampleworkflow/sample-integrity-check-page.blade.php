@@ -20,7 +20,7 @@
                 <i class="mdi mdi-printer-outline"></i> Collection label
             </a>
             @if($this->hasLabSamples)
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="modal" data-target="#print-labels-modal">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="modal" data-target="#print-sample-labels-modal">
                     <i class="mdi mdi-barcode"></i> Lab sample labels
                 </button>
             @else
@@ -427,6 +427,55 @@
             </div>
         </div>
     @endif
+
+    <div id="print-sample-labels-modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-printer mr-1"></i> Print Labels
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3 text-muted">Choose which label to generate for the samples listed. Each option opens in a new tab.</p>
+                    <div class="list-group">
+                        <a href="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'collection']) }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="list-group-item list-group-item-action"
+                            data-dismiss="modal">
+                            <div class="d-flex align-items-center">
+                                <i class="mdi mdi-tag-outline mr-2 text-primary" aria-hidden="true"></i>
+                                <div>
+                                    <strong class="d-block">Sample Collection Label</strong>
+                                    <small class="text-muted">Collection details with TRF barcode</small>
+                                </div>
+                            </div>
+                        </a>
+                        <a href="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'registration']) }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="list-group-item list-group-item-action"
+                            data-dismiss="modal">
+                            <div class="d-flex align-items-center">
+                                <i class="mdi mdi-barcode mr-2 text-primary" aria-hidden="true"></i>
+                                <div>
+                                    <strong class="d-block">Registration Label with barcode</strong>
+                                    <small class="text-muted">Job / sample registration label for scanning</small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         (function () {

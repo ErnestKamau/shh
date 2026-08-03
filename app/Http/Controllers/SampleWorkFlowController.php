@@ -6595,6 +6595,7 @@ class SampleWorkFlowController extends Controller
 
             // DomPDF 3 page_script paints immediately onto existing pages — render first.
             $pdf->render();
+            app(\App\Services\Reports\ReportWatermarkService::class)->applyToDompdf($dompdf);
 
             if ($isPreviewPdf) {
                 $this->applyTestRequestReportPreviewWatermark($dompdf);

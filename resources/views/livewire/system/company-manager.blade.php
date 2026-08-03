@@ -230,6 +230,28 @@
                                 </div>
                             </div>
 
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Report Watermark</label>
+                                        <input type="file" wire:model="watermarkFile" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" class="form-control @error('watermarkFile') is-invalid @enderror">
+                                        @error('watermarkFile') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <small class="text-muted d-block mt-1">Faint background mark on draft and final system reports / quotations. PNG with transparency recommended.</small>
+                                        @if($watermarkFile)
+                                            <div class="mt-2">
+                                                <small class="text-muted d-block">{{ __('system.preview') ?? 'Preview' }}:</small>
+                                                <img src="{{ $watermarkFile->temporaryUrl() }}" alt="Watermark preview" style="width:120px;height:auto;max-height:80px;object-fit:contain;border:1px solid #eee;border-radius:8px;background:#fff;padding:6px;opacity:0.55;">
+                                            </div>
+                                        @elseif($existingWatermark)
+                                            <div class="mt-2">
+                                                <small class="text-muted d-block">{{ __('system.current_label') ?? 'Current' }}:</small>
+                                                <img src="{{ $existingWatermark }}" alt="Current watermark" style="width:120px;height:auto;max-height:80px;object-fit:contain;border:1px solid #eee;border-radius:8px;background:#fff;padding:6px;opacity:0.55;">
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
                             <hr class="my-3">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="text-primary font-weight-bold mb-0">

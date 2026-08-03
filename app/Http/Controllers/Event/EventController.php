@@ -118,56 +118,10 @@ class EventController extends Controller
         if (isset($request->is_routine)) {
             $newEvent->frequency = $request->frequency;
             $newEvent->is_routine = 1;
+            $newEvent->save();
 
-            $reset_start = $newEvent->start_date;
-            $reset_end = $newEvent->end_date;
-            $interval = floor(360 / intval($request->frequency));
-            // return response()->json($interval);
-            foreach (range(1, $interval - 1) as $days) {
-                $set = ' + ' . $request->frequency . ' days';
-                $start_date = date('Y-m-d', strtotime($reset_start . $set));
-                $end_date = date('Y-m-d', strtotime($reset_end . $set));
-                $reset_start = $start_date;
-                $reset_end = $end_date;
-
-
-                $event = new Event();
-                $event->title = $request->title;
-                $event->description = $request->description;
-                $event->start_date = $reset_start;
-                $event->end_date = $reset_end;
-                $event->start_time = $request->start_time;
-                $event->end_time = $request->end_time;
-                $event->client_id = $request->client_id;
-                $event->location = $request->location;
-                $event->responsible_id = implode(',', $request->responsible_id);
-                $event->status = 'Pending';
-                $event->contract_valid_from = $request->contract_valid_from;
-                $event->contract_valid_to = $request->contract_valid_to;
-                $event->is_routine = 1;
-                $event->parent_id = $newEvent->id;
-                $event->frequency = $request->frequency;
-                $event->save();
-                if (isset($request->duration) && $request->duration != '') {
-
-                    $loop = 0;
-                    foreach ($request->duration as $duration) {
-                        if ($duration != '') {
-                            // return response()->json($duration,200);
-                            $event->has_notification = 1;
-
-                            $notification = new CalendarEventsNotification();
-                            $notification->duration = $duration;
-                            $notification->rate = $request->rate[$loop];
-                            $notification->calendar_event_id = $event->id;
-                            // return response()->json($notification,200);
-                            $notification->save();
-                        }
-                        ++$loop;
-                    }
-                }
-                $event->save();
-            }
+            app(\App\Services\Planner\RoutineOccurrenceGenerator::class)
+                ->generateFromRequest($newEvent, $request);
         }
 
         if (isset($request->duration) && $request->duration != '') {
@@ -231,7 +185,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->groupBy('status')
             ->pluck('count', 'status');
@@ -243,7 +197,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->get();
         $today_date = getTodayDate();
@@ -252,7 +206,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->get();
         $events = [];
@@ -297,7 +251,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->count();
 
@@ -318,7 +272,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->groupBy('status')
             ->pluck('count', 'status');
@@ -330,7 +284,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->get();
         $today_date = getTodayDate();
@@ -339,7 +293,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->get();
         $events = [];
@@ -379,7 +333,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->count();
 
@@ -402,7 +356,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->get();
         $events = [];
@@ -428,7 +382,7 @@ class EventController extends Controller
                 $query->whereNull('parent_id')
                       ->orWhereColumn('id', 'parent_id')
                       ->orWhere('is_routine', '!=', 1)
-                      ->orWhereNotIn('frequency', [1, 7, 30]);
+                      ->orWhere('status', '!=', 'Pending');
             })
             ->get();
         $events = [];
@@ -510,52 +464,10 @@ class EventController extends Controller
             if (isset($request->is_routine)) {
                 $event->is_routine = 1;
                 $event->frequency = $request->frequency;
+                $event->save();
 
-                $reset_start = $event->start_date;
-                $reset_end = $event->end_date;
-                $interval = floor(360 / intval($request->frequency));
-                foreach (range(1, $interval - 1) as $days) {
-                    $set = ' + ' . $request->frequency . ' days';
-                    $start_date = date('Y-m-d', strtotime($reset_start . $set));
-                    $end_date = date('Y-m-d', strtotime($reset_end . $set));
-                    $reset_start = $start_date;
-                    $reset_end = $end_date;
-
-                    $child = new Event();
-                    $child->title = $request->title;
-                    $child->description = $request->description;
-                    $child->start_date = $reset_start;
-                    $child->end_date = $reset_end;
-                    $child->start_time = $request->start_time;
-                    $child->end_time = $request->end_time;
-                    $child->client_id = $request->client_id;
-                    $child->location = $request->location;
-                    $child->responsible_id = implode(',', $request->responsible_id);
-                    $child->status = 'Pending';
-                    $child->contract_valid_from = $request->contract_valid_from;
-                    $child->contract_valid_to = $request->contract_valid_to;
-                    $child->is_routine = 1;
-                    $child->parent_id = $event->id;
-                    $child->frequency = $request->frequency;
-                    $child->save();
-
-                    if (isset($request->duration) && $request->duration != '') {
-                        $loop = 0;
-                        foreach ($request->duration as $duration) {
-                            if ($duration != '') {
-                                $child->has_notification = 1;
-
-                                $notification = new CalendarEventsNotification();
-                                $notification->duration = $duration;
-                                $notification->rate = $request->rate[$loop];
-                                $notification->calendar_event_id = $child->id;
-                                $notification->save();
-                            }
-                            ++$loop;
-                        }
-                    }
-                    $child->save();
-                }
+                app(\App\Services\Planner\RoutineOccurrenceGenerator::class)
+                    ->generateFromRequest($event, $request);
             } else {
                 $event->is_routine = 0;
                 $event->frequency = '';

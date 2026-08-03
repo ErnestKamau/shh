@@ -797,6 +797,11 @@
 <div class="trr-embedded-root" dir="{{ !empty($isRTL) ? 'rtl' : 'ltr' }}">
 @endif
 
+@include('partials.report-watermark', [
+    'company' => $company ?? null,
+    'forPdf' => !empty($isPdfMode),
+])
+
 @if(!empty($isPreviewMode) && empty($isEmbedded) && empty($isPdfMode))
     <div class="trr-preview-watermark" aria-hidden="true"><span>Draft Preview</span></div>
 @endif
