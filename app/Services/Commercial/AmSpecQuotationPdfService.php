@@ -151,6 +151,7 @@ final class AmSpecQuotationPdfService
             'qrcode' => '',
             'request_date_of_service' => $enquiry?->request_date_of_service,
             'service_priority' => $enquiry?->mode_of_service_priority ?? $enquiry?->priority,
+            'show_loq_column' => (bool) ($header->show_loq_column ?? true),
             'show_mu_column' => (bool) ($header->show_mu_column ?? true),
             'show_unit_price_column' => (bool) ($header->show_unit_price_column ?? true),
         ];

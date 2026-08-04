@@ -8,7 +8,7 @@
         </ol>
     @endif
     @if(! empty($copy['terms_url'] ?? ''))
-        <p style="margin-top: 8px; font-size: 10px;">
+        <p class="amspec-terms-link">
             Full terms and conditions: <a href="{{ $copy['terms_url'] }}">{{ $copy['terms_url'] }}</a>
         </p>
     @endif

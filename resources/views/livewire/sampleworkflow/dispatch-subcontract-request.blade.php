@@ -5,7 +5,7 @@
         </div>
     @else
         <section class="receive-sample-selected">
-            <p class="receive-sample-section-label">Selected request</p>
+            <p class="receive-sample-section-label" style="margin-bottom: 1rem;">Selected request</p>
             <div class="receive-sample-chips">
                 @foreach ($selectedFormSummaries as $summary)
                     <span class="receive-sample-chip">
@@ -16,10 +16,6 @@
                     </span>
                 @endforeach
             </div>
-            <p class="receive-sample-selected-hint text-muted small mb-0">
-                Dispatch subcontracted tests to external labs, assign Amspec analysts for any in-house tests,
-                then mark as <strong>dispatched &amp; assigned</strong>. The request moves into <strong>Samples In Lab</strong>.
-            </p>
         </section>
 
         <div class="alert alert-light border mt-3 mb-3">
@@ -154,76 +150,6 @@
                 <div class="invalid-feedback d-block">{{ $message }}</div>
             @enderror
         </div>
-
-        @if ($inHouseLabSections !== [])
-            <div class="form-group mt-3 mb-0">
-                <label class="receive-sample-field-label">
-                    Assign Amspec analyst(s) for in-house tests <span class="text-danger">*</span>
-                </label>
-                <p class="text-muted small mb-2">
-                    These tests stay at Amspec. Choose analyst(s) for each lab section before dispatching.
-                </p>
-
-                <div class="d-flex flex-column" style="gap: 12px;">
-                    @foreach ($inHouseLabSections as $section)
-                        @php
-                            $sectionId = (string) ($section['id'] ?? '');
-                            $assignedIds = array_map('strval', $analystsByLabSection[$sectionId] ?? []);
-                            $analystOptions = $this->analystsForLabSection($sectionId);
-                        @endphp
-                        <div class="border rounded p-3" wire:key="in-house-section-{{ $sectionId }}">
-                            <div class="d-flex align-items-start justify-content-between mb-2" style="gap: 12px;">
-                                <div>
-                                    <strong>
-                                        <i class="mdi mdi-flask-outline text-muted mr-1"></i>
-                                        {{ $section['name'] }}
-                                    </strong>
-                                    <div class="text-muted small mt-1">
-                                        {{ count($section['test_labels'] ?? []) }} in-house test{{ count($section['test_labels'] ?? []) === 1 ? '' : 's' }}:
-                                        {{ implode(', ', $section['test_labels'] ?? []) }}
-                                    </div>
-                                </div>
-                                <small class="text-muted text-nowrap">{{ count($assignedIds) }} selected</small>
-                            </div>
-
-                            @if ($analystOptions === [])
-                                <div class="alert alert-warning border mb-0 py-2">
-                                    <small>No analysts are tied to this lab section. Update personnel lab sections first.</small>
-                                </div>
-                            @else
-                                <div class="d-flex flex-wrap" style="gap: 8px;">
-                                    @foreach ($analystOptions as $analyst)
-                                        @php $isChecked = in_array($analyst['id'], $assignedIds, true); @endphp
-                                        <label
-                                            class="border rounded px-2 py-1 mb-0 d-inline-flex align-items-center {{ $isChecked ? 'border-primary bg-light' : '' }}"
-                                            style="gap: 6px; cursor: pointer;"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                class="mb-0"
-                                                @checked($isChecked)
-                                                wire:click="toggleSectionAnalyst('{{ $sectionId }}', '{{ $analyst['id'] }}')"
-                                            >
-                                            <span class="small">{{ $analyst['name'] }}</span>
-                                        </label>
-                                    @endforeach
-                                </div>
-                            @endif
-
-                            @error('analystsByLabSection.'.$sectionId)
-                                <div class="invalid-feedback d-block mt-2">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @elseif ($inHouseTests === [] && $subcontractedTests !== [])
-            <div class="alert alert-light border mt-3 mb-0">
-                <small class="text-muted">
-                    All selected tests on this request are subcontracted. No in-house analyst assignment is required.
-                </small>
-            </div>
-        @endif
     @endif
 
     @error('selection')
@@ -243,7 +169,7 @@
         >
             <span wire:loading.remove wire:target="confirmDispatch">
                 <i class="mdi mdi-truck-delivery-outline mr-1"></i>
-                {{ $inHouseLabSections !== [] ? 'Dispatch & assign' : 'Mark dispatched' }}
+                Dispatch
             </span>
             <span wire:loading wire:target="confirmDispatch">
                 <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

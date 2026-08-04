@@ -48,6 +48,13 @@ class SampleSubmissionRequest extends Model
 
     public const STATUS_IN_REVIEW = 'In Review';
 
+    /**
+     * Samples accepted at AmSpec (job/batch created; may be in Samples In Lab).
+     * Stored value remains `received_at_lab` for legacy rows — this is NOT
+     * "received by the subcontracting laboratory".
+     */
+    public const STATUS_ACCEPTED = 'received_at_lab';
+
     public const SUBCONTRACT_DISPATCH_AWAITING = 'awaiting_dispatch';
 
     public const SUBCONTRACT_DISPATCH_DISPATCHED = 'dispatched';
@@ -64,6 +71,24 @@ class SampleSubmissionRequest extends Model
         return [
             self::SUBCONTRACT_DISPATCH_DISPATCHED,
             self::SUBCONTRACT_DISPATCH_DISPATCHED_AND_ASSIGNED,
+        ];
+    }
+
+    /**
+     * Enquiry statuses that may appear on Sample Receiving → Sub-contracting.
+     * Includes AmSpec-accepted enquiries so pending external dispatch stays visible
+     * after the batch is routed to Samples In Lab.
+     *
+     * @return list<string>
+     */
+    public static function subcontractingQueueEnquiryStatuses(): array
+    {
+        return [
+            self::STATUS_QUOTATION_ACCEPTED,
+            self::STATUS_READY_FOR_RECEPTION,
+            self::STATUS_SAMPLE_INTEGRITY_CHECK,
+            self::STATUS_IN_REVIEW,
+            self::STATUS_ACCEPTED,
         ];
     }
 
@@ -274,7 +299,7 @@ class SampleSubmissionRequest extends Model
             self::STATUS_READY_FOR_RECEPTION => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
             // Legacy In Review folds into Ready for Reception (Accept Samples).
             self::STATUS_IN_REVIEW => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
-            'received_at_lab' => 'Accepted',
+            self::STATUS_ACCEPTED => 'Accepted',
             'Received at Lab' => 'Sales Order Created',
             default => $status,
         };
@@ -313,7 +338,7 @@ class SampleSubmissionRequest extends Model
     }
 
     /**
-     * Enquiries with at least one subcontracted parameter (master flag, quotation override, or selected lines).
+     * Enquiries with at least one subcontracted parameter (master flag or enquiry sample config).
      */
     public function scopeWhereHasSubcontractedWork(Builder $query): Builder
     {
@@ -324,12 +349,26 @@ class SampleSubmissionRequest extends Model
                 $analysisQuery->whereHas('analysisElement', function (Builder $elementQuery): void {
                     $elementQuery->where('sub_contracted', 1);
                 });
-            })->orWhereHas('currentQuotation.details', function (Builder $detailQuery): void {
-                $detailQuery->whereNotNull('subcontracted_analytes')
-                    ->where('subcontracted_analytes', '!=', '');
-            })->orWhereHas('acceptedQuotation.details', function (Builder $detailQuery): void {
-                $detailQuery->whereNotNull('subcontracted_analytes')
-                    ->where('subcontracted_analytes', '!=', '');
+            })->orWhere(function (Builder $configQuery) use ($driver): void {
+                if ($driver !== 'pgsql') {
+                    // SQLite / other: match non-empty subcontracted_parameter_keys JSON text.
+                    $configQuery->whereNotNull('enquiry_sample_configuration')
+                        ->where('enquiry_sample_configuration', '!=', '[]')
+                        ->where('enquiry_sample_configuration', 'like', '%subcontracted_parameter_keys%')
+                        ->where('enquiry_sample_configuration', 'not like', '%"subcontracted_parameter_keys":[]%')
+                        ->where('enquiry_sample_configuration', 'not like', '%"subcontracted_parameter_keys": []%');
+
+                    return;
+                }
+
+                $configQuery->whereRaw(<<<'SQL'
+EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(COALESCE(sample_submission_requests.enquiry_sample_configuration::jsonb, '[]'::jsonb)) AS cfg
+    WHERE jsonb_typeof(COALESCE(cfg->'subcontracted_parameter_keys', '[]'::jsonb)) = 'array'
+      AND jsonb_array_length(COALESCE(cfg->'subcontracted_parameter_keys', '[]'::jsonb)) > 0
+)
+SQL);
             })->orWhere(function (Builder $jsonSelectionQuery) use ($driver): void {
                 if ($driver !== 'pgsql') {
                     $jsonSelectionQuery->whereRaw('1 = 0');

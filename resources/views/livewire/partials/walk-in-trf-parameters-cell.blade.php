@@ -46,16 +46,11 @@
         @click.stop="toggleOpen()"
         :aria-expanded="open ? 'true' : 'false'">
         <div class="rft-param-picker__chips" aria-live="polite">
-            <template x-if="isLoading">
-                <span class="text-primary small d-inline-flex align-items-center">
-                    <span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                    Loading parameters…
-                </span>
-            </template>
-            <template x-if="!isLoading && selected.length === 0">
+            {{-- Loading belongs in the open panel only; the closed trigger must keep chips/placeholder. --}}
+            <template x-if="selected.length === 0">
                 <span class="text-muted small" x-text="options.length ? 'Choose parameters…' : 'Select analysis type first'"></span>
             </template>
-            <span x-show="!isLoading" class="d-inline-flex flex-wrap">
+            <span class="d-inline-flex flex-wrap">
                 <template x-for="chip in visibleChips" :key="chip">
                     <span class="rft-param-chip">
                         <span x-text="chip" :title="chip"></span>

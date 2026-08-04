@@ -143,9 +143,10 @@
         <div class="dashboard-welcome-hero d-flex flex-wrap align-items-center justify-content-between" style="gap: 16px;">
             <div>
                 <h3>Personal Dashboard</h3>
-                <div class="dashboard-welcome-subtitle">Your active workload, turnaround performance, and complete activity history.</div>
+                <div class="dashboard-welcome-subtitle">Your active workload, turnaround performance, and assigned tasks.</div>
             </div>
             <form method="GET" action="{{ route('dashboard-lab-personal') }}" class="d-flex align-items-end personal-date-filter" style="gap: 8px;">
+                <input type="hidden" name="history_tab" value="{{ $historyTab }}">
                 <div>
                     <label for="personal-start-date">From</label>
                     <input id="personal-start-date" type="date" name="start_date" value="{{ $startDate }}" class="form-control form-control-sm">
@@ -210,6 +211,143 @@
             </div>
         </div>
 
+        <section id="my-tasks" class="workflow-board-panel">
+            <div class="workflow-board-panel-header">
+                <div>
+                    <h5><i class="mdi mdi-clipboard-check-outline" aria-hidden="true"></i> My Tasks</h5>
+                    <div class="text-muted small mt-1">Active and completed work assigned to you. Status shows what is still open.</div>
+                </div>
+            </div>
+            <nav class="history-tabs" aria-label="My task categories">
+                <a class="nav-link {{ $historyTab === 'assignments' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'assignments']) }}#my-tasks">
+                    Lab work assigned <span class="history-count">{{ $taskCounts['assignments'] }}</span>
+                </a>
+                <a class="nav-link {{ $historyTab === 'verifications' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'verifications']) }}#my-tasks">
+                    Sample verification <span class="history-count">{{ $taskCounts['verifications'] }}</span>
+                </a>
+                <a class="nav-link {{ $historyTab === 'approvals' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'approvals']) }}#my-tasks">
+                    Sample approval <span class="history-count">{{ $taskCounts['approvals'] }}</span>
+                </a>
+                <a class="nav-link {{ $historyTab === 'quotations' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'quotations']) }}#my-tasks">
+                    Quotations approval <span class="history-count">{{ $taskCounts['quotations'] }}</span>
+                </a>
+            </nav>
+
+            <div class="workflow-board-panel-body p-0">
+                @if($historyTab === 'quotations')
+                    <div class="table-responsive">
+                        <table class="table table-hover workflow-table">
+                            <thead>
+                                <tr>
+                                    <th>Reference</th>
+                                    <th>Customer</th>
+                                    <th>Status</th>
+                                    <th>Detail</th>
+                                    <th>Assigned / Requested</th>
+                                    <th>Completed</th>
+                                    <th class="text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($taskRows as $row)
+                                    <tr>
+                                        <td class="font-weight-bold">{{ $row['reference'] }}</td>
+                                        <td>{{ $row['client'] }}</td>
+                                        <td>
+                                            @php
+                                                $toneClass = match ($row['status_tone'] ?? '') {
+                                                    'complete' => 'workflow-status-pill--complete',
+                                                    'rejected' => 'history-status--rejected',
+                                                    default => 'workflow-status-pill--pending',
+                                                };
+                                            @endphp
+                                            <span class="workflow-status-pill {{ $toneClass }}">{{ $row['status'] }}</span>
+                                        </td>
+                                        <td>{{ $row['detail'] }}</td>
+                                        <td>{{ $row['assigned_at'] }}</td>
+                                        <td>{{ $row['completed_at'] }}</td>
+                                        <td class="text-right">
+                                            @if(! empty($row['open_url']))
+                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ $row['open_url'] }}">{{ ($row['status_tone'] ?? '') === 'pending' ? 'Review' : 'Open' }}</a>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="7" class="text-center text-muted py-4">No quotation approval tasks have been recorded for you.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    @php
+                        $emptyLabel = match ($historyTab) {
+                            'verifications' => 'sample verification',
+                            'approvals' => 'sample approval',
+                            default => 'lab work',
+                        };
+                    @endphp
+                    <div class="table-responsive">
+                        <table class="table table-hover workflow-table">
+                            <thead>
+                                <tr>
+                                    <th>Batch</th>
+                                    <th>Client</th>
+                                    <th>Status</th>
+                                    <th>Batch stage</th>
+                                    <th>Assigned</th>
+                                    <th>Completed</th>
+                                    <th>Detail</th>
+                                    <th class="text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($taskRows as $row)
+                                    <tr>
+                                        <td class="font-weight-bold">{{ $row['reference'] }}</td>
+                                        <td>{{ $row['client'] }}</td>
+                                        <td>
+                                            @php
+                                                $toneClass = match ($row['status_tone'] ?? '') {
+                                                    'complete' => 'workflow-status-pill--complete',
+                                                    'rejected' => 'history-status--rejected',
+                                                    default => 'workflow-status-pill--pending',
+                                                };
+                                            @endphp
+                                            <span class="workflow-status-pill {{ $toneClass }}">{{ $row['status'] }}</span>
+                                        </td>
+                                        <td>
+                                            @if(! empty($row['batch_status']))
+                                                <span class="workflow-status-chip">{{ $row['batch_status'] }}</span>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $row['assigned_at'] }}</td>
+                                        <td>{{ $row['completed_at'] }}</td>
+                                        <td>{{ $row['detail'] }}</td>
+                                        <td class="text-right">
+                                            @if(! empty($row['open_url']))
+                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ $row['open_url'] }}">Open</a>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="8" class="text-center text-muted py-4">No {{ $emptyLabel }} tasks have been recorded for you.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+                @if($taskRows->hasPages())
+                    <div class="px-3 pt-3 border-top">{{ $taskRows->links() }}</div>
+                @endif
+            </div>
+        </section>
+
         <div class="row mb-3">
             <div class="col-lg-8 mb-3">
                 <section class="workflow-board-panel h-100">
@@ -233,255 +371,6 @@
                 </section>
             </div>
         </div>
-
-        <section class="workflow-board-panel">
-            <div class="workflow-board-panel-header">
-                <h5><i class="mdi mdi-file-sign" aria-hidden="true"></i> Quotation Approvals</h5>
-                <span class="text-muted small">{{ $quotationApprovals->count() }} pending</span>
-            </div>
-            <div class="workflow-board-panel-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover workflow-table">
-                        <thead>
-                            <tr>
-                                <th>Quotation</th>
-                                <th>Customer</th>
-                                <th>Requested</th>
-                                <th class="text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($quotationApprovals as $approval)
-                                <tr>
-                                    <td class="font-weight-bold">{{ $approval['quote_number'] }}</td>
-                                    <td>{{ $approval['customer'] }}</td>
-                                    <td>{{ $approval['requested_at'] }}</td>
-                                    <td class="text-right">
-                                        <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ $approval['open_url'] }}">Review</a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="4" class="text-center text-muted py-4">No quotations are awaiting your approval in this period.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section class="workflow-board-panel">
-            <div class="workflow-board-panel-header">
-                <h5><i class="mdi mdi-flask-outline" aria-hidden="true"></i> Active Assigned Batches</h5>
-                <span class="text-muted small">{{ $batchAssignmentsPage->total() }} total</span>
-            </div>
-            <div class="workflow-board-panel-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover workflow-table">
-                        <thead>
-                            <tr>
-                                <th>Batch</th>
-                                <th>Client</th>
-                                <th>Status</th>
-                                <th>Target Date</th>
-                                <th>Assigned On</th>
-                                <th class="text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($batchAssignmentsPage as $assignment)
-                                @php $batch = $assignment->sampleHeader; @endphp
-                                <tr>
-                                    <td class="font-weight-bold">{{ $batch?->batch_code ?? 'N/A' }}</td>
-                                    <td>{{ $batch?->client?->name ?? 'N/A' }}</td>
-                                    <td><span class="workflow-status-chip">{{ $batch?->status ?? 'N/A' }}</span></td>
-                                    <td>{{ $batch?->get_target_date?->date ?? 'N/A' }}</td>
-                                    <td>{{ optional($assignment->created_at)->format('Y-m-d H:i') }}</td>
-                                    <td class="text-right">
-                                        @if($batch)
-                                            <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status ?: 'Samples In Lab']) }}">Open</a>
-                                        @else
-                                            <span class="text-muted">N/A</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="6" class="text-center text-muted py-4">No active assigned batches in this period.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            @if($batchAssignmentsPage->hasPages())
-                <div class="px-3 pt-3 border-top">
-                    {{ $batchAssignmentsPage->links() }}
-                </div>
-            @endif
-        </section>
-
-        <section id="activity-history" class="workflow-board-panel">
-            <div class="workflow-board-panel-header">
-                <div>
-                    <h5><i class="mdi mdi-history" aria-hidden="true"></i> Complete Activity History</h5>
-                    <div class="text-muted small mt-1">All recorded quotation decisions, assignments, verifications, and approvals completed by you.</div>
-                </div>
-            </div>
-            <nav class="history-tabs" aria-label="Activity history categories">
-                <a class="nav-link {{ $historyTab === 'quotations' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'quotations']) }}#activity-history">
-                    Quotation approvals <span class="history-count">{{ $quotationApprovalHistory->total() }}</span>
-                </a>
-                <a class="nav-link {{ $historyTab === 'assignments' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'assignments']) }}#activity-history">
-                    Lab work assigned <span class="history-count">{{ $labAssignmentHistory->total() }}</span>
-                </a>
-                <a class="nav-link {{ $historyTab === 'verifications' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'verifications']) }}#activity-history">
-                    Sample verification <span class="history-count">{{ $sampleVerificationHistory->total() }}</span>
-                </a>
-                <a class="nav-link {{ $historyTab === 'approvals' ? 'active' : '' }}" href="{{ route('dashboard-lab-personal', ['start_date' => $startDate, 'end_date' => $endDate, 'history_tab' => 'approvals']) }}#activity-history">
-                    Sample approval <span class="history-count">{{ $sampleApprovalHistory->total() }}</span>
-                </a>
-            </nav>
-
-            <div class="workflow-board-panel-body p-0">
-                @if($historyTab === 'quotations')
-                    <div class="table-responsive">
-                        <table class="table table-hover workflow-table">
-                            <thead>
-                                <tr>
-                                    <th>Quotation</th>
-                                    <th>Customer</th>
-                                    <th>Decision</th>
-                                    <th>Comments</th>
-                                    <th>Completed</th>
-                                    <th class="text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($quotationApprovalHistory as $approvalLog)
-                                    @php
-                                        $quote = $approvalLog->quotationHeader;
-                                        $enquiry = $approvalLog->enquiry;
-                                        $quoteUrl = $enquiry?->staffViewUrl() ?? ($quote ? route('add-qoute-details-view', ['id' => $quote->id]) : null);
-                                        if ($quoteUrl && $enquiry?->submissionFormInstance?->submissionForm) {
-                                            $quoteUrl .= (str_contains($quoteUrl, '?') ? '&' : '?').'tab=quotation_approvals';
-                                        }
-                                    @endphp
-                                    <tr>
-                                        <td class="font-weight-bold">{{ $quote?->quote_number ?? 'N/A' }}</td>
-                                        <td>{{ $quote?->customer?->name ?? 'N/A' }}</td>
-                                        <td>
-                                            <span class="workflow-status-pill {{ $approvalLog->action === \App\Models\QuotationApprovalLog::ACTION_APPROVED ? 'workflow-status-pill--complete' : 'history-status--rejected' }}">
-                                                {{ ucfirst($approvalLog->action) }}
-                                            </span>
-                                        </td>
-                                        <td>{{ $approvalLog->comments ?: '—' }}</td>
-                                        <td>{{ optional($approvalLog->created_at)->format('Y-m-d H:i') }}</td>
-                                        <td class="text-right">
-                                            @if($quoteUrl)
-                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ $quoteUrl }}">Open</a>
-                                            @else
-                                                <span class="text-muted">N/A</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="6" class="text-center text-muted py-4">No quotation approval decisions have been recorded for you.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    @if($quotationApprovalHistory->hasPages())
-                        <div class="px-3 pt-3 border-top">{{ $quotationApprovalHistory->links() }}</div>
-                    @endif
-                @elseif($historyTab === 'assignments')
-                    <div class="table-responsive">
-                        <table class="table table-hover workflow-table">
-                            <thead>
-                                <tr>
-                                    <th>Batch</th>
-                                    <th>Client</th>
-                                    <th>Assigned By</th>
-                                    <th>Assigned</th>
-                                    <th>Status</th>
-                                    <th>Completed</th>
-                                    <th class="text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($labAssignmentHistory as $assignment)
-                                    @php $batch = $assignment->sampleHeader; @endphp
-                                    <tr>
-                                        <td class="font-weight-bold">{{ $batch?->batch_code ?? 'N/A' }}</td>
-                                        <td>{{ $batch?->client?->name ?? 'N/A' }}</td>
-                                        <td>{{ $assignment->assignedBy?->name ?? 'N/A' }}</td>
-                                        <td>{{ optional($assignment->created_at)->format('Y-m-d H:i') }}</td>
-                                        <td>
-                                            <span class="workflow-status-pill {{ $assignment->status === \App\Models\Sampleworkflow\SampleHeaderUserAssignment::STATUS_COMPLETED ? 'workflow-status-pill--complete' : 'workflow-status-pill--pending' }}">
-                                                {{ ucfirst($assignment->status) }}
-                                            </span>
-                                        </td>
-                                        <td>{{ optional($assignment->completed_at)->format('Y-m-d H:i') ?? '—' }}</td>
-                                        <td class="text-right">
-                                            @if($batch)
-                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status ?: 'Samples In Lab']) }}">Open</a>
-                                            @else
-                                                <span class="text-muted">N/A</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="7" class="text-center text-muted py-4">No lab assignments have been recorded for you.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    @if($labAssignmentHistory->hasPages())
-                        <div class="px-3 pt-3 border-top">{{ $labAssignmentHistory->links() }}</div>
-                    @endif
-                @else
-                    @php
-                        $workflowHistory = $historyTab === 'verifications' ? $sampleVerificationHistory : $sampleApprovalHistory;
-                        $activityLabel = $historyTab === 'verifications' ? 'verification' : 'approval';
-                    @endphp
-                    <div class="table-responsive">
-                        <table class="table table-hover workflow-table">
-                            <thead>
-                                <tr>
-                                    <th>Batch</th>
-                                    <th>Client</th>
-                                    <th>Stage Entered</th>
-                                    <th>Completed</th>
-                                    <th>Notes</th>
-                                    <th class="text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($workflowHistory as $custody)
-                                    @php $batch = $custody->sampleHeader; @endphp
-                                    <tr>
-                                        <td class="font-weight-bold">{{ $batch?->batch_code ?? 'N/A' }}</td>
-                                        <td>{{ $batch?->client?->name ?? 'N/A' }}</td>
-                                        <td>{{ optional($custody->created_at)->format('Y-m-d H:i') }}</td>
-                                        <td>{{ $custody->moved_out_date ? \Carbon\Carbon::parse((string) $custody->moved_out_date)->format('Y-m-d H:i') : '—' }}</td>
-                                        <td>{{ $custody->comments ?: '—' }}</td>
-                                        <td class="text-right">
-                                            @if($batch)
-                                                <a class="btn btn-sm btn-outline-primary btn-action-sm" href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $batch->status ?: 'Samples In Lab']) }}">Open</a>
-                                            @else
-                                                <span class="text-muted">N/A</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="6" class="text-center text-muted py-4">No sample {{ $activityLabel }} activity has been recorded for you.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    @if($workflowHistory->hasPages())
-                        <div class="px-3 pt-3 border-top">{{ $workflowHistory->links() }}</div>
-                    @endif
-                @endif
-            </div>
-        </section>
     </div>
 </main>
 @endsection

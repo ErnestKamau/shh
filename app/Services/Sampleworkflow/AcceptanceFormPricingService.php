@@ -201,11 +201,19 @@ class AcceptanceFormPricingService
             }
         }
 
+        return $this->resolveActiveMasterPricelist()
+            ?? Pricelist::query()->where('active', 1)->orderBy('id')->first();
+    }
+
+    /**
+     * Active master pricelist used as the universal price/package fallback.
+     */
+    public function resolveActiveMasterPricelist(): ?Pricelist
+    {
         return Pricelist::query()
             ->where('active', 1)
             ->where('is_master', 1)
-            ->first()
-            ?? Pricelist::query()->where('active', 1)->orderBy('id')->first();
+            ->first();
     }
 
     /**
@@ -274,7 +282,9 @@ class AcceptanceFormPricingService
     }
 
     /**
-     * Resolve a line price by searching all pricelists assigned to the customer.
+     * Resolve a line price by searching preferred → assigned → active master.
+     * Master is always considered when assigned lists have no positive price,
+     * even if the customer is not tied to that master pricelist.
      *
      * @return array{price: float, pricelist: ?Pricelist}
      */
@@ -283,6 +293,28 @@ class AcceptanceFormPricingService
         ?string $sampleTypeId,
         string $analysisTypeId,
         ?string $analysisElementId = null,
+        ?Pricelist $preferredPricelist = null,
+    ): array {
+        $candidates = $this->candidatePricelistsForPricing($customerId, $preferredPricelist);
+
+        foreach ($candidates as $pricelist) {
+            $price = $this->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
+            if ($price > 0) {
+                return ['price' => $price, 'pricelist' => $pricelist];
+            }
+        }
+
+        return ['price' => 0.0, 'pricelist' => $candidates[0] ?? null];
+    }
+
+    /**
+     * Pricelist search order for line prices and packages:
+     * preferred → customer assignments (active, by recency) → active master.
+     *
+     * @return list<Pricelist>
+     */
+    public function candidatePricelistsForPricing(
+        ?string $customerId,
         ?Pricelist $preferredPricelist = null,
     ): array {
         $candidates = [];
@@ -300,19 +332,12 @@ class AcceptanceFormPricingService
             }
         }
 
-        $fallback = $this->resolvePricelist($customerId);
-        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
-            $candidates[] = $fallback;
+        $master = $this->resolveActiveMasterPricelist();
+        if ($master !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $master->id)) {
+            $candidates[] = $master;
         }
 
-        foreach ($candidates as $pricelist) {
-            $price = $this->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
-            if ($price > 0) {
-                return ['price' => $price, 'pricelist' => $pricelist];
-            }
-        }
-
-        return ['price' => 0.0, 'pricelist' => $candidates[0] ?? null];
+        return $candidates;
     }
 
     /**
@@ -445,8 +470,22 @@ class AcceptanceFormPricingService
         string $analysisTypeId,
         ?string $analysisElementId = null
     ): float {
-        if (!$pricelist) {
-            return 0.0;
+        $item = $this->findMatchingLineItem($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
+
+        return $item !== null ? (float) $item->selling_price : 0.0;
+    }
+
+    /**
+     * Same match order as resolveLinePrice (including analyte fallback for TRF UUID mismatches).
+     */
+    public function findMatchingLineItem(
+        ?Pricelist $pricelist,
+        ?string $sampleTypeId,
+        string $analysisTypeId,
+        ?string $analysisElementId = null,
+    ): ?PricelistItem {
+        if ($pricelist === null) {
+            return null;
         }
 
         $query = PricelistItem::query()
@@ -454,14 +493,14 @@ class AcceptanceFormPricingService
             ->where('active', 1)
             ->where('is_package', false);
 
-        if (!empty($sampleTypeId)) {
+        if (! empty($sampleTypeId)) {
             $query->where('sample_type_id', $sampleTypeId);
         }
 
-        if (!empty($analysisElementId)) {
+        if (! empty($analysisElementId)) {
             $item = (clone $query)->where('analysis_element_id', $analysisElementId)->first();
-            if ($item) {
-                return (float) $item->selling_price;
+            if ($item !== null) {
+                return $item;
             }
 
             $item = PricelistItem::query()
@@ -470,52 +509,49 @@ class AcceptanceFormPricingService
                 ->where('is_package', false)
                 ->where('analysis_element_id', $analysisElementId)
                 ->first();
-            if ($item) {
-                return (float) $item->selling_price;
+            if ($item !== null) {
+                return $item;
             }
 
             // TRF/catalog often keeps a different element UUID than the pricelist row for the
             // same analyte (re-imports, Food vs Food & Feed duplicates). Match by analyte.
-            $analytePrice = $this->resolveLinePriceByAnalyte(
+            $analyteItem = $this->findMatchingLineItemByAnalyte(
                 $pricelist,
                 $sampleTypeId,
                 $analysisTypeId,
                 $analysisElementId,
             );
-            if ($analytePrice > 0) {
-                return $analytePrice;
+            if ($analyteItem !== null) {
+                return $analyteItem;
             }
         }
 
         if ($analysisTypeId !== '') {
-            $item = (clone $query)
+            return (clone $query)
                 ->where('analysis_id', $analysisTypeId)
                 ->whereNull('analysis_element_id')
                 ->first();
-            if ($item) {
-                return (float) $item->selling_price;
-            }
         }
 
-        return 0.0;
+        return null;
     }
 
     /**
-     * Resolve selling price when the line's analysis_element_id is not on the pricelist,
+     * Find a pricelist item when the line's analysis_element_id is not on the pricelist,
      * but another element for the same analyte (id / name / code) is.
      */
-    private function resolveLinePriceByAnalyte(
+    private function findMatchingLineItemByAnalyte(
         Pricelist $pricelist,
         ?string $sampleTypeId,
         string $analysisTypeId,
         string $analysisElementId,
-    ): float {
+    ): ?PricelistItem {
         $element = AnalysisElements::query()
             ->with('analyte:id,name,code')
             ->find($analysisElementId);
 
         if ($element === null) {
-            return 0.0;
+            return null;
         }
 
         $analyteId = trim((string) ($element->analyte_id ?? ''));
@@ -523,7 +559,7 @@ class AcceptanceFormPricingService
         $analyteCode = strtolower(trim((string) ($element->analyte?->code ?? '')));
 
         if ($analyteId === '' && $analyteName === '' && $analyteCode === '') {
-            return 0.0;
+            return null;
         }
 
         $baseQuery = PricelistItem::query()
@@ -546,7 +582,7 @@ class AcceptanceFormPricingService
                     ->whereHas('analysisElement', fn ($elementQuery) => $elementQuery->where('analyte_id', $analyteId))
                     ->first();
                 if ($item !== null) {
-                    return (float) $item->selling_price;
+                    return $item;
                 }
             }
 
@@ -564,12 +600,12 @@ class AcceptanceFormPricingService
                     })
                     ->first();
                 if ($item !== null) {
-                    return (float) $item->selling_price;
+                    return $item;
                 }
             }
         }
 
-        return 0.0;
+        return null;
     }
 
     /**
@@ -596,27 +632,7 @@ class AcceptanceFormPricingService
             return null;
         }
 
-        $candidates = [];
-
-        if ($preferredPricelist !== null) {
-            $candidates[] = $preferredPricelist;
-        }
-
-        if ($customerId !== null && $customerId !== '') {
-            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
-                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
-                    continue;
-                }
-                $candidates[] = $pricelist;
-            }
-        }
-
-        $fallback = $this->resolvePricelist($customerId);
-        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
-            $candidates[] = $fallback;
-        }
-
-        foreach ($candidates as $pricelist) {
+        foreach ($this->candidatePricelistsForPricing($customerId, $preferredPricelist) as $pricelist) {
             $match = $this->matchPackageInPricelist($pricelist, $sampleTypeId, $analysisTypeId, $requestedElementIds);
             if ($match !== null) {
                 return [
@@ -646,27 +662,7 @@ class AcceptanceFormPricingService
             return null;
         }
 
-        $candidates = [];
-
-        if ($preferredPricelist !== null) {
-            $candidates[] = $preferredPricelist;
-        }
-
-        if ($customerId !== null && $customerId !== '') {
-            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
-                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
-                    continue;
-                }
-                $candidates[] = $pricelist;
-            }
-        }
-
-        $fallback = $this->resolvePricelist($customerId);
-        if ($fallback !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $fallback->id)) {
-            $candidates[] = $fallback;
-        }
-
-        foreach ($candidates as $pricelist) {
+        foreach ($this->candidatePricelistsForPricing($customerId, $preferredPricelist) as $pricelist) {
             $match = $this->firstPackageInPricelist($pricelist, $sampleTypeId, $analysisTypeId);
             if ($match !== null) {
                 return [
@@ -923,6 +919,8 @@ class AcceptanceFormPricingService
             $line['unit_amount'] = (float) $packageItem->selling_price;
         }
         $line['tax'] = $taxPercent;
+        $line['vat_from_pricelist'] = true;
+        $line['vat_manual'] = false;
         $line['subcontracted'] = false;
 
         return $line;

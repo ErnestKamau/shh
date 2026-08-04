@@ -16,10 +16,12 @@ use App\Services\Billing\QuotationReportService;
 use App\Services\Billing\QuotationRevisionService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Sampleworkflow\SampleIntegrityCheckService;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 final class QuotationFromEnquiryService
@@ -85,6 +87,8 @@ final class QuotationFromEnquiryService
             $header->is_draft = 0;
             $header->is_complete = 0;
             $header->is_approved = 0;
+            $header->show_loq_column = true;
+            $header->show_mu_column = true;
             $header->show_unit_price_column = true;
             $header->save();
 
@@ -135,7 +139,7 @@ final class QuotationFromEnquiryService
     {
         $enquiry->loadMissing('requestedAnalyses');
         $customerId = (string) $enquiry->crm_customer_id;
-        $pricelist = $this->pricingService->resolvePricelist($customerId);
+        $preferredPricelist = $this->pricingService->resolveCustomerAssignedPricelist($customerId);
         $lines = [];
 
         foreach ($enquiry->requestedAnalyses as $index => $analysis) {
@@ -154,12 +158,15 @@ final class QuotationFromEnquiryService
                 }
             }
 
-            $unitPrice = $this->pricingService->resolveLinePrice(
-                $pricelist,
-                $sampleTypeId,
+            $resolved = $this->pricingService->resolveLinePriceWithPricelist(
+                $customerId,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
                 $analysisTypeId,
                 $elementId !== '' ? $elementId : null,
+                $preferredPricelist,
             );
+            $unitPrice = (float) $resolved['price'];
+            $pricelistForTax = $resolved['pricelist'] ?? $preferredPricelist;
 
             $lines[] = [
                 'line_no' => $index + 1,
@@ -172,7 +179,7 @@ final class QuotationFromEnquiryService
                 'quantity' => $qty,
                 'unit_price' => $unitPrice,
                 'tax' => $this->taxResolver->resolveLineTaxPercent(
-                    $pricelist,
+                    $pricelistForTax,
                     $sampleTypeId !== '' ? $sampleTypeId : null,
                     $analysisTypeId,
                     $elementId !== '' ? $elementId : null,
@@ -187,6 +194,14 @@ final class QuotationFromEnquiryService
                 $analysisTypeId = (string) ($enquiry->matrix_id ?? '');
                 $elementId = trim((string) $parameterId);
                 $qty = max(1, (int) ($enquiry->number_of_samples ?? 1));
+                $resolved = $this->pricingService->resolveLinePriceWithPricelist(
+                    $customerId,
+                    $sampleTypeId !== '' ? $sampleTypeId : null,
+                    $analysisTypeId,
+                    $elementId !== '' ? $elementId : null,
+                    $preferredPricelist,
+                );
+                $pricelistForTax = $resolved['pricelist'] ?? $preferredPricelist;
                 $lines[] = [
                     'line_no' => $index + 1,
                     'sample_type_id' => $sampleTypeId,
@@ -196,9 +211,9 @@ final class QuotationFromEnquiryService
                     'analysis_element_id' => $elementId,
                     'parameter_label' => 'Parameter',
                     'quantity' => $qty,
-                    'unit_price' => $this->pricingService->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $elementId),
+                    'unit_price' => (float) $resolved['price'],
                     'tax' => $this->taxResolver->resolveLineTaxPercent(
-                        $pricelist,
+                        $pricelistForTax,
                         $sampleTypeId !== '' ? $sampleTypeId : null,
                         $analysisTypeId,
                         $elementId,
@@ -212,7 +227,7 @@ final class QuotationFromEnquiryService
             $this->pricingService->applyPackagePricingToLines(
                 $lines,
                 $customerId,
-                $this->pricingService->resolveCustomerAssignedPricelist($customerId) ?? $pricelist,
+                $preferredPricelist,
             )
         );
     }
@@ -244,6 +259,12 @@ final class QuotationFromEnquiryService
             $providedPrice = (float) ($line['unit_price'] ?? $line['unit_amount'] ?? 0);
             $unitPrice = $providedPrice > 0 ? $providedPrice : (float) $resolved['price'];
             $pricelistForTax = $resolved['pricelist'] ?? $preferredPricelist;
+            $vatState = $this->taxResolver->resolveLineVatState(
+                $pricelistForTax,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $analysisTypeId,
+                $elementId !== '' ? $elementId : null,
+            );
 
             $lines[] = [
                 'line_no' => $index + 1,
@@ -257,12 +278,9 @@ final class QuotationFromEnquiryService
                 'physical_sample_count' => $physicalSampleCount,
                 'quantity' => $physicalSampleCount,
                 'unit_price' => $unitPrice,
-                'tax' => $this->taxResolver->resolveLineTaxPercent(
-                    $pricelistForTax,
-                    $sampleTypeId !== '' ? $sampleTypeId : null,
-                    $analysisTypeId,
-                    $elementId !== '' ? $elementId : null,
-                ),
+                'tax' => $vatState['tax'],
+                'vat_from_pricelist' => $vatState['vat_from_pricelist'],
+                'vat_manual' => false,
                 'subcontracted' => (bool) (
                     $line['subcontracted']
                     ?? ($elementId !== '' ? $this->isElementSubcontracted($elementId) : false)
@@ -337,6 +355,9 @@ final class QuotationFromEnquiryService
             $header->is_draft = 0;
             $header->is_complete = 1;
             $header->is_approved = 1;
+            $header->show_loq_column = true;
+            $header->show_mu_column = true;
+            $header->show_unit_price_column = true;
             $header->save();
 
             AmSpecQuotationNumberGenerator::assignIfMissing($header);
@@ -406,6 +427,9 @@ final class QuotationFromEnquiryService
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'tax' => $tax,
+                'vat_from_pricelist' => false,
+                'vat_from_quotation' => true,
+                'vat_manual' => false,
                 'subcontracted' => false,
             ]];
         }
@@ -437,7 +461,10 @@ final class QuotationFromEnquiryService
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'tax' => $tax,
-                'subcontracted' => false,
+                'vat_from_pricelist' => false,
+                'vat_from_quotation' => true,
+                'vat_manual' => false,
+                'subcontracted' => $subcontractedIds !== [],
                 'is_package' => true,
                 'package_element_ids' => $elementIds,
                 'package_element_labels' => $elementLabels,
@@ -468,7 +495,7 @@ final class QuotationFromEnquiryService
                     $quantity,
                     $unitPrice,
                     $tax,
-                    in_array($elementId, $subcontractedIds, true),
+                    in_array($elementId, $subcontractedIds, true) || $this->isElementSubcontracted($elementId),
                 );
             }
         } elseif ($analysisTypeIds !== []) {
@@ -539,6 +566,9 @@ final class QuotationFromEnquiryService
             'quantity' => $quantity,
             'unit_price' => $unitPrice,
             'tax' => $tax,
+            'vat_from_pricelist' => false,
+            'vat_from_quotation' => true,
+            'vat_manual' => false,
             'subcontracted' => $subcontracted,
         ];
     }
@@ -546,12 +576,13 @@ final class QuotationFromEnquiryService
     /**
      * @param  list<array<string, mixed>>  $lines
      */
-    public function persistInlineLines(QuotationHeader $header, array $lines): void
+    public function persistInlineLines(QuotationHeader $header, array $lines, ?SampleSubmissionRequest $enquiry = null): void
     {
         QuotationDetails::query()->where('quotation_header_id', $header->id)->delete();
 
         $subTotal = 0.0;
         $taxTotal = 0.0;
+        $subcontractedElementIds = [];
 
         foreach ($lines as $line) {
             $qty = max(1, (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1));
@@ -565,6 +596,10 @@ final class QuotationFromEnquiryService
             $elementId = $isPackage
                 ? implode(',', $packageElementIds)
                 : (string) ($line['analysis_element_id'] ?? '');
+
+            if (! $isPackage && ! empty($line['subcontracted']) && $elementId !== '') {
+                $subcontractedElementIds[] = $elementId;
+            }
 
             $detail = QuotationDetails::query()->create([
                 'quotation_header_id' => $header->id,
@@ -602,6 +637,19 @@ final class QuotationFromEnquiryService
         $header->tax = $taxTotal;
         $header->total_amount = $subTotal + $taxTotal;
         $header->save();
+
+        $linkedEnquiry = $enquiry
+            ?? SampleSubmissionRequest::query()
+                ->where('current_quotation_header_id', $header->id)
+                ->orWhere('accepted_quotation_header_id', $header->id)
+                ->first();
+
+        if ($linkedEnquiry !== null) {
+            app(SampleIntegrityCheckService::class)->syncSubcontractedElementIdsOntoEnquiry(
+                $linkedEnquiry,
+                $subcontractedElementIds,
+            );
+        }
     }
 
     public function generatePdf(QuotationHeader $header): QuotationHeader
@@ -633,7 +681,7 @@ final class QuotationFromEnquiryService
             app(QuotationApprovalService::class)->assertReadyToSend($header);
         }
 
-        return DB::transaction(function () use ($enquiry, $header, $sendPortal, $sendEmail): SampleSubmissionRequest {
+        $enquiry = DB::transaction(function () use ($enquiry, $header, $sendEmail): SampleSubmissionRequest {
             if (empty($header->upload_url)) {
                 $header = $this->generatePdf($header);
             }
@@ -646,10 +694,6 @@ final class QuotationFromEnquiryService
             $header->is_complete = 1;
             $header->save();
 
-            if ($sendEmail && $enquiry->contact?->email) {
-                $this->emailQuotation($header, $enquiry);
-            }
-
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
             app(QuotationAcceptanceTatService::class)->stampFirstSentAt($enquiry, $now);
@@ -658,10 +702,15 @@ final class QuotationFromEnquiryService
             $instance = $enquiry->submissionFormInstance;
             if ($instance !== null) {
                 try {
+                    $uploaderId = Auth::id() !== null ? (string) Auth::id() : null;
+                    if ($uploaderId === null || ! Str::isUuid($uploaderId)) {
+                        $uploaderId = trim((string) ($header->approved_by ?? $header->created_by ?? '')) ?: null;
+                    }
+
                     app(SubmissionFormInstanceDocumentAttachmentService::class)->attachQuotation(
                         $instance,
                         $header->fresh() ?? $header,
-                        Auth::id(),
+                        $uploaderId,
                     );
                 } catch (\Throwable $exception) {
                     Log::warning('Failed to attach quotation PDF to submission instance.', [
@@ -685,8 +734,28 @@ final class QuotationFromEnquiryService
                 // Approval log is optional for legacy quotes without the table yet.
             }
 
-            return $this->ensureEnquiryReflectsSentQuotation($enquiry->fresh(['customer', 'contact', 'requestedAnalyses', 'currentQuotation']));
+            return $this->ensureEnquiryReflectsSentQuotation(
+                $enquiry->fresh(['customer', 'contact', 'requestedAnalyses', 'currentQuotation', 'submissionFormInstance'])
+                    ?? $enquiry,
+                $header->fresh() ?? $header,
+            );
         });
+
+        // Deliver email after status/PDF commit so a mail failure cannot leave
+        // the enquiry stuck on Quotation Ready to Send.
+        if ($sendEmail && $enquiry->contact?->email) {
+            try {
+                $this->emailQuotation($enquiry->currentQuotation ?? $header, $enquiry);
+            } catch (\Throwable $exception) {
+                Log::warning('Quotation email delivery failed after send status was recorded.', [
+                    'quotation_id' => $header->id,
+                    'enquiry_id' => $enquiry->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $enquiry;
     }
 
     public function quotationWasSentToCustomer(SampleSubmissionRequest $enquiry): bool
@@ -885,8 +954,46 @@ final class QuotationFromEnquiryService
             }
             $lockedEnquiry->save();
 
-            return $lockedHeader->fresh(['details', 'currency']) ?? $lockedHeader;
+            $freshHeader = $lockedHeader->fresh(['details', 'currency']) ?? $lockedHeader;
+            $this->seedEnquirySubcontractFlagsFromQuotation($lockedEnquiry, $freshHeader);
+
+            return $freshHeader;
         }, attempts: 3);
+    }
+
+    /**
+     * Element IDs marked Subcontracted on a billing quotation's Quotation Parameters.
+     *
+     * @return list<string>
+     */
+    public function subcontractedElementIdsFromQuotation(QuotationHeader $header): array
+    {
+        $header->loadMissing('details');
+        $ids = [];
+
+        foreach ($header->details as $detail) {
+            foreach (explode(',', (string) ($detail->subcontracted_analytes ?? '')) as $rawId) {
+                $elementId = trim($rawId);
+                if ($elementId !== '') {
+                    $ids[] = $elementId;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * Prefill Integrity / enquiry subcontract flags from billing quote prep.
+     */
+    public function seedEnquirySubcontractFlagsFromQuotation(
+        SampleSubmissionRequest $enquiry,
+        QuotationHeader $header,
+    ): SampleSubmissionRequest {
+        return app(SampleIntegrityCheckService::class)->syncSubcontractedElementIdsOntoEnquiry(
+            $enquiry,
+            $this->subcontractedElementIdsFromQuotation($header),
+        );
     }
 
     /**

@@ -613,11 +613,13 @@
 				@endif
 
 				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
+				{{-- Temporarily hidden: Update Sample Data
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#bulk-update-samples-modal">
 						<i class="mdi mdi-database-edit mr-2"></i> Update Sample Data
 					</span>
 				</li>
+				--}}
 				{{-- Removed "Delete Submission & Batches" option from UI - backend logic kept intact
 			<li>@if($batch->submissionFormInstance)
 				<form

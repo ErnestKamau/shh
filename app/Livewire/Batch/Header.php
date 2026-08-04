@@ -72,7 +72,11 @@ class Header extends Component
     public $verificationSections = [];
     public $caseFormData = [];
 
-    protected $listeners = ['batchUpdated' => '$refresh'];
+    protected $listeners = [
+        'batchUpdated' => '$refresh',
+        // Analysis Parameters modal saves dispatch this so Send for Verification readiness updates without a full page reload.
+        'resultsUpdated' => '$refresh',
+    ];
 
     public function mount(SampleHeader $batch, $workflows = [], $workflowstages = [], $status = null, $defaultClient = false, $clientPortal = false)
     {

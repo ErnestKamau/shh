@@ -2,9 +2,11 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\CapturedResult;
 use App\Models\Sampleworkflow\SampleHeaderUserAssignment;
 use App\SampleHeader;
 use App\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -18,9 +20,15 @@ class SampleHeaderAssignmentService
      */
     private static array $resultEntryAssignments = [];
 
+    public function __construct(
+        private readonly LabSectionResultAccess $labSectionResultAccess,
+    ) {
+    }
+
     /**
      * Assign a batch to the user who just entered/saved results.
      * Safe to call repeatedly for the same batch in one request.
+     * Completes the pending assignment when all integrity-assigned tests for that user are saved.
      */
     public function assignOnResultEntry(SampleHeader|string|null $batch, ?User $actor = null): ?SampleHeaderUserAssignment
     {
@@ -40,6 +48,11 @@ class SampleHeaderAssignmentService
 
         $cacheKey = $batchId.':'.(string) $actor->id;
         if (array_key_exists($cacheKey, self::$resultEntryAssignments)) {
+            $completed = $this->completeIfScopedResultsSaved($batchId, $actor);
+            if ($completed !== null) {
+                return self::$resultEntryAssignments[$cacheKey] = $completed;
+            }
+
             return self::$resultEntryAssignments[$cacheKey];
         }
 
@@ -55,10 +68,118 @@ class SampleHeaderAssignmentService
                 $actor,
             );
 
-            return self::$resultEntryAssignments[$cacheKey] = $assignment;
+            $completed = $this->completeIfScopedResultsSaved($header, $actor);
+
+            return self::$resultEntryAssignments[$cacheKey] = $completed ?? $assignment;
         } catch (ValidationException) {
             return self::$resultEntryAssignments[$cacheKey] = null;
         }
+    }
+
+    /**
+     * Mark the assignee's pending batch assignment completed when every integrity-assigned
+     * test for that analyst on the batch has a saved result.
+     */
+    public function completeIfScopedResultsSaved(SampleHeader|string|null $batch, ?User $assignee = null): ?SampleHeaderUserAssignment
+    {
+        $assignee = $assignee ?? Auth::user();
+        if ($assignee === null || ! $assignee instanceof User) {
+            return null;
+        }
+
+        if ($batch === null || $batch === '') {
+            return null;
+        }
+
+        $batchId = $batch instanceof SampleHeader ? (string) $batch->id : trim((string) $batch);
+        if ($batchId === '') {
+            return null;
+        }
+
+        $pending = SampleHeaderUserAssignment::query()
+            ->where('sample_header_id', $batchId)
+            ->pending()
+            ->forAssignee((string) $assignee->id)
+            ->latest('created_at')
+            ->first();
+
+        if ($pending === null) {
+            return null;
+        }
+
+        $rows = CapturedResult::query()
+            ->where('sample_header_id', $batchId)
+            ->get();
+
+        if (! $this->analystScopedResultsAreComplete($assignee, $rows)) {
+            return null;
+        }
+
+        $pending->update([
+            'status' => SampleHeaderUserAssignment::STATUS_COMPLETED,
+            'completed_at' => now(),
+            'completed_by' => $assignee->id,
+        ]);
+
+        return $pending->fresh();
+    }
+
+    /**
+     * Re-evaluate pending assignments for a user (e.g. dashboard load) and complete any
+     * whose integrity-assigned tests are already fully saved.
+     */
+    public function syncCompletionsForAssignee(string $userId): int
+    {
+        $assignee = User::query()->find($userId);
+        if (! $assignee instanceof User) {
+            return 0;
+        }
+
+        $batchIds = SampleHeaderUserAssignment::query()
+            ->pending()
+            ->forAssignee($userId)
+            ->pluck('sample_header_id')
+            ->map(fn ($id): string => trim((string) $id))
+            ->filter(fn (string $id): bool => $id !== '')
+            ->unique()
+            ->values();
+
+        $completed = 0;
+        foreach ($batchIds as $batchId) {
+            if ($this->completeIfScopedResultsSaved($batchId, $assignee) !== null) {
+                $completed++;
+            }
+        }
+
+        return $completed;
+    }
+
+    /**
+     * True when the analyst has at least one integrity-assigned test on the batch that
+     * requires a result, and every such test has a non-empty saved result.
+     *
+     * @param  Collection<int, CapturedResult>|iterable<int, CapturedResult>  $rows
+     */
+    public function analystScopedResultsAreComplete(User $assignee, iterable $rows): bool
+    {
+        $scoped = Collection::make($rows)
+            ->filter(fn ($row): bool => $row instanceof CapturedResult)
+            ->filter(function (CapturedResult $row) use ($assignee): bool {
+                if ((bool) ($row->has_no_result_capture ?? false)) {
+                    return false;
+                }
+
+                return $this->labSectionResultAccess->isAssignedAnalystForResult($assignee, $row);
+            })
+            ->values();
+
+        if ($scoped->isEmpty()) {
+            return false;
+        }
+
+        return $scoped->every(
+            fn (CapturedResult $row): bool => trim((string) ($row->result ?? '')) !== ''
+        );
     }
 
     /**

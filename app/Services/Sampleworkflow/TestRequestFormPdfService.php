@@ -5,11 +5,17 @@ namespace App\Services\Sampleworkflow;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class TestRequestFormPdfService
 {
     public const ATTACHMENT_TITLE = 'Test Request Form';
+
+    public const ORIENTATION_LANDSCAPE = 'landscape';
+
+    public const ORIENTATION_PORTRAIT = 'portrait';
 
     public function __construct(
         private readonly TestRequestFormReportDataBuilder $builder
@@ -38,12 +44,47 @@ class TestRequestFormPdfService
         return '/storage/'.$this->resolveStoragePath($instance);
     }
 
+    public function defaultOrientationForVariant(string $variant): string
+    {
+        return match ($variant) {
+            'waste_water' => self::ORIENTATION_PORTRAIT,
+            'food', 'water' => self::ORIENTATION_LANDSCAPE,
+            default => self::ORIENTATION_LANDSCAPE,
+        };
+    }
+
+    public function normalizeOrientation(?string $orientation): ?string
+    {
+        if ($orientation === null || $orientation === '') {
+            return null;
+        }
+
+        $normalized = strtolower(trim($orientation));
+        if (! in_array($normalized, [self::ORIENTATION_LANDSCAPE, self::ORIENTATION_PORTRAIT], true)) {
+            throw ValidationException::withMessages([
+                'trfPdfOrientation' => 'Choose landscape or portrait for the Test Request Form PDF.',
+            ]);
+        }
+
+        return $normalized;
+    }
+
     /**
      * @return array<string, mixed>
      */
-    public function buildViewData(SubmissionFormInstance $instance, bool $forPdf = true): array
-    {
-        return $this->builder->buildFromSubmissionFormInstance($instance, $forPdf);
+    public function buildViewData(
+        SubmissionFormInstance $instance,
+        bool $forPdf = true,
+        ?string $orientation = null,
+    ): array {
+        $viewData = $this->builder->buildFromSubmissionFormInstance($instance, $forPdf);
+        $viewData['orientation'] = $this->resolveOrientation(
+            $orientation,
+            (string) $viewData['variant'],
+            $instance,
+        );
+
+        return $viewData;
     }
 
     public function resolveViewName(SubmissionFormInstance $instance): string
@@ -53,9 +94,12 @@ class TestRequestFormPdfService
         return $this->viewForVariant($data['variant']);
     }
 
-    public function buildHtml(SubmissionFormInstance $instance, bool $forPdf = true): string
-    {
-        $viewData = $this->buildViewData($instance, $forPdf);
+    public function buildHtml(
+        SubmissionFormInstance $instance,
+        bool $forPdf = true,
+        ?string $orientation = null,
+    ): string {
+        $viewData = $this->buildViewData($instance, $forPdf, $orientation);
 
         return view($this->viewForVariant($viewData['variant']), $viewData)->render();
     }
@@ -69,29 +113,61 @@ class TestRequestFormPdfService
         };
     }
 
-    private function applyPaperSettings($pdf, string $variant): void
-    {
-        $orientation = match ($variant) {
-            'waste_water' => 'portrait',
-            'food', 'water' => 'landscape',
-            default => 'portrait',
-        };
+    public function resolveOrientation(
+        ?string $override,
+        string $variant,
+        ?SubmissionFormInstance $instance = null,
+    ): string {
+        $normalized = $this->normalizeOrientation($override);
+        if ($normalized !== null) {
+            return $normalized;
+        }
 
+        if ($instance !== null
+            && Schema::hasColumn($instance->getTable(), 'trf_pdf_orientation')
+            && filled($instance->trf_pdf_orientation)
+        ) {
+            $stored = $this->normalizeOrientation((string) $instance->trf_pdf_orientation);
+            if ($stored !== null) {
+                return $stored;
+            }
+        }
+
+        return $this->defaultOrientationForVariant($variant);
+    }
+
+    private function applyPaperSettings($pdf, string $orientation): void
+    {
         $pdf->setPaper('a4', $orientation);
     }
 
-    public function generateAndStore(SubmissionFormInstance $instance): string
+    private function persistOrientation(SubmissionFormInstance $instance, string $orientation): void
     {
+        if (! Schema::hasColumn($instance->getTable(), 'trf_pdf_orientation')) {
+            return;
+        }
+
+        $instance->trf_pdf_orientation = $orientation;
+        $instance->save();
+    }
+
+    public function generateAndStore(
+        SubmissionFormInstance $instance,
+        ?string $orientation = null,
+    ): string {
         try {
-            $viewData = $this->buildViewData($instance, true);
+            $viewData = $this->buildViewData($instance, true, $orientation);
+            $resolvedOrientation = (string) $viewData['orientation'];
             $viewName = $this->viewForVariant($viewData['variant']);
+
+            $this->persistOrientation($instance, $resolvedOrientation);
 
             $pdf = app('dompdf.wrapper');
             $dompdf = $pdf->getDomPDF();
             $dompdf->set_option('isHtml5ParserEnabled', true);
             $dompdf->set_option('compress', false);
             $pdf->loadView($viewName, $viewData);
-            $this->applyPaperSettings($pdf, $viewData['variant']);
+            $this->applyPaperSettings($pdf, $resolvedOrientation);
 
             $storagePath = $this->resolveStoragePath($instance);
             Storage::disk('public')->put($storagePath, $pdf->output());
@@ -107,22 +183,30 @@ class TestRequestFormPdfService
         }
     }
 
-    public function stream(SubmissionFormInstance $instance)
+    public function stream(SubmissionFormInstance $instance, ?string $orientation = null)
     {
-        $viewData = $this->buildViewData($instance, true);
+        $viewData = $this->buildViewData($instance, true, $orientation);
         $viewName = $this->viewForVariant($viewData['variant']);
 
         $pdf = app('dompdf.wrapper');
         $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
         $pdf->loadView($viewName, $viewData);
-        $this->applyPaperSettings($pdf, $viewData['variant']);
+        $this->applyPaperSettings($pdf, (string) $viewData['orientation']);
 
-        return $pdf->download($this->resolveDisplayFilename($instance));
+        return $pdf->stream($this->resolveDisplayFilename($instance));
     }
 
-    public function download(SubmissionFormInstance $instance)
+    public function download(SubmissionFormInstance $instance, ?string $orientation = null)
     {
-        return $this->stream($instance);
+        $viewData = $this->buildViewData($instance, true, $orientation);
+        $viewName = $this->viewForVariant($viewData['variant']);
+
+        $pdf = app('dompdf.wrapper');
+        $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+        $pdf->loadView($viewName, $viewData);
+        $this->applyPaperSettings($pdf, (string) $viewData['orientation']);
+
+        return $pdf->download($this->resolveDisplayFilename($instance));
     }
 
     /**
@@ -135,9 +219,15 @@ class TestRequestFormPdfService
         SubmissionForm $form,
         ?SubmissionFormInstance $submission = null,
         bool $forPdf = false,
+        ?string $orientation = null,
     ): string {
         $sampleType = $form->sampleTypes()->first();
         $viewData = $this->builder->buildFromDraft($formData, $sampleType, $submission, $forPdf);
+        $viewData['orientation'] = $this->resolveOrientation(
+            $orientation,
+            (string) $viewData['variant'],
+            $submission,
+        );
         $viewName = $this->viewForVariant($viewData['variant']);
 
         return view($viewName, $viewData)->render();

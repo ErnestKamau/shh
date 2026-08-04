@@ -171,7 +171,8 @@
 	}
 
 	.lab-panel-theme .rft-form-type-card:hover .rft-card-menu-toggle,
-	.lab-panel-theme .rft-form-type-card-menu:focus-within .rft-card-menu-toggle {
+	.lab-panel-theme .rft-form-type-card-menu:focus-within .rft-card-menu-toggle,
+	.lab-panel-theme .rft-form-type-card-menu.is-open .rft-card-menu-toggle {
 		color: #475569;
 		background: #f8fafc;
 		border-color: #e2e8f0;
@@ -208,7 +209,8 @@
 	}
 
 	.lab-panel-theme .rft-form-type-card-menu:hover .rft-card-menu-dropdown,
-	.lab-panel-theme .rft-form-type-card-menu:focus-within .rft-card-menu-dropdown {
+	.lab-panel-theme .rft-form-type-card-menu:focus-within .rft-card-menu-dropdown,
+	.lab-panel-theme .rft-form-type-card-menu.is-open .rft-card-menu-dropdown {
 		display: block;
 	}
 

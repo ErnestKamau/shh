@@ -4,9 +4,7 @@ namespace App\Services\Sampleworkflow;
 
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
-use App\QuotationDetails;
 use App\AnalysisElements;
-use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\SubmissionForm\RequestViewPagePresenter;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Support\Str;
@@ -16,7 +14,6 @@ final class SampleIntegrityCheckService
     public function __construct(
         private AcceptanceFormSampleConfigService $configService,
         private AcceptanceFormPricingService $pricingService,
-        private EnquiryReceptionReadinessService $readinessService,
         private SubcontractingAssignmentService $subcontractingAssignmentService,
         private SubmissionRequestSampleLineService $sampleLineService,
     ) {}
@@ -64,45 +61,49 @@ final class SampleIntegrityCheckService
             $sectionMap = is_array($config['parameter_lab_sections'] ?? null)
                 ? $config['parameter_lab_sections']
                 : [];
-            $analystsBySection = is_array($config['analysts_by_lab_section'] ?? null)
-                ? $config['analysts_by_lab_section']
-                : [];
             $analystsByElement = is_array($config['analysts_by_element'] ?? null)
                 ? $config['analysts_by_element']
                 : [];
+            $configSubcontracted = array_flip($this->configService->normalizeSubcontractedParameterKeys(
+                $config['subcontracted_parameter_keys'] ?? [],
+                $parameterKeys,
+            ));
 
             foreach ($parameterKeys as $elementId) {
                 $sectionIds = $this->configService->normalizeLabSectionIds($sectionMap[$elementId] ?? null);
                 $element = $elementsById->get($elementId);
+                // Analysts are assigned to the test (element), not shared across a lab section.
+                // Prefer per-element saves; do not fall back to config-level analysts_by_lab_section.
                 $hasSavedElementAssignments = array_key_exists($elementId, $analystsByElement)
                     && is_array($analystsByElement[$elementId]);
                 $sectionAnalysts = [];
                 foreach ($sectionIds as $sectionId) {
-                    $sectionAnalysts[$sectionId] = array_values(array_map(
-                        'strval',
-                        $hasSavedElementAssignments
-                            ? (
-                                is_array($analystsByElement[$elementId][$sectionId] ?? null)
-                                    ? $analystsByElement[$elementId][$sectionId]
-                                    : []
-                            )
-                            : (
-                                is_array($analystsBySection[$sectionId] ?? null)
-                                    ? $analystsBySection[$sectionId]
-                                    : []
-                            )
-                    ));
+                    $sectionAnalysts[$sectionId] = $hasSavedElementAssignments
+                        ? array_values(array_map(
+                            'strval',
+                            is_array($analystsByElement[$elementId][$sectionId] ?? null)
+                                ? $analystsByElement[$elementId][$sectionId]
+                                : []
+                        ))
+                        : [];
                 }
 
                 $defaultOperatorId = trim((string) ($element?->operator_id ?? ''));
-                if (! $hasSavedElementAssignments && $defaultOperatorId !== '' && $sectionIds !== []) {
+                $hasAnyAssignedAnalyst = false;
+                foreach ($sectionAnalysts as $assigned) {
+                    if ($assigned !== []) {
+                        $hasAnyAssignedAnalyst = true;
+                        break;
+                    }
+                }
+
+                // Auto-pick the analysis-element operator onto the test when none are assigned yet.
+                // Users can still add/remove analysts afterward.
+                if (! $hasAnyAssignedAnalyst && $defaultOperatorId !== '' && $sectionIds !== []) {
                     $operatorSectionId = in_array((string) ($element?->lab_section_id ?? ''), $sectionIds, true)
                         ? (string) $element->lab_section_id
                         : $sectionIds[0];
-                    $sectionAnalysts[$operatorSectionId] = array_values(array_unique([
-                        $defaultOperatorId,
-                        ...($sectionAnalysts[$operatorSectionId] ?? []),
-                    ]));
+                    $sectionAnalysts[$operatorSectionId] = [$defaultOperatorId];
                 }
 
                 $testLabel = trim((string) ($element?->analyte?->name ?? ''));
@@ -120,7 +121,7 @@ final class SampleIntegrityCheckService
                     'analysts_by_lab_section' => $sectionAnalysts,
                     'default_operator_id' => $defaultOperatorId !== '' ? $defaultOperatorId : null,
                     'default_operator_name' => trim((string) ($element?->operator?->name ?? '')),
-                    'subcontracted' => isset($subcontractedIds[$elementId]),
+                    'subcontracted' => isset($configSubcontracted[$elementId]) || isset($subcontractedIds[$elementId]),
                 ];
             }
         }
@@ -158,7 +159,7 @@ final class SampleIntegrityCheckService
     }
 
     /**
-     * Persist Integrity grid edits into enquiry_sample_configuration and quotation subcontract flags.
+     * Persist Integrity grid edits into enquiry_sample_configuration (including subcontract flags).
      *
      * @param  list<array{
      *     config_id: string,
@@ -176,7 +177,6 @@ final class SampleIntegrityCheckService
             $configsById[(string) ($config['id'] ?? '')] = $config;
         }
 
-        $subcontractedElementIds = [];
         /** @var array<string, true> $touchedConfigIds */
         $touchedConfigIds = [];
         /** @var array<string, array<string, array<string, list<string>>>> $analystsByElementByConfig */
@@ -221,10 +221,6 @@ final class SampleIntegrityCheckService
                 ]));
             }
             $analystsByElementByConfig[$configId][$elementId] = $elementAssignments;
-
-            if (! empty($row['subcontracted'])) {
-                $subcontractedElementIds[] = $elementId;
-            }
         }
 
         foreach (array_keys($touchedConfigIds) as $configId) {
@@ -240,37 +236,126 @@ final class SampleIntegrityCheckService
         $enquiry->enquiry_sample_configuration = $normalized;
         $enquiry->save();
 
-        $this->syncQuotationSubcontractFlags($enquiry, array_values(array_unique($subcontractedElementIds)));
+        return $this->persistSubcontractedAssignments($enquiry->fresh() ?? $enquiry, $rows);
+    }
+
+    /**
+     * Persist Integrity subcontract flags onto enquiry_sample_configuration only
+     * (quotations are not associated with subcontracting).
+     *
+     * @param  list<array{
+     *     config_id?: string,
+     *     element_id?: string,
+     *     subcontracted?: bool
+     * }>  $rows
+     */
+    public function persistSubcontractedAssignments(SampleSubmissionRequest $enquiry, array $rows): SampleSubmissionRequest
+    {
+        $configs = is_array($enquiry->enquiry_sample_configuration)
+            ? $this->configService->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration)
+            : [];
+
+        if ($configs === []) {
+            return $enquiry;
+        }
+
+        $configsById = [];
+        foreach ($configs as $config) {
+            $configsById[(string) ($config['id'] ?? '')] = $config;
+        }
+
+        /** @var array<string, list<string>> $subcontractedByConfig */
+        $subcontractedByConfig = [];
+        /** @var array<string, true> $touched */
+        $touched = [];
+
+        foreach ($rows as $row) {
+            $configId = (string) ($row['config_id'] ?? '');
+            $elementId = (string) ($row['element_id'] ?? '');
+            if ($configId === '' || $elementId === '' || ! isset($configsById[$configId])) {
+                continue;
+            }
+
+            $touched[$configId] = true;
+            if (! empty($row['subcontracted'])) {
+                $subcontractedByConfig[$configId][] = $elementId;
+            }
+        }
+
+        if ($touched === []) {
+            return $enquiry;
+        }
+
+        foreach (array_keys($touched) as $configId) {
+            $parameterKeys = array_values(array_map(
+                'strval',
+                is_array($configsById[$configId]['parameter_keys'] ?? null)
+                    ? $configsById[$configId]['parameter_keys']
+                    : []
+            ));
+            $configsById[$configId]['subcontracted_parameter_keys'] = $this->configService
+                ->normalizeSubcontractedParameterKeys(
+                    $subcontractedByConfig[$configId] ?? [],
+                    $parameterKeys,
+                );
+        }
+
+        $normalized = $this->configService->normalizeConfigsForStorage(
+            array_values($configsById),
+            $enquiry->crm_customer_id !== null ? (string) $enquiry->crm_customer_id : null,
+        );
+
+        $enquiry->enquiry_sample_configuration = $normalized;
+        $enquiry->save();
 
         return $enquiry->fresh() ?? $enquiry;
     }
 
     /**
+     * Merge element-level subcontract flags into enquiry sample configuration.
+     * Used when Process Enquiry / quotation lines carry a subcontracted toggle.
+     *
      * @param  list<string>  $subcontractedElementIds
      */
-    public function syncQuotationSubcontractFlags(SampleSubmissionRequest $enquiry, array $subcontractedElementIds): void
-    {
-        $quotation = $this->readinessService->resolveAcceptedQuotation($enquiry)
-            ?? $enquiry->currentQuotation
-            ?? $enquiry->acceptedQuotation;
+    public function syncSubcontractedElementIdsOntoEnquiry(
+        SampleSubmissionRequest $enquiry,
+        array $subcontractedElementIds,
+    ): SampleSubmissionRequest {
+        $flagged = array_flip(array_values(array_filter(array_map(
+            static fn (mixed $id): string => trim((string) $id),
+            $subcontractedElementIds,
+        ), static fn (string $id): bool => $id !== '')));
 
-        if ($quotation === null) {
-            return;
+        $configs = is_array($enquiry->enquiry_sample_configuration)
+            ? $this->configService->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration)
+            : [];
+
+        if ($configs === []) {
+            return $enquiry;
         }
 
-        $quotation->loadMissing('details');
-        $flagged = array_flip($subcontractedElementIds);
-
-        foreach ($quotation->details as $detail) {
-            /** @var QuotationDetails $detail */
-            $elementId = trim((string) ($detail->accredited_analytes ?? $detail->default_analytes ?? ''));
-            if ($elementId === '') {
-                continue;
-            }
-
-            $detail->subcontracted_analytes = isset($flagged[$elementId]) ? $elementId : '';
-            $detail->save();
+        foreach ($configs as $index => $config) {
+            $parameterKeys = array_values(array_map(
+                'strval',
+                is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : []
+            ));
+            $configs[$index]['subcontracted_parameter_keys'] = $this->configService
+                ->normalizeSubcontractedParameterKeys(
+                    array_values(array_filter(
+                        $parameterKeys,
+                        static fn (string $id): bool => isset($flagged[$id])
+                    )),
+                    $parameterKeys,
+                );
         }
+
+        $enquiry->enquiry_sample_configuration = $this->configService->normalizeConfigsForStorage(
+            $configs,
+            $enquiry->crm_customer_id !== null ? (string) $enquiry->crm_customer_id : null,
+        );
+        $enquiry->save();
+
+        return $enquiry->fresh() ?? $enquiry;
     }
 
     /**
@@ -316,5 +401,4 @@ final class SampleIntegrityCheckService
 
         return 'S'.($index + 1);
     }
-
 }

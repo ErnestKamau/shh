@@ -37,6 +37,7 @@ use App\Services\Billing\QuotationRevisionService;
 use App\Exports\Billing\QuotationKpiExport;
 use App\Services\Billing\QuotationStatisticsService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
+use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Commercial\EnquiryFromQuotationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -125,9 +126,10 @@ class QuotationController extends Controller
                     'date_expected' => $validated['date_expected'] ?? null,
                     'sample_description' => $validated['sample_description'] ?? null,
                     'enquiry_notes' => $validated['enquiry_notes'] ?? null,
-                    'creation_intent' => $validated['creation_intent'],
+                    'creation_intent' => $validated['creation_intent'] ?? EnquiryFromQuotationService::INTENT_PREPARE,
                     'client_po_number' => $validated['client_po_number'] ?? null,
                     'po_skipped' => (bool) ($validated['po_skipped'] ?? false),
+                    'source_channel' => $validated['source_channel'] ?? CommercialEnquirySyncService::SOURCE_WALK_IN,
                 ],
                 $validated['creation_token'],
             );
@@ -231,7 +233,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * @return array{all: int, Quote In Preparation: int, Quote Complete: int}
+     * @return array{all: int, Quote In Preparation: int, Quote In Approval: int, Quote Complete: int}
      */
     private function quotationStageCounts(): array
     {
@@ -240,6 +242,10 @@ class QuotationController extends Controller
             'Quote In Preparation' => QuotationHeaderView::query()
                 ->where('is_draft', 0)
                 ->where('status', 'Quote In Preparation')
+                ->count(),
+            'Quote In Approval' => QuotationHeaderView::query()
+                ->where('is_draft', 0)
+                ->where('status', 'Quote In Approval')
                 ->count(),
             'Quote Complete' => QuotationHeaderView::query()
                 ->where('is_draft', 0)
@@ -447,11 +453,14 @@ class QuotationController extends Controller
 
                 $header->is_approved = 0;
             }
+            if (in_array($header->status, ['Quote In Preparation', 'Quote In Approval']) && in_array($stage, ['Quote Complete'])) {
+                return redirect()->back()->with('error', 'Quote ' . $header->quote_number . ' has not being approved');
+            }
+
             $previous = $header->status;
             $header->status = $stage;
             if ($stage == 'Quote Complete') {
                 $header->approved_by = auth()->user()->id;
-                $header->is_approved = 1;
                 $header->is_complete = 1;
                 $header->is_draft = 0;
             } else {
@@ -546,8 +555,10 @@ class QuotationController extends Controller
         $header->sampling_location = $request->input('sampling_location', $header->sampling_location);
         $header->laboratory_ref = $request->input('laboratory_ref', $header->laboratory_ref);
         $header->terms_override = $termsOverride;
-        $header->show_loq_column = true;
-        // Column visibility toggles removed from prep UI; keep stored defaults.
+        if ((string) $header->quotation_type === 'Analysis') {
+            $header->show_loq_column = $request->boolean('show_loq_column');
+            $header->show_mu_column = $request->boolean('show_mu_column');
+        }
 
         // Structured Commercial Terms are hidden on the prep form; preserve existing values.
         if ($request->has('structured_terms') && is_array($request->input('structured_terms'))) {
@@ -633,8 +644,8 @@ class QuotationController extends Controller
                     (string) ($request->sub_acc[$count] ?? ''),
                     (string) ($request->pricing_mode[$count] ?? QuotationPricingResolver::PRICING_MODE_AUTO),
                     $loqOverrides,
-                    (string) ($request->show_loq_analytes[$count] ?? ''),
-                    (string) ($request->show_mu_analytes[$count] ?? ''),
+                    '',
+                    '',
                 );
 
                 foreach ($normalizedRows as $rowPayload) {
@@ -645,14 +656,14 @@ class QuotationController extends Controller
                     $detail->part_no = $rowPayload['part_no'];
                     $detail->quantity = $rowPayload['quantity'];
                     $detail->accredited_analytes = $rowPayload['accredited_analytes'];
-                    $detail->subcontracted_analytes = $rowPayload['subcontracted_analytes'];
+                    $detail->subcontracted_analytes = $rowPayload['subcontracted_analytes'] ?? '';
                     $detail->default_analytes = $rowPayload['default_analytes'];
                     $detail->sub_acc_analytes = $rowPayload['sub_acc_analytes'];
                     $detail->is_package = (bool) ($rowPayload['is_package'] ?? false);
                     $detail->loq = (string) ($rowPayload['loq'] ?? '');
                     $detail->mu_percent = (string) ($rowPayload['mu_percent'] ?? '');
-                    $detail->show_loq_analytes = (string) ($rowPayload['show_loq_analytes'] ?? '');
-                    $detail->show_mu_analytes = (string) ($rowPayload['show_mu_analytes'] ?? '');
+                    $detail->show_loq_analytes = null;
+                    $detail->show_mu_analytes = null;
                     $detail->test_method = (string) ($rowPayload['test_method'] ?? '');
                     $detail->tat = $rowPayload['tat'] ?? null;
                     $detail->description = (string) ($rowPayload['description'] ?? '');
@@ -775,18 +786,7 @@ class QuotationController extends Controller
 
     public function previewQuotation(string $id)
     {
-        $header = QuotationHeader::findOrFail($id);
-        AmSpecQuotationNumberGenerator::assignIfMissing($header);
-        $header = $header->fresh();
-
-        if ($header->details()->count() === 0) {
-            return redirect()->back()->with('error', 'Add at least one line item before previewing the quotation.');
-        }
-
-        $this->recalculateQuotationTotals($header);
-        $data = $this->quotationReportService->buildViewData($header->fresh());
-
-        return view('billing.quotations.amspec.preview', $data);
+        return $this->streamQuotationPdf($id);
     }
 
     public function publicReportView(string $id, string $token)
@@ -806,8 +806,16 @@ class QuotationController extends Controller
     public function streamQuotationPdf(string $id)
     {
         $header = QuotationHeader::findOrFail($id);
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        $header = $header->fresh();
 
-        return $this->quotationReportService->streamPdf($header);
+        if ($header->details()->count() === 0) {
+            return redirect()->back()->with('error', 'Add at least one line item before previewing the quotation.');
+        }
+
+        $this->recalculateQuotationTotals($header);
+
+        return $this->quotationReportService->streamPdf($header->fresh());
     }
 
     public function edit_quotation_detail(Request $request)
@@ -840,12 +848,8 @@ class QuotationController extends Controller
             $detail->subcontracted_analytes = isset($request->sub_analytes) ? $request->sub_analytes : $detail->subcontracted_analytes;
             $detail->sub_acc_analytes = isset($request->sub_acc) ? $request->sub_acc : $detail->sub_acc_analytes;
             $detail->default_analytes = isset($request->default_analytes) ? $request->default_analytes : $detail->default_analytes;
-            if ($request->exists('show_loq_analytes')) {
-                $detail->show_loq_analytes = (string) $request->input('show_loq_analytes', '');
-            }
-            if ($request->exists('show_mu_analytes')) {
-                $detail->show_mu_analytes = (string) $request->input('show_mu_analytes', '');
-            }
+            $detail->show_loq_analytes = null;
+            $detail->show_mu_analytes = null;
             $analysis_types_ids = array_values(array_filter(array_map('trim', explode(',', $partNoCsv))));
             QuotationDetailAnalysisSplit::syncForDetail((string) $detail->id, $analysis_types_ids);
 
@@ -923,8 +927,6 @@ class QuotationController extends Controller
         $header->sub_total = (int) $request->sub_total;
         $header->total_amount = (int) $request->total;
         $header->is_draft = 0;
-        $header->is_approved = 1;
-        $header->approved_by = auth()->user()->id;
         $header->is_complete = 1;
         $header->save();
         return redirect()->back()->with('success', 'Quotation ' . $header->quote_number . ' saved successfully');

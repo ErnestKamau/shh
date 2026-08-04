@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid personnel-detail-root">
     @if($message)
         <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
             {{ $message }}
@@ -347,11 +347,13 @@
                             <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.employment_date') }}</label><input type="date" wire:model.live="detailsEmploymentDate" class="form-control">@error('detailsEmploymentDate')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.designation') }} *</label>
-                                <div class="tag-select-container" wire:click="$set('showDesignationDropdown', true)">
-                                    <div class="tag-select-input">
+                                <div class="tag-select-container" wire:click.outside="$set('showDesignationDropdown', false)">
+                                    <div class="tag-select-input" wire:click="openSelectDropdown('designation')">
                                         @if($selectedDesignationId)
                                             @php $s = $this->designations->firstWhere('id', $selectedDesignationId); @endphp
-                                            <span class="tag-badge">{{ $s->display_name ?? $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDesignation"></i></span>
+                                            @if($s)
+                                                <span class="tag-badge">{{ $s->display_name ?? $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDesignation"></i></span>
+                                            @endif
                                         @endif
                                         <input class="tag-input" wire:model.live="designationSearch" wire:keyup="searchDesignation" placeholder="{{ __('personnel.search_designation') }}">
                                     </div>
@@ -363,11 +365,13 @@
                             </div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.education_level') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showEducationDropdown', true)">
-                                    <div class="tag-select-input">
+                                <div class="tag-select-container" wire:click.outside="$set('showEducationDropdown', false)">
+                                    <div class="tag-select-input" wire:click="openSelectDropdown('education')">
                                         @if($selectedEducationId)
                                             @php $s = $this->educationLevels->firstWhere('id', $selectedEducationId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearEducation"></i></span>
+                                            @if($s)
+                                                <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearEducation"></i></span>
+                                            @endif
                                         @endif
                                         <input class="tag-input" wire:model.live="educationSearch" wire:keyup="searchEducation" placeholder="{{ __('personnel.search_education_level') }}">
                                     </div>
@@ -379,11 +383,13 @@
                             </div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.position') }} *</label>
-                                <div class="tag-select-container" wire:click="$set('showPositionDropdown', true)">
-                                    <div class="tag-select-input">
+                                <div class="tag-select-container" wire:click.outside="$set('showPositionDropdown', false)">
+                                    <div class="tag-select-input" wire:click="openSelectDropdown('position')">
                                         @if($selectedPositionId)
                                             @php $s = $this->positions->firstWhere('id', $selectedPositionId); @endphp
-                                            <span class="tag-badge">{{ $s->display_name ?? $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearPosition"></i></span>
+                                            @if($s)
+                                                <span class="tag-badge">{{ $s->display_name ?? $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearPosition"></i></span>
+                                            @endif
                                         @endif
                                         <input class="tag-input" wire:model.live="positionSearch" wire:keyup="searchPosition" placeholder="{{ __('personnel.search_position') }}">
                                     </div>
@@ -395,11 +401,13 @@
                             </div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.department') }} *</label>
-                                <div class="tag-select-container" wire:click="$set('showDepartmentDropdown', true)">
-                                    <div class="tag-select-input">
+                                <div class="tag-select-container" wire:click.outside="$set('showDepartmentDropdown', false)">
+                                    <div class="tag-select-input" wire:click="openSelectDropdown('department')">
                                         @if($selectedDepartmentId)
                                             @php $s = $this->departments->firstWhere('id', $selectedDepartmentId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? 'Selected department' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment"></i></span>
+                                            @if($s)
+                                                <span class="tag-badge">{{ $s->name ?? 'Selected department' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment"></i></span>
+                                            @endif
                                         @endif
                                         <input class="tag-input" wire:model.live="departmentSearch" wire:keyup="searchDepartment" placeholder="{{ __('personnel.search_department') }}">
                                     </div>
@@ -411,11 +419,13 @@
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <label>{{ __('personnel.lab') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showLabDropdown', true)">
-                                    <div class="tag-select-input">
+                                <div class="tag-select-container" wire:click.outside="$set('showLabDropdown', false)">
+                                    <div class="tag-select-input" wire:click="openSelectDropdown('lab')">
                                         @foreach($selectedLabIds as $selectedLabId)
                                             @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab(@js($selectedLabId))"></i></span>
+                                            @if($s)
+                                                <span class="tag-badge">{{ $s->name }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab(@js($selectedLabId))"></i></span>
+                                            @endif
                                         @endforeach
                                         <input class="tag-input" wire:model.live="labSearch" wire:keyup="searchLab" placeholder="{{ __('personnel.search_labs') }}">
                                     </div>
@@ -432,13 +442,15 @@
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <label>{{ __('personnel.lab_sections') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
-                                    <div class="tag-select-input">
+                                <div class="tag-select-container" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                    <div class="tag-select-input" wire:click="openSelectDropdown('labSection')">
                                         @foreach($selectedLabSectionIds as $selectedSectionId)
                                             @php $s = $this->labSections->firstWhere('id', $selectedSectionId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLabSection(@js($selectedSectionId))"></i></span>
+                                            @if($s)
+                                                <span class="tag-badge">{{ $s->name }}<i class="mdi mdi-close-circle" wire:click.stop="clearLabSection(@js($selectedSectionId))"></i></span>
+                                            @endif
                                         @endforeach
-                                        <input class="tag-input" wire:model.live="labSectionSearch" wire:keyup="searchLabSection" placeholder="Search lab sections...">
+                                        <input class="tag-input" wire:model.live="labSectionSearch" wire:keyup="searchLabSection" placeholder="{{ __('personnel.search_lab_section') }}">
                                     </div>
                                     @if($showLabSectionDropdown)
                                         <div class="tag-dropdown">
@@ -702,8 +714,8 @@
                     <div class="modal-body">
                         <div class="form-group">
                             <label>{{ __('personnel.select_roles') }}</label>
-                            <div class="tag-select-container" wire:click="$set('showRoleDropdown', true)">
-                                <div class="tag-select-input">
+                            <div class="tag-select-container" wire:click.outside="$set('showRoleDropdown', false)">
+                                <div class="tag-select-input" wire:click="openSelectDropdown('role')">
                                     @foreach($selectedRoleIds as $roleId)
                                         @php $role = $this->allRoles->firstWhere('id', $roleId); @endphp
                                         @if($role)
@@ -1719,9 +1731,16 @@
                 !isSignaturePadClick &&
                 !isModuleTabClick &&
                 !isWireActionClick &&
-                document.querySelector('.tag-dropdown')
+                document.querySelector('.personnel-detail-root .tag-dropdown')
             ) {
-                $wire.closeSelectDropdowns();
+                const liveRoot = document.querySelector('.personnel-detail-root');
+                const wireId = liveRoot ? liveRoot.getAttribute('wire:id') : null;
+                if (wireId && window.Livewire) {
+                    const component = Livewire.find(wireId);
+                    if (component && typeof component.call === 'function') {
+                        component.call('closeSelectDropdowns');
+                    }
+                }
             }
 
             // Module tab switching — pure JS, no Livewire round-trip

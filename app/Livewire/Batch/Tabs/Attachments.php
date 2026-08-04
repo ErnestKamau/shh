@@ -451,18 +451,6 @@ class Attachments extends Component
         return null;
     }
 
-    public function getCustomerAttachmentsProperty()
-    {
-        $instance = $this->batch->submissionFormInstance;
-        if ($instance === null) {
-            return collect();
-        }
-
-        return $instance->customAttachments->each(
-            fn ($attachment) => $attachment->setRelation('submissionFormInstance', $instance)
-        );
-    }
-
     public function getQuotationDocumentProperty()
     {
         $documentService = app(BatchWorkflowDocumentAttachmentService::class);
@@ -510,6 +498,8 @@ class Attachments extends Component
 
     public function getTestRequestFormDocumentProperty()
     {
+        $instance = app(BatchWorkflowDocumentAttachmentService::class)->resolveSubmissionFormInstanceForBatch($this->batch);
+
         $attachment = BatchAttachment::where('batch_id', $this->batch->id)
             ->where('title', TestRequestFormPdfService::ATTACHMENT_TITLE)
             ->orderByDesc('created_at')
@@ -520,34 +510,21 @@ class Attachments extends Component
                 'id' => $attachment->id,
                 'title' => $attachment->title,
                 'submitted_at' => $attachment->created_at,
-                'attachment_url' => $attachment->attachment_url,
+                'attachment_url' => $instance !== null
+                    ? route('test-request-form.pdf', $instance->id)
+                    : $attachment->attachment_url,
             ];
         }
 
-        $instance = app(BatchWorkflowDocumentAttachmentService::class)->resolveSubmissionFormInstanceForBatch($this->batch);
         if ($instance === null) {
             return null;
-        }
-
-        $storagePath = app(TestRequestFormPdfService::class)->resolveStoragePath($instance);
-        if (! \Illuminate\Support\Facades\Storage::disk('public')->exists($storagePath)) {
-            return (object) [
-                'id' => $instance->id,
-                'title' => TestRequestFormPdfService::ATTACHMENT_TITLE,
-                'submitted_at' => $instance->updated_at ?? $instance->created_at,
-                'attachment_url' => route('submission-forms.instances.trf-pdf', [
-                    'submissionForm' => $instance->submission_form_id,
-                    'instance' => $instance->id,
-                ]),
-                'form_number' => $instance->form_number,
-            ];
         }
 
         return (object) [
             'id' => $instance->id,
             'title' => TestRequestFormPdfService::ATTACHMENT_TITLE,
             'submitted_at' => $instance->updated_at ?? $instance->created_at,
-            'attachment_url' => app(TestRequestFormPdfService::class)->resolvePublicUrl($instance),
+            'attachment_url' => route('test-request-form.pdf', $instance->id),
             'form_number' => $instance->form_number,
         ];
     }
@@ -635,7 +612,6 @@ class Attachments extends Component
             'receiptNotification'           => $this->receiptNotification,
             'quotationDocument'             => $this->quotationDocument,
             'testRequestFormDocument'       => $this->testRequestFormDocument,
-            'customerAttachments'           => $this->customerAttachments,
             'reportAttachments'             => $this->reportAttachments,
             'sampleAttachments'             => $this->sampleAttachments,
         ]);

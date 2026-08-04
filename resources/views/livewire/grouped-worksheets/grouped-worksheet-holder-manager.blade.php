@@ -126,6 +126,30 @@
 							<label class="form-label">Issue date</label>
 							<input type="date" wire:model="issue_date" class="form-control">
 						</div>
+						<div class="mb-3">
+							<label class="form-label">Pipeline mode *</label>
+							<select wire:model="pipeline_mode" class="form-control @error('pipeline_mode') is-invalid @enderror">
+								<option value="classic">Classic — one worksheet per stage</option>
+								<option value="phased">Phased — Method Sequence stages + optional matrix embeds</option>
+							</select>
+							@error('pipeline_mode') <div class="invalid-feedback">{{ $message }}</div> @enderror
+						</div>
+						<div class="border rounded p-3 mb-3 bg-light">
+							<div class="form-check mb-2">
+								<input type="checkbox" wire:model.live="results_capture_enabled" class="form-check-input" id="resultsCaptureEnabled">
+								<label class="form-check-label" for="resultsCaptureEnabled">Include Results capture stage</label>
+							</div>
+							@if($results_capture_enabled)
+								<div class="mb-2">
+									<label class="form-label">Results stage label</label>
+									<input type="text" wire:model="results_capture_label" class="form-control" placeholder="Results capture">
+								</div>
+								<div class="form-check">
+									<input type="checkbox" wire:model="results_capture_required" class="form-check-input" id="resultsCaptureRequired">
+									<label class="form-check-label" for="resultsCaptureRequired">Required</label>
+								</div>
+							@endif
+						</div>
 						<div class="form-check">
 							<input type="checkbox" wire:model="is_active" class="form-check-input" id="holderActive">
 							<label class="form-check-label" for="holderActive">Active</label>

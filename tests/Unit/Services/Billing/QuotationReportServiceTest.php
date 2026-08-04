@@ -22,6 +22,22 @@ class QuotationReportServiceTest extends TestCase
         $this->assertFalse($data['isPlaceholderTable']);
     }
 
+    public function test_build_view_data_respects_header_column_visibility_flags(): void
+    {
+        $service = app(QuotationReportService::class);
+        $header = new QuotationHeader();
+        $header->id = (string) Str::uuid();
+        $header->show_loq_column = false;
+        $header->show_mu_column = false;
+        $header->show_unit_price_column = true;
+
+        $data = $service->buildViewData($header);
+
+        $this->assertFalse($data['showLoqColumn']);
+        $this->assertFalse($data['showMuColumn']);
+        $this->assertTrue($data['showUnitPriceColumn']);
+    }
+
     public function test_plaintext_value_decrypts_laravel_ciphertext(): void
     {
         $service = app(QuotationReportService::class);

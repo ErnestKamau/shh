@@ -80,6 +80,38 @@ class SampleAnalysisStage extends Model implements Auditable
   }
 
   /**
+   * Keep only lab-section IDs that still exist, preserving request order.
+   * Stale CSV values on users.lab_section_id (deleted sections) are dropped.
+   *
+   * @param  array<int, mixed>  $ids
+   * @return array<int, string>
+   */
+  public static function filterExistingIds(array $ids): array
+  {
+    $normalized = array_values(array_unique(array_filter(
+      array_map(static fn ($id): string => trim((string) $id), $ids),
+      static fn (string $id): bool => $id !== ''
+    )));
+
+    if ($normalized === []) {
+      return [];
+    }
+
+    $existing = static::query()
+      ->whereIn('id', $normalized)
+      ->pluck('id')
+      ->map(static fn ($id): string => (string) $id)
+      ->all();
+
+    $existingLookup = array_fill_keys($existing, true);
+
+    return array_values(array_filter(
+      $normalized,
+      static fn (string $id): bool => isset($existingLookup[$id])
+    ));
+  }
+
+  /**
    * Get the submission forms for this sample analysis stage
    * 
    * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany

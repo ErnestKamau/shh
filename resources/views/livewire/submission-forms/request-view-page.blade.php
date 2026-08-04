@@ -155,6 +155,8 @@
                             'quotationPendingApproval' => $quotationPendingApproval,
                             'quotationApprovedReadyToSend' => $quotationApprovedReadyToSend,
                             'canApproveQuotation' => $canApproveQuotation,
+                            'showChangeLabManagerForm' => $showChangeLabManagerForm,
+                            'labManagerOptions' => $labManagerOptions,
                         ])
                     </div>
                 @endif
@@ -239,6 +241,73 @@
         </div>
     </div>
     @endteleport
+
+    @if($showTrfOrientationModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 440px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-file-document-outline mr-1"></i>
+                            Generate Test Request Form
+                        </h5>
+                        <button type="button" class="close" wire:click="closeTrfOrientationModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Choose page orientation. Official AMSPEC defaults use
+                            <strong>{{ $defaultTrfPdfOrientation }}</strong> for this form type.
+                        </p>
+                        <div class="form-group mb-2">
+                            <label class="font-weight-bold small d-block mb-2">Orientation</label>
+                            <div class="d-flex flex-wrap" style="gap: 1rem;">
+                                <label class="mb-0 d-flex align-items-center">
+                                    <input type="radio" class="mr-2" wire:model="trfPdfOrientation" value="landscape">
+                                    Landscape
+                                    @if($defaultTrfPdfOrientation === 'landscape')
+                                        <span class="badge badge-light border ml-1">default</span>
+                                    @endif
+                                </label>
+                                <label class="mb-0 d-flex align-items-center">
+                                    <input type="radio" class="mr-2" wire:model="trfPdfOrientation" value="portrait">
+                                    Portrait
+                                    @if($defaultTrfPdfOrientation === 'portrait')
+                                        <span class="badge badge-light border ml-1">default</span>
+                                    @endif
+                                </label>
+                            </div>
+                            @error('trfPdfOrientation')
+                                <small class="text-danger d-block mt-2">{{ $message }}</small>
+                            @enderror
+                        </div>
+                        @if($trfPdfOrientation !== $defaultTrfPdfOrientation)
+                            <div class="alert alert-warning py-2 small mb-0">
+                                This form is designed for {{ $defaultTrfPdfOrientation }}. Portrait/landscape override uses a spaced layout suited to the chosen page.
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" wire:click="closeTrfOrientationModal">Cancel</button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            wire:click="confirmGenerateTestRequestFormReport"
+                            wire:loading.attr="disabled"
+                        >
+                            <span wire:loading.remove wire:target="confirmGenerateTestRequestFormReport">
+                                <i class="mdi mdi-file-pdf-box"></i> Generate PDF
+                            </span>
+                            <span wire:loading wire:target="confirmGenerateTestRequestFormReport">
+                                Generating…
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @if($showQuotationAcceptanceModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45); overflow-y: auto;">
@@ -348,6 +417,7 @@
     });
 
     let requestViewQuotationPad = null;
+    let requestViewQuotationPadToken = 0;
 
     function ensureSignaturePadLoaded() {
         if (typeof SignaturePad !== 'undefined') {
@@ -367,46 +437,70 @@
         return window.__signaturePadLoader;
     }
 
-    function applyRequestViewQuotationSignature(signature) {
-        if (!requestViewQuotationPad) {
+    function sizeRequestViewQuotationCanvas(canvas) {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const width = Math.max(canvas.clientWidth || canvas.offsetWidth || 0, 1);
+        const height = Math.max(canvas.clientHeight || canvas.offsetHeight || 160, 1);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        canvas.width = Math.floor(width * ratio);
+        canvas.height = Math.floor(height * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+
+    async function applyRequestViewQuotationSignature(signature, token) {
+        if (!requestViewQuotationPad || token !== requestViewQuotationPadToken) {
             return;
         }
 
         requestViewQuotationPad.clear();
         if (signature && String(signature).startsWith('data:image/')) {
             try {
-                requestViewQuotationPad.fromDataURL(String(signature));
+                await requestViewQuotationPad.fromDataURL(String(signature));
             } catch (e) {}
         }
     }
 
-    function initRequestViewQuotationPad(initialSignature) {
+    async function initRequestViewQuotationPad(initialSignature) {
         const canvas = document.getElementById('request-view-quotation-acceptance-canvas');
         const clearBtn = document.getElementById('request-view-quotation-acceptance-clear');
         if (!canvas || typeof SignaturePad === 'undefined') {
             return;
         }
 
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
+        const token = ++requestViewQuotationPadToken;
+        const existingStrokeData = (requestViewQuotationPad && !requestViewQuotationPad.isEmpty())
+            ? requestViewQuotationPad.toData()
+            : null;
 
-        requestViewQuotationPad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+        sizeRequestViewQuotationCanvas(canvas);
+        requestViewQuotationPad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255,255,255)',
+            penColor: 'rgb(0,0,0)',
+        });
 
         if (clearBtn) {
             clearBtn.onclick = function () {
+                if (!requestViewQuotationPad) {
+                    return;
+                }
                 requestViewQuotationPad.clear();
             };
         }
 
-        applyRequestViewQuotationSignature(initialSignature || '');
+        if (existingStrokeData && existingStrokeData.length) {
+            try {
+                requestViewQuotationPad.fromData(existingStrokeData);
+            } catch (e) {}
+            return;
+        }
+
+        await applyRequestViewQuotationSignature(initialSignature || '', token);
     }
 
     Livewire.on('quotation-acceptance-modal-opened', (payload) => {
         const data = payload?.detail ?? payload ?? {};
         const signature = data.signature ?? data[0]?.signature ?? '';
-        requestViewQuotationPad = null;
         ensureSignaturePadLoaded()
             .then(() => setTimeout(() => initRequestViewQuotationPad(signature), 250))
             .catch(() => {});
@@ -415,7 +509,8 @@
     Livewire.on('quotation-acceptance-signature-changed', (payload) => {
         const data = payload?.detail ?? payload ?? {};
         const signature = data.signature ?? data[0]?.signature ?? '';
-        setTimeout(() => applyRequestViewQuotationSignature(signature), 50);
+        const token = requestViewQuotationPadToken;
+        setTimeout(() => applyRequestViewQuotationSignature(signature, token), 50);
     });
 
     document.addEventListener('click', (e) => {

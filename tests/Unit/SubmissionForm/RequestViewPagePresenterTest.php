@@ -46,7 +46,7 @@ class RequestViewPagePresenterTest extends TestCase
         $this->assertContains('receive_samples', $keys);
     }
 
-    public function test_sample_integrity_check_shows_accept_sample_action(): void
+    public function test_sample_integrity_check_hides_accept_sample_action(): void
     {
         [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
             SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK
@@ -67,10 +67,9 @@ class RequestViewPagePresenterTest extends TestCase
         $actions = $presenter->nextStepActions('Samples Receiving');
         $keys = $this->actionKeys($actions);
 
-        $this->assertSame('accept_samples', $actions['primary']['key'] ?? null);
-        $this->assertSame('Accept sample', $actions['primary']['label'] ?? null);
+        $this->assertNull($actions['primary']);
         $this->assertNotContains('receive_samples', $keys);
-        $this->assertContains('accept_samples', $keys);
+        $this->assertNotContains('accept_samples', $keys);
     }
 
     public function test_legacy_in_review_enquiry_maps_to_ready_for_reception_without_receive_primary(): void
@@ -96,8 +95,7 @@ class RequestViewPagePresenterTest extends TestCase
         $actions = $presenter->nextStepActions('Samples Receiving');
         $keys = $this->actionKeys($actions);
 
-        // Legacy In Review display stage still maps to Ready for Reception stage label,
-        // but Accept now lives on Sample Integrity Check for the commercial path.
+        // Legacy In Review display stage still maps to Ready for Reception stage label.
         $this->assertSame('receive_samples', $actions['primary']['key'] ?? null);
         $this->assertSame('Receive Samples', $actions['primary']['label'] ?? null);
         $this->assertNotContains('open_review_board', $keys);

@@ -181,7 +181,7 @@ class SubcontractingAssignmentService
                     $ids->push($directId);
                 }
 
-                foreach (['default_analytes', 'accredited_analytes', 'subcontracted_analytes', 'sub_acc_analytes'] as $field) {
+                foreach (['default_analytes', 'accredited_analytes', 'sub_acc_analytes'] as $field) {
                     foreach (explode(',', (string) ($detail->{$field} ?? '')) as $rawId) {
                         $elementId = trim($rawId);
                         if ($elementId !== '') {
@@ -260,8 +260,6 @@ class SubcontractingAssignmentService
 
         $enquiry->loadMissing([
             'requestedAnalyses.analysisElement:id,sub_contracted',
-            'currentQuotation.details',
-            'acceptedQuotation.details',
         ]);
 
         foreach ($enquiry->requestedAnalyses as $analysis) {
@@ -275,26 +273,8 @@ class SubcontractingAssignmentService
             }
         }
 
-        $quotation = $this->readinessService->resolveAcceptedQuotation($enquiry)
-            ?? $enquiry->currentQuotation
-            ?? $enquiry->acceptedQuotation;
-
-        if ($quotation !== null) {
-            $quotation->loadMissing('details');
-            foreach ($quotation->details as $detail) {
-                foreach (explode(',', (string) ($detail->subcontracted_analytes ?? '')) as $rawId) {
-                    $elementId = trim($rawId);
-                    if ($elementId !== '') {
-                        $ids->push($elementId);
-                    }
-                }
-            }
-
-            foreach ($this->readinessService->resolveElementFlagsFromQuotation($quotation) as $elementId => $flags) {
-                if (! empty($flags['subcontracted'])) {
-                    $ids->push((string) $elementId);
-                }
-            }
+        foreach ($this->elementIdsFromEnquirySampleConfiguration($enquiry) as $elementId) {
+            $ids->push($elementId);
         }
 
         foreach ($this->elementIdsFromJsonSelections($enquiry) as $elementId) {
@@ -306,33 +286,14 @@ class SubcontractingAssignmentService
             return [];
         }
 
+        $configFlagged = array_flip($this->elementIdsFromEnquirySampleConfiguration($enquiry));
+
         return AnalysisElements::query()
             ->whereIn('id', $uniqueIds)
-            ->where(function ($query) use ($uniqueIds, $quotation): void {
+            ->where(function ($query) use ($uniqueIds, $configFlagged): void {
                 $query->where('sub_contracted', 1);
 
-                if ($quotation === null) {
-                    return;
-                }
-
-                $quoteFlagged = collect($this->readinessService->resolveElementFlagsFromQuotation($quotation))
-                    ->filter(fn (array $flags): bool => ! empty($flags['subcontracted']))
-                    ->keys()
-                    ->map(fn ($id) => (string) $id)
-                    ->all();
-
-                $quoteIds = [];
-                foreach ($quotation->details as $detail) {
-                    foreach (explode(',', (string) ($detail->subcontracted_analytes ?? '')) as $rawId) {
-                        $id = trim($rawId);
-                        if ($id !== '') {
-                            $quoteIds[] = $id;
-                        }
-                    }
-                }
-
-                $forcedIds = array_values(array_unique(array_merge($quoteFlagged, $quoteIds)));
-                $forcedIds = array_values(array_intersect($forcedIds, $uniqueIds));
+                $forcedIds = array_values(array_intersect(array_keys($configFlagged), $uniqueIds));
                 if ($forcedIds !== []) {
                     $query->orWhereIn('id', $forcedIds);
                 }
@@ -341,6 +302,61 @@ class SubcontractingAssignmentService
             ->map(fn ($id) => (string) $id)
             ->values()
             ->all();
+    }
+
+    /**
+     * Element IDs marked subcontracted on enquiry_sample_configuration.
+     *
+     * @return list<string>
+     */
+    public function elementIdsFromEnquirySampleConfiguration(SampleSubmissionRequest $enquiry): array
+    {
+        $config = $enquiry->enquiry_sample_configuration ?? null;
+        if (! is_array($config) || $config === []) {
+            return [];
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $ids = [];
+
+        foreach ($configService->flattenToPerSampleConfigs($config) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $parameterKeys = array_values(array_map(
+                'strval',
+                is_array($row['parameter_keys'] ?? null) ? $row['parameter_keys'] : []
+            ));
+
+            foreach ($configService->normalizeSubcontractedParameterKeys(
+                $row['subcontracted_parameter_keys'] ?? [],
+                $parameterKeys,
+            ) as $elementId) {
+                $ids[] = $elementId;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @return array<string, array{accredited: bool, subcontracted: bool}>
+     */
+    public function resolveElementFlagsFromEnquiry(SampleSubmissionRequest $enquiry): array
+    {
+        $subcontracted = array_flip($this->resolveSubcontractedElementIds($enquiry));
+        $flags = [];
+
+        foreach ($this->resolveAllRequestedElementIds($enquiry) as $elementId) {
+            $isSub = isset($subcontracted[$elementId]);
+            $flags[$elementId] = [
+                'accredited' => ! $isSub,
+                'subcontracted' => $isSub,
+            ];
+        }
+
+        return $flags;
     }
 
     /**

@@ -48,7 +48,6 @@
                             <th>Approval Date</th>
                             <th>Approver</th>
                             <th>Title</th>
-                            <th>Workflow</th>
                             <th>Remark</th>
                             <th>Lab Sections</th>
                         </tr>
@@ -58,21 +57,21 @@
                         <tr wire:key="approver-{{ $approver->id }}" class="{{$approver->batch_status != $batch->status ? 'bg-light' : ''}}">
                             <td>{{ $loop->iteration }}</td>
                             <td class="text-nowrap">
-                                <div class="btn-group btn-group-sm" role="group" aria-label="Approver actions">
+                                <div class="d-inline-flex align-items-center" style="gap: 0.5rem;" role="group" aria-label="Approver actions">
                                     @if($canShowReviewActions)
                                     <button type="button"
-                                        class="btn btn-outline-info"
+                                        class="btn btn-sm btn-outline-info"
                                         title="View Results"
                                         wire:click="openResultsModal">
                                         <i class="mdi mdi-clipboard-text-outline"></i>
                                     </button>
                                     @can('laboratory.components.lab-reports.view')
                                     <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
-                                        class="btn btn-outline-secondary"
+                                        class="btn btn-sm btn-outline-secondary"
                                         title="Preview Test Report"
                                         target="_blank"
                                         rel="noopener noreferrer">
-                                        <i class="mdi mdi-file-pdf-box"></i>
+                                        <i class="mdi mdi-eye-outline"></i>
                                     </a>
                                     @endcan
                                     @endif
@@ -81,7 +80,7 @@
                                     @if($approver->user_id == auth()->id())
                                     {{-- Approve / Decline --}}
                                     <button type="button"
-                                        class="btn btn-outline-success"
+                                        class="btn btn-sm btn-outline-success"
                                         title="Approve / Decline"
                                         wire:click="openStatusModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-thumb-up-outline"></i>
@@ -90,7 +89,7 @@
 
                                     {{-- Edit --}}
                                     <button type="button"
-                                        class="btn btn-outline-primary"
+                                        class="btn btn-sm btn-outline-primary"
                                         title="Edit approver"
                                         wire:click="openEditModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
@@ -98,7 +97,7 @@
 
                                     {{-- Delete --}}
                                     <button type="button"
-                                        class="btn btn-outline-danger"
+                                        class="btn btn-sm btn-outline-danger"
                                         title="Delete approver"
                                         wire:click="openDeleteModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-delete-outline"></i>
@@ -140,7 +139,6 @@
                                 <small class="text-muted">{{ $approver->approver_type }}</small>
                             </td>
                             <td>{{ $approver->title }}</td>
-                            <td>{{ $approver->workflow }}</td>
                             <td>
                                 <small>{{ $approver->remark }}</small>
                             </td>
@@ -181,14 +179,13 @@
                             <th>Approval Date</th>
                             <th>Approver</th>
                             <th>Title</th>
-                            <th>Workflow</th>
                             <th>Remark</th>
                             <th>Lab Sections</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td colspan="9" class="text-center py-5 workflow-empty-state">
+                            <td colspan="8" class="text-center py-5 workflow-empty-state">
                                 <i class="mdi mdi-account-check-outline text-muted" style="font-size: 48px;"></i>
                                 <h6 class="mt-3 text-muted">No Approvers Found</h6>
                                 <p class="text-muted mb-0"><small>

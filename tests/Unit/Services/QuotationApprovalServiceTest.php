@@ -108,6 +108,71 @@ class QuotationApprovalServiceTest extends TestCase
         $this->assertSame('Fix pricing', $header->approval_comments);
     }
 
+    public function test_reassign_lab_manager_while_pending_approval(): void
+    {
+        $otherManager = User::query()->create([
+            'name' => 'Other Lab Manager',
+            'email' => 'other.lab.manager@example.test',
+            'password' => bcrypt('password'),
+            'active' => 1,
+        ]);
+        $otherManager->assignRole('Lab Manager');
+
+        $this->actingAs($this->analyst);
+        [$enquiry, $header] = $this->makeEnquiryQuotation();
+        $this->service->submitForApproval($enquiry, $header, (string) $this->labManager->id, false);
+
+        $enquiry = $this->service->reassignLabManager(
+            $enquiry->fresh(),
+            $header->fresh(),
+            (string) $otherManager->id,
+            notifyEmail: false,
+        );
+        $header->refresh();
+
+        $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL, $enquiry->status);
+        $this->assertSame((string) $otherManager->id, (string) $header->approved_by);
+        $this->assertSame(0, (int) $header->is_approved);
+        $this->assertTrue(
+            QuotationApprovalLog::query()
+                ->where('quotation_header_id', $header->id)
+                ->where('action', QuotationApprovalLog::ACTION_REASSIGNED)
+                ->where('assignee_user_id', $otherManager->id)
+                ->exists()
+        );
+    }
+
+    public function test_reassign_after_approval_is_blocked(): void
+    {
+        $otherManager = User::query()->create([
+            'name' => 'Second Lab Manager',
+            'email' => 'second.lab.manager@example.test',
+            'password' => bcrypt('password'),
+            'active' => 1,
+        ]);
+        $otherManager->assignRole('Lab Manager');
+
+        $this->actingAs($this->analyst);
+        [$enquiry, $header] = $this->makeEnquiryQuotation();
+        $this->service->submitForApproval($enquiry, $header, (string) $this->labManager->id, false);
+
+        $this->actingAs($this->labManager);
+        $enquiry = $this->service->approve($enquiry->fresh(), $header->fresh());
+        $this->assertTrue($this->service->isApprovedReadyToSend($enquiry, $header->fresh()));
+
+        $this->actingAs($this->analyst);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('pending approval');
+
+        $this->service->reassignLabManager(
+            $enquiry->fresh(),
+            $header->fresh(),
+            (string) $otherManager->id,
+            notifyEmail: false,
+        );
+    }
+
     public function test_assert_ready_to_send_blocks_unapproved_enquiry_quote(): void
     {
         $this->expectException(\RuntimeException::class);

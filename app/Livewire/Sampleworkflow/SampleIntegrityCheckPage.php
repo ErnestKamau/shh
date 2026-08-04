@@ -901,6 +901,20 @@ class SampleIntegrityCheckPage extends Component
                 is_array($existing[$sectionId] ?? null) ? $existing[$sectionId] : []
             ));
         }
+
+        $hasAnyAssignedAnalyst = false;
+        foreach ($pruned as $assigned) {
+            if ($assigned !== []) {
+                $hasAnyAssignedAnalyst = true;
+                break;
+            }
+        }
+
+        $defaultOperatorId = trim((string) ($this->testRows[$index]['default_operator_id'] ?? ''));
+        if (! $hasAnyAssignedAnalyst && $defaultOperatorId !== '' && $ids !== []) {
+            $pruned[$ids[0]] = [$defaultOperatorId];
+        }
+
         $this->testRows[$index]['analysts_by_lab_section'] = $pruned;
     }
 
@@ -922,18 +936,18 @@ class SampleIntegrityCheckPage extends Component
             return true;
         }
 
+        // Analysts are assigned to the test; any non-empty assignment completes the row.
         $bySection = is_array($row['analysts_by_lab_section'] ?? null)
             ? $row['analysts_by_lab_section']
             : [];
 
-        foreach ($sectionIds as $sectionId) {
-            $assigned = is_array($bySection[$sectionId] ?? null) ? $bySection[$sectionId] : [];
-            if ($assigned === []) {
-                return false;
+        foreach ($bySection as $assigned) {
+            if (is_array($assigned) && $assigned !== []) {
+                return true;
             }
         }
 
-        return true;
+        return false;
     }
 
     private function resetBulkAnalystState(): void

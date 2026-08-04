@@ -9,10 +9,12 @@
     $stageCounts = $stageCounts ?? [
         'all' => $quotations->count(),
         'Quote In Preparation' => 0,
+        'Quote In Approval' => 0,
         'Quote Complete' => 0,
     ];
     $isAllStage = $stage === 'All Quotations';
     $isPrepStage = $stage === 'Quote In Preparation';
+    $isApprovalStage = $stage === 'Quote In Approval';
     $isCompleteStage = $stage === 'Quote Complete';
 @endphp
 
@@ -125,6 +127,12 @@
                         <i class="mdi mdi-clock-outline"></i>
                         <span>In Preparation</span>
                         <span class="quotation-stage-tab__count">{{ $stageCounts['Quote In Preparation'] }}</span>
+                    </a>
+                    <a href="{{ route('quotation-index', ['stage' => 'Quote In Approval']) }}"
+                       class="quotation-stage-tab {{ $isApprovalStage ? 'is-active' : '' }}">
+                        <i class="mdi mdi-account-check-outline"></i>
+                        <span>In Approval</span>
+                        <span class="quotation-stage-tab__count">{{ $stageCounts['Quote In Approval'] ?? 0 }}</span>
                     </a>
                     <a href="{{ route('quotation-index', ['stage' => 'Quote Complete']) }}"
                        class="quotation-stage-tab quotation-stage-tab--complete {{ $isCompleteStage ? 'is-active' : '' }}">
@@ -267,13 +275,7 @@
                                                             <button type="button"
                                                                     class="rm-act-btn rm-act-btn--enquiry create-enquiry-button"
                                                                     title="Create enquiry from quotation"
-                                                                    data-toggle="modal"
-                                                                    data-target="#create-enquiry-from-quotation"
-                                                                    data-quote-id="{{ $quotation->id }}"
-                                                                    data-quote-number="{{ $quotation->quote_number }}"
-                                                                    data-customer="{{ $quotation->customer }}"
-                                                                    data-sample-count="{{ max(1, (int) ($quotationSampleCounts[$quotation->id] ?? 1)) }}"
-                                                                    data-creation-token="{{ \Illuminate\Support\Str::uuid() }}">
+                                                                    onclick="Livewire.dispatch('open-create-enquiry-from-quotation', { quotationId: @js((string) $quotation->id) })">
                                                                 <i class="mdi mdi-flask-outline"></i>
                                                             </button>
                                                         @endif
@@ -292,7 +294,12 @@
                                             </td>
                                             @if($isAllStage)
                                                 <td>
-                                                    <span class="quotation-status-chip {{ $quotation->status === 'Quote Complete' ? 'quotation-status-chip--complete' : 'quotation-status-chip--prep' }}">
+                                                    <span @class([
+                                                        'quotation-status-chip',
+                                                        'quotation-status-chip--complete' => $quotation->status === 'Quote Complete',
+                                                        'quotation-status-chip--approval' => $quotation->status === 'Quote In Approval',
+                                                        'quotation-status-chip--prep' => ! in_array($quotation->status, ['Quote Complete', 'Quote In Approval'], true),
+                                                    ])>
                                                         {{ $quotation->status }}
                                                     </span>
                                                 </td>
@@ -332,185 +339,7 @@
     </div>
 </main>
 
-<div class="modal fade" id="create-enquiry-from-quotation" tabindex="-1" role="dialog" aria-labelledby="create-enquiry-title" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h5 class="modal-title" id="create-enquiry-title">
-                        <i class="mdi mdi-flask-outline text-primary"></i>
-                        Create Enquiry from <span data-enquiry-quote-number></span>
-                    </h5>
-                    <small class="text-muted" data-enquiry-customer></small>
-                </div>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form method="POST" action="{{ route('quotation.create-enquiry') }}">
-                @csrf
-                <input type="hidden" name="quotation_id" value="{{ old('quotation_id') }}">
-                <input type="hidden" name="creation_token" value="{{ old('creation_token') }}">
-
-                <div class="modal-body">
-                    <div class="alert alert-info d-flex align-items-start" style="gap: 10px;">
-                        <i class="mdi mdi-auto-fix mt-1"></i>
-                        <div>
-                            Tests, parameters, pricing and the Test Request Form will be prefilled.
-                            Confirm the physical sample count and add the available request information.
-                        </div>
-                    </div>
-
-                    @if(old('quotation_id') && $errors->any())
-                        <div class="alert alert-danger">
-                            <ul class="mb-0 pl-3">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
-                    <div class="form-group">
-                        <label for="enquiry-creation-intent">Workflow start <span class="text-danger">*</span></label>
-                        <select id="enquiry-creation-intent"
-                                name="creation_intent"
-                                class="form-control @error('creation_intent') is-invalid @enderror">
-                            <option value="prepare" @selected(old('creation_intent', 'prepare') === 'prepare')>
-                                Prepare for sending
-                            </option>
-                            <option value="already_sent" @selected(old('creation_intent') === 'already_sent')>
-                                Quotation already sent
-                            </option>
-                            <option value="accepted" @selected(old('creation_intent') === 'accepted')>
-                                Customer already accepted
-                            </option>
-                        </select>
-                        @error('creation_intent')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <small class="form-text text-muted">
-                            Accepted quotations move directly to Ready for Reception after TRF completion.
-                        </small>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="enquiry-number-of-samples">Physical samples <span class="text-danger">*</span></label>
-                                <input id="enquiry-number-of-samples"
-                                       type="number"
-                                       name="number_of_samples"
-                                       min="1"
-                                       max="10000"
-                                       value="{{ old('number_of_samples', 1) }}"
-                                       class="form-control @error('number_of_samples') is-invalid @enderror"
-                                       required>
-                                @error('number_of_samples')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                                <small class="form-text text-muted">
-                                    For multi-sample-type quotes, each type keeps its quotation quantity.
-                                </small>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="enquiry-reference-number">Customer reference</label>
-                                <input id="enquiry-reference-number"
-                                       type="text"
-                                       name="reference_number"
-                                       value="{{ old('reference_number') }}"
-                                       class="form-control @error('reference_number') is-invalid @enderror"
-                                       placeholder="Optional">
-                                @error('reference_number')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="enquiry-date-expected">Expected sample date</label>
-                                <input id="enquiry-date-expected"
-                                       type="date"
-                                       name="date_expected"
-                                       value="{{ old('date_expected') }}"
-                                       class="form-control @error('date_expected') is-invalid @enderror">
-                                @error('date_expected')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row enquiry-accepted-fields d-none">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="enquiry-client-po-number">Customer PO</label>
-                                <input id="enquiry-client-po-number"
-                                       type="text"
-                                       name="client_po_number"
-                                       value="{{ old('client_po_number') }}"
-                                       class="form-control @error('client_po_number') is-invalid @enderror"
-                                       placeholder="Optional if PO can be skipped">
-                                @error('client_po_number')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="d-block">&nbsp;</label>
-                                <div class="custom-control custom-checkbox mt-2">
-                                    <input type="checkbox"
-                                           class="custom-control-input"
-                                           id="enquiry-po-skipped"
-                                           name="po_skipped"
-                                           value="1"
-                                           @checked(old('po_skipped'))>
-                                    <label class="custom-control-label" for="enquiry-po-skipped">
-                                        Skip PO for this enquiry
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="enquiry-sample-description">Sample description</label>
-                        <textarea id="enquiry-sample-description"
-                                  name="sample_description"
-                                  rows="2"
-                                  class="form-control @error('sample_description') is-invalid @enderror"
-                                  placeholder="Optional description shared by the quoted samples">{{ old('sample_description') }}</textarea>
-                        @error('sample_description')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="form-group mb-0">
-                        <label for="enquiry-notes">Internal enquiry notes</label>
-                        <textarea id="enquiry-notes"
-                                  name="enquiry_notes"
-                                  rows="2"
-                                  class="form-control @error('enquiry_notes') is-invalid @enderror"
-                                  placeholder="Optional">{{ old('enquiry_notes') }}</textarea>
-                        @error('enquiry_notes')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="mdi mdi-auto-fix"></i>
-                        Create &amp; Prefill Enquiry
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<livewire:billing.create-enquiry-from-quotation-wizard />
 
 @include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers])
 
@@ -611,6 +440,12 @@
         background: #fffbeb;
         color: #b45309;
         border-color: #fde68a;
+    }
+
+    .quotation-index-page .quotation-status-chip--approval {
+        background: #eef2ff;
+        color: #4338ca;
+        border-color: #c7d2fe;
     }
 
     .quotation-index-page .quotation-status-chip--complete {
@@ -739,62 +574,6 @@
             }
         });
 
-        var enquiryModal = $('#create-enquiry-from-quotation');
-        var enquiryForm = enquiryModal.find('form');
-        var validationQuotationId = @json((string) old('quotation_id', ''));
-
-        function populateEnquiryModal(button, preserveValues) {
-            var quoteId = String(button.data('quote-id') || '');
-
-            enquiryModal.find('[data-enquiry-quote-number]').text(button.data('quote-number') || '');
-            enquiryModal.find('[data-enquiry-customer]').text(button.data('customer') || '');
-            enquiryForm.find('[name="quotation_id"]').val(quoteId);
-            if (!preserveValues || !enquiryForm.find('[name="creation_token"]').val()) {
-                enquiryForm.find('[name="creation_token"]').val(button.data('creation-token') || '');
-            }
-
-            if (!preserveValues) {
-                enquiryForm.find('[name="number_of_samples"]').val(button.data('sample-count') || 1);
-                enquiryForm.find('[name="reference_number"]').val('');
-                enquiryForm.find('[name="date_expected"]').val('');
-                enquiryForm.find('[name="sample_description"]').val('');
-                enquiryForm.find('[name="enquiry_notes"]').val('');
-                enquiryForm.find('[name="creation_intent"]').val('prepare');
-                enquiryForm.find('[name="client_po_number"]').val('');
-                enquiryForm.find('[name="po_skipped"]').prop('checked', false);
-            }
-
-            toggleAcceptedFields();
-        }
-
-        function toggleAcceptedFields() {
-            var intent = enquiryForm.find('[name="creation_intent"]').val();
-            enquiryForm.find('.enquiry-accepted-fields').toggleClass('d-none', intent !== 'accepted');
-        }
-
-        enquiryForm.find('[name="creation_intent"]').on('change', toggleAcceptedFields);
-
-        enquiryModal.on('show.bs.modal', function (event) {
-            var trigger = $(event.relatedTarget);
-            if (!trigger.length) {
-                return;
-            }
-
-            var preserveValues = validationQuotationId !== ''
-                && String(trigger.data('quote-id')) === validationQuotationId;
-            populateEnquiryModal(trigger, preserveValues);
-        });
-
-        if (validationQuotationId !== '') {
-            var validationButton = $('.create-enquiry-button').filter(function () {
-                return String($(this).data('quote-id')) === validationQuotationId;
-            }).first();
-
-            if (validationButton.length) {
-                populateEnquiryModal(validationButton, true);
-                enquiryModal.modal('show');
-            }
-        }
     });
 </script>
 @include('layouts.lab.invoice.partials.add-quotation-modal-scripts')

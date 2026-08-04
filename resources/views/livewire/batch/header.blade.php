@@ -305,9 +305,11 @@
                                         </a>
                                     </li>
                                     @endcan
+                                    {{-- Temporarily hidden: Update Sample Data
                                     <li><span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)"
                                             style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample
                                             Data</span></li>
+                                    --}}
                                     @if($this->canSendToVerification)
                                         <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
                                                 style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for

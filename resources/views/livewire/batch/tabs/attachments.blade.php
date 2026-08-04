@@ -1,5 +1,49 @@
 <div>
-    <div class="workflow-board-panel">
+    <style>
+        .batch-attachments-panel .workflow-board-panel-body.flush-top {
+            padding: 0.85rem 1.25rem 1.25rem !important;
+        }
+
+        .batch-attachments-panel .workflow-doc-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-left: 0.25rem;
+        }
+
+        .batch-attachments-panel .workflow-doc-card-wrap {
+            flex: 1 1 220px;
+            max-width: 280px;
+            min-width: 0;
+        }
+
+        .batch-attachments-panel .workflow-doc-card {
+            overflow: hidden;
+            height: 100%;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #e0e6ed !important;
+        }
+
+        .batch-attachments-panel .workflow-doc-card .card-body {
+            min-width: 0;
+            gap: 0.35rem;
+            overflow: hidden;
+        }
+
+        .batch-attachments-panel .workflow-doc-card .workflow-doc-meta {
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .batch-attachments-panel .workflow-doc-card .workflow-doc-actions {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+    </style>
+    <div class="workflow-board-panel batch-attachments-panel">
         <div class="workflow-board-panel-header">
             <h5><i class="mdi mdi-paperclip"></i> Attachments</h5>
             <div class="d-flex align-items-center flex-wrap" style="gap: 8px;" wire:ignore>
@@ -45,20 +89,20 @@
                 <div class="tab-pane active" id="request-attachments" role="tabpanel">
                     <div class="mb-4">
                         <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Workflow Documents</h6>
-                        <div class="row">
+                        <div class="workflow-doc-cards">
                             <!-- Rejection Form -->
                             @if($rejectionForm)
-                            <div class="col-6 col-md-4 col-lg-3 mb-2">
-                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                            <div class="workflow-doc-card-wrap mb-2">
+                                <div class="card border-0 shadow-sm workflow-doc-card">
                                     <div class="card-body py-2 px-2 d-flex align-items-center">
                                         <div class="mr-2 text-danger bg-danger-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
                                             <i class="mdi mdi-close-octagon mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1 min-width-0">
+                                        <div class="flex-grow-1 workflow-doc-meta">
                                             <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Rejection Form</h6>
-                                            <small class="text-muted" style="font-size: 10px;">{{ $rejectionForm->submitted_at ? $rejectionForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
+                                            <small class="text-muted text-truncate d-block" style="font-size: 10px;">{{ $rejectionForm->submitted_at ? $rejectionForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
                                         </div>
-                                        <div class="ml-1" style="flex-shrink: 0;">
+                                        <div class="workflow-doc-actions">
                                             <a href="{{ $rejectionForm->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View PDF">
                                                 <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
                                             </a>
@@ -70,17 +114,17 @@
 
                             <!-- Quotation -->
                             @if($quotationDocument)
-                            <div class="col-6 col-md-4 col-lg-3 mb-2">
-                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                            <div class="workflow-doc-card-wrap mb-2">
+                                <div class="card border-0 shadow-sm workflow-doc-card">
                                     <div class="card-body py-2 px-2 d-flex align-items-center">
                                         <div class="mr-2 text-warning bg-warning-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
                                             <i class="mdi mdi-file-document-outline mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1 min-width-0">
+                                        <div class="flex-grow-1 workflow-doc-meta">
                                             <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Quotation</h6>
                                             <small class="text-muted text-truncate d-block" style="font-size: 10px;">{{ $quotationDocument->quote_number ?? ($quotationDocument->submitted_at ? $quotationDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
                                         </div>
-                                        <div class="d-flex align-items-center ml-1" style="gap: 3px; flex-shrink: 0;">
+                                        <div class="workflow-doc-actions">
                                             <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="Refresh linked quotation attachment">
                                                 <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-primary" style="font-size: 14px;"></i>
                                                 <span wire:loading wire:target="syncWorkflowDocuments" class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
@@ -96,17 +140,17 @@
 
                             <!-- Test Request Form -->
                             @if($testRequestFormDocument)
-                            <div class="col-6 col-md-4 col-lg-3 mb-2">
-                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                            <div class="workflow-doc-card-wrap mb-2">
+                                <div class="card border-0 shadow-sm workflow-doc-card">
                                     <div class="card-body py-2 px-2 d-flex align-items-center">
                                         <div class="mr-2 text-secondary bg-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
                                             <i class="mdi mdi-clipboard-text-outline mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1 min-width-0">
+                                        <div class="flex-grow-1 workflow-doc-meta">
                                             <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Test Request Form</h6>
                                             <small class="text-muted text-truncate d-block" style="font-size: 10px;">{{ $testRequestFormDocument->form_number ?? ($testRequestFormDocument->submitted_at ? $testRequestFormDocument->submitted_at->format('Y-m-d H:i') : 'Linked') }}</small>
                                         </div>
-                                        <div class="d-flex align-items-center ml-1" style="gap: 3px; flex-shrink: 0;">
+                                        <div class="workflow-doc-actions">
                                             <button wire:click="syncWorkflowDocuments" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="Refresh linked test request form attachment">
                                                 <i wire:loading.remove wire:target="syncWorkflowDocuments" class="mdi mdi-refresh text-info" style="font-size: 14px;"></i>
                                                 <span wire:loading wire:target="syncWorkflowDocuments" class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>
@@ -122,17 +166,17 @@
 
                             <!-- Invoice -->
                             @if($batch->invoice_id)
-                            <div class="col-6 col-md-4 col-lg-3 mb-2">
-                                <div class="card border-0 shadow-sm" style="border-radius: 8px; background: #fff; border: 1px solid #e0e6ed !important;">
+                            <div class="workflow-doc-card-wrap mb-2">
+                                <div class="card border-0 shadow-sm workflow-doc-card">
                                     <div class="card-body py-2 px-2 d-flex align-items-center">
                                         <div class="mr-2 text-primary bg-primary-light rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
                                             <i class="mdi mdi-file-document mdi-18px"></i>
                                         </div>
-                                        <div class="flex-grow-1 min-width-0">
+                                        <div class="flex-grow-1 workflow-doc-meta">
                                             <h6 class="mb-0 font-weight-bold text-truncate" style="font-size: 12px;">Invoice</h6>
                                             <small class="text-muted text-truncate d-block" style="font-size: 10px;">ID: {{ $batch->invoice_id }}</small>
                                         </div>
-                                        <div class="ml-1" style="flex-shrink: 0;">
+                                        <div class="workflow-doc-actions">
                                             <a href="{{ route('print-invoice', $batch->invoice_id) }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-2 py-0 shadow-none border" title="View Invoice">
                                                 <i class="mdi mdi-eye text-dark" style="font-size: 14px;"></i>
                                             </a>
@@ -149,53 +193,6 @@
                             <p class="mb-0 mt-2 text-muted small">No workflow documents generated yet.</p>
                         </div>
                         @endif
-                    </div>
-
-                    <div>
-                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Customer & SRO Attachments (Portal)</h6>
-                        <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e0e6ed;">
-                            <table class="table table-hover workflow-table mb-0">
-                                <thead style="background: #f8f9fa;">
-                                    <tr>
-                                        <th>File Name</th>
-                                        <th>Attachment Type</th>
-                                        <th>Attachment Heading</th>
-                                        <th>Uploaded Date</th>
-                                        <th class="text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @if($customerAttachments && $customerAttachments->count() > 0)
-                                        @foreach($customerAttachments as $ca)
-                                        <tr>
-                                            <td class="align-middle font-weight-bold">{{ $ca->file_name ?? 'Attachment' }}</td>
-                                            <td class="align-middle">
-                                                @if($ca->attachment_type)
-                                                    <span class="badge badge-info">{{ ucfirst(str_replace('_', ' ', $ca->attachment_type)) }}</span>
-                                                @else
-                                                    <span class="text-muted">—</span>
-                                                @endif
-                                            </td>
-                                            <td class="align-middle">{{ $ca->attachment_heading ?? '—' }}</td>
-                                            <td class="align-middle text-muted">{{ $ca->created_at ? $ca->created_at->format('Y-m-d H:i') : 'N/A' }}</td>
-                                            <td class="text-center align-middle">
-                                                <a href="{{ $ca->file_url ?? '#' }}" target="_blank" class="btn btn-sm btn-light border rounded-pill px-3">
-                                                    <i class="mdi mdi-download text-primary mr-1"></i> Download
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    @else
-                                        <tr>
-                                            <td colspan="5" class="text-center py-4">
-                                                <i class="mdi mdi-folder-open text-muted" style="font-size: 32px;"></i>
-                                                <p class="mt-2 mb-0 text-muted small">No customer attachments found from the portal.</p>
-                                            </td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
 

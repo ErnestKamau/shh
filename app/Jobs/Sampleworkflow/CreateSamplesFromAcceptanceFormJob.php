@@ -137,7 +137,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     if ($submissionRequest) {
                         $submissionRequest->update([
                             'sample_header_id' => $header->id,
-                            'status' => 'received_at_lab',
+                            'status' => \App\Models\SampleSubmissionRequest::STATUS_ACCEPTED,
                         ]);
                     }
                 }
@@ -950,7 +950,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             }
 
             $quotation = $readinessService->resolveAcceptedQuotation($submissionRequest);
-            $flags = $readinessService->resolveElementFlagsFromQuotation($quotation);
+            $flags = $readinessService->resolveElementFlagsFromEnquiry($submissionRequest);
+            if ($flags === [] && $quotation !== null) {
+                $flags = $readinessService->resolveElementFlagsFromQuotation($quotation);
+            }
             if ($flags !== []) {
                 return $flags;
             }
@@ -960,6 +963,11 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             $submissionRequest = $submissionRequestsById?->get((string) $form->sample_submission_request_id)
                 ?? \App\Models\SampleSubmissionRequest::find($form->sample_submission_request_id);
             if ($submissionRequest !== null) {
+                $flags = $readinessService->resolveElementFlagsFromEnquiry($submissionRequest);
+                if ($flags !== []) {
+                    return $flags;
+                }
+
                 return $readinessService->resolveElementFlagsFromQuotation(
                     $readinessService->resolveAcceptedQuotation($submissionRequest)
                 );

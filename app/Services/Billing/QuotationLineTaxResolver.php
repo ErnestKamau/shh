@@ -121,22 +121,30 @@ final class QuotationLineTaxResolver
             }
 
             if (! empty($line['is_package'])) {
-                $line['tax'] = $this->resolvePackageTaxPercent(
+                $vatState = $this->resolveLineVatState(
                     $pricelist,
                     isset($line['sample_type_id']) ? (string) $line['sample_type_id'] : null,
                     (string) ($line['analysis_type_id'] ?? ''),
+                    null,
+                    true,
                     ! empty($line['package_pricelist_item_id']) ? (string) $line['package_pricelist_item_id'] : null,
                 );
+                $line['tax'] = $vatState['tax'];
+                $line['vat_from_pricelist'] = $vatState['vat_from_pricelist'];
+                $line['vat_manual'] = false;
 
                 return $line;
             }
 
-            $line['tax'] = $this->resolveLineTaxPercent(
+            $vatState = $this->resolveLineVatState(
                 $pricelist,
                 isset($line['sample_type_id']) ? (string) $line['sample_type_id'] : null,
                 (string) ($line['analysis_type_id'] ?? ''),
                 ! empty($line['analysis_element_id']) ? (string) $line['analysis_element_id'] : null,
             );
+            $line['tax'] = $vatState['tax'];
+            $line['vat_from_pricelist'] = $vatState['vat_from_pricelist'];
+            $line['vat_manual'] = false;
 
             return $line;
         }, $lines);
@@ -198,39 +206,8 @@ final class QuotationLineTaxResolver
         string $analysisTypeId,
         ?string $analysisElementId,
     ): ?PricelistItem {
-        $query = PricelistItem::query()
-            ->where('pricelist_id', $pricelist->id)
-            ->where('active', 1)
-            ->where('is_package', false);
-
-        if ($sampleTypeId !== null && $sampleTypeId !== '') {
-            $query->where('sample_type_id', $sampleTypeId);
-        }
-
-        if ($analysisElementId !== null && $analysisElementId !== '') {
-            $item = (clone $query)->where('analysis_element_id', $analysisElementId)->first();
-            if ($item !== null) {
-                return $item;
-            }
-
-            $item = PricelistItem::query()
-                ->where('pricelist_id', $pricelist->id)
-                ->where('active', 1)
-                ->where('is_package', false)
-                ->where('analysis_element_id', $analysisElementId)
-                ->first();
-            if ($item !== null) {
-                return $item;
-            }
-        }
-
-        if ($analysisTypeId !== '') {
-            return (clone $query)
-                ->where('analysis_id', $analysisTypeId)
-                ->whereNull('analysis_element_id')
-                ->first();
-        }
-
-        return null;
+        // Keep VAT lock in sync with unit-price resolution (incl. analyte fallback).
+        return app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class)
+            ->findMatchingLineItem($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
     }
 }

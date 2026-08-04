@@ -1109,11 +1109,15 @@
             const rowMatch = wireKey.match(/\.(\d+)$/);
             const targetRowIndex = rowMatch ? Number(rowMatch[1]) : -1;
 
-            if (targetRowIndex === Number(this.rowIndex)) {
-                this.analysisLoading = detail.loading === true;
-                if (!this.analysisLoading && this.open) {
-                    this.$nextTick(() => this.hydrateFromWire());
-                }
+            if (targetRowIndex !== Number(this.rowIndex)) {
+                return;
+            }
+
+            // Only surface loading inside an open parameters panel.
+            // Selecting analysis types must not flash loading on the closed trigger.
+            this.analysisLoading = detail.loading === true && this.open;
+            if (!detail.loading && this.open) {
+                this.$nextTick(() => this.hydrateFromWire());
             }
         },
         toggleOpen() {

@@ -33,6 +33,10 @@ class GroupedWorksheetPipelineStages
             return $configured;
         }
 
+        if (! $this->isVirtualResultsCaptureEnabled($holder)) {
+            return $configured;
+        }
+
         return $configured
             ->concat([$this->virtualResultsCaptureItem($holder)])
             ->values();
@@ -45,19 +49,49 @@ class GroupedWorksheetPipelineStages
         );
     }
 
+    public function isVirtualResultsCaptureEnabled(GroupedWorksheetHolder $holder): bool
+    {
+        $settings = $holder->getSettingValue('results_capture');
+
+        if (! is_array($settings)) {
+            return true;
+        }
+
+        return (bool) ($settings['enabled'] ?? true);
+    }
+
+    /**
+     * Virtual Results chip for admin timeline display when enabled (null when disabled or real item exists).
+     */
+    public function virtualResultsCaptureItemForDisplay(GroupedWorksheetHolder $holder): ?GroupedWorksheetItem
+    {
+        if ($this->hasConfiguredResultsCapture($holder) || ! $this->isVirtualResultsCaptureEnabled($holder)) {
+            return null;
+        }
+
+        return $this->virtualResultsCaptureItem($holder);
+    }
+
     public function virtualResultsCaptureItem(GroupedWorksheetHolder $holder): GroupedWorksheetItem
     {
-        $configuredCount = $this->configuredStageCount($holder);
         $maxSortOrder = $holder->items->max('sort_order') ?? 0;
+        $settings = is_array($holder->getSettingValue('results_capture'))
+            ? $holder->getSettingValue('results_capture')
+            : [];
+
+        $label = filled($settings['label'] ?? null)
+            ? (string) $settings['label']
+            : self::RESULTS_CAPTURE_LABEL;
+        $required = (bool) ($settings['required'] ?? true);
 
         $item = new GroupedWorksheetItem([
             'grouped_worksheet_holder_id' => $holder->id,
             'sort_order' => $maxSortOrder + 1,
-            'label' => self::RESULTS_CAPTURE_LABEL,
+            'label' => $label,
             'description' => 'Enter result values for each parameter across all samples in this batch.',
             'item_type' => GroupedWorksheetItemType::ResultsCapture,
             'reference_id' => null,
-            'is_required' => true,
+            'is_required' => $required,
         ]);
 
         $item->id = self::VIRTUAL_RESULTS_CAPTURE_ID;
@@ -93,16 +127,12 @@ class GroupedWorksheetPipelineStages
 
     public function totalStageCount(GroupedWorksheetHolder $holder): int
     {
-        if ($this->hasConfiguredResultsCapture($holder)) {
-            return $this->configuredStageCount($holder);
-        }
-
-        return $this->configuredStageCount($holder) + 1;
+        return $this->allStages($holder)->count();
     }
 
     public function isVirtualStageIndex(int $index, GroupedWorksheetHolder $holder): bool
     {
-        if ($this->hasConfiguredResultsCapture($holder)) {
+        if ($this->hasConfiguredResultsCapture($holder) || ! $this->isVirtualResultsCaptureEnabled($holder)) {
             return false;
         }
 

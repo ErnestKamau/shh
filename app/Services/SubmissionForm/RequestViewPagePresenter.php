@@ -25,7 +25,7 @@ class RequestViewPagePresenter
 
     public const STAGE_SAMPLE_INTEGRITY_CHECK = 'Sample Integrity Check';
 
-    /** @deprecated In Review was removed; Accept Samples runs from Sample Integrity Check. */
+    /** @deprecated In Review was removed; acceptance runs on the Sample Integrity Check page. */
     public const STAGE_IN_REVIEW = 'In Review';
 
     public const STAGE_ACCEPTED = 'Accepted';
@@ -1377,14 +1377,6 @@ class RequestViewPagePresenter
                 'wire',
                 'openAcceptSampleWizard'
             );
-        } elseif ($stage === self::STAGE_SAMPLE_INTEGRITY_CHECK) {
-            $primary = $this->action(
-                'accept_samples',
-                'Accept sample',
-                'mdi-check-circle-outline',
-                'wire',
-                'openAcceptSampleWizard'
-            );
         }
 
         return [
@@ -1409,6 +1401,7 @@ class RequestViewPagePresenter
                 'record_walk_in_acceptance',
                 'send_for_review',
                 'receive_samples',
+                'accept_samples',
             ],
             self::STAGE_ACCEPTED => [
                 'process_enquiry',
@@ -1445,14 +1438,39 @@ class RequestViewPagePresenter
      */
     private function trfActions(): array
     {
-        if (! $this->isTrfForm || ! $this->trfPdfUrl) {
+        if (! $this->isTrfForm) {
             return [];
         }
 
-        return [
-            $this->action('download_trf', 'Download TRF', 'mdi-download', 'wire', 'downloadTrfPdf'),
-            $this->action('send_trf', 'Send to customer', 'mdi-email-send-outline', 'wire', 'sendTrfPdfToCustomer'),
+        $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
+        $primaryPdfExists = \Illuminate\Support\Facades\Storage::disk('public')
+            ->exists($pdfService->resolveStoragePath($this->instance));
+
+        $actions = [
+            $this->action(
+                'generate_trf',
+                $primaryPdfExists ? 'Regenerate Test Request Form' : 'Generate Test Request Form',
+                'mdi-file-document-outline',
+                'wire',
+                'openGenerateTrfOrientationModal'
+            ),
+            $this->action(
+                'view_trf_pdf',
+                'Test Request Form',
+                'mdi-file-pdf-box',
+                'href',
+                null,
+                route('test-request-form.pdf', $this->instance->id),
+                null,
+                true
+            ),
         ];
+
+        if ($primaryPdfExists || $this->trfPdfUrl) {
+            $actions[] = $this->action('send_trf', 'Send Test Request Form', 'mdi-email-send-outline', 'wire', 'sendTrfPdfToCustomer');
+        }
+
+        return $actions;
     }
 
     /**

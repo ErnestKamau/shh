@@ -162,7 +162,7 @@ final class SubmissionFormInstanceDocumentAttachmentService
         return $existing;
     }
 
-    private function resolveUploaderId(?string $userId): string
+    private function resolveUploaderId(?string $userId): ?string
     {
         foreach ([$userId, Auth::id()] as $candidate) {
             if ($candidate === null || $candidate === '') {
@@ -175,6 +175,7 @@ final class SubmissionFormInstanceDocumentAttachmentService
             }
         }
 
-        throw new \RuntimeException('Unable to resolve a valid uploader for request attachment.');
+        // uploaded_by is nullable; automated attach (send/queue) must not fail the send path.
+        return null;
     }
 }
