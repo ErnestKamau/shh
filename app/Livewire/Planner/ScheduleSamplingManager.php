@@ -107,6 +107,19 @@ class ScheduleSamplingManager extends Component
     public function mount()
     {
         $this->loadSupportingData();
+
+        if (session('success')) {
+            $this->message = (string) session('success');
+            $this->messageType = 'success';
+        }
+
+        $editId = request()->query('edit');
+        if (is_string($editId) && $editId !== '') {
+            $exists = SamplingSchedule::query()->visibleTo()->whereKey($editId)->exists();
+            if ($exists) {
+                $this->showEditModal($editId);
+            }
+        }
     }
 
     protected function loadSupportingData()
@@ -483,21 +496,7 @@ class ScheduleSamplingManager extends Component
 
     public function viewSchedule($id)
     {
-        $this->showModal = false;
-        $this->showTrfFormsModal = false;
-        $this->viewingTrfSchedule = null;
-
-        $this->viewingSchedule = SamplingSchedule::with([
-            'client',
-            'contact',
-            'samplePoint',
-            'personnel',
-            'submissionFormInstances.values.element',
-            'submissionFormInstances.submissionForm.sampleTypes',
-            'submissionFormInstances.submittedBy',
-            'samplePlanHistories.changedByUser',
-        ])->visibleTo()->findOrFail($id);
-        $this->showViewModal = true;
+        return redirect()->route('system-planner.schedule-sampling.show', ['schedule' => $id]);
     }
 
     public function viewTrfForms($id)

@@ -227,10 +227,21 @@ class JobSampleNumberingService
     /**
      * Apply configured amendment wording/numbering when a batch is amended:
      * report numbers + optional sample-code suffixes.
+     *
+     * Original jobs use is_amendment = 1 (revision 1). Suffixes must only apply
+     * for true amendments (revision > 1).
      */
     public function applyAmendmentNumbering(SampleHeader $batch, int $revision): void
     {
         $revision = max(1, $revision);
+
+        if ($revision <= 1) {
+            $this->clearSampleCodeSuffixesForBatch($batch);
+            $this->syncReportNumbersForBatch($batch, 1, false);
+
+            return;
+        }
+
         $this->syncReportNumbersForBatch($batch, $revision, true);
         $this->syncSampleCodeSuffixesForBatch($batch, $revision);
     }
@@ -238,10 +249,17 @@ class JobSampleNumberingService
     /**
      * Append (or refresh) the configured amendment suffix on every sample code.
      * Leave sample codes unchanged when the suffix format is blank.
+     * Revision 1 (original job) clears any accidental suffix instead of applying -V1.
      */
     public function syncSampleCodeSuffixesForBatch(SampleHeader $batch, int $revision): void
     {
         $revision = max(1, $revision);
+
+        if ($revision <= 1) {
+            $this->clearSampleCodeSuffixesForBatch($batch);
+
+            return;
+        }
 
         $config = app(AmendmentReportConfigurationService::class);
         $suffix = $config->formatSampleNumberSuffix($revision);
@@ -261,6 +279,31 @@ class JobSampleNumberingService
 
             if ($next !== $current) {
                 $sample->sample_code = $next;
+                $sample->save();
+            }
+        }
+    }
+
+    /**
+     * Strip amendment suffixes from sample codes (heal accidental -V1 on original jobs).
+     */
+    public function clearSampleCodeSuffixesForBatch(SampleHeader $batch): void
+    {
+        $config = app(AmendmentReportConfigurationService::class);
+
+        $samples = SampleDetails::query()
+            ->where('sample_header_id', $batch->id)
+            ->get(['id', 'sample_code']);
+
+        foreach ($samples as $sample) {
+            $current = trim((string) ($sample->sample_code ?? ''));
+            if ($current === '') {
+                continue;
+            }
+
+            $base = $config->stripSampleNumberSuffix($current);
+            if ($base !== $current) {
+                $sample->sample_code = $base;
                 $sample->save();
             }
         }

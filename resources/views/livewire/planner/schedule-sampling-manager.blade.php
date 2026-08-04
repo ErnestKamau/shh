@@ -180,7 +180,7 @@
                                     <span>{{ $s->frequency ?: 'One-time' }}</span>
                                     <span class="ss-dot"></span>
                                     @if($series)
-                                    <span>{{ $series['count'] }} occurrence{{ $series['count'] === 1 ? '' : 's' }}</span>
+                                    <span>{{ $series['count'] }} scheduling occurrence{{ $series['count'] === 1 ? '' : 's' }}</span>
                                     <span class="ss-dot"></span>
                                     <span>{{ $series['collected_count'] }}/{{ $series['count'] }} collected</span>
                                     @if($series['collected_count'] >= $series['count'])
@@ -253,12 +253,11 @@
                             </td>
                             <td class="text-center ss-col-forms">
                                 @if($series)
-                                <button type="button"
+                                <a href="{{ route('system-planner.schedule-sampling.show', ['schedule' => $s->id]) }}"
                                         class="ss-forms-btn {{ $formCount > 0 ? 'has-forms' : '' }}"
-                                        wire:click="viewSchedule('{{ $s->id }}')"
-                                        title="Forms across all occurrences — open series to view per occurrence">
+                                        title="Forms across all scheduling occurrences — open series to view per run">
                                     {{ $formCount }}
-                                </button>
+                                </a>
                                 @else
                                 <button type="button"
                                         class="ss-forms-btn {{ $formCount > 0 ? 'has-forms' : '' }}"
@@ -297,7 +296,7 @@
                                        aria-label="Sample collection label">
                                         <i class="mdi mdi-printer"></i>
                                     </a>
-                                    <button wire:click="viewSchedule('{{ $s->id }}')" class="ss-act ss-act--view" title="{{ $series ? 'View series & occurrences' : 'View schedule' }}"><i class="mdi mdi-eye-outline"></i></button>
+                                    <a href="{{ route('system-planner.schedule-sampling.show', ['schedule' => $s->id]) }}" class="ss-act ss-act--view" title="{{ $series ? 'View series & scheduling occurrences' : 'View schedule details' }}"><i class="mdi mdi-eye-outline"></i></a>
                                     <button wire:click="showEditModal('{{ $s->id }}')" class="ss-act ss-act--edit" title="{{ $series ? 'Edit occurrences' : 'Edit' }}"><i class="mdi mdi-pencil-outline"></i></button>
                                     @if($series)
                                     <button wire:click="deleteSeries('{{ $series['group_id'] }}')" class="ss-act ss-act--delete" title="Delete entire series" onclick="return confirm('Delete this recurring schedule and all {{ $series['count'] }} of its occurrences?')"><i class="mdi mdi-trash-can-outline"></i></button>
@@ -671,412 +670,6 @@
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-sm btn-light" wire:click="closeAddSamplePointModal">Cancel</button>
                     <button type="button" class="btn btn-sm btn-primary" wire:click="saveNewSamplePoint" wire:loading.attr="disabled">Save sample point</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-
-    <!-- ═══ VIEW MODAL ═══ -->
-    @if($showViewModal && $viewingSchedule)
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);z-index:1050;">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-0" style="border-radius:12px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-                <div class="modal-header text-white" style="flex-shrink:0;">
-                    <h5 class="modal-title font-weight-bold m-0"><i class="mdi mdi-eye mr-2"></i> Schedule Details</h5>
-                    <button type="button" class="close text-white" wire:click="closeModal"><span>&times;</span></button>
-                </div>
-                <div class="modal-body p-0" style="overflow-y:auto;flex:1 1 auto;">
-                    {{-- Title banner --}}
-                    @php $viewProgress = $viewingSchedule->collectionProgress(); @endphp
-                    <div class="px-4 pt-4 pb-3" style="background:#f8f9fa;border-bottom:1px solid #e9ecef;">
-                        <h4 class="mb-1 font-weight-bold"><i class="mdi mdi-calendar-check text-primary mr-1"></i> {{ $viewingSchedule->title }}</h4>
-                        <span class="badge badge-pill" style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;font-size:12px;"><i class="mdi mdi-clock-outline mr-1"></i>{{ $viewingSchedule->sampling_datetime ? $viewingSchedule->sampling_datetime->format('D, d M Y \a\t H:i') : 'N/A' }}</span>
-                        <span class="badge badge-pill ml-1" style="background:var(--color-primary-soft);color:var(--color-primary);padding:6px 14px;font-size:12px;"><i class="mdi mdi-refresh mr-1"></i>{{ $viewingSchedule->frequency }}</span>
-                        @if($viewingSchedule->isPartOfRecurringSeries())
-                        <span class="badge badge-pill ml-1" style="background:#ede7f6;color:#4527a0;padding:6px 14px;font-size:12px;"><i class="mdi mdi-repeat mr-1"></i>Recurring series</span>
-                        @endif
-                        @if($viewingSchedule->notify_client)
-                        <span class="badge badge-pill ml-1" style="background:#fff3e0;color:#e65100;padding:6px 14px;font-size:12px;"><i class="mdi mdi-bell-ring mr-1"></i>Client Notified</span>
-                        @endif
-                        @if($viewProgress['status'] === 'collected')
-                        <span class="badge badge-pill ml-1" style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;font-size:12px;"><i class="mdi mdi-check-circle-outline mr-1"></i>{{ __('planner.collected') }}</span>
-                        @elseif($viewProgress['status'] === 'partial')
-                        <span class="badge badge-pill ml-1" style="background:#fff8e1;color:#f57f17;padding:6px 14px;font-size:12px;"><i class="mdi mdi-progress-clock mr-1"></i>{{ __('planner.partial') }} ({{ $viewProgress['label'] }})</span>
-                        @endif
-                    </div>
-
-                    <div class="p-4">
-                        {{-- Recurring series occurrences --}}
-                        @php $seriesOccurrences = $this->viewingSeriesOccurrences; @endphp
-                        @if($seriesOccurrences->count() > 1)
-                        <div class="mb-4">
-                            <h6 class="font-weight-bold text-uppercase text-muted mb-2" style="font-size:12px;letter-spacing:1px;">
-                                <i class="mdi mdi-repeat mr-1"></i>Occurrences in this series
-                                <span class="badge badge-light ml-1">{{ $seriesOccurrences->count() }}</span>
-                            </h6>
-                            <div style="background:#fafbfc;border-radius:8px;border:1px solid #eee;overflow:hidden;max-height:280px;overflow-y:auto;">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <thead class="bg-light" style="position:sticky;top:0;z-index:1;">
-                                        <tr>
-                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">#</th>
-                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Date &amp; Time</th>
-                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Status</th>
-                                            <th class="px-3 py-2 text-center" style="font-size:11px;font-weight:bold;color:#495057;">Forms</th>
-                                            <th class="px-3 py-2 text-right" style="font-size:11px;font-weight:bold;color:#495057;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($seriesOccurrences as $i => $occurrence)
-                                        @php
-                                            $isCurrent = (string) $occurrence->id === (string) $viewingSchedule->id;
-                                            $occFormCount = $occurrence->submissionFormInstances->count();
-                                            $occFillSampleTypeId = $occurrence->sample_type_id
-                                                ?? collect($occurrence->sample_details ?? [])->pluck('sample_type_id')->filter()->first();
-                                        @endphp
-                                        <tr style="border-top:1px solid #eee;{{ $isCurrent ? 'background:var(--color-primary-soft,#e8eaf6);' : '' }}">
-                                            <td class="px-3 py-2" style="vertical-align:middle;font-size:12px;color:#6c757d;">{{ $i + 1 }}</td>
-                                            <td class="px-3 py-2" style="vertical-align:middle;">
-                                                <span class="font-weight-bold" style="font-size:13px;">{{ $occurrence->sampling_datetime?->format('d M Y') ?? '—' }}</span>
-                                                <span class="text-muted ml-1" style="font-size:12px;">{{ $occurrence->sampling_datetime?->format('H:i') }}</span>
-                                                @if($isCurrent)
-                                                <span class="badge badge-primary ml-1" style="font-size:10px;">Viewing</span>
-                                                @endif
-                                            </td>
-                                            <td class="px-3 py-2" style="vertical-align:middle;">
-                                                @if($occurrence->is_collected)
-                                                <span class="badge badge-success" style="font-size:11px;">Collected</span>
-                                                @elseif($occFormCount > 0)
-                                                <span class="badge badge-warning" style="font-size:11px;">Partial</span>
-                                                @else
-                                                <span class="badge badge-light border" style="font-size:11px;">Pending</span>
-                                                @endif
-                                            </td>
-                                            <td class="px-3 py-2 text-center" style="vertical-align:middle;">
-                                                <button type="button"
-                                                        class="ss-forms-btn {{ $occFormCount > 0 ? 'has-forms' : '' }}"
-                                                        wire:click="viewTrfForms('{{ $occurrence->id }}')"
-                                                        title="View forms filled for this occurrence">
-                                                    {{ $occFormCount }}
-                                                </button>
-                                            </td>
-                                            <td class="px-3 py-2 text-right" style="vertical-align:middle;white-space:nowrap;">
-                                                <div class="ss-actions" style="justify-content:flex-end;">
-                                                    @if($occFillSampleTypeId)
-                                                    <a href="{{ route('system-planner.fill-sampling-forms.fill', ['sampleType' => $occFillSampleTypeId, 'schedule' => $occurrence->id]) }}"
-                                                       class="ss-act ss-act--form" title="Fill sampling form for this occurrence"><i class="mdi mdi-clipboard-edit-outline"></i></a>
-                                                    @else
-                                                    <a href="{{ route('system-planner.fill-sampling-forms', ['schedule' => $occurrence->id]) }}"
-                                                       class="ss-act ss-act--form" title="Choose a form for this occurrence"><i class="mdi mdi-clipboard-edit-outline"></i></a>
-                                                    @endif
-                                                    @unless($isCurrent)
-                                                    <button wire:click="viewSchedule('{{ $occurrence->id }}')" class="ss-act ss-act--view" title="View this occurrence"><i class="mdi mdi-eye-outline"></i></button>
-                                                    @endunless
-                                                    <button wire:click="showEditModal('{{ $occurrence->id }}')" class="ss-act ss-act--edit" title="Edit this occurrence"><i class="mdi mdi-pencil-outline"></i></button>
-                                                    <button wire:click="delete('{{ $occurrence->id }}')" class="ss-act ss-act--delete" title="Delete this occurrence only" onclick="return confirm('Delete this single occurrence ({{ $occurrence->sampling_datetime?->format('d M Y H:i') }})? The rest of the series is kept.')"><i class="mdi mdi-trash-can-outline"></i></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                            <small class="text-muted d-block mt-1">Each occurrence is sampled, filled, and tracked on its own. Forms below belong to the occurrence being viewed.</small>
-                        </div>
-                        @endif
-
-                        {{-- Client & Contact --}}
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <div class="card border-0 shadow-sm h-100" style="border-radius:10px;">
-                                    <div class="card-body p-3">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div style="width:36px;height:36px;border-radius:8px;background:var(--color-primary-soft);display:flex;align-items:center;justify-content:center;" class="mr-2"><i class="mdi mdi-domain text-primary"></i></div>
-                                            <small class="text-muted text-uppercase font-weight-bold" style="letter-spacing:0.5px;">Client</small>
-                                        </div>
-                                        <h6 class="font-weight-bold mb-0">{{ $viewingSchedule->client->name ?? 'N/A' }}</h6>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card border-0 shadow-sm h-100" style="border-radius:10px;">
-                                    <div class="card-body p-3">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div style="width:36px;height:36px;border-radius:8px;background:#fce4ec;display:flex;align-items:center;justify-content:center;" class="mr-2"><i class="mdi mdi-account-tie text-danger"></i></div>
-                                            <small class="text-muted text-uppercase font-weight-bold" style="letter-spacing:0.5px;">Contact(s)</small>
-                                        </div>
-                                        @php $viewContacts = $viewingSchedule->contacts(); @endphp
-                                        @if($viewContacts->isNotEmpty())
-                                            @foreach($viewContacts as $vc)
-                                            <div class="{{ !$loop->last ? 'mb-2' : '' }}">
-                                                <h6 class="font-weight-bold mb-0">{{ trim(($vc->first_name ?? '').' '.($vc->last_name ?? '')) ?: 'Contact' }}</h6>
-                                                @if(!empty($vc->email))
-                                                <small class="text-muted d-block">{{ $vc->email }}</small>
-                                                @endif
-                                                @php $viewPhone = $vc->telephone ?: $vc->mobile; @endphp
-                                                @if(!empty($viewPhone))
-                                                <small class="text-muted d-block">{{ $viewPhone }}</small>
-                                                @endif
-                                            </div>
-                                            @endforeach
-                                        @else
-                                            <h6 class="font-weight-bold mb-0">N/A</h6>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Location & Operations --}}
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100" style="border-radius:10px;">
-                                    <div class="card-body p-3 text-center">
-                                        <i class="mdi mdi-map-marker-radius text-danger" style="font-size:24px;"></i>
-                                        <small class="text-muted d-block mt-1">Location</small>
-                                        <strong>{{ $viewingSchedule->locationDisplayName() }}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100" style="border-radius:10px;">
-                                    <div class="card-body p-3 text-center">
-                                        <i class="mdi mdi-flask text-info" style="font-size:24px;"></i>
-                                        <small class="text-muted d-block mt-1">{{ __('planner.samples_collected_vs_scheduled') }}</small>
-                                        <strong style="font-size:20px;">{{ $viewProgress['label'] }}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100" style="border-radius:10px;">
-                                    <div class="card-body p-3 text-center">
-                                        <i class="mdi mdi-account-hard-hat text-warning" style="font-size:24px;"></i>
-                                        <small class="text-muted d-block mt-1">Personnel</small>
-                                        <strong>{{ $viewingSchedule->personnelNames() }}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Sample Details --}}
-                        @php $vDetails = $this->resolveDetailedSampleDetails($viewingSchedule); @endphp
-                        @if(!empty($vDetails))
-                        <div class="mb-4">
-                            <h6 class="font-weight-bold text-uppercase text-muted mb-3" style="font-size:12px;letter-spacing:1px;">
-                                <i class="mdi mdi-flask-outline mr-1"></i>Sample Details
-                            </h6>
-                            @foreach($vDetails as $i => $d)
-                            <div class="card border-0 shadow-sm mb-3" style="border-radius:10px;overflow:hidden;">
-                                <div class="card-header py-2 px-3" style="background:linear-gradient(135deg,var(--color-primary-soft),var(--color-primary-soft-light));border-bottom:1px solid var(--color-primary-highlight);">
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge badge-primary mr-2" style="border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;">{{ $i+1 }}</span>
-                                        <span class="font-weight-bold text-primary" style="font-size:14px;">{{ $d['type'] }}</span>
-                                    </div>
-                                </div>
-                                <div class="card-body p-3">
-                                    {{-- Analysis Type --}}
-                                    <div class="mb-3">
-                                        <small class="text-muted text-uppercase font-weight-bold d-block mb-1" style="font-size:10px;letter-spacing:0.5px;">
-                                            <i class="mdi mdi-microscope mr-1"></i>Analysis Type
-                                        </small>
-                                        @if($d['analysis'])
-                                        <span class="badge badge-info px-3 py-2" style="font-size:13px;border-radius:6px;">
-                                            {{ $d['analysis'] }}
-                                        </span>
-                                        @else
-                                        <span class="text-muted font-italic">Not specified</span>
-                                        @endif
-                                    </div>
-
-                                    {{-- Parameters --}}
-                                    @if(!empty($d['param_names']))
-                                    <div>
-                                        <small class="text-muted text-uppercase font-weight-bold d-block mb-2" style="font-size:10px;letter-spacing:0.5px;">
-                                            <i class="mdi mdi-test-tube mr-1"></i>Parameters ({{ $d['params_count'] }})
-                                        </small>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            @foreach($d['param_names'] as $paramName)
-                                            <span class="badge badge-outline-secondary mr-1 mb-1 px-2 py-1" style="font-size:12px;border:1px solid #dee2e6;background:#f8f9fa;color:#495057;border-radius:4px;">
-                                                {{ $paramName }}
-                                            </span>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                    @else
-                                    <div>
-                                        <small class="text-muted text-uppercase font-weight-bold d-block mb-1" style="font-size:10px;letter-spacing:0.5px;">
-                                            <i class="mdi mdi-test-tube mr-1"></i>Parameters
-                                        </small>
-                                        <span class="badge badge-light px-3 py-2" style="font-size:12px;color:#6c757d;">
-                                            No parameters selected
-                                        </span>
-                                    </div>
-                                    @endif
-                                </div>
-                            </div>
-                            @endforeach
-                        </div>
-                        @endif
-
-                        {{-- Sample plan change history --}}
-                        @php
-                            $planHistories = $viewingSchedule->samplePlanHistories ?? collect();
-                        @endphp
-                        <div class="mb-4">
-                            <h6 class="font-weight-bold text-uppercase text-muted mb-3" style="font-size:12px;letter-spacing:1px;">
-                                <i class="mdi mdi-history mr-1"></i>Sample plan history
-                                <span class="badge badge-light ml-1">{{ $planHistories->count() }}</span>
-                            </h6>
-                            @if($planHistories->isNotEmpty())
-                                <div class="d-flex flex-column" style="gap:12px;">
-                                    @foreach($planHistories as $history)
-                                        @php
-                                            $before = is_array($history->display_before) ? $history->display_before : [];
-                                            $after = is_array($history->display_after) ? $history->display_after : [];
-                                            $beforeEntries = is_array($before['entries'] ?? null) ? $before['entries'] : [];
-                                            $afterEntries = is_array($after['entries'] ?? null) ? $after['entries'] : [];
-                                            $changedBy = $history->changedByUser?->name ?? 'Unknown user';
-                                        @endphp
-                                        <div class="card border-0 shadow-sm" style="border-radius:10px;overflow:hidden;">
-                                            <div class="card-header py-2 px-3 d-flex justify-content-between align-items-center flex-wrap" style="background:#f8f9fa;border-bottom:1px solid #e9ecef;">
-                                                <span class="small text-muted">
-                                                    <i class="mdi mdi-account-outline mr-1"></i>{{ $changedBy }}
-                                                </span>
-                                                <span class="small text-muted">
-                                                    {{ optional($history->created_at)->format('d M Y H:i') }}
-                                                </span>
-                                            </div>
-                                            <div class="card-body p-3">
-                                                <div class="row">
-                                                    <div class="col-md-6 mb-3 mb-md-0">
-                                                        <small class="text-muted text-uppercase font-weight-bold d-block mb-2" style="font-size:10px;letter-spacing:0.5px;">
-                                                            Previously planned
-                                                        </small>
-                                                        <div class="small mb-1 text-muted">
-                                                            Samples: <strong>{{ $before['number_of_samples'] ?? $history->number_of_samples_before ?? '—' }}</strong>
-                                                        </div>
-                                                        @forelse($beforeEntries as $entry)
-                                                            <div class="mb-2 p-2" style="background:#fafbfc;border:1px solid #eee;border-radius:8px;">
-                                                                <div class="font-weight-bold" style="font-size:13px;">{{ $entry['type'] ?? '—' }}</div>
-                                                                @if(!empty($entry['analysis']))
-                                                                    <div class="text-muted" style="font-size:12px;">{{ $entry['analysis'] }}</div>
-                                                                @endif
-                                                                @if(!empty($entry['param_names']))
-                                                                    <div class="mt-1" style="font-size:11px;color:#6c757d;">
-                                                                        {{ implode(', ', $entry['param_names']) }}
-                                                                    </div>
-                                                                @endif
-                                                            </div>
-                                                        @empty
-                                                            <span class="text-muted font-italic small">No sample types planned</span>
-                                                        @endforelse
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <small class="text-muted text-uppercase font-weight-bold d-block mb-2" style="font-size:10px;letter-spacing:0.5px;">
-                                                            Updated to
-                                                        </small>
-                                                        <div class="small mb-1 text-muted">
-                                                            Samples: <strong>{{ $after['number_of_samples'] ?? $history->number_of_samples_after ?? '—' }}</strong>
-                                                        </div>
-                                                        @forelse($afterEntries as $entry)
-                                                            <div class="mb-2 p-2" style="background:var(--color-primary-soft,#f3e8e9);border:1px solid var(--color-primary-highlight,#e2b8bb);border-radius:8px;">
-                                                                <div class="font-weight-bold text-primary" style="font-size:13px;">{{ $entry['type'] ?? '—' }}</div>
-                                                                @if(!empty($entry['analysis']))
-                                                                    <div class="text-muted" style="font-size:12px;">{{ $entry['analysis'] }}</div>
-                                                                @endif
-                                                                @if(!empty($entry['param_names']))
-                                                                    <div class="mt-1" style="font-size:11px;color:#6c757d;">
-                                                                        {{ implode(', ', $entry['param_names']) }}
-                                                                    </div>
-                                                                @endif
-                                                            </div>
-                                                        @empty
-                                                            <span class="text-muted font-italic small">No sample types planned</span>
-                                                        @endforelse
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <div class="alert alert-light border mb-0" style="border-radius:8px;">
-                                    No sample-plan changes recorded yet. Edits to sample types, analysis types, or parameters will appear here.
-                                </div>
-                            @endif
-                        </div>
-
-                        {{-- Tied Request Forms --}}
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="font-weight-bold text-uppercase text-muted mb-0" style="font-size:12px;letter-spacing:1px;">
-                                    <i class="mdi mdi-file-document-outline mr-1"></i>Test Request Forms
-                                    <span class="badge badge-light ml-1">{{ $viewingSchedule->submissionFormInstances->count() }}</span>
-                                </h6>
-                                <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:16px;"
-                                        wire:click="viewTrfForms('{{ $viewingSchedule->id }}')">
-                                    View all
-                                </button>
-                            </div>
-                            @if($viewingSchedule->submissionFormInstances->count() > 0)
-                            <div class="p-0" style="background:#fafbfc;border-radius:8px;border:1px solid #eee;overflow:hidden;max-height: 250px; overflow-y: auto;">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <thead class="bg-light" style="position: sticky; top: 0; z-index: 1;">
-                                        <tr>
-                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Form Title / Sample Type</th>
-                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Submitted By</th>
-                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Status</th>
-                                            <th class="px-3 py-2" style="font-size:11px;font-weight:bold;color:#495057;">Date</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($viewingSchedule->submissionFormInstances->take(5) as $instance)
-                                        <tr style="border-top: 1px solid #eee;">
-                                            <td class="px-3 py-2">
-                                                <div class="font-weight-bold" style="font-size:13px;color:#333;">{{ $instance->submissionForm?->name ?? 'Request Form' }}</div>
-                                                <small class="text-muted">{{ $instance->selectedSampleTypeName() ?? $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
-                                            </td>
-                                            <td class="px-3 py-2" style="font-size:12px;vertical-align:middle;color:#555;">
-                                                {{ $instance->submittedBy?->name ?? 'N/A' }}
-                                            </td>
-                                            <td class="px-3 py-2" style="vertical-align:middle;">
-                                                <span class="badge badge-success" style="font-size:11px;padding:3px 8px;">{{ ucfirst($instance->status) }}</span>
-                                            </td>
-                                            <td class="px-3 py-2" style="font-size:12px;vertical-align:middle;color:#6c757d;">
-                                                {{ $instance->submitted_at?->format('M d, Y H:i') ?? $instance->created_at?->format('M d, Y H:i') }}
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                            @else
-                            <div class="alert alert-light border mb-0" style="border-radius:8px;">
-                                No test request forms have been filled for this schedule yet.
-                            </div>
-                            @endif
-                        </div>
-
-                        {{-- Description --}}
-                        @if($viewingSchedule->description)
-                        <div class="mb-2">
-                            <h6 class="font-weight-bold text-uppercase text-muted mb-2" style="font-size:12px;letter-spacing:1px;"><i class="mdi mdi-text mr-1"></i>Description</h6>
-                            <div class="p-3" style="background:#fafbfc;border-radius:8px;border:1px solid #eee;">
-                                <p class="mb-0" style="white-space:pre-wrap;">{{ $viewingSchedule->description }}</p>
-                            </div>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-                <div class="modal-footer bg-light p-3" style="flex-shrink:0;">
-                    <button type="button" class="btn btn-secondary" wire:click="closeModal"><i class="mdi mdi-close mr-1"></i>Close</button>
-                    <a href="{{ route('system-planner.schedule-sampling.sample-collection-label', ['schedule' => $viewingSchedule->id]) }}"
-                       class="btn btn-outline-primary"
-                       target="_blank"
-                       rel="noopener">
-                        <i class="mdi mdi-printer mr-1"></i>Sample collection label
-                    </a>
-                    <button type="button" class="btn btn-primary" wire:click="showEditModal('{{ $viewingSchedule->id }}')"><i class="mdi mdi-pencil mr-1"></i>Edit</button>
                 </div>
             </div>
         </div>
@@ -1770,6 +1363,9 @@
         overflow:hidden;
     }
     .ss-forms-btn{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
         min-width:34px;
         height:28px;
         padding:0 10px;
@@ -1780,6 +1376,7 @@
         font-size:var(--ls-text-sm, 0.75rem);
         font-weight:500;
         line-height:1;
+        text-decoration:none;
     }
     .ss-forms-btn.has-forms{
         border-color:var(--ls-color-primary, var(--color-primary, #6D0A0E));
