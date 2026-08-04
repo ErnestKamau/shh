@@ -168,53 +168,54 @@
     .pg-header {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         padding-bottom: 0;
-        border-bottom: 1px solid #e5e5e5;
+        border-bottom: none;
     }
     .pg-header td {
         border: none;
-        padding: 0 0 6px;
-        vertical-align: top;
+        padding: 0;
+        vertical-align: middle;
     }
     .pg-header-logo {
-        width: 34%;
+        width: 38%;
         text-align: left;
     }
     .pg-header-logo img {
-        max-height: 70px;
-        max-width: 200px;
+        max-height: 110px;
+        max-width: 300px;
         object-fit: contain;
         display: block;
     }
     .pg-header-logo .logo-text {
-        font-size: 26px;
+        font-size: 28px;
         font-weight: 900;
         color: #8B1A1A;
         letter-spacing: 1px;
     }
     .pg-header-center {
-        width: 32%;
+        width: 24%;
         text-align: center;
         vertical-align: middle;
-        padding: 0 8px 6px;
+        padding: 0 6px;
     }
     .pg-header-center .cert-no {
         font-size: 10.5px;
         color: #333;
         letter-spacing: 0.02em;
+        line-height: 1.35;
     }
     .pg-header-center .page-of {
         font-size: 10px;
         color: #666;
     }
     .pg-header-right {
-        width: 34%;
+        width: 38%;
         text-align: right;
     }
     .pg-header-right img {
-        max-height: 70px;
-        max-width: 160px;
+        max-height: 110px;
+        max-width: 260px;
         object-fit: contain;
         display: inline-block;
     }
@@ -226,9 +227,10 @@
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 1.6px;
-        padding: 8px 0 10px;
-        margin: 2px 0 12px;
+        padding: 6px 0 5px;
+        margin: 0 0 0;
         color: #111;
+        border-top: 1px solid #d8d8d8;
         border-bottom: 2px solid #8B1A1A;
     }
 
@@ -236,7 +238,7 @@
     .info-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 8px;
+        margin: 6px 0 0;
         font-size: 10.5px;
         border: 1px solid #bdbdbd;
     }
@@ -260,8 +262,15 @@
     .detail-grid {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 8px;
+        margin: 0 0 8px;
         font-size: 10.5px;
+        table-layout: fixed;
+    }
+    .detail-grid col.detail-col-label { width: 16%; }
+    .detail-grid col.detail-col-value { width: 34%; }
+    .detail-grid + .detail-grid,
+    .info-table + .detail-grid {
+        margin-top: -1px;
     }
     .detail-grid td {
         border: 1px solid #c4c4c4;
@@ -273,7 +282,7 @@
         font-weight: bold;
         white-space: nowrap;
         background: #f6f6f6;
-        width: 118px;
+        width: 16%;
         color: #333;
     }
     .detail-grid .val-emphasize {
@@ -408,8 +417,8 @@
         vertical-align: middle;
     }
     .sig-block .sig-right img {
-        max-height: 72px;
-        max-width: 160px;
+        max-height: 90px;
+        max-width: 200px;
         object-fit: contain;
     }
     .sig-name { font-weight: bold; font-size: 11px; margin-top: 0; color: #111; }
@@ -496,6 +505,24 @@
         display: block;
     }
 
+    .bottom-logos {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 6px 0 2px;
+    }
+    .bottom-logos td {
+        border: none;
+        padding: 0;
+        vertical-align: bottom;
+    }
+    .bottom-logos td:first-child { text-align: left; }
+    .bottom-logos td:last-child { text-align: right; }
+    .bottom-logos img {
+        max-height: 95px;
+        max-width: 240px;
+        object-fit: contain;
+    }
+
     @if(!empty($isPdfMode))
     /*
      * Verified against this dompdf build (storage/tmp-pdf-test harness):
@@ -504,12 +531,14 @@
      * - position:fixed is relative to the CONTENT box; negative offsets pull
      *   the header/footer into the reserved margins on every page.
      * - Fixed elements only repeat when they are direct children of <body>.
+     * - Client details sit in the body (page 1) so they sit flush against batch info.
      */
     @page {
         size: A4 portrait;
     }
     html {
-        margin: 52mm 12mm 100mm 12mm;
+        /* Header band is logos + title only; client info flows in the body. */
+        margin: 32mm 12mm 100mm 12mm;
         padding: 0;
     }
     body, main {
@@ -527,8 +556,8 @@
     }
     .pdf-doc-header {
         position: fixed;
-        /* Pull up into the 52mm top margin (4mm from the page edge). */
-        top: -48mm;
+        /* Pull up into the 32mm top margin (4mm from the page edge). */
+        top: -28mm;
         left: 0;
         right: 0;
         width: auto;
@@ -537,40 +566,47 @@
         background: #fff;
     }
     .pdf-doc-header .pg-header {
-        margin-bottom: 1px;
-        border-bottom: 1px solid #e5e5e5;
+        margin-bottom: 0;
+        border-bottom: none;
     }
     .pdf-doc-header .pg-header td {
-        padding-bottom: 2px;
+        padding: 0;
         border: none;
+        vertical-align: middle;
     }
     .pdf-doc-header .pg-header-logo img,
     .pdf-doc-header .pg-header-right img {
-        max-height: 40px;
-        max-width: 140px;
+        max-height: 22mm;
+        max-width: 68mm;
     }
     .pdf-doc-header .logo-text {
-        font-size: 18px;
+        font-size: 22px;
     }
     .pdf-doc-header .cert-no {
-        font-size: 9px;
+        font-size: 9.5px;
     }
     .pdf-doc-header .report-title-bar {
-        margin: 2px 0 3px;
-        padding: 2px 0 4px;
+        margin: 0;
+        padding: 3px 0 3px;
         font-size: 11px;
         letter-spacing: 1px;
+        border-top: 1px solid #d8d8d8;
         border-bottom-width: 1.5px;
     }
-    .pdf-doc-header .info-table {
-        margin-bottom: 0;
+    .pdf-body-client-info .info-table {
+        margin: 0 0 0;
         font-size: 9px;
+        page-break-inside: avoid;
+        page-break-after: avoid;
     }
-    .pdf-doc-header .info-table td {
+    .pdf-body-client-info .info-table td {
         padding: 2px 5px;
     }
-    .pdf-doc-header .info-table .lbl {
+    .pdf-body-client-info .info-table .lbl {
         width: 120px;
+    }
+    .pdf-body-client-info + .detail-grid {
+        margin-top: -1px;
     }
     .pdf-doc-footer {
         position: fixed;
@@ -636,8 +672,8 @@
         max-width: 110px;
     }
     .pdf-doc-footer .sig-block .sig-right img {
-        max-height: 36px;
-        max-width: 95px;
+        max-height: 18mm;
+        max-width: 42mm;
     }
     .pdf-doc-footer .sig-underline {
         width: 130px;
@@ -647,8 +683,8 @@
         margin: 2px 0 1px;
     }
     .pdf-doc-footer .bottom-logos img {
-        max-height: 28px !important;
-        max-width: 90px !important;
+        max-height: 20mm !important;
+        max-width: 52mm !important;
     }
     .pdf-doc-footer .end-text {
         display: block;
@@ -835,7 +871,7 @@
 {{-- Repeating header / footer. Must be direct children of <body> (outside
      <main>) or DomPDF only paints them on the first page. --}}
 <div class="pdf-doc-header">
-    @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
+    @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header', ['showClientInfo' => false])
 </div>
 <div class="pdf-doc-footer">
     <div class="pdf-footer-closing">
@@ -904,6 +940,11 @@
         @if(empty($isPdfMode))
         {{-- ══════════════ PAGE HEADER (logo + client info) ══════════════ --}}
         @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
+        @else
+        {{-- Client details flow with batch info (page 1 only; not in fixed header) --}}
+        <div class="pdf-body-client-info">
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-client-info')
+        </div>
         @endif
 
         {{-- ══════════════ DETAIL GRID (omit unfilled TRF fields) ══════════════ --}}
@@ -967,6 +1008,7 @@
             $detailGridRows = array_chunk($detailGridFields, 2);
         @endphp
         <table class="detail-grid">
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-detail-grid-cols')
             @foreach($detailGridRows as $pair)
             <tr>
                 <td class="dlbl">{{ $pair[0]['label'] }}</td>
@@ -986,9 +1028,10 @@
 
             {{-- Per-sample subheader --}}
             <table class="detail-grid sample-ref-grid">
+                @include('layouts.lab.sample-workflow.report-formats.partials.trr-detail-grid-cols')
                 <tr>
                     <td class="dlbl">{{ $labels['sample_reference'] }}</td>
-                    <td><strong>{{ format_sample_code($sample->sample_code) }}</strong></td>
+                    <td class="detail-val"><strong>{{ format_sample_code($sample->sample_code) }}</strong></td>
                     @php
                         $samplePointValue = $samplePointByIndex[$loop->index] ?? ($sample->sample_point_name ?? null);
                         $samplePointFilled = filled(trim((string) ($samplePointValue ?? '')))
@@ -996,9 +1039,9 @@
                     @endphp
                     @if($samplePointFilled)
                     <td class="dlbl">{{ $labels['sample_point'] }}</td>
-                    <td>{{ $samplePointValue }}</td>
+                    <td class="detail-val">{{ $samplePointValue }}</td>
                     @else
-                    <td colspan="2"></td>
+                    <td colspan="2">&nbsp;</td>
                     @endif
                 </tr>
                 @if($sample->sample_condition_name)

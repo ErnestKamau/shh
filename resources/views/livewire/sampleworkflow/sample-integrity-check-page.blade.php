@@ -19,15 +19,9 @@
             <a href="{{ $this->collectionLabelUrl }}" target="_blank" class="btn btn-sm btn-outline-secondary">
                 <i class="mdi mdi-printer-outline"></i> Collection label
             </a>
-            @if($this->hasLabSamples)
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="integrity-lab-sample-labels-btn">
-                    <i class="mdi mdi-barcode"></i> Lab sample labels
-                </button>
-            @else
-                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Lab sample labels unlock after Accept creates the job.">
-                    <i class="mdi mdi-barcode"></i> Lab sample labels
-                </button>
-            @endif
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="integrity-lab-sample-labels-btn">
+                <i class="mdi mdi-barcode"></i> Lab sample labels
+            </button>
             <button type="button" class="btn btn-sm btn-outline-primary" wire:click="saveAssignments" wire:loading.attr="disabled">
                 <span wire:loading.remove wire:target="saveAssignments">Save assignments</span>
                 <span wire:loading wire:target="saveAssignments">Saving…</span>

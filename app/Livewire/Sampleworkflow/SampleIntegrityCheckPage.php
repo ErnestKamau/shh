@@ -630,12 +630,6 @@ class SampleIntegrityCheckPage extends Component
             ->isEligibleForSampleAcceptance($this->enquiry, $this->instance);
     }
 
-    public function getHasLabSamplesProperty(): bool
-    {
-        return $this->instance->batches()->exists()
-            || ($this->enquiry?->sample_header_id !== null && $this->enquiry?->sample_header_id !== '');
-    }
-
     public function getCollectionLabelUrlProperty(): string
     {
         return route('submission-forms.instances.sample-collection-label', [
