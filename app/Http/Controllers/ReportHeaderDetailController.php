@@ -474,9 +474,13 @@ class ReportHeaderDetailController extends Controller
 			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
 
 			$amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? 1);
-			if ($amendmentVersion > 1 || ! empty($ammendment?->id)) {
+			// is_amendment defaults to 1 for original jobs — do not treat that as an amendment.
+			if ($amendmentVersion > 1) {
 				app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
-					->applyAmendmentNumbering($batch, max(1, $amendmentVersion));
+					->applyAmendmentNumbering($batch, $amendmentVersion);
+			} else {
+				app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+					->clearSampleCodeSuffixesForBatch($batch);
 			}
 			$amendmentDisplay = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
 				->amendmentViewData(max(1, $amendmentVersion), (string) $batch->batch_code);
@@ -1225,9 +1229,13 @@ class ReportHeaderDetailController extends Controller
 			'customerReference'
 		);
 		$amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? 1);
-		if ($amendmentVersion > 1 || ! empty($ammendment?->id)) {
+		// is_amendment defaults to 1 for original jobs — do not treat that as an amendment.
+		if ($amendmentVersion > 1) {
 			app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
-				->applyAmendmentNumbering($batch, max(1, $amendmentVersion));
+				->applyAmendmentNumbering($batch, $amendmentVersion);
+		} else {
+			app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+				->clearSampleCodeSuffixesForBatch($batch);
 		}
 		$data['amendmentDisplay'] = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
 			->amendmentViewData(max(1, $amendmentVersion), (string) $batch->batch_code);

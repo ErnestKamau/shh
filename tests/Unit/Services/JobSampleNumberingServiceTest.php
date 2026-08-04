@@ -180,4 +180,77 @@ class JobSampleNumberingServiceTest extends TestCase
             SampleDetails::query()->orderBy('id')->pluck('report_number')->all(),
         );
     }
+
+    /** @test */
+    public function revision_one_clears_sample_code_suffixes_instead_of_appending_v1(): void
+    {
+        Schema::dropIfExists('sample_details');
+        Schema::dropIfExists('sample_headers');
+
+        Schema::create('sample_headers', function (Blueprint $table) {
+            $table->id();
+            $table->string('batch_code');
+            $table->timestamps();
+        });
+
+        Schema::create('sample_details', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('sample_header_id');
+            $table->string('sample_code')->nullable();
+            $table->string('report_number')->nullable();
+            $table->timestamps();
+        });
+
+        $header = SampleHeader::query()->create(['batch_code' => '260428001']);
+        SampleDetails::query()->create([
+            'sample_header_id' => $header->id,
+            'sample_code' => '260428001-001-V1',
+        ]);
+        SampleDetails::query()->create([
+            'sample_header_id' => $header->id,
+            'sample_code' => '260428001-002',
+        ]);
+
+        // Original jobs use is_amendment = 1; must not keep/apply -V1.
+        $this->service->syncSampleCodeSuffixesForBatch($header, 1);
+
+        $this->assertSame(
+            ['260428001-001', '260428001-002'],
+            SampleDetails::query()->orderBy('id')->pluck('sample_code')->all(),
+        );
+    }
+
+    /** @test */
+    public function revision_two_applies_amendment_sample_code_suffix(): void
+    {
+        Schema::dropIfExists('sample_details');
+        Schema::dropIfExists('sample_headers');
+
+        Schema::create('sample_headers', function (Blueprint $table) {
+            $table->id();
+            $table->string('batch_code');
+            $table->timestamps();
+        });
+
+        Schema::create('sample_details', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('sample_header_id');
+            $table->string('sample_code')->nullable();
+            $table->string('report_number')->nullable();
+            $table->timestamps();
+        });
+
+        $header = SampleHeader::query()->create(['batch_code' => '260428001']);
+        SampleDetails::query()->create([
+            'sample_header_id' => $header->id,
+            'sample_code' => '260428001-001',
+        ]);
+
+        $this->service->syncSampleCodeSuffixesForBatch($header, 2);
+
+        $this->assertSame(
+            ['260428001-001-V2'],
+            SampleDetails::query()->orderBy('id')->pluck('sample_code')->all(),
+        );
+    }
 }

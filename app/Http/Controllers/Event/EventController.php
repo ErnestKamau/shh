@@ -655,6 +655,22 @@ class EventController extends Controller
         return view('layouts.planner.schedule_sampling');
     }
 
+    public function scheduleSamplingShow(string $schedule)
+    {
+        $exists = \App\Models\SamplingSchedule::query()
+            ->visibleTo()
+            ->whereKey($schedule)
+            ->exists();
+
+        if (! $exists) {
+            abort(404, 'Sampling schedule not found.');
+        }
+
+        return view('layouts.planner.schedule_sampling_details', [
+            'scheduleId' => $schedule,
+        ]);
+    }
+
     public function fillSamplingFormsIndex()
     {
         $scheduleId = request()->query('schedule');

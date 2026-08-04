@@ -58,9 +58,13 @@ class TestRequestReportPdfService
 
         $ammendment = BatchAmmendment::resolveForBatch($batch);
         $amendmentVersion = (int) ($ammendment->version_number ?? $batch->is_amendment ?? $sequence);
-        if ((int) ($batch->is_amendment ?? 0) > 0) {
+        // is_amendment defaults to 1 for original jobs; only true amendments (> 1) get -V suffixes.
+        if ((int) ($batch->is_amendment ?? 0) > 1) {
             app(JobSampleNumberingService::class)
-                ->syncSampleCodeSuffixesForBatch($batch, max(1, (int) $batch->is_amendment));
+                ->syncSampleCodeSuffixesForBatch($batch, (int) $batch->is_amendment);
+        } else {
+            app(JobSampleNumberingService::class)
+                ->clearSampleCodeSuffixesForBatch($batch);
         }
         $amendmentDisplay = $this->amendmentDisplayData($labels, $amendmentVersion, $jobNumber);
 
