@@ -68,16 +68,16 @@
 </div>
 
 @if(!empty($reportLogos['bottom_left']) || !empty($reportLogos['bottom_right']))
-<table class="bottom-logos" style="width:100%;border-collapse:collapse;margin:8px 0 4px;">
+<table class="bottom-logos">
     <tr>
-        <td style="border:none;padding:0;vertical-align:bottom;text-align:left;">
+        <td>
             @if(!empty($reportLogos['bottom_left']))
-                <img src="{{ $reportLogos['bottom_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:60px;max-width:160px;object-fit:contain;">
+                <img src="{{ $reportLogos['bottom_left']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}">
             @endif
         </td>
-        <td style="border:none;padding:0;vertical-align:bottom;text-align:right;">
+        <td>
             @if(!empty($reportLogos['bottom_right']))
-                <img src="{{ $reportLogos['bottom_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}" style="max-height:60px;max-width:160px;object-fit:contain;">
+                <img src="{{ $reportLogos['bottom_right']['src'] }}" alt="{{ $company->name ?? 'AmSpec' }}">
             @endif
         </td>
     </tr>

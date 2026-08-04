@@ -102,12 +102,12 @@
         width: 220mm;
         min-height: auto;
         margin: 0 auto 20px;
-        padding: 16mm 16mm 14mm;
+        padding: 16mm 18mm 16mm;
         background: #ffffff;
         box-sizing: border-box;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
         display: block;
-        overflow: hidden;
+        overflow: visible;
     }
 
     .amspec-page-body,
@@ -120,7 +120,7 @@
     .amspec-shell-preview .amspec-page-sheet,
     .amspec-shell-public .amspec-page-sheet {
         width: min(94vw, 268mm);
-        padding: 16mm 16mm 14mm;
+        padding: 16mm 18mm 16mm;
     }
 
     .amspec-shell-preview .amspec-quotation,
@@ -137,7 +137,7 @@
     }
 
     .amspec-brand-row {
-        margin-bottom: 2px;
+        margin-bottom: 6px;
         border: none !important;
         border-collapse: collapse;
     }
@@ -147,15 +147,57 @@
         outline: none !important;
     }
 
+    .amspec-header-block,
+    .amspec-header-block td {
+        border: none !important;
+        outline: none !important;
+    }
+
+    .amspec-header-logos td {
+        vertical-align: middle;
+        padding-bottom: 10px;
+    }
+
+    .amspec-header-logo-cell {
+        width: 58%;
+        vertical-align: middle;
+        padding-right: 12px;
+    }
+
+    .amspec-header-hex-cell {
+        width: 42%;
+        text-align: right;
+        vertical-align: top;
+    }
+
+    .amspec-header-hex-wrap {
+        display: inline-block;
+        line-height: 0;
+        min-height: 72px;
+        text-align: right;
+    }
+
+    .amspec-header-details td {
+        vertical-align: top;
+        padding-top: 2px;
+    }
+
+    .amspec-header-contact-lines {
+        display: inline-block;
+        text-align: left;
+        min-width: 180px;
+    }
+
     .amspec-brand-left {
-        width: 55%;
+        width: 58%;
         vertical-align: middle;
         padding-top: 0;
+        padding-right: 12px;
         border: none !important;
     }
 
     .amspec-brand-right {
-        width: 45%;
+        width: 42%;
         text-align: right;
         vertical-align: top;
         padding-top: 0;
@@ -358,22 +400,30 @@
 
     .amspec-terms {
         margin-top: 4px;
-        font-size: 10pt;
+        font-size: 11.5pt;
+        line-height: 1.45;
     }
 
     .amspec-terms-title {
         font-family: var(--amspec-font-table);
         font-weight: 700;
-        margin-bottom: 8px;
+        font-size: 12pt;
+        margin-bottom: 10px;
     }
 
     .amspec-terms ol {
-        padding-left: 18px;
+        padding-left: 20px;
         margin: 0;
     }
 
     .amspec-terms li {
-        margin-bottom: 6px;
+        margin-bottom: 8px;
+        line-height: 1.45;
+    }
+
+    .amspec-terms-link {
+        margin-top: 10px;
+        font-size: 10.5pt;
     }
 
     .amspec-signature-closing {
