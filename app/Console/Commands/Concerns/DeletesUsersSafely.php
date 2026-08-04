@@ -126,35 +126,33 @@ trait DeletesUsersSafely
     {
         $connection = DB::connection('pgsql');
 
+        // Use pg_catalog instead of information_schema: constraint_column_usage is
+        // privilege-filtered and can return zero FKs for the app DB role.
         $constraints = $connection->select("
             SELECT
-                tc.table_name,
-                kcu.column_name,
-                rc.delete_rule,
-                c.is_nullable
-            FROM information_schema.table_constraints AS tc
-            JOIN information_schema.key_column_usage AS kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.table_schema = kcu.table_schema
-            JOIN information_schema.constraint_column_usage AS ccu
-                ON ccu.constraint_name = tc.constraint_name
-                AND ccu.table_schema = tc.table_schema
-            JOIN information_schema.referential_constraints AS rc
-                ON tc.constraint_name = rc.constraint_name
-                AND tc.table_schema = rc.constraint_schema
-            JOIN information_schema.columns AS c
-                ON c.table_schema = tc.table_schema
-                AND c.table_name = tc.table_name
-                AND c.column_name = kcu.column_name
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND tc.table_schema = 'public'
-                AND ccu.table_name = 'users'
-                AND rc.delete_rule IN ('NO ACTION', 'RESTRICT')
-            ORDER BY tc.table_name, kcu.column_name
+                c.conrelid::regclass::text AS table_name,
+                a.attname AS column_name,
+                CASE c.confdeltype
+                    WHEN 'a' THEN 'NO ACTION'
+                    WHEN 'r' THEN 'RESTRICT'
+                    WHEN 'c' THEN 'CASCADE'
+                    WHEN 'n' THEN 'SET NULL'
+                    WHEN 'd' THEN 'SET DEFAULT'
+                END AS delete_rule,
+                CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END AS is_nullable
+            FROM pg_constraint c
+            JOIN pg_attribute a
+                ON a.attrelid = c.conrelid
+                AND a.attnum = ANY (c.conkey)
+                AND NOT a.attisdropped
+            WHERE c.contype = 'f'
+                AND c.confrelid = 'public.users'::regclass
+                AND c.confdeltype IN ('a', 'r')
+            ORDER BY 1, 2
         ");
 
         foreach ($constraints as $constraint) {
-            $table = (string) $constraint->table_name;
+            $table = trim((string) $constraint->table_name, '"');
             $column = (string) $constraint->column_name;
             $nullable = strtoupper((string) $constraint->is_nullable) === 'YES';
 
