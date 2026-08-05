@@ -108,6 +108,7 @@ class PersonnelDetailManager extends Component
     public ?string $detailsDateOfBirth = null;
     public ?string $detailsEmploymentDate = null;
     public bool $detailsAnalystIsGazzetted = false;
+    public bool $detailsIsTechnical = false;
     public ?string $detailsDateOfGazzette = null;
     public string $detailsGazzetteNo = '';
     public ?string $detailsStartOfCareer = null;
@@ -156,6 +157,7 @@ class PersonnelDetailManager extends Component
         $this->detailsDateOfBirth = !empty($user->date_of_birth) ? date('Y-m-d', strtotime((string) $user->date_of_birth)) : null;
         $this->detailsEmploymentDate = !empty($user->employment_date) ? date('Y-m-d', strtotime((string) $user->employment_date)) : null;
         $this->detailsAnalystIsGazzetted = (bool) ($user->analyst_is_gazzetted ?? false);
+        $this->detailsIsTechnical = (bool) ($user->is_technical ?? false);
         $this->detailsDateOfGazzette = !empty($user->date_of_gazzette) ? date('Y-m-d', strtotime((string) $user->date_of_gazzette)) : null;
         $this->detailsGazzetteNo = (string) ($user->gazzette_no ?? '');
         $this->detailsStartOfCareer = !empty($user->start_of_career) ? date('Y-m-d', strtotime((string) $user->start_of_career)) : null;
@@ -582,6 +584,7 @@ class PersonnelDetailManager extends Component
         $user->education_level = $this->selectedEducationId ?: null;
         $user->position = $this->selectedPositionId ?: null;
         $user->syncDepartmentAssignments($this->selectedDepartmentIds);
+        $user->is_technical = $this->detailsIsTechnical;
     }
 
     private function applyRecognitionFields(User $user): void

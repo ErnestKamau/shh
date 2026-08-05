@@ -4,6 +4,7 @@ namespace App\Services\Sampleworkflow;
 
 use App\Models\JobNumberSequence;
 use App\Models\SampleSequence;
+use App\Models\TechnicalJobNumberSequence;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
@@ -30,12 +31,21 @@ class JobSampleNumberingService
      */
     public const SEQUENCE_KEY = '';
 
+    /** Prefix for technical-user (sandbox) job numbers so production sequences stay untouched. */
+    public const TECHNICAL_JOB_PREFIX = 'T';
+
     /**
      * Generate job/batch number: YYMMDD + 3-digit daily sequence (resets each calendar day).
      * Example: 260428001
+     *
+     * Technical (sandbox) jobs use a separate counter and a leading T, e.g. T260428001.
      */
-    public function generateJobNumber(?Carbon $at = null): string
+    public function generateJobNumber(?Carbon $at = null, bool $technical = false): string
     {
+        if ($technical) {
+            return $this->generateTechnicalJobNumber($at);
+        }
+
         $at ??= Carbon::now();
         $datePart = $at->format('ymd');
 
@@ -66,6 +76,45 @@ class JobSampleNumberingService
             $sequence->update(['last_sequence' => $next]);
 
             return $datePart . str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+        });
+    }
+
+    /**
+     * Sandbox job number: T + YYMMDD + 3-digit sequence from technical_job_number_sequences.
+     * Example: T260428001
+     */
+    public function generateTechnicalJobNumber(?Carbon $at = null): string
+    {
+        $at ??= Carbon::now();
+        $datePart = $at->format('ymd');
+
+        return DB::transaction(function () use ($datePart): string {
+            $sequence = TechnicalJobNumberSequence::query()
+                ->where('date_ymd', $datePart)
+                ->lockForUpdate()
+                ->first();
+
+            if ($sequence === null) {
+                $sequence = TechnicalJobNumberSequence::query()->create([
+                    'date_ymd' => $datePart,
+                    'last_sequence' => 0,
+                ]);
+
+                $sequence = TechnicalJobNumberSequence::query()
+                    ->where('id', $sequence->id)
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            $next = (int) $sequence->last_sequence + 1;
+
+            if ($next > 999) {
+                throw new RuntimeException("Daily technical job number limit exceeded for {$datePart}.");
+            }
+
+            $sequence->update(['last_sequence' => $next]);
+
+            return self::TECHNICAL_JOB_PREFIX.$datePart.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
         });
     }
 
@@ -185,7 +234,7 @@ class JobSampleNumberingService
      */
     public function stripCategoryPrefixFromSampleCode(string $sampleCode): string
     {
-        if (preg_match('/^(\d{9})-([MLC])(\d{3})$/', $sampleCode, $matches)) {
+        if (preg_match('/^(T?\d{9})-([MLC])(\d{3})$/', $sampleCode, $matches)) {
             return $matches[1] . '-' . $matches[3];
         }
 
@@ -311,7 +360,12 @@ class JobSampleNumberingService
 
     public function isJobNumberFormat(string $value): bool
     {
-        return (bool) preg_match('/^\d{9}$/', $value);
+        return (bool) preg_match('/^T?\d{9}$/', $value);
+    }
+
+    public function isTechnicalJobNumber(string $value): bool
+    {
+        return (bool) preg_match('/^T\d{9}$/', $value);
     }
 
     public function inferPrefixFromAnalysisTypeName(?string $name): string

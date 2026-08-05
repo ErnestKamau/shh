@@ -143,7 +143,7 @@ class SamplePointForm extends BaseCrmComponent
 
         $point->save();
 
-        $this->showSuccess($this->pointId ? 'Sample Point updated successfully.' : 'Sample Point added successfully.');
+        $this->showSuccess($this->pointId ? 'Sampling Location updated successfully.' : 'Sampling Location added successfully.');
         $this->dispatch('sample-point-saved');
         $this->close();
     }

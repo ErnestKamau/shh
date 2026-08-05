@@ -83,7 +83,7 @@
 								<a class="nav-link active" id="Company-Units-tab" data-toggle="tab" href="#Company-Units" role="tab" aria-controls="Company-Units" aria-selected="true"><i class="mdi mdi-sitemap"></i> {{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Company Units' }}</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="Sample-Points-tab" data-toggle="tab" href="#Sample-Points" role="tab" aria-controls="Company-Units" aria-selected="true"><i class="mdi mdi-map-marker"></i> {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Points' }}</a>
+								<a class="nav-link" id="Sample-Points-tab" data-toggle="tab" href="#Sample-Points" role="tab" aria-controls="Company-Units" aria-selected="true"><i class="mdi mdi-map-marker"></i> {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sampling Location' }}</a>
 							</li>
 							
 							<li class="nav-item">
@@ -713,7 +713,7 @@
 						<div class="tab-pane fade p-3" id="Sample-Points" role="tabpanel" aria-labelledby="one-tab">
 							<div class="p-2 row">
 								<div class="col-sm-8">
-									<h5><i class="mdi mdi-format-list-bulleted"></i>  {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Points' }}
+									<h5><i class="mdi mdi-format-list-bulleted"></i>  {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sampling Location' }}
 										<small class="btn btn-transparent text-info" data-column='sample_point_configurable_name'
 											data-target="#change-label-name" data-toggle="modal" data-current="{{ $customer->sample_point_configurable_name }}">
 											<i class="mdi mdi-pencil"></i>
@@ -753,7 +753,7 @@
 																<form class="modal-content" method="POST" action="{{ url('/sample-point/' . $unit->id) }}" enctype="multipart/form-data">
 																	@csrf
 																	<div class="modal-header">
-																		<h4 class="modal-title"><i class="mdi mdi-pencil-outline"></i> Edit {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Points' }}</h4>
+																		<h4 class="modal-title"><i class="mdi mdi-pencil-outline"></i> Edit {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sampling Location' }}</h4>
 																	</div>
 																	<div class="modal-body">
 																		<div class="form-group">

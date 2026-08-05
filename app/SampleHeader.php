@@ -62,7 +62,8 @@ class SampleHeader extends Model implements Auditable
 		'qc_scheme_id' => 'string',
 		'qc_type_id' => 'string',
 		'sampling_method_id' => 'string',
-		'crm_contact_id' => 'string'
+		'crm_contact_id' => 'string',
+		'is_technical' => 'boolean',
 	];
 
 

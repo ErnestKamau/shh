@@ -18,6 +18,7 @@ class AcceptanceFormBatchCodeService
     public function resolveBatchCodeForAcceptanceForm(
         AnalysisAcceptanceForm $form,
         ?string $preferredZoneId = null,
+        bool $technical = false,
     ): string {
         $instance = $form->submission_form_instance_id
             ? SubmissionFormInstance::query()->with('batches')->find($form->submission_form_instance_id)
@@ -27,10 +28,10 @@ class AcceptanceFormBatchCodeService
             return (string) $instance->batches->first()->batch_code;
         }
 
-        return $this->numberingService->generateJobNumber();
+        return $this->numberingService->generateJobNumber(null, $technical);
     }
 
-    public function resolveBatchCode(SubmissionFormInstance $instance): string
+    public function resolveBatchCode(SubmissionFormInstance $instance, bool $technical = false): string
     {
         $instance->loadMissing('batches');
 
@@ -38,6 +39,6 @@ class AcceptanceFormBatchCodeService
             return (string) $instance->batches->first()->batch_code;
         }
 
-        return $this->numberingService->generateJobNumber();
+        return $this->numberingService->generateJobNumber(null, $technical);
     }
 }

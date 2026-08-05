@@ -373,6 +373,11 @@ class SampleCreationController extends Controller
             'submission_form_instance_id' => null, // Will be set by the calling method
         ]);
 
+        if (\Illuminate\Support\Facades\Schema::hasColumn('sample_headers', 'is_technical')) {
+            $sampleHeader->is_technical = app(\App\Services\Sampleworkflow\TechnicalSandboxContext::class)
+                ->shouldCreateAsTechnical();
+        }
+
         $sampleHeader->save();
 
         // Create chain of custody for sample creation
@@ -740,7 +745,10 @@ class SampleCreationController extends Controller
 
         try {
             $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
-            $jobNumber = $this->numberingService->generateJobNumber();
+            $jobNumber = $this->numberingService->generateJobNumber(
+                null,
+                app(\App\Services\Sampleworkflow\TechnicalSandboxContext::class)->shouldCreateAsTechnical()
+            );
 
             if ($instance) {
                 $this->numberingService->persistJobNumberOnSubmissionInstance($instance, $jobNumber);

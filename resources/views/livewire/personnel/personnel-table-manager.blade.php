@@ -11,7 +11,7 @@
     @if(!$embedded)
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0" style="border-radius: 15px">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -127,7 +127,7 @@
                         @forelse($this->personnel as $item)
                             <tr>
                                 <td>{{ $this->personnel->firstItem() + $loop->index }}</td>
-                                <td nowrap style="width: 130px;">
+                                <td nowrap style="width: 130px">
                                     <div class="d-flex">
                                         <a class="btn btn-sm rm-act-btn rm-act-btn--view" href="{{ route('view-personnel', ['id' => $item->id]) }}" title="{{ __('personnel.view') }}">
                                             <i class="mdi mdi-eye-outline"></i>
@@ -148,7 +148,7 @@
                                 <td>
                                     {{ $item->first_name }}
                                     @if($item->analyst_is_gazzetted)
-                                        <span style="display:inline-flex;align-items:center;padding:1px 5px;font-size:0.65rem;font-weight:700;letter-spacing:0.4px;border-radius:4px;background:#faf5ff;color:#7c3aed;border:1px solid #ddd6fe;margin-left:3px;vertical-align:middle;line-height:1.4;">GZ</span>
+                                        <span style="display:inline-flex;align-items:center;padding:1px 5px;font-weight:700;letter-spacing:0.4px;border-radius:4px;background:#faf5ff;color:#7c3aed;border:1px solid #ddd6fe;margin-left:3px;vertical-align:middle;line-height:1.4">GZ</span>
                                     @endif
                                 </td>
                                 <td>{{ $item->middle_name }}</td>
@@ -180,7 +180,7 @@
     @endif
 
     @if($showAddPersonnelModal)
-        <div class="modal fade show d-block ptm-add-personnel-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+        <div class="modal fade show d-block ptm-add-personnel-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto">
             <div class="modal-dialog modal-xl ptm-modern-modal-shell">
                 <div class="modal-content">
                     <div class="modal-header ptm-modern-modal-header">
@@ -513,7 +513,7 @@
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
-                                                <div class="d-flex" style="gap: 15px;">
+                                                <div class="d-flex" style="gap: 15px">
                                                     <div class="form-group mb-0 ptm-check-group flex-fill">
                                                         <label class="control-label d-block">{{ __('personnel.active') }}</label>
                                                         <label class="ptm-check-card mb-0">
@@ -603,7 +603,7 @@
                                                     </div>
                                                     <input type="hidden" id="addPersonnelSignatureData" wire:model="signatureData" value="{{ $signatureData }}">
                                                     <div class="d-flex justify-content-between align-items-center mt-2">
-                                                        <div class="d-flex align-items-center" style="gap: 8px;">
+                                                        <div class="d-flex align-items-center" style="gap: 8px">
                                                             <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') }}</small>
                                                             <span id="addPersonnelSignatureStatus" class="ptm-signature-status {{ $signatureData !== '' ? 'is-signed' : '' }}">{{ $signatureData !== '' ? 'Signed' : 'Not signed' }}</span>
                                                         </div>
@@ -623,7 +623,7 @@
                         <div class="ptm-step-footer-copy text-muted small">
                             Step {{ $addPersonnelStep }} of 4
                         </div>
-                        <div class="d-flex align-items-center" style="gap: 8px;">
+                        <div class="d-flex align-items-center" style="gap: 8px">
                             <button type="button" class="btn btn-outline-secondary" wire:click="previousAddPersonnelStep" @if($addPersonnelStep === 1) disabled @endif>
                                 <i class="mdi mdi-arrow-left"></i> Previous
                             </button>
@@ -643,7 +643,7 @@
     @endif
 
     @if($showStateModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -669,7 +669,7 @@
     @endif
 
     @if($showResetPasswordModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto">
             <div class="modal-dialog ptm-modern-modal-shell">
                 <div class="modal-content">
                     <div class="modal-header ptm-modern-modal-header">
@@ -720,7 +720,7 @@
         .ptm-modern-modal-header .modal-title {
             font-weight: 700;
             color: #0f172a;
-            font-size: 1.05rem;
+            font-size: var(--ls-text-lg, 0.95rem);
         }
 
         .ptm-modern-modal-body {
@@ -814,13 +814,13 @@
         }
 
         .ptm-step-copy strong {
-            font-size: 0.9rem;
+            font-size: var(--ls-text-base, 0.8125rem);
             color: #0f172a;
         }
 
         .ptm-step-copy small {
             color: #64748b;
-            font-size: 0.77rem;
+            font-size: var(--ls-text-sm, 0.75rem);
         }
 
         .ptm-modal-section {
@@ -836,7 +836,7 @@
             font-weight: 700;
             color: #0f172a;
             margin-bottom: 10px;
-            font-size: 0.92rem;
+            font-size: var(--ls-text-md, 0.875rem);
             display: flex;
             align-items: center;
             gap: 6px;
@@ -844,14 +844,14 @@
 
         .ptm-section-intro {
             color: #64748b;
-            font-size: 0.83rem;
+            font-size: var(--ls-text-base, 0.8125rem);
             margin-bottom: 14px;
         }
 
         .ptm-modern-modal-shell .control-label {
             color: #334155;
             font-weight: 600;
-            font-size: 0.84rem;
+            font-size: var(--ls-text-base, 0.8125rem);
             letter-spacing: 0.2px;
             margin-bottom: 6px;
         }
@@ -948,7 +948,7 @@
             top: 50%;
             transform: translate(-50%, -50%);
             color: #94a3b8;
-            font-size: 0.9rem;
+            font-size: var(--ls-text-base, 0.8125rem);
             font-style: italic;
             pointer-events: none;
         }
@@ -958,7 +958,7 @@
             align-items: center;
             padding: 3px 10px;
             border-radius: 999px;
-            font-size: 0.74rem;
+            font-size: var(--ls-text-xs, 0.6875rem);
             font-weight: 700;
             background: #fff7ed;
             color: #9a3412;
@@ -1012,7 +1012,7 @@
         }
 
         .ptm-show-label {
-            font-size: 0.82rem;
+            font-size: var(--ls-text-sm, 0.75rem);
             color: #475569;
             font-weight: 600;
             white-space: nowrap;
@@ -1033,7 +1033,7 @@
             flex: 0 0 auto;
         }
 
-        .rm-act-btn { border-radius: 7px; padding: 4px 8px; margin-right: 3px; font-size: 12px; }
+        .rm-act-btn { border-radius: var(--ls-radius-sm, 6px); padding: 0.3rem var(--ls-btn-pad-x-sm, 0.65rem); margin-right: 3px; font-size: var(--ls-text-sm, 0.75rem); }
         .rm-act-btn:last-child { margin-right: 0; }
         .rm-act-btn--edit  { border: 1px solid #bfdbfe; color: #1d4ed8; background: #eff6ff; }
         .rm-act-btn--edit:hover  { background: #dbeafe; border-color: #93c5fd; }
@@ -1052,11 +1052,11 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 6px;
-            min-height: 42px;
-            padding: 6px 12px;
+            min-height: var(--ls-control-h, 34px);
+            padding: 0.35rem 0.45rem;
             background: #fff;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            border: 1px solid var(--ls-color-border, #e2e8f0);
+            border-radius: var(--ls-radius-sm, 6px);
             transition: all 0.3s ease;
         }
 
@@ -1074,11 +1074,10 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 4px 10px;
-            background-color: #007bff;
-            color: #fff;
+            padding: 0.15rem 0.45rem;
+            background-color: var(--ls-color-primary-soft, var(--color-primary-soft)); color: var(--ls-color-primary, var(--color-primary)); border: 1px solid var(--ls-color-primary-border, var(--color-primary-border-soft));
             border-radius: 16px;
-            font-size: 0.875rem;
+            font-size: var(--ls-text-md, 0.875rem);
             font-weight: 500;
             white-space: normal;
             max-width: 100%;
@@ -1103,7 +1102,7 @@
             border: none;
             outline: none;
             padding: 4px;
-            font-size: 0.9rem;
+            font-size: var(--ls-text-base, 0.8125rem);
         }
 
         .tag-dropdown {

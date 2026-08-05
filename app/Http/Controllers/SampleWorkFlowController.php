@@ -3915,14 +3915,24 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'No batches selected.');
         }
 
-        foreach ($codes as $code) {
-            $batch = SampleHeader::where('batch_code', $code)->get();
-            $batch[0]->isactive = 0;
+        $result = app(\App\Services\Sampleworkflow\TechnicalBatchPurgeService::class)
+            ->deleteByBatchCodes(array_values((array) $codes));
 
-            $batch[0]->save();
+        $parts = [];
+        if ($result['hard_purged'] > 0) {
+            $parts[] = $result['hard_purged'].' technical batch(es) permanently deleted';
+        }
+        if ($result['soft_deleted'] > 0) {
+            $parts[] = $result['soft_deleted'].' batch(es) deleted';
+        }
+        if ($result['skipped'] !== []) {
+            $parts[] = 'skipped: '.implode(', ', $result['skipped']);
         }
 
-        return redirect()->back()->with('success', 'Batches deleted successfully!');
+        return redirect()->back()->with(
+            'success',
+            $parts !== [] ? implode('. ', $parts).'.' : 'Batches deleted successfully!'
+        );
     }
 
     public function generate_batch_invoice(Request $request)

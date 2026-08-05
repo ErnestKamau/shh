@@ -8,7 +8,7 @@
 
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0" style="border-radius: 15px">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -66,7 +66,7 @@
                             <th>{{ __('personnel.created_at') }}</th>
                             <th>{{ __('personnel.edited_by') }}</th>
                             <th>{{ __('personnel.active') }}</th>
-                            <th style="width: 100px;">{{ __('personnel.actions') }}</th>
+                            <th style="width: 100px">{{ __('personnel.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,7 +96,7 @@
     </div>
 
     @if($showModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -147,17 +147,17 @@
 
     <style>
         .tag-select-container { position: relative; cursor: text; }
-        .tag-select-input { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 42px; padding: 6px 12px; background: #fff; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.3s ease; }
+        .tag-select-input { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: var(--ls-control-h, 34px); padding: 0.35rem 0.45rem; background: #fff; border: 1px solid var(--ls-color-border, #e2e8f0); border-radius: var(--ls-radius-sm, 6px); transition: all 0.3s ease; }
         .tag-select-input:hover { border-color: #007bff; }
         .tag-select-input:focus-within { border-color: #007bff; box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); outline: none; }
-        .tag-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background-color: #007bff; color: #fff; border-radius: 16px; font-size: 0.875rem; font-weight: 500; white-space: nowrap; }
+        .tag-badge { display: inline-flex; align-items: center; gap: 4px; padding: 0.15rem 0.45rem; background-color: var(--ls-color-primary-soft, var(--color-primary-soft)); color: var(--ls-color-primary, var(--color-primary)); border: 1px solid var(--ls-color-primary-border, var(--color-primary-border-soft)); border-radius: 16px; font-size: var(--ls-text-md, 0.875rem); font-weight: 500; white-space: nowrap; }
         .tag-badge i { cursor: pointer; font-size: 1rem; opacity: 0.8; }
-        .tag-input { flex: 1; min-width: 140px; border: none; outline: none; padding: 4px; font-size: 0.9rem; }
+        .tag-input { flex: 1; min-width: 140px; border: none; outline: none; padding: 4px; font-size: var(--ls-text-base, 0.8125rem); }
         .tag-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 2px solid #007bff; border-top: none; border-radius: 0 0 8px 8px; max-height: 260px; overflow-y: auto; z-index: 1060; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin-top: -2px; }
         .tag-dropdown-item { padding: 10px 16px; cursor: pointer; transition: background-color 0.2s; border-bottom: 1px solid #f0f0f0; }
         .tag-dropdown-item:hover { background-color: #f8f9fa; }
         .tag-dropdown-item:last-child { border-bottom: none; }
-        .pm-act-btn { border-radius: 7px; padding: 4px 8px; margin-right: 3px; font-size: 12px; }
+        .pm-act-btn { border-radius: var(--ls-radius-sm, 6px); padding: 0.3rem var(--ls-btn-pad-x-sm, 0.65rem); margin-right: 3px; font-size: var(--ls-text-sm, 0.75rem); }
         .pm-act-btn:last-child { margin-right: 0; }
         .pm-act-btn--edit { border: 1px solid #bfdbfe; color: #1d4ed8; background: #eff6ff; }
         .pm-act-btn--edit:hover { background: #dbeafe; border-color: #93c5fd; }

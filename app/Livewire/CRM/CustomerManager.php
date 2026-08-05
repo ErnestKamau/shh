@@ -1181,7 +1181,7 @@ class CustomerManager extends Component
             ];
             
             $this->closeCloneModal();
-            $this->message = "Customer cloned successfully! Cloned: {$summary['company_units']} company unit(s), {$summary['company_sub_units']} sub unit(s), {$summary['sample_areas']} area(s), {$summary['sample_points']} sample point(s).";
+            $this->message = "Customer cloned successfully! Cloned: {$summary['company_units']} company unit(s), {$summary['company_sub_units']} sub unit(s), {$summary['sample_areas']} area(s), {$summary['sample_points']} sampling location(s).";
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

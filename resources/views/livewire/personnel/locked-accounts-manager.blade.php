@@ -1,7 +1,7 @@
 <div class="container-fluid">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0" style="border-radius: 15px">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -51,13 +51,13 @@
     <div class="card tab-card">
         <div class="card-body">
             <div class="mb-3 ptm-toolbar-strip-wrap">
-                <div class="ptm-toolbar-strip d-flex align-items-center flex-nowrap" style="width: 100%;">
-                    <div class="ptm-search-wrap" style="flex: 0 0 90%; max-width: 90%;">
+                <div class="ptm-toolbar-strip d-flex align-items-center flex-nowrap" style="width: 100%">
+                    <div class="ptm-search-wrap" style="flex: 0 0 90%; max-width: 90%">
                         <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="{{ __('personnel.search_locked_accounts') }}">
                     </div>
 
                     <span class="ptm-show-label">{{ __('personnel.show') }}</span>
-                    <select class="form-control no-select2 ptm-show-select" wire:model.live="perPage" aria-label="{{ __('personnel.show') }}" style="flex: 1 1 0%; min-width: 0;">
+                    <select class="form-control no-select2 ptm-show-select" wire:model.live="perPage" aria-label="{{ __('personnel.show') }}" style="flex: 1 1 0%; min-width: 0">
                         @foreach($perPageOptions as $option)
                             <option value="{{ $option }}">{{ $option }}</option>
                         @endforeach
@@ -81,7 +81,7 @@
                         @forelse($lockedUsers as $user)
                             <tr>
                                 <td>{{ $lockedUsers->firstItem() + $loop->index }}</td>
-                                <td nowrap style="width: 150px;">
+                                <td nowrap style="width: 150px">
                                     <div class="d-flex">
                                         <button
                                             type="button"
@@ -125,7 +125,7 @@
     </div>
 
     @if($showPasswordResetModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;" role="dialog" aria-labelledby="passwordResetModal" aria-hidden="true">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto" role="dialog" aria-labelledby="passwordResetModal" aria-hidden="true">
             <div class="modal-dialog modal-dialog-scrollable ptm-modern-modal-shell" role="document">
                 <div class="modal-content">
                     <div class="modal-header ptm-modern-modal-header">

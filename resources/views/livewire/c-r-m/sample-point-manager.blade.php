@@ -8,9 +8,9 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-map-marker text-primary"></i>
-                                Sample Points Management
+                                Sampling Location Management
                             </h2>
-                            <p class="text-muted mb-0">Manage sample points</p>
+                            <p class="text-muted mb-0">Manage sampling locations</p>
                         </div>
                         
                         <div>
@@ -19,7 +19,7 @@
                             </button>
                             <button wire:click="showCreateSamplePointModal" class="btn btn-primary" type="button" style="border-radius: 8px;" wire:loading.attr="disabled" wire:target="showCreateSamplePointModal">
                                 <span wire:loading.remove wire:target="showCreateSamplePointModal">
-                                    <i class="mdi mdi-plus"></i> Add Sample Point
+                                    <i class="mdi mdi-plus"></i> Add Sampling Location
                                 </span>
                                 <span wire:loading wire:target="showCreateSamplePointModal">
                                     <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
@@ -54,7 +54,7 @@
                         <div class="col-md-4">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search sample points...">
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search sampling locations...">
                             </div>
                         </div>
                         <div class="col-md-2">
@@ -104,7 +104,7 @@
                         <div class="alert alert-info d-flex justify-content-between align-items-center mb-3" wire:key="bulk-actions-{{ count($selectedSamplePoints) }}">
                             <span>
                                 <i class="mdi mdi-information"></i>
-                                {{ count($selectedSamplePoints) }} sample point(s) selected
+                                {{ count($selectedSamplePoints) }} sampling location(s) selected
                             </span>
                             <div class="btn-group" role="group">
                                 <button wire:click="showAssignSampleTypeModalInitiator" 
@@ -122,7 +122,7 @@
                                 </button>
                                 <button wire:click="bulkDelete" class="btn btn-danger btn-sm" type="button"
                                         style="border-radius: 8px;"
-                                        onclick="return confirm('Are you sure you want to delete selected sample points?')">
+                                        onclick="return confirm('Are you sure you want to delete selected sampling locations?')">
                                     <i class="mdi mdi-delete"></i> Delete
                                 </button>
                             </div>
@@ -199,7 +199,7 @@
                                                             title="Delete"
                                                             wire:loading.attr="disabled"
                                                             wire:target="deleteSamplePoint({{ $samplePoint->id }})"
-                                                            onclick="return confirm('Are you sure you want to delete this sample point?')">
+                                                            onclick="return confirm('Are you sure you want to delete this sampling location?')">
                                                         <span wire:loading.remove wire:target="deleteSamplePoint({{ $samplePoint->id }})">
                                                             <i class="mdi mdi-delete"></i>
                                                         </span>
@@ -221,8 +221,8 @@
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-map-marker text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No sample points found</h5>
-                            <p class="text-muted">Start by adding your first sample point.</p>
+                            <h5 class="text-muted mt-3">No sampling locations found</h5>
+                            <p class="text-muted">Start by adding your first sampling location.</p>
                         </div>
                     @endif
                 </div>
@@ -238,7 +238,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingSamplePoint ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingSamplePoint ? 'Edit' : 'Create' }} Sample Point
+                            {{ $editingSamplePoint ? 'Edit' : 'Create' }} Sampling Location
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeSamplePointModal"></button>
                     </div>
@@ -261,7 +261,7 @@
                         <button type="button" class="btn btn-secondary" wire:click="closeSamplePointModal" wire:loading.attr="disabled" wire:target="saveSamplePoint">Cancel</button>
                         <button type="button" class="btn btn-primary" wire:click="saveSamplePoint" wire:loading.attr="disabled" wire:target="saveSamplePoint">
                             <span wire:loading.remove wire:target="saveSamplePoint">
-                                <i class="mdi mdi-content-save"></i> {{ $editingSamplePoint ? 'Update' : 'Create' }} Sample Point
+                                <i class="mdi mdi-content-save"></i> {{ $editingSamplePoint ? 'Update' : 'Create' }} Sampling Location
                             </span>
                             <span wire:loading wire:target="saveSamplePoint">
                                 <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
@@ -281,7 +281,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-file-excel"></i>
-                            Bulk Create Sample Points
+                            Bulk Create Sampling Locations
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeBulkUploadModal"></button>
                     </div>
@@ -358,7 +358,7 @@
                         <!-- Selected Sample Points -->
                         <div class="mb-4">
                             <h6 class="fw-bold mb-3">
-                                <i class="mdi mdi-map-marker text-primary"></i> Selected Sample Points ({{ count($selectedSamplePoints) }})
+                                <i class="mdi mdi-map-marker text-primary"></i> Selected Sampling Locations ({{ count($selectedSamplePoints) }})
                             </h6>
                             <div class="card">
                                 <div class="card-body" style="max-height: 250px; overflow-y: auto;">
@@ -442,7 +442,7 @@
                                 @endif
                             </div>
                             <small class="form-text text-muted mt-2 d-block">
-                                <i class="mdi mdi-information-outline"></i> Select one or more sample types to assign to the selected sample points
+                                <i class="mdi mdi-information-outline"></i> Select one or more sample types to assign to the selected sampling locations
                             </small>
                         </div>
                     </div>

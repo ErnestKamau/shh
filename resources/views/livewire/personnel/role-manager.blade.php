@@ -8,7 +8,7 @@
 
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0" style="border-radius: 15px">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -34,7 +34,7 @@
                     <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="{{ __('personnel.search_roles') }}">
                 </div>
                 <div class="col-md-6">
-                    <div class="d-flex align-items-center justify-content-md-end rm-top-controls" style="gap: 10px;">
+                    <div class="d-flex align-items-center justify-content-md-end rm-top-controls" style="gap: 10px">
                         <select class="form-control rm-per-page-select" wire:model.live="perPage">
                             @foreach($perPageOptions as $option)
                                 <option value="{{ $option }}">{{ __('personnel.show') }} {{ $option }}</option>
@@ -47,16 +47,16 @@
                 </div>
             </div>
 
-            <div style="border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(15,23,42,0.05);">
-                <table class="table mb-0 rm-role-table" style="font-size:13px;">
+            <div style="border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(15,23,42,0.05)">
+                <table class="table mb-0 rm-role-table">
                     <thead>
-                        <tr style="background:linear-gradient(180deg,#f8fbff 0%,#f1f5f9 100%); color:#334155;">
-                            <th style="width:44px; padding:12px 14px; font-weight:700; border-bottom:2px solid #e2e8f0;">#</th>
-                            <th style="padding:12px 14px; font-weight:700; border-bottom:2px solid #e2e8f0;">{{ __('personnel.name') }}</th>
-                            <th style="padding:12px 14px; font-weight:700; border-bottom:2px solid #e2e8f0;">{{ __('personnel.description') }}</th>
-                            <th style="width:64px; padding:12px 14px; font-weight:700; border-bottom:2px solid #e2e8f0; text-align:center;">{{ __('personnel.level') }}</th>
-                            <th style="width:64px; padding:12px 14px; font-weight:700; border-bottom:2px solid #e2e8f0; text-align:center;">{{ __('personnel.active') }}</th>
-                            <th style="width:140px; min-width:140px; padding:12px 14px; border-bottom:2px solid #e2e8f0;"></th>
+                        <tr style="background:linear-gradient(180deg,#f8fbff 0%,#f1f5f9 100%); color:#334155">
+                            <th style="width:44px; font-weight:700; border-bottom:2px solid #e2e8f0">#</th>
+                            <th style="font-weight:700; border-bottom:2px solid #e2e8f0">{{ __('personnel.name') }}</th>
+                            <th style="font-weight:700; border-bottom:2px solid #e2e8f0">{{ __('personnel.description') }}</th>
+                            <th style="width:64px; font-weight:700; border-bottom:2px solid #e2e8f0; text-align:center">{{ __('personnel.level') }}</th>
+                            <th style="width:64px; font-weight:700; border-bottom:2px solid #e2e8f0; text-align:center">{{ __('personnel.active') }}</th>
+                            <th style="width:140px; min-width:140px; border-bottom:2px solid #e2e8f0"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -64,15 +64,15 @@
                             @php $isExpanded = in_array((string) $item->id, $expandedRoleRows, true); @endphp
                             <tr class="rm-role-row {{ $isExpanded ? 'rm-row-expanded' : '' }}"
                                 wire:click="toggleRoleRow('{{ $item->id }}')">
-                                <td style="padding:12px 14px; vertical-align:middle; color:#94a3b8; font-size:12px;">{{ $this->roles->firstItem() + $loop->index }}</td>
-                                <td style="padding:12px 14px; vertical-align:middle; font-weight:600; color:#0f172a;">
-                                    <i class="mdi {{ $isExpanded ? 'mdi-chevron-down' : 'mdi-chevron-right' }} mr-1" style="color:#0284c7; font-size:16px;"></i>
+                                <td style="vertical-align:middle; color:#94a3b8">{{ $this->roles->firstItem() + $loop->index }}</td>
+                                <td style="vertical-align:middle; font-weight:600; color:#0f172a">
+                                    <i class="mdi {{ $isExpanded ? 'mdi-chevron-down' : 'mdi-chevron-right' }} mr-1" style="color:#0284c7"></i>
                                     <i class="mdi mdi-shield-account-outline mr-1 text-primary"></i>{{ $item->name }}
                                 </td>
-                                <td style="padding:12px 14px; vertical-align:middle; color:#64748b;">{{ $item->description ?? '-' }}</td>
-                                <td style="padding:12px 14px; vertical-align:middle; text-align:center; color:#334155;">{{ $item->level }}</td>
-                                <td style="padding:12px 14px; vertical-align:middle; text-align:center;">{!! $item->active == 1 ? '<i class="mdi mdi-marker-check text-success" style="font-size:16px;"></i>' : '<i class="mdi mdi-close-circle text-danger" style="font-size:16px;"></i>' !!}</td>
-                                <td class="rm-actions-cell" style="padding:10px 14px; vertical-align:middle;" onclick="event.stopPropagation()">
+                                <td style="vertical-align:middle; color:#64748b">{{ $item->description ?? '-' }}</td>
+                                <td style="vertical-align:middle; text-align:center; color:#334155">{{ $item->level }}</td>
+                                <td style="vertical-align:middle; text-align:center">{!! $item->active == 1 ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                                <td class="rm-actions-cell" style="padding:10px 14px; vertical-align:middle" onclick="event.stopPropagation()">
                                     <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit"
                                         wire:click="openEditModal('{{ $item->id }}')" title="{{ __('personnel.edit') }}">
                                         <i class="mdi mdi-pencil-outline"></i>
@@ -91,14 +91,14 @@
                                 @endphp
                                 <tr class="rm-perm-detail-row">
                                     <td colspan="6" class="p-0">
-                                        <div class="rm-perm-wrap p-4" style="background:linear-gradient(180deg,#f8fbff 0%,#ffffff 100%); border-top:2px solid #dbeafe;">
+                                        <div class="rm-perm-wrap p-4" style="background:linear-gradient(180deg,#f8fbff 0%,#ffffff 100%); border-top:2px solid #dbeafe">
 
                                             <div class="d-flex align-items-center justify-content-between mb-3">
-                                                <h6 class="mb-0" style="color:#0f172a; font-weight:700;">
+                                                <h6 class="mb-0" style="color:#0f172a; font-weight:700">
                                                     <i class="mdi mdi-shield-key-outline mr-1 text-primary"></i>
                                                     Permissions &mdash; {{ $item->name }}
                                                 </h6>
-                                                <span style="background:#e0f2fe; color:#0369a1; border-radius:999px; padding:3px 12px; font-size:11px; font-weight:700;">
+                                                <span style="background:#e0f2fe; color:#0369a1; border-radius:999px; padding:3px 12px; font-weight:700">
                                                     {{ count($assignedPerms) }} assigned
                                                 </span>
                                             </div>
@@ -141,21 +141,13 @@
                                                                 class="rm-module-tab-btn {{ $isFirstTab ? 'active' : '' }}"
                                                                 data-role-id="{{ $item->id }}"
                                                                 data-pane-id="{{ $modulePaneId }}"
-                                                                style="width:100%; min-height:82px; padding:10px 8px;
-                                                                    border:2px solid {{ $isFirstTab ? '#0284c7' : '#e2e8f0' }};
-                                                                    background:#fff; border-radius:10px;
-                                                                    box-shadow:{{ $isFirstTab ? '0 4px 12px rgba(2,132,199,0.15)' : '0 1px 4px rgba(15,23,42,0.06)' }};
-                                                                    transition:all 0.2s ease; display:flex; flex-direction:column;
-                                                                    align-items:center; justify-content:center; gap:3px; cursor:pointer;">
+                                                                style="width:100%; min-height:82px; padding:10px 8px; border:2px solid {{ $isFirstTab ? '#0284c7' : '#e2e8f0' }}; background:#fff; border-radius:10px; box-shadow:{{ $isFirstTab ? '0 4px 12px rgba(2,132,199,0.15)' : '0 1px 4px rgba(15,23,42,0.06)' }}; transition:all 0.2s ease; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer">
                                                                 <i class="mdi {{ $moduleIcon }}"
-                                                                    style="font-size:20px; color:{{ $isFirstTab ? '#0284c7' : '#64748b' }};"></i>
-                                                                <span style="font-size:11px; font-weight:700;
-                                                                    color:{{ $isFirstTab ? '#0284c7' : '#334155' }};
-                                                                    text-align:center; line-height:1.2;">
+                                                                    style="color:{{ $isFirstTab ? '#0284c7' : '#64748b' }}"></i>
+                                                                <span style="font-weight:700; color:{{ $isFirstTab ? '#0284c7' : '#334155' }}; text-align:center; line-height:1.2">
                                                                     {{ $module['module_label'] }}
                                                                 </span>
-                                                                <span style="font-size:10px; font-weight:600;
-                                                                    color:{{ $assignedCnt > 0 ? '#10b981' : '#94a3b8' }};">
+                                                                <span style="font-weight:600; color:{{ $assignedCnt > 0 ? '#10b981' : '#94a3b8' }}">
                                                                     {{ $assignedCnt }}/{{ $totalCnt }}
                                                                 </span>
                                                             </button>
@@ -164,7 +156,7 @@
                                                 </div>
 
                                                 {{-- Module permission panels --}}
-                                                <div class="rm-module-panels" style="border-top:1px solid #e5e7eb; padding-top:14px;">
+                                                <div class="rm-module-panels" style="border-top:1px solid #e5e7eb; padding-top:14px">
                                                     @foreach($allModules as $moduleIndex => $module)
                                                         @php
                                                             $modulePaneId = 'rm-role-'.$item->id.'-mod-'.$module['module_key'];
@@ -176,7 +168,7 @@
                                                             data-role-id="{{ $item->id }}">
 
                                                             <div class="d-flex align-items-center justify-content-between mb-3">
-                                                                <span style="font-weight:700; font-size:13px; color:#0f172a;">
+                                                                <span style="font-weight:700; color:#0f172a">
                                                                     {{ $module['module_label'] }}
                                                                 </span>
                                                                 <button type="button"
@@ -199,7 +191,7 @@
                                                                                 wire:loading.class="rm-perm-card--loading">
                                                                                 <div class="d-flex align-items-center">
                                                                                     <span class="rm-perm-cb {{ $isGranted ? 'rm-perm-cb--on' : '' }}">
-                                                                                        @if($isGranted)<i class="mdi mdi-check" style="font-size:11px; color:#fff; line-height:1;"></i>@endif
+                                                                                        @if($isGranted)<i class="mdi mdi-check" style="color:#fff; line-height:1"></i>@endif
                                                                                     </span>
                                                                                     <span class="rm-perm-label">{{ $resource['resource_label'] }}</span>
                                                                                     <span class="rm-perm-action ml-auto">{{ ucfirst($actionKey) }}</span>
@@ -237,7 +229,7 @@
     </div>
 
     @if($showRoleModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -274,7 +266,7 @@
     @endif
 
     @if($showDeleteModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -324,7 +316,7 @@
         }
 
         /* Action buttons */
-        .rm-act-btn { border-radius: 7px; padding: 4px 8px; margin-right: 3px; font-size: 12px; }
+        .rm-act-btn { border-radius: var(--ls-radius-sm, 6px); padding: 0.3rem var(--ls-btn-pad-x-sm, 0.65rem); margin-right: 3px; font-size: var(--ls-text-sm, 0.75rem); }
         .rm-act-btn--edit  { border: 1px solid #bfdbfe; color: #1d4ed8; background: #eff6ff; }
         .rm-act-btn--edit:hover  { background: #dbeafe; border-color: #93c5fd; }
         .rm-act-btn--delete { border: 1px solid #fecdd3; color: #e11d48; background: #fff5f7; }
@@ -393,7 +385,7 @@
         /* Permission text */
         .rm-perm-label {
             font-weight: 600;
-            font-size: 12px;
+            font-size: var(--ls-text-sm, 0.75rem);
             color: #0f172a;
             white-space: nowrap;
             overflow: hidden;
@@ -425,23 +417,23 @@
 
         /* Select / Deselect All buttons */
         .rm-selectall-btn {
-            border-radius: 8px;
+            border-radius: var(--ls-radius-sm, 6px);
             font-size: 11px;
             font-weight: 700;
             border: 1px solid #bbf7d0;
             color: #166534;
             background: #f0fdf4;
-            padding: 4px 10px;
+            padding: 0.15rem 0.45rem;
         }
         .rm-selectall-btn:hover { background: #dcfce7; border-color: #86efac; }
         .rm-deselect-btn {
-            border-radius: 8px;
+            border-radius: var(--ls-radius-sm, 6px);
             font-size: 11px;
             font-weight: 700;
             border: 1px solid #e2e8f0;
             color: #64748b;
             background: #f8fafc;
-            padding: 4px 10px;
+            padding: 0.15rem 0.45rem;
         }
         .rm-deselect-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
     </style>

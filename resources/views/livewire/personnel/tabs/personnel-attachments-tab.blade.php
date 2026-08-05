@@ -20,7 +20,7 @@
 
     @if($attachments->isEmpty())
         <div class="text-center py-5 capability-empty-card">
-            <i class="mdi mdi-file-document-outline capability-empty-icon" style="font-size: 3rem; color: #cbd5e0;"></i>
+            <i class="mdi mdi-file-document-outline capability-empty-icon" style="color: #cbd5e0"></i>
             <h5 class="mt-3 text-muted mb-1">No attachments found</h5>
             <p class="text-muted small mb-0">Upload documents such as CV, ID, or other related files.</p>
         </div>
@@ -33,7 +33,7 @@
                         <th>Document Name</th>
                         <th>Uploaded By</th>
                         <th>Date Uploaded</th>
-                        <th style="width: 120px;">Actions</th>
+                        <th style="width: 120px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -63,7 +63,7 @@
     @endif
 
     @if($showUploadModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">

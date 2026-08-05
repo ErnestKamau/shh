@@ -418,6 +418,16 @@
                                 @error('selectedDepartmentIds')<small class="text-danger">{{ $message }}</small>@enderror
                                 @error('selectedDepartmentIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-2">
+                                    <label class="mb-2 d-block">Technical User</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="detailsIsTechnical" wire:model.live="detailsIsTechnical">
+                                        <label class="form-check-label" for="detailsIsTechnical">Support / sandbox user (separate job numbering)</label>
+                                    </div>
+                                    @error('detailsIsTechnical')<small class="text-danger d-block">{{ $message }}</small>@enderror
+                                </div>
+                            </div>
                             <div class="col-lg-4 col-md-6">
                                 <label>{{ __('personnel.lab') }}</label>
                                 <div class="tag-select-container" wire:click.outside="$set('showLabDropdown', false)">

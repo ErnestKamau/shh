@@ -181,6 +181,14 @@
                     {{ isset($batch->batch_code) ? $batch->batch_code : 'New Batch' }}
                 </span>
 
+                @if(!empty($batch->is_technical))
+                    <span class="batch-priority-pill" style="background:#ecfdf5; color:#065f46; border:1px solid #34d399;"
+                          title="Created by a technical user — sandbox job (separate numbering; hard-deletable)">
+                        <i class="mdi mdi-flask-outline" style="font-size:0.75rem;"></i>
+                        Technical
+                    </span>
+                @endif
+
                 @if(isset($batch->batch_code))
                     <span class="batch-stage-pill">
                         <i class="mdi mdi-sitemap" style="font-size:0.75rem;"></i>

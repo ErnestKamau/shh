@@ -1,11 +1,11 @@
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 12px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);">
+            <div class="card shadow-sm border-0" style="border-radius: 12px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h2 class="mb-1 fw-bold text-dark" style="font-family: 'Inter', sans-serif;">
+                            <h2 class="mb-1 fw-bold text-dark" style="font-family: 'Inter', sans-serif">
                                 <i class="mdi mdi-shield-search text-primary me-2"></i>
                                 @if($viewMode === 'users')
                                     {{ __('personnel.audit_logs') }}
@@ -38,17 +38,17 @@
         <!-- Users Dashboard View -->
         <div class="row mb-4">
             <div class="col-md-6">
-                <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                <div class="input-group shadow-sm" style="border-radius: var(--ls-radius-sm, 6px); overflow: hidden">
                     <span class="input-group-text bg-white border-0"><i class="mdi mdi-magnify text-muted"></i></span>
                     <input type="text" class="form-control border-0 py-2" wire:model.live.debounce.300ms="userListSearch" placeholder="Search users by name or email...">
                 </div>
             </div>
         </div>
 
-        <div class="table-responsive shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #f1f5f9;">
+        <div class="table-responsive shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #f1f5f9">
             <table class="table table-hover align-middle mb-0 bg-white">
                 <thead class="table-light text-muted">
-                    <tr style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <tr style="text-transform: uppercase; letter-spacing: 0.5px">
                         <th class="ps-4 fw-medium border-0 py-3">User / Entity</th>
                         <th class="fw-medium border-0 py-3">Total Logs</th>
                         <th class="fw-medium border-0 py-3">Last Active</th>
@@ -60,8 +60,8 @@
                     <tr class="cursor-pointer transition-all" wire:click="viewSystemLogs">
                         <td class="ps-4 py-3">
                             <div class="d-flex align-items-center">
-                                <div class="avatar-sm me-3" style="width: 44px; height: 44px; min-width: 44px;">
-                                    <div class="rounded-circle badge-soft-secondary d-flex align-items-center justify-content-center h-100 w-100" style="font-size: 20px;">
+                                <div class="avatar-sm me-3" style="width: 44px; height: 44px; min-width: 44px">
+                                    <div class="rounded-circle badge-soft-secondary d-flex align-items-center justify-content-center h-100 w-100">
                                         <i class="mdi mdi-robot-outline"></i>
                                     </div>
                                 </div>
@@ -95,8 +95,8 @@
                         <tr class="cursor-pointer transition-all" wire:click="viewUserLogs('{{ $user->id }}', '{{ addslashes($user->name) }}')">
                             <td class="ps-4 py-3">
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar-sm me-3" style="width: 44px; height: 44px; min-width: 44px;">
-                                        <div class="rounded-circle badge-soft-primary d-flex align-items-center justify-content-center h-100 w-100 fw-bold" style="font-size: 14px;">
+                                    <div class="avatar-sm me-3" style="width: 44px; height: 44px; min-width: 44px">
+                                        <div class="rounded-circle badge-soft-primary d-flex align-items-center justify-content-center h-100 w-100 fw-bold">
                                             {{ strtoupper(substr($user->name, 0, 1)) }}
                                         </div>
                                     </div>
@@ -128,7 +128,7 @@
                         <tr>
                             <td colspan="4" class="py-0">
                                 <div class="text-center py-5 bg-white">
-                                    <i class="mdi mdi-account-search-outline text-muted" style="font-size: 48px; opacity: 0.5;"></i>
+                                    <i class="mdi mdi-account-search-outline text-muted" style="opacity: 0.5"></i>
                                     <h5 class="text-muted mt-3">No users found</h5>
                                     <p class="text-muted mb-0 font-size-13">Try adjusting your search query.</p>
                                 </div>
@@ -143,7 +143,7 @@
             {{ $this->usersList->links('pagination::bootstrap-4') }}
         </div>
         
-        <div wire:loading.flex wire:target="userListSearch" class="justify-content-center align-items-center position-fixed w-100 h-100" style="top: 0; left: 0; z-index: 1050; background: rgba(255,255,255,0.7);">
+        <div wire:loading.flex wire:target="userListSearch" class="justify-content-center align-items-center position-fixed w-100 h-100" style="top: 0; left: 0; z-index: 1050; background: rgba(255,255,255,0.7)">
             <div class="bg-white p-3 rounded-pill shadow d-flex align-items-center text-primary border">
                 <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                 <span class="fw-medium pe-2">Searching users...</span>
@@ -152,7 +152,7 @@
 
     @else
         <!-- Logs View -->
-        <div class="card shadow-sm border-0" style="border-radius: 12px;">
+        <div class="card shadow-sm border-0" style="border-radius: 12px">
             <div class="card-body p-4 position-relative">
                 <!-- Top Controls -->
                 <div class="row g-3 mb-4 align-items-center">
@@ -169,7 +169,7 @@
                         <button type="button" class="btn btn-{{ $showAdvancedFilters ? 'primary' : 'outline-primary' }}" wire:click="toggleAdvancedFilters">
                             <i class="mdi mdi-filter-variant me-1"></i> {{ __('personnel.filters') }}
                         </button>
-                        <div style="width: 120px;">
+                        <div style="width: 120px">
                             <select class="form-select form-control" wire:model.live="perPage">
                                 @foreach($perPageOptions as $option)
                                     <option value="{{ $option }}">{{ $option }} per page</option>
@@ -218,10 +218,10 @@
                 @endif
 
                 <!-- Data Table -->
-                <div class="table-responsive" style="border-radius: 8px; overflow: hidden; border: 1px solid #f1f5f9;">
+                <div class="table-responsive" style="border-radius: var(--ls-radius-sm, 6px); overflow: hidden; border: 1px solid #f1f5f9">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light text-muted">
-                            <tr style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <tr style="text-transform: uppercase; letter-spacing: 0.5px">
                                 <th class="ps-4 fw-medium border-0 cursor-pointer" wire:click="sortBy('audits.event')">
                                     Event <i class="{{ $this->sortIcon('audits.event') }} ms-1"></i>
                                 </th>
@@ -249,20 +249,20 @@
                                             elseif ($item->event === 'deleted') { $badgeClass = 'badge-soft-danger'; $icon = 'mdi-trash-can-outline'; }
                                             elseif ($item->event === 'restored') { $badgeClass = 'badge-soft-warning'; $icon = 'mdi-restore'; }
                                         @endphp
-                                        <span class="badge {{ $badgeClass }} rounded-pill px-3 py-1 fw-medium" style="font-size: 11.5px;">
+                                        <span class="badge {{ $badgeClass }} rounded-pill px-3 py-1 fw-medium">
                                             <i class="mdi {{ $icon }} me-1"></i>{{ ucfirst($item->event) }}
                                         </span>
                                     </td>
                                     <td>
                                         <div class="text-dark fw-medium">{{ class_basename($item->auditable_type ?? '') }}</div>
-                                        <small class="text-muted" style="font-size: 11px;">ID: {{ $item->auditable_id }}</small>
+                                        <small class="text-muted">ID: {{ $item->auditable_id }}</small>
                                     </td>
                                     <td>
                                         <span class="text-muted font-size-13"><i class="mdi mdi-lan me-1 text-secondary"></i>{{ $item->ip_address }}</span>
                                     </td>
                                     <td>
                                         <div class="text-dark font-size-13">{{ \Carbon\Carbon::parse($item->created_at)->format('M d, Y') }}</div>
-                                        <small class="text-muted" style="font-size: 11px;">{{ \Carbon\Carbon::parse($item->created_at)->format('h:i A') }}</small>
+                                        <small class="text-muted">{{ \Carbon\Carbon::parse($item->created_at)->format('h:i A') }}</small>
                                     </td>
                                     <td class="text-end pe-4">
                                         <button class="btn btn-sm btn-soft-primary rounded-pill px-3 transition-all" wire:click="openChangesModal('{{ $item->id }}')">
@@ -274,7 +274,7 @@
                                 <tr>
                                     <td colspan="5" class="text-center py-5">
                                         <div class="mb-3 text-muted">
-                                            <i class="mdi mdi-shield-off-outline" style="font-size: 48px; opacity: 0.5;"></i>
+                                            <i class="mdi mdi-shield-off-outline" style="opacity: 0.5"></i>
                                         </div>
                                         <h5 class="text-muted">No audit logs found for {{ $selectedUserName }}</h5>
                                         <p class="text-muted mb-0 font-size-13">Try adjusting your filters or search terms.</p>
@@ -295,7 +295,7 @@
                     </div>
                 </div>
                 
-                <div wire:loading.flex wire:target="search,perPage,eventFilter,entityFilter,ipFilter,dateFrom,dateTo,sortBy,clearFilters" class="justify-content-center align-items-center position-absolute w-100 h-100" style="top: 0; left: 0; z-index: 10; background: rgba(255,255,255,0.7); border-radius: 12px;">
+                <div wire:loading.flex wire:target="search,perPage,eventFilter,entityFilter,ipFilter,dateFrom,dateTo,sortBy,clearFilters" class="justify-content-center align-items-center position-absolute w-100 h-100" style="top: 0; left: 0; z-index: 10; background: rgba(255,255,255,0.7); border-radius: 12px">
                     <div class="bg-white p-3 rounded-pill shadow-sm d-flex align-items-center text-primary border">
                         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                         <span class="fw-medium pe-2">Refreshing logs...</span>
@@ -306,9 +306,9 @@
 
         <!-- Changes Modal -->
         @if($showChangesModal)
-            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px);">
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px)">
                 <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden; max-height: 85vh;">
+                    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden; max-height: 85vh">
                         <div class="modal-header bg-light border-bottom-0 pb-0 pt-4 px-4">
                             <h5 class="modal-title fw-bold text-dark d-flex align-items-center">
                                 <i class="mdi mdi-history text-primary me-2 fs-4"></i> Audit Changes Details
@@ -335,20 +335,20 @@
                                         <tbody class="border-top-0">
                                             @foreach($changeColumns as $column)
                                                 <tr class="border-bottom border-light">
-                                                    <td class="ps-3 fw-medium text-dark font-size-13 bg-light" style="width: 25%; word-break: break-all;">
+                                                    <td class="ps-3 fw-medium text-dark font-size-13 bg-light" style="width: 25%; word-break: break-all">
                                                         {{ ucwords(str_replace('_', ' ', $column)) }}
-                                                        <div class="small text-muted font-monospace" style="font-size: 10px;">{{ $column }}</div>
+                                                        <div class="small text-muted font-monospace">{{ $column }}</div>
                                                     </td>
-                                                    <td class="border-start border-light" style="width: 35%;">
+                                                    <td class="border-start border-light" style="width: 35%">
                                                         @if(array_key_exists($column, $oldValues))
-                                                            <div class="p-2 rounded font-size-13 text-wrap text-break font-monospace diff-old" style="max-height: 200px; overflow-y: auto; white-space: pre-wrap;">{{ is_array($oldValues[$column]) ? json_encode($oldValues[$column], JSON_PRETTY_PRINT) : (is_bool($oldValues[$column]) ? ($oldValues[$column] ? 'true' : 'false') : ($oldValues[$column] === null ? 'null' : (string)$oldValues[$column])) }}</div>
+                                                            <div class="p-2 rounded font-size-13 text-wrap text-break font-monospace diff-old" style="max-height: 200px; overflow-y: auto; white-space: pre-wrap">{{ is_array($oldValues[$column]) ? json_encode($oldValues[$column], JSON_PRETTY_PRINT) : (is_bool($oldValues[$column]) ? ($oldValues[$column] ? 'true' : 'false') : ($oldValues[$column] === null ? 'null' : (string)$oldValues[$column])) }}</div>
                                                         @else
                                                             <span class="text-muted small fst-italic ms-2">Not recorded</span>
                                                         @endif
                                                     </td>
-                                                    <td class="border-start border-light" style="width: 35%;">
+                                                    <td class="border-start border-light" style="width: 35%">
                                                         @if(array_key_exists($column, $newValues))
-                                                            <div class="p-2 rounded font-size-13 text-wrap text-break font-monospace diff-new" style="max-height: 200px; overflow-y: auto; white-space: pre-wrap;">{{ is_array($newValues[$column]) ? json_encode($newValues[$column], JSON_PRETTY_PRINT) : (is_bool($newValues[$column]) ? ($newValues[$column] ? 'true' : 'false') : ($newValues[$column] === null ? 'null' : (string)$newValues[$column])) }}</div>
+                                                            <div class="p-2 rounded font-size-13 text-wrap text-break font-monospace diff-new" style="max-height: 200px; overflow-y: auto; white-space: pre-wrap">{{ is_array($newValues[$column]) ? json_encode($newValues[$column], JSON_PRETTY_PRINT) : (is_bool($newValues[$column]) ? ($newValues[$column] ? 'true' : 'false') : ($newValues[$column] === null ? 'null' : (string)$newValues[$column])) }}</div>
                                                         @else
                                                             <span class="text-muted small fst-italic ms-2">Not recorded</span>
                                                         @endif

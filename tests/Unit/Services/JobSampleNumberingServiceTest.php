@@ -21,9 +21,17 @@ class JobSampleNumberingServiceTest extends TestCase
         parent::setUp();
 
         Schema::dropIfExists('job_number_sequences');
+        Schema::dropIfExists('technical_job_number_sequences');
         Schema::dropIfExists('sample_sequences');
 
         Schema::create('job_number_sequences', function (Blueprint $table) {
+            $table->id();
+            $table->char('date_ymd', 6)->unique();
+            $table->unsignedInteger('last_sequence')->default(0);
+            $table->timestamps();
+        });
+
+        Schema::create('technical_job_number_sequences', function (Blueprint $table) {
             $table->id();
             $table->char('date_ymd', 6)->unique();
             $table->unsignedInteger('last_sequence')->default(0);
@@ -66,6 +74,36 @@ class JobSampleNumberingServiceTest extends TestCase
         $nextDay = $this->service->generateJobNumber($dayTwo);
 
         $this->assertSame('260429001', $nextDay);
+    }
+
+    /** @test */
+    public function it_generates_technical_job_numbers_without_touching_production_sequence(): void
+    {
+        $date = Carbon::create(2026, 4, 28, 10, 0, 0);
+
+        $production = $this->service->generateJobNumber($date);
+        $technicalFirst = $this->service->generateJobNumber($date, true);
+        $technicalSecond = $this->service->generateTechnicalJobNumber($date);
+        $productionNext = $this->service->generateJobNumber($date);
+
+        $this->assertSame('260428001', $production);
+        $this->assertSame('T260428001', $technicalFirst);
+        $this->assertSame('T260428002', $technicalSecond);
+        $this->assertSame('260428002', $productionNext);
+        $this->assertTrue($this->service->isTechnicalJobNumber($technicalFirst));
+        $this->assertTrue($this->service->isJobNumberFormat($technicalFirst));
+    }
+
+    /** @test */
+    public function it_generates_sample_codes_for_technical_jobs(): void
+    {
+        $job = 'T260428001';
+
+        $first = $this->service->nextSampleCode($job);
+        $second = $this->service->nextSampleCode($job);
+
+        $this->assertSame('T260428001-001', $first);
+        $this->assertSame('T260428001-002', $second);
     }
 
     /** @test */

@@ -17,6 +17,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\System\SystemConfiguration;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
+use App\Services\Sampleworkflow\TechnicalSandboxContext;
 use App\Services\Sampleworkflow\TrfSampleFieldMapper;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use Illuminate\Support\Facades\DB;
@@ -280,6 +281,11 @@ class SampleCreationService
         $headerData['created_at'] = now();
         $headerData['updated_at'] = now();
 
+        if (\Illuminate\Support\Facades\Schema::hasColumn('sample_headers', 'is_technical')) {
+            $headerData['is_technical'] = $headerData['is_technical']
+                ?? app(TechnicalSandboxContext::class)->shouldCreateAsTechnical();
+        }
+
         // Set receipt date if not provided
         if (empty($headerData['receipt_date'])) {
             $headerData['receipt_date'] = now()->format('Y-m-d');
@@ -494,7 +500,10 @@ class SampleCreationService
                 $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
             }
 
-            $jobNumber = $this->numberingService->generateJobNumber();
+            $jobNumber = $this->numberingService->generateJobNumber(
+                null,
+                app(TechnicalSandboxContext::class)->shouldCreateAsTechnical()
+            );
 
             if ($instance !== null) {
                 $this->numberingService->persistJobNumberOnSubmissionInstance($instance, $jobNumber);

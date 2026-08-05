@@ -179,7 +179,7 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
             case 'reports':
                 return ['Report Number', 'Client Unit', 'Ref. No.', 'Sample Analysis', 'Reason', 'Lab Date', 'Collected Date', 'Description'];
             case 'sample_points':
-                return ['Sample Point Name', 'Unit', 'Active'];
+                return ['Sampling Location Name', 'Unit', 'Active'];
             default:
                 return ['Data'];
         }

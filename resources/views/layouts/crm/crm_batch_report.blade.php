@@ -394,7 +394,7 @@
 											<th>Sample Type</th>
 											<th>Customer</th>
 											<th>Company Unit</th>
-											<th>Sample Points</th>
+											<th>Sampling Location</th>
 											<th>Receipt Date</th>
 											<th>Date Collected</th>
 											<th>Status</th>
@@ -768,7 +768,7 @@ $(document).ready(function() {
 			'Sample Type',
 			'Customer',
 			'Customer Company Unit',
-			'Sample Points',
+			'Sampling Location',
 			'Receipt Date',
 			'Date Collected',
 			'Status'

@@ -36,8 +36,6 @@ class AcceptanceFormSampleHeaderService
     ): array {
         $context = $this->resolveContext($form);
 
-        $batchCode = $this->batchCodeService->resolveBatchCodeForAcceptanceForm($form, $primaryZoneId);
-
         $reviewStage = SampleAnalysisStage::query()
             ->where('sample_workflow', 'Samples Request Review')
             ->orderBy('level')
@@ -64,9 +62,21 @@ class AcceptanceFormSampleHeaderService
 
         $receivingOfficer = $this->resolveReceivingOfficer($context);
 
+        $sandbox = app(TechnicalSandboxContext::class);
+        $creatingUser = $sandbox->resolveCreatingUser(
+            is_string($receivingOfficer['id'] ?? null) ? (string) $receivingOfficer['id'] : null
+        );
+        $isTechnical = $sandbox->shouldCreateAsTechnical($creatingUser);
+
         $managerAssignment = is_array($form->manager_assignment_payload)
             ? $form->manager_assignment_payload
             : [];
+
+        $batchCode = $this->batchCodeService->resolveBatchCodeForAcceptanceForm(
+            $form,
+            $primaryZoneId,
+            $isTechnical,
+        );
 
         $attributes = [
             'batch_code' => $batchCode,
@@ -125,6 +135,10 @@ class AcceptanceFormSampleHeaderService
             'is_qc_batch' => $isQcBatch,
             'begin_proccess' => $isQcBatch ? 1 : 0,
         ];
+
+        if (Schema::hasColumn('sample_headers', 'is_technical')) {
+            $attributes['is_technical'] = $isTechnical;
+        }
 
         if (Schema::hasColumn('sample_headers', 'is_shelf_life')) {
             $attributes['is_shelf_life'] = (bool) ($form->is_shelf_life ?? false);

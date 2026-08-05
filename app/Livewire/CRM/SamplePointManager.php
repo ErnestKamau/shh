@@ -138,7 +138,7 @@ class SamplePointManager extends Component
     public function bulkDelete()
     {
         if (empty($this->selectedSamplePoints)) {
-            $this->message = 'Please select sample points to delete.';
+            $this->message = 'Please select sampling locations to delete.';
             $this->messageType = 'error';
             return;
         }
@@ -152,7 +152,7 @@ class SamplePointManager extends Component
             
             $this->selectedSamplePoints = [];
             $this->selectAll = false;
-            $this->message = 'Selected sample points deleted successfully!';
+            $this->message = 'Selected sampling locations deleted successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
@@ -379,10 +379,10 @@ class SamplePointManager extends Component
             $this->closeBulkUploadModal();
             
             if ($errorCount > 0) {
-                $this->message = "{$successCount} sample point(s) created successfully. {$errorCount} row(s) failed. Errors: " . implode(' | ', array_slice($errors, 0, 5));
+                $this->message = "{$successCount} sampling location(s) created successfully. {$errorCount} row(s) failed. Errors: " . implode(' | ', array_slice($errors, 0, 5));
                 $this->messageType = 'warning';
             } else {
-                $this->message = "{$successCount} sample point(s) created successfully!";
+                $this->message = "{$successCount} sampling location(s) created successfully!";
                 $this->messageType = 'success';
             }
 
@@ -399,7 +399,7 @@ class SamplePointManager extends Component
        
         
         if (empty($this->selectedSamplePoints)) {
-            $this->message = 'Please select at least one sample point.';
+            $this->message = 'Please select at least one sampling location.';
             $this->messageType = 'error';
             return;
         }
@@ -472,7 +472,7 @@ class SamplePointManager extends Component
     public function assignSampleTypes()
     {
         if (empty($this->selectedSamplePoints)) {
-            $this->message = 'Please select at least one sample point.';
+            $this->message = 'Please select at least one sampling location.';
             $this->messageType = 'error';
             return;
         }

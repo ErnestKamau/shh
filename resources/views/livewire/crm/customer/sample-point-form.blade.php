@@ -27,7 +27,7 @@
             position: { lat: lat, lng: lng },
             map: map,
             draggable: true,
-            title: 'Sample Point Location'
+            title: 'Sampling Location'
         });
 
         // Update Livewire on drag end
@@ -58,7 +58,7 @@
                     <div class="modal-header sample-point-modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $pointId ? 'pencil' : 'plus' }}"></i>
-                            {{ $pointId ? 'Edit' : 'Add' }} Sample Point
+                            {{ $pointId ? 'Edit' : 'Add' }} Sampling Location
                         </h5>
                         <button type="button" class="close" wire:click="close" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
@@ -69,13 +69,13 @@
                             <div class="form-group">
                                 <label class="control-label">Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                    wire:model="name" placeholder="Sample Point Name..." required />
+                                    wire:model="name" placeholder="Sampling Location Name..." required />
                                 @error('name') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Description</label>
                                 <textarea class="form-control @error('description') is-invalid @enderror"
-                                    wire:model="description" rows="3" placeholder="Sample Point Description..."></textarea>
+                                    wire:model="description" rows="3" placeholder="Sampling Location Description..."></textarea>
                                 @error('description') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group">

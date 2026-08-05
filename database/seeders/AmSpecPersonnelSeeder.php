@@ -78,6 +78,14 @@ class AmSpecPersonnelSeeder extends Seeder
                 ]
             );
 
+            // Personnel list excludes users linked as CRM/portal contacts.
+            $user->forceFill([
+                'is_client' => false,
+                'is_tablet' => false,
+                'crm_contact_id' => null,
+                'crmcontact_id' => null,
+            ]);
+
             $user->syncDepartmentAssignments($departmentIds);
             $user->save();
 

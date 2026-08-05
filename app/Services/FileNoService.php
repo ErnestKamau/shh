@@ -24,6 +24,17 @@ class FileNoService
      */
     public function assignFileNoToBatch(SampleHeader $batch, array $sampleDetailIds): array
     {
+        if ((bool) ($batch->is_technical ?? false)) {
+            $fileNo = 'TECH/'.now()->format('Y');
+            $batch->file_no = $fileNo;
+            $batch->save();
+
+            return [
+                'file_no' => $fileNo,
+                'sample_id_files' => [],
+            ];
+        }
+
         return DB::transaction(function () use ($batch, $sampleDetailIds) {
             $year = (int) now()->format('Y');
             $sequential = $this->resolveSequentialForBatch($batch, $year);

@@ -29,7 +29,7 @@
                 </div>
                 <input type="hidden" id="{{ $hiddenId }}" wire:model="{{ $signatureDataProperty }}">
                 <div class="d-flex justify-content-between align-items-center mt-2">
-                    <div class="d-flex align-items-center" style="gap: 8px;">
+                    <div class="d-flex align-items-center" style="gap: 8px">
                         <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') ?? 'Drawn signature overrides upload.' }}</small>
                         <span id="{{ $statusId }}" class="signature-status signature-status-empty" aria-live="polite">Not signed</span>
                     </div>

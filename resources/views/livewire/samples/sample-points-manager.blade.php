@@ -7,12 +7,12 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-map-marker text-primary"></i>
-                                {{ $customer->sample_point_configurable_name ?: 'Sample Points' }} Management
+                                {{ $customer->sample_point_configurable_name ?: 'Sampling Location' }} Management
                             </h2>
-                            <p class="text-muted mb-0">Manage {{ strtolower($customer->sample_point_configurable_name ?: 'sample points') }} for: <strong>{{ $customer->name }}</strong></p>
+                            <p class="text-muted mb-0">Manage {{ strtolower($customer->sample_point_configurable_name ?: 'sampling locations') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
                         <button wire:click="showCreateSamplePointModal" class="btn btn-outline-primary pricelist-action-btn">
-                            <i class="mdi mdi-plus"></i> Add {{ $customer->sample_point_configurable_name ?: 'Sample Point' }}
+                            <i class="mdi mdi-plus"></i> Add {{ $customer->sample_point_configurable_name ?: 'Sampling Location' }}
                         </button>
                     </div>
                 </div>
@@ -94,7 +94,7 @@
             @else
                 <div class="text-center py-4">
                     <i class="mdi mdi-map-marker text-muted" style="font-size: 3rem;"></i>
-                    <h5 class="text-muted mt-3">No {{ strtolower($customer->sample_point_configurable_name ?: 'sample points') }} found</h5>
+                    <h5 class="text-muted mt-3">No {{ strtolower($customer->sample_point_configurable_name ?: 'sampling locations') }} found</h5>
                 </div>
             @endif
         </div>

@@ -5,7 +5,7 @@
                 <p class="text-muted mb-0">{{ __('personnel.personnel_overview') }}</p>
             </div>
             <div class="col-md-4 text-right">
-                <p class="mb-0 text-primary" style="font-size: 1rem; font-weight: 500;">
+                <p class="mb-0 text-primary" style="font-weight: 500">
                     <i class="mdi mdi-calendar"></i>
                     {{ now()->format('l, F j, Y') }}
                 </p>
@@ -18,44 +18,44 @@
             <div class="tab-pane show active">
                 <div class="row mb-4">
                     <div class="col-md-3">
-                        <div class="kpi-card" style="border-left: 4px solid #0d6efd;">
+                        <div class="kpi-card" style="border-left: 4px solid #0d6efd">
                             <div class="kpi-card-body">
                                 <div class="kpi-card-row">
                                     <h4 class="kpi-card-value">{{ $totalPersonnel }}</h4>
-                                    <div class="kpi-card-icon"><i class="mdi mdi-account-group" style="color: #0d6efd;"></i></div>
+                                    <div class="kpi-card-icon"><i class="mdi mdi-account-group" style="color: #0d6efd"></i></div>
                                 </div>
                                 <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.total_personnel') }}</p></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="kpi-card" style="border-left: 4px solid #28a745;">
+                        <div class="kpi-card" style="border-left: 4px solid #28a745">
                             <div class="kpi-card-body">
                                 <div class="kpi-card-row">
                                     <h4 class="kpi-card-value">{{ $activePersonnel }}</h4>
-                                    <div class="kpi-card-icon"><i class="mdi mdi-account-check" style="color: #28a745;"></i></div>
+                                    <div class="kpi-card-icon"><i class="mdi mdi-account-check" style="color: #28a745"></i></div>
                                 </div>
                                 <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.active_personnel') }}</p></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="kpi-card" style="border-left: 4px solid #dc3545;">
+                        <div class="kpi-card" style="border-left: 4px solid #dc3545">
                             <div class="kpi-card-body">
                                 <div class="kpi-card-row">
                                     <h4 class="kpi-card-value">{{ $inactivePersonnel }}</h4>
-                                    <div class="kpi-card-icon"><i class="mdi mdi-account-off" style="color: #dc3545;"></i></div>
+                                    <div class="kpi-card-icon"><i class="mdi mdi-account-off" style="color: #dc3545"></i></div>
                                 </div>
                                 <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.inactive_personnel') }}</p></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="kpi-card" style="border-left: 4px solid #17a2b8;">
+                        <div class="kpi-card" style="border-left: 4px solid #17a2b8">
                             <div class="kpi-card-body">
                                 <div class="kpi-card-row">
                                     <h4 class="kpi-card-value">{{ $newThisMonth }}</h4>
-                                    <div class="kpi-card-icon"><i class="mdi mdi-account-plus" style="color: #17a2b8;"></i></div>
+                                    <div class="kpi-card-icon"><i class="mdi mdi-account-plus" style="color: #17a2b8"></i></div>
                                 </div>
                                 <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.new_this_month') }}</p></div>
                             </div>
@@ -136,8 +136,8 @@
                                         <span class="text-muted">{{ $trend['month'] }}</span>
                                         <span>{{ $trend['count'] }}</span>
                                     </div>
-                                    <div class="progress" style="height: 8px;">
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ $width }}%;" aria-valuenow="{{ $width }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="progress" style="height: 8px">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ $width }}%" aria-valuenow="{{ $width }}" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>
                                 </div>
                             @endforeach
@@ -227,7 +227,7 @@
         .kpi-card-label { font-size: 1rem; font-weight: 500; color: #6b7280; margin-bottom: 0; }
         .kpi-card-icon { font-size: 2rem; }
         .chart-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); }
-        .quick-action-btn { display: block; width: 100%; padding: 12px; text-align: center; font-weight: 500; border-radius: 8px; }
+        .quick-action-btn { display: block; width: 100%; padding: 12px; text-align: center; font-weight: 500; border-radius: var(--ls-radius-sm, 6px); }
         .quick-action-btn:hover { color: white !important; background-color: #0d6efd; border-color: #0d6efd; }
 
         .org-chart-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; }
@@ -248,7 +248,7 @@
         }
 
         .org-legend-item {
-            font-size: 12px;
+            font-size: var(--ls-text-sm, 0.75rem);
             color: #334155;
             display: inline-flex;
             align-items: center;

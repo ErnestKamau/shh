@@ -8,7 +8,7 @@
 
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card shadow-sm border-0" style="border-radius: 15px">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -52,7 +52,7 @@
                             @if($config === 'Job Description')
                                 <th>{{ __('personnel.responsibilities') }}</th>
                             @endif
-                            <th style="width: 150px;">{{ __('personnel.actions') }}</th>
+                            <th style="width: 150px">{{ __('personnel.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -89,7 +89,7 @@
     </div>
 
     @if($showConfigModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -116,7 +116,7 @@
     @endif
 
     @if($showDeleteModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -136,7 +136,7 @@
     @endif
 
     <style>
-        .pm-act-btn { border-radius: 7px; padding: 4px 8px; margin-right: 3px; font-size: 12px; }
+        .pm-act-btn { border-radius: var(--ls-radius-sm, 6px); padding: 0.3rem var(--ls-btn-pad-x-sm, 0.65rem); margin-right: 3px; font-size: var(--ls-text-sm, 0.75rem); }
         .pm-act-btn:last-child { margin-right: 0; }
         .pm-act-btn--edit { border: 1px solid #bfdbfe; color: #1d4ed8; background: #eff6ff; }
         .pm-act-btn--edit:hover { background: #dbeafe; border-color: #93c5fd; }

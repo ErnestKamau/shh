@@ -294,7 +294,7 @@ class CRMCustomerController extends Controller
 		'Sample Type',
 		'Customer',
 		'Customer Company Unit',
-		'Sample Points',
+		'Sampling Location',
 		'Receipt Date',
 		'Date Collected',
 		'Status',

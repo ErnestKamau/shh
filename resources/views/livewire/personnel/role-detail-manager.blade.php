@@ -94,7 +94,7 @@
                                 <th>{{ __('personnel.status') }}</th>
                                 <th>{{ __('personnel.edited_by') }}</th>
                                 <th>{{ __('personnel.description') }}</th>
-                                <th style="width: 120px;">{{ __('personnel.actions') }}</th>
+                                <th style="width: 120px">{{ __('personnel.actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -102,7 +102,7 @@
                                 @php($certification = getSampleTypeQualificationById($item->certification_id))
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
-                                    <td>{!! $item->is_mandatory == 1 ? '<i style="color:red;" class="mdi mdi-star-four-points"></i><span style="color: red;">'.__('personnel.mandatory').'</span>' : __('personnel.optional') !!}</td>
+                                    <td>{!! $item->is_mandatory == 1 ? '<i style="color:red" class="mdi mdi-star-four-points"></i><span style="color: red">'.__('personnel.mandatory').'</span>' : __('personnel.optional') !!}</td>
                                     <td>{{ $certification->name ?? '-' }}</td>
                                     <td>{{ $item->created_at }}</td>
                                     <td class="text-small">{!! $item->status == 0 ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
@@ -130,7 +130,7 @@
     </div>
 
     @if($showCertificationModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -161,7 +161,7 @@
     @endif
 
     @if($showDeleteCertificationModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -181,7 +181,7 @@
     @endif
 
     <style>
-        .pm-act-btn { border-radius: 7px; padding: 4px 8px; margin-right: 3px; font-size: 12px; }
+        .pm-act-btn { border-radius: var(--ls-radius-sm, 6px); padding: 0.3rem var(--ls-btn-pad-x-sm, 0.65rem); margin-right: 3px; font-size: var(--ls-text-sm, 0.75rem); }
         .pm-act-btn:last-child { margin-right: 0; }
         .pm-act-btn--edit { border: 1px solid #bfdbfe; color: #1d4ed8; background: #eff6ff; }
         .pm-act-btn--edit:hover { background: #dbeafe; border-color: #93c5fd; }
