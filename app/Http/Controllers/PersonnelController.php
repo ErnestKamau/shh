@@ -184,7 +184,17 @@ class PersonnelController extends Controller
 			return redirect()->back()->with('error','There is a user with the specified email!');
 		}
 
-		if(isset($personnel->department_id) && $personnel->department_id != $request->department){
+		$departmentIds = collect($request->input('departments', []))
+			->filter(fn ($id) => ! is_null($id) && (string) $id !== '')
+			->map(fn ($id): string => (string) $id)
+			->unique()
+			->values();
+
+		if ($departmentIds->isEmpty() && $request->filled('department')) {
+			$departmentIds = collect([(string) $request->department]);
+		}
+
+		if(isset($personnel->department_id) && (string) $personnel->department_id !== (string) ($departmentIds->first() ?? '')){
 			$personnelWorkHistoryChanged = true;
 		}
 
@@ -209,6 +219,8 @@ class PersonnelController extends Controller
 		$personnel->kra_pin = $request->kra_pin;
 		$personnel->active = $request->active ?? 0;
 		$personnel->lab_section_id = implode(',',$request->lab_section_id ?? []) ?? '';
+		$personnel->department_id = $departmentIds->first();
+		$personnel->position = $request->position;
 		$personnel->analyst_is_gazzetted = (bool) $request->boolean('analyst_is_gazzetted');
 		$personnel->date_of_gazzette = $personnel->analyst_is_gazzetted && $request->filled('date_of_gazzette')
 			? $request->date_of_gazzette
@@ -284,6 +296,7 @@ class PersonnelController extends Controller
 		}
 
 		$personnel->save();
+		$personnel->syncDepartmentAssignments($departmentIds->all());
 
 		// Labs assignment only (zones/directorates removed from Labs organization)
 		if (Schema::hasTable('user_lab_relation')) {

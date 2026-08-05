@@ -13,18 +13,7 @@ class AmSpecUserCleanupEmails
      */
     public static function limsSheetEmails(): array
     {
-        return [
-            'imran.khan@amspecgroup.com',
-            'hassane.sidaoui@amspecgroup.com',
-            'sujuta.gurung@amspecgroup.com',
-            'subin.paul@amspecgroup.com',
-            'iqrar.ali@amspecgroup.com',
-            'jishma.panichikkal@amspecgroup.com',
-            'mohammadziya.zaidi@amspecgroup.com',
-            'dipendra.pradhan@amspecgroup.com',
-            'mohamed.mustkeem@amspecgroup.com',
-            'abbas.soortee@amspecgroup.com',
-        ];
+        return AmSpecSeedData::limsSheetEmails();
     }
 
     /**

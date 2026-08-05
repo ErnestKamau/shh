@@ -1458,7 +1458,7 @@ function getInventoryWorkflowUsers($workflowRole, $departmentId = null)
 
 	if ($departmentId !== null) {
 		$users = $users->filter(function ($user) use ($departmentId) {
-			return ($user->department_id ?? '') === (string) $departmentId;
+			return $user->belongsToDepartment((string) $departmentId);
 		});
 	}
 

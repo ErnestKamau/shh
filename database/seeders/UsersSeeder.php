@@ -69,6 +69,7 @@ class UsersSeeder extends Seeder
             ['email' => AmSpecSeedData::SEED_USER_EMAIL],
             [
                 'name' => 'Ernest Kamau',
+                'salutation' => 'Mr',
                 'first_name' => 'Ernest',
                 'last_name' => 'Kamau',
                 'password' => Hash::make(self::DEFAULT_PASSWORD),
@@ -78,6 +79,11 @@ class UsersSeeder extends Seeder
                 'active' => 1,
             ]
         );
+
+        if ($adminDeptId !== null) {
+            $user->syncDepartmentAssignments([$adminDeptId]);
+            $user->save();
+        }
 
         if ($adminLocationId !== null) {
             InventoryLocationUser::query()->firstOrCreate([

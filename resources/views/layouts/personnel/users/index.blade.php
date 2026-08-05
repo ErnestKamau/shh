@@ -334,8 +334,7 @@
 							</div>
 							<div class="form-group">
 								<label class="control-label">Department <span class="text-danger">*</span></label>
-								<select name="department" class="form-control" placeholder="Department..." required>
-									<option></option>
+								<select name="departments[]" class="form-control" placeholder="Department..." multiple required>
 									@foreach (getDepartments() as $item)
 										<option value="{{ $item->id }}">{{ $item->name }}</option>
 									@endforeach

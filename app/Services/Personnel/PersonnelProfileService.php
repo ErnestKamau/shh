@@ -29,6 +29,7 @@ class PersonnelProfileService
      *     education_level?: string|null,
      *     position?: string|null,
      *     department_id?: string|null,
+     *     department_ids?: array<int, string>,
      *     analyst_is_gazzetted?: bool,
      *     date_of_gazzette?: string|null,
      *     gazzette_no?: string|null,
@@ -67,7 +68,19 @@ class PersonnelProfileService
         $user->designation = ($attributes['designation'] ?? null) ?: null;
         $user->education_level = ($attributes['education_level'] ?? null) ?: null;
         $user->position = ($attributes['position'] ?? null) ?: null;
-        $user->department_id = ($attributes['department_id'] ?? null) ?: null;
+
+        $departmentIds = array_values(array_unique(array_filter(
+            (array) ($attributes['department_ids'] ?? (
+                array_key_exists('department_id', $attributes)
+                    ? [($attributes['department_id'] ?? null)]
+                    : []
+            )),
+            fn ($id): bool => (string) $id !== ''
+        )));
+
+        if ($departmentIds !== [] || array_key_exists('department_ids', $attributes) || array_key_exists('department_id', $attributes)) {
+            $user->syncDepartmentAssignments($departmentIds);
+        }
 
         $isGazzetted = (bool) ($attributes['analyst_is_gazzetted'] ?? false);
         $user->analyst_is_gazzetted = $isGazzetted;

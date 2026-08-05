@@ -22,6 +22,8 @@ class AmSpecSeedData
 
     public const COLEMAN_SEED_EMAIL = 'colman@nuvemite.com';
 
+    public const LIMS_SHEET_PASSWORD = 'password1234';
+
     public static function seedUserEmail(?string $suffix = null): string
     {
         if ($suffix === null || $suffix === '') {
@@ -31,6 +33,141 @@ class AmSpecSeedData
         [$local, $domain] = explode('@', self::SEED_USER_EMAIL, 2);
 
         return "{$local}+{$suffix}@{$domain}";
+    }
+
+    /**
+     * Middle East Agri & Food LIMS sheet roster (Users Details.xlsx).
+     *
+     * department: organization department name, or "all" for every organizational department.
+     * access_profile: key used by AmSpecPersonnelSeeder to sync role permissions.
+     * full_access: when true, user also receives the admin role.
+     *
+     * @return list<array{
+     *     email: string,
+     *     salutation: string|null,
+     *     first_name: string,
+     *     last_name: string,
+     *     role: string,
+     *     department: string,
+     *     access_profile: string,
+     *     full_access: bool
+     * }>
+     */
+    public static function limsSheetPersonnel(): array
+    {
+        return [
+            [
+                'email' => 'imran.khan@amspecgroup.com',
+                'salutation' => 'Dr',
+                'first_name' => 'Imran',
+                'last_name' => 'Khan',
+                'role' => 'ME Technical Director – Food Safety & Authenticity Services Agri',
+                'department' => 'all',
+                'access_profile' => 'full_access',
+                'full_access' => true,
+            ],
+            [
+                'email' => 'hassane.sidaoui@amspecgroup.com',
+                'salutation' => 'Mr',
+                'first_name' => 'Hassane',
+                'last_name' => 'Sidaoui',
+                'role' => 'Regional Director - Middle East & Africa | Agri & Food',
+                'department' => 'all',
+                'access_profile' => 'full_access',
+                'full_access' => true,
+            ],
+            [
+                'email' => 'sujuta.gurung@amspecgroup.com',
+                'salutation' => 'Ms',
+                'first_name' => 'Sujuta',
+                'last_name' => 'Gurung',
+                'role' => 'Executive - Customer Service',
+                'department' => 'Admin',
+                'access_profile' => 'customer_service',
+                'full_access' => false,
+            ],
+            [
+                'email' => 'subin.paul@amspecgroup.com',
+                'salutation' => 'Mr',
+                'first_name' => 'Subin',
+                'last_name' => 'Paul',
+                'role' => 'Senior Chemist',
+                'department' => 'Chemistry',
+                'access_profile' => 'senior_chemist',
+                'full_access' => false,
+            ],
+            [
+                'email' => 'iqrar.ali@amspecgroup.com',
+                'salutation' => 'Mr',
+                'first_name' => 'Iqrar',
+                'last_name' => 'Ali',
+                'role' => 'Senior Chemist',
+                'department' => 'Chemistry',
+                'access_profile' => 'senior_chemist',
+                'full_access' => false,
+            ],
+            [
+                'email' => 'jishma.panichikkal@amspecgroup.com',
+                'salutation' => 'Ms',
+                'first_name' => 'Jishma',
+                'last_name' => 'Panichikkal',
+                'role' => 'Microbiology Lab Supervisor',
+                'department' => 'all',
+                'access_profile' => 'full_access',
+                'full_access' => true,
+            ],
+            [
+                'email' => 'mohammadziya.zaidi@amspecgroup.com',
+                'salutation' => 'Mr',
+                'first_name' => 'Mohammad Ziya',
+                'last_name' => 'Zaidi',
+                'role' => 'Assistant Lab Manager - Chemistry Laboratory',
+                'department' => 'all',
+                'access_profile' => 'full_access',
+                'full_access' => true,
+            ],
+            [
+                'email' => 'dipendra.pradhan@amspecgroup.com',
+                'salutation' => 'Mr',
+                'first_name' => 'Dipendra',
+                'last_name' => 'Pradhan',
+                'role' => 'Laboratory Assistant',
+                'department' => 'Laboratory',
+                'access_profile' => 'laboratory_assistant',
+                'full_access' => false,
+            ],
+            [
+                'email' => 'mohamed.mustkeem@amspecgroup.com',
+                'salutation' => 'Mr',
+                'first_name' => 'Mohd',
+                'last_name' => 'Mustkeem',
+                'role' => 'Sr. Chemist & LIMS Superuser',
+                'department' => 'all',
+                'access_profile' => 'full_access',
+                'full_access' => true,
+            ],
+            [
+                'email' => 'abbas.soortee@amspecgroup.com',
+                'salutation' => 'Mr',
+                'first_name' => 'Abbas',
+                'last_name' => 'Soortee',
+                'role' => 'Junior Microbiologist',
+                'department' => 'Microbiology',
+                'access_profile' => 'junior_microbiologist',
+                'full_access' => false,
+            ],
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function limsSheetEmails(): array
+    {
+        return array_values(array_map(
+            static fn (array $person): string => strtolower(trim((string) $person['email'])),
+            self::limsSheetPersonnel()
+        ));
     }
 
     public static function resolveUaeCountry(): ?Country

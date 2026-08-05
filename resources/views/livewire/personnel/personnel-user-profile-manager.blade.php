@@ -196,16 +196,20 @@
                                     <label>{{ __('personnel.department') ?? 'Department' }}</label>
                                     <div class="tag-select-container" wire:click.stop="$set('showDepartmentDropdown', true)">
                                         <div class="tag-select-input">
-                                            @if($selectedDepartmentId)
+                                            @foreach($selectedDepartmentIds as $selectedDepartmentId)
                                                 @php $s = $this->departments->firstWhere('id', $selectedDepartmentId); @endphp
-                                                <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment"></i></span>
-                                            @endif
+                                                @if($s)
+                                                    <span class="tag-badge">{{ $s->name }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment(@js($selectedDepartmentId))"></i></span>
+                                                @endif
+                                            @endforeach
                                             <input class="tag-input" wire:model.live="departmentSearch" wire:keyup="searchDepartment" placeholder="Search department...">
                                         </div>
                                         @if($showDepartmentDropdown)
                                             <div class="tag-dropdown">@foreach($this->departments->filter(fn($d)=>$departmentSearch===''||stripos($d->name,$departmentSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDepartment('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                         @endif
                                     </div>
+                                    @error('selectedDepartmentIds')<small class="text-danger">{{ $message }}</small>@enderror
+                                    @error('selectedDepartmentIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                                 </div>
                                 <div class="col-lg-4 col-md-6">
                                     <label>{{ __('personnel.lab') ?? 'Lab' }}</label>

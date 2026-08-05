@@ -87,7 +87,7 @@
                 <div class="row mb-3">
                     <div class="col-md-4">
                         <label class="small text-muted">{{ __('personnel.lab') }}</label>
-                        <select class="form-control" wire:model.live="labFilter">
+                        <select class="form-control no-select2" wire:model.live="labFilter">
                             <option value="">{{ __('personnel.labs') }}</option>
                             @foreach($labs as $lab)
                                 <option value="{{ $lab['id'] }}">{{ $lab['name'] }}</option>
@@ -391,14 +391,16 @@
                                                     <label class="control-label">{{ __('personnel.department') }} <span class="text-danger">*</span></label>
                                                     <div class="tag-select-container" wire:click.outside="$set('showDepartmentDropdown', false)">
                                                         <div class="tag-select-input" wire:click="$set('showDepartmentDropdown', true)">
-                                                            @if($personnelForm['department'] !== '')
-                                                                @php($selectedDepartment = collect($departments)->firstWhere('id', $personnelForm['department']))
-                                                                <span class="tag-badge">
-                                                                    {{ $selectedDepartment['name'] ?? '' }}
-                                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearDepartmentInput"></i>
-                                                                </span>
-                                                            @endif
-                                                            <input type="text" wire:model.live="departmentSearchInput" wire:keyup="searchDepartmentsInput" class="tag-input" placeholder="{{ $personnelForm['department'] !== '' ? '' : __('personnel.search_department') }}" autocomplete="off">
+                                                            @foreach((array) ($personnelForm['department'] ?? []) as $selectedDepartmentId)
+                                                                @php($selectedDepartment = collect($departments)->firstWhere('id', $selectedDepartmentId))
+                                                                @if($selectedDepartment)
+                                                                    <span class="tag-badge">
+                                                                        {{ $selectedDepartment['name'] ?? '' }}
+                                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearDepartmentInput(@js($selectedDepartmentId))"></i>
+                                                                    </span>
+                                                                @endif
+                                                            @endforeach
+                                                            <input type="text" wire:model.live="departmentSearchInput" wire:keyup="searchDepartmentsInput" class="tag-input" placeholder="{{ empty($personnelForm['department']) ? __('personnel.search_department') : '' }}" autocomplete="off">
                                                         </div>
                                                         @if($showDepartmentDropdown && count($filteredDepartments) > 0)
                                                             <div class="tag-dropdown">
@@ -410,6 +412,8 @@
                                                             </div>
                                                         @endif
                                                     </div>
+                                                    @error('personnelForm.department') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    @error('personnelForm.department.*') <span class="text-danger">{{ $message }}</span> @enderror
                                                 </div>
                                             </div>
                                         </div>
@@ -475,7 +479,7 @@
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.lab') }}</label>
                                                     <div class="tag-select-container" wire:click.outside="$set('showLabDropdown', false)">
-                                                        <div class="tag-select-input" wire:click="$set('showLabDropdown', true)">
+                                                        <div class="tag-select-input" wire:click="openLabDropdown">
                                                             @foreach(($personnelForm['lab_ids'] ?? []) as $__labId)
                                                                 @php($__labName = collect($labs)->firstWhere('id', $__labId)['name'] ?? $__labId)
                                                                 <span class="tag-badge">
@@ -487,15 +491,22 @@
                                                         </div>
                                                         @if($showLabDropdown)
                                                             <div class="tag-dropdown">
-                                                                <div class="tag-dropdown-item font-weight-bold text-primary" wire:click.stop="selectAllLabs">
-                                                                    <i class="mdi mdi-check-all mr-1"></i> All Labs
-                                                                </div>
-                                                                @foreach($filteredLabs as $item)
+                                                                @if(count($labs) > 0)
+                                                                    <div class="tag-dropdown-item font-weight-bold text-primary" wire:click.stop="selectAllLabs">
+                                                                        <i class="mdi mdi-check-all mr-1"></i> All Labs
+                                                                    </div>
+                                                                @endif
+                                                                @forelse($filteredLabs as $item)
                                                                     <div class="tag-dropdown-item {{ in_array($item['id'], $personnelForm['lab_ids'] ?? []) ? 'tag-dropdown-item-selected' : '' }}"
                                                                          wire:click.stop="selectLab(@js($item['id']))">
+                                                                        @if(in_array($item['id'], $personnelForm['lab_ids'] ?? []))
+                                                                            <i class="mdi mdi-check-circle text-primary"></i>
+                                                                        @endif
                                                                         {{ $item['name'] }}
                                                                     </div>
-                                                                @endforeach
+                                                                @empty
+                                                                    <div class="tag-dropdown-item text-muted">No labs found</div>
+                                                                @endforelse
                                                             </div>
                                                         @endif
                                                     </div>

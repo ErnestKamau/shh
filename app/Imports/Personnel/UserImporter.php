@@ -197,6 +197,11 @@ class UserImporter extends BaseImporter
                 $transformedData
             );
 
+            if (! empty($transformedData['department_id'])) {
+                $user->syncDepartmentAssignments([(string) $transformedData['department_id']]);
+                $user->save();
+            }
+
             if (! empty($resolvedLabId)) {
                 UserLabRelation::updateOrCreate(
                     ['user_id' => $user->id, 'lab_id' => $resolvedLabId]

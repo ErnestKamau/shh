@@ -15,11 +15,13 @@ use App\UserZoneRelation;
 use App\Zone;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Auth\Role as SpatieRole;
@@ -50,7 +52,7 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $fillable = [
-		'name', 'first_name', 'middle_name', 'last_name', 'email', 'password', 'zone_id', 'verify_code', 'verify_code_expires',
+		'name', 'salutation', 'first_name', 'middle_name', 'last_name', 'email', 'password', 'zone_id', 'verify_code', 'verify_code_expires',
 		'company_id', 'department_id', 'location_id', 'active', 'position',
 		'failed_login_attempts', 'login_locked_by_admin_reset', 'is_technical'
 	];
@@ -99,6 +101,7 @@ class User extends Authenticatable implements Auditable
 		'location_id' => 'string',
 		'department_id' => 'string',
 		'position' => 'string',
+		'salutation' => 'string',
 		'lab_section_id' => 'string',
         'is_technical' => 'boolean',
 	];
@@ -317,6 +320,97 @@ class User extends Authenticatable implements Auditable
 
 	public function department(){
 		return InventoryDepartment::find($this->department_id);
+	}
+
+	public function departments(): BelongsToMany
+	{
+		return $this->belongsToMany(
+			InventoryDepartment::class,
+			'inventory_department_users',
+			'user_id',
+			'inventory_department_id'
+		)->withTimestamps();
+	}
+
+	/**
+	 * Primary department_id plus any pivot assignments.
+	 *
+	 * @return list<string>
+	 */
+	public function assignedDepartmentIds(): array
+	{
+		$ids = [];
+
+		if (Schema::hasTable('inventory_department_users')) {
+			$ids = $this->departments()
+				->pluck('inventory_departments.id')
+				->map(fn ($id): string => (string) $id)
+				->filter(fn (string $id): bool => $id !== '')
+				->values()
+				->all();
+		}
+
+		$primary = (string) ($this->department_id ?? '');
+		if ($primary !== '' && ! in_array($primary, $ids, true)) {
+			array_unshift($ids, $primary);
+		}
+
+		return array_values(array_unique($ids));
+	}
+
+	public function belongsToDepartment(?string $departmentId): bool
+	{
+		if ($departmentId === null || $departmentId === '') {
+			return false;
+		}
+
+		return in_array((string) $departmentId, $this->assignedDepartmentIds(), true);
+	}
+
+	/**
+	 * @param  array<int, string|null>  $departmentIds
+	 * @return list<string>
+	 */
+	public function syncDepartmentAssignments(array $departmentIds): array
+	{
+		$ids = collect($departmentIds)
+			->map(fn ($id): string => (string) ($id ?? ''))
+			->filter(fn (string $id): bool => $id !== '')
+			->unique()
+			->values()
+			->all();
+
+		$this->department_id = $ids[0] ?? null;
+
+		if ($this->exists && Schema::hasTable('inventory_department_users')) {
+			$now = now();
+
+			InventoryDepartmentUser::query()
+				->where('user_id', $this->id)
+				->whereNotIn('inventory_department_id', $ids)
+				->delete();
+
+			$existing = InventoryDepartmentUser::query()
+				->where('user_id', $this->id)
+				->pluck('inventory_department_id')
+				->map(fn ($id): string => (string) $id)
+				->all();
+
+			foreach ($ids as $departmentId) {
+				if (in_array($departmentId, $existing, true)) {
+					continue;
+				}
+
+				InventoryDepartmentUser::query()->create([
+					'user_id' => $this->id,
+					'inventory_department_id' => $departmentId,
+					'created_at' => $now,
+					'updated_at' => $now,
+				]);
+			}
+		}
+
+		return $ids;
 	}
 
 	public function location(){

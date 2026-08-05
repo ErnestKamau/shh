@@ -347,13 +347,19 @@ class Document extends Model implements Auditable
             case 'all_roles':
                 return true;
             case 'department':
-                return in_array($user->department_id, $this->publish_targets ?? []);
+                return ! empty(array_intersect(
+                    $user->assignedDepartmentIds(),
+                    array_map('strval', $this->publish_targets ?? [])
+                ));
             case 'role':
                 $userRoleIds = $user->roles->pluck('role_id')->toArray();
                 return !empty(array_intersect($userRoleIds, $this->publish_targets ?? []));
             case 'mixed':
                 // Check both department and role access
-                $hasDepartmentAccess = in_array($user->department_id, $this->publish_targets['departments'] ?? []);
+                $hasDepartmentAccess = ! empty(array_intersect(
+                    $user->assignedDepartmentIds(),
+                    array_map('strval', $this->publish_targets['departments'] ?? [])
+                ));
                 $userRoleIds = $user->roles->pluck('role_id')->toArray();
                 $hasRoleAccess = !empty(array_intersect($userRoleIds, $this->publish_targets['roles'] ?? []));
                 return $hasDepartmentAccess || $hasRoleAccess;

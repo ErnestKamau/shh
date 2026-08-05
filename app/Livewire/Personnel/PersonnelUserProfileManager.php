@@ -57,7 +57,8 @@ class PersonnelUserProfileManager extends Component
     public ?string $selectedDesignationId = null;
     public ?string $selectedEducationId = null;
     public ?string $selectedPositionId = null;
-    public ?string $selectedDepartmentId = null;
+    /** @var array<int, string> */
+    public array $selectedDepartmentIds = [];
     /** @var array<int, string> */
     public array $selectedLabIds = [];
     /** @var array<int, string> */
@@ -178,8 +179,16 @@ class PersonnelUserProfileManager extends Component
 
     public function selectDepartment(string $id): void
     {
-        $this->selectedDepartmentId = $id;
-        $this->showDepartmentDropdown = false;
+        if (in_array($id, $this->selectedDepartmentIds, true)) {
+            $this->selectedDepartmentIds = array_values(array_filter(
+                $this->selectedDepartmentIds,
+                fn (string $departmentId): bool => $departmentId !== $id
+            ));
+        } else {
+            $this->selectedDepartmentIds[] = $id;
+            $this->selectedDepartmentIds = array_values(array_unique($this->selectedDepartmentIds));
+        }
+
         $this->departmentSearch = '';
     }
 
@@ -228,9 +237,18 @@ class PersonnelUserProfileManager extends Component
         $this->selectedPositionId = null;
     }
 
-    public function clearDepartment(): void
+    public function clearDepartment(?string $id = null): void
     {
-        $this->selectedDepartmentId = null;
+        if ($id === null) {
+            $this->selectedDepartmentIds = [];
+
+            return;
+        }
+
+        $this->selectedDepartmentIds = array_values(array_filter(
+            $this->selectedDepartmentIds,
+            fn (string $departmentId): bool => $departmentId !== $id
+        ));
     }
 
     public function clearLab(?string $id = null): void
@@ -300,7 +318,7 @@ class PersonnelUserProfileManager extends Component
                 'designation' => $this->selectedDesignationId,
                 'education_level' => $this->selectedEducationId,
                 'position' => $this->selectedPositionId,
-                'department_id' => $this->selectedDepartmentId,
+                'department_ids' => $this->selectedDepartmentIds,
                 'analyst_is_gazzetted' => $this->detailsAnalystIsGazzetted,
                 'date_of_gazzette' => $this->detailsDateOfGazzette,
                 'gazzette_no' => $this->detailsGazzetteNo,
@@ -410,7 +428,7 @@ class PersonnelUserProfileManager extends Component
         $this->selectedDesignationId = $user->designation ? (string) $user->designation : null;
         $this->selectedEducationId = $user->education_level ? (string) $user->education_level : null;
         $this->selectedPositionId = $user->position ? (string) $user->position : null;
-        $this->selectedDepartmentId = $user->department_id ? (string) $user->department_id : null;
+        $this->selectedDepartmentIds = $user->assignedDepartmentIds();
         $this->selectedLabIds = UserLabRelation::where('user_id', $user->id)
             ->pluck('lab_id')
             ->map(fn ($id): string => (string) $id)
@@ -484,7 +502,8 @@ class PersonnelUserProfileManager extends Component
                     'string',
                     Rule::exists('spatie_roles', 'id'),
                 ],
-                'selectedDepartmentId' => 'nullable|string|exists:inventory_departments,id',
+                'selectedDepartmentIds' => 'nullable|array',
+                'selectedDepartmentIds.*' => 'string|exists:inventory_departments,id',
                 'selectedLabIds' => 'array',
                 'selectedLabIds.*' => 'string|exists:labs,id',
                 'selectedLabSectionIds' => 'array',

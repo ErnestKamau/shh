@@ -403,10 +403,10 @@
 								<div class="col-sm-4">
 									<div class="form-group">
 										<label class="control-label">Department *</label>
-										<select name="department" class="form-control" placeholder="Department..." required>
-											<option></option>
+										<select name="departments[]" class="form-control" placeholder="Department..." multiple required>
+											@php $userDepartmentIds = $user->assignedDepartmentIds(); @endphp
 											@foreach (getDepartments() as $item)
-											<option value="{{ $item->id }}" {{ $user->department_id == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
+											<option value="{{ $item->id }}" {{ in_array((string) $item->id, $userDepartmentIds, true) ? 'selected' : ''  }}>{{ $item->name }}</option>
 											@endforeach
 										</select>
 									</div>

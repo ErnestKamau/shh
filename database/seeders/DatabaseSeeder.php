@@ -59,6 +59,7 @@ class DatabaseSeeder extends Seeder
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,
             UsersSeeder::class,
+            AmSpecPersonnelSeeder::class,
             LaboratoryServiceRequestFormSeeder::class,
             ClearsSampleWorkflowDataSeeder::class,
             Phase1FoundationSeeder::class,

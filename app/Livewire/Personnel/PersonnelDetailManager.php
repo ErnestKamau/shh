@@ -50,7 +50,8 @@ class PersonnelDetailManager extends Component
     public ?string $selectedDesignationId = null;
     public ?string $selectedEducationId = null;
     public ?string $selectedPositionId = null;
-    public ?string $selectedDepartmentId = null;
+    /** @var array<int, string> */
+    public array $selectedDepartmentIds = [];
     /** @var array<int, string> */
     public array $selectedLabIds = [];
     /** @var array<int, string> */
@@ -121,7 +122,7 @@ class PersonnelDetailManager extends Component
         $this->selectedDesignationId = $user->designation ? (string) $user->designation : null;
         $this->selectedEducationId = $user->education_level ? (string) $user->education_level : null;
         $this->selectedPositionId = $user->position ? (string) $user->position : null;
-        $this->selectedDepartmentId = $user->department_id ? (string) $user->department_id : null;
+        $this->selectedDepartmentIds = $user->assignedDepartmentIds();
         $this->selectedLabIds = UserLabRelation::where('user_id', $user->id)
             ->pluck('lab_id')
             ->map(fn ($id): string => (string) $id)
@@ -348,8 +349,16 @@ class PersonnelDetailManager extends Component
 
     public function selectDepartment(string $id): void
     {
-        $this->selectedDepartmentId = $id;
-        $this->showDepartmentDropdown = false;
+        if (in_array($id, $this->selectedDepartmentIds, true)) {
+            $this->selectedDepartmentIds = array_values(array_filter(
+                $this->selectedDepartmentIds,
+                fn (string $departmentId): bool => $departmentId !== $id
+            ));
+        } else {
+            $this->selectedDepartmentIds[] = $id;
+            $this->selectedDepartmentIds = array_values(array_unique($this->selectedDepartmentIds));
+        }
+
         $this->departmentSearch = '';
     }
 
@@ -368,9 +377,18 @@ class PersonnelDetailManager extends Component
         $this->selectedPositionId = null;
     }
 
-    public function clearDepartment(): void
+    public function clearDepartment(?string $id = null): void
     {
-        $this->selectedDepartmentId = null;
+        if ($id === null) {
+            $this->selectedDepartmentIds = [];
+
+            return;
+        }
+
+        $this->selectedDepartmentIds = array_values(array_filter(
+            $this->selectedDepartmentIds,
+            fn (string $departmentId): bool => $departmentId !== $id
+        ));
     }
 
     public function selectLab(string $id): void
@@ -563,7 +581,7 @@ class PersonnelDetailManager extends Component
         $user->designation = $this->selectedDesignationId ?: null;
         $user->education_level = $this->selectedEducationId ?: null;
         $user->position = $this->selectedPositionId ?: null;
-        $user->department_id = $this->selectedDepartmentId ?: null;
+        $user->syncDepartmentAssignments($this->selectedDepartmentIds);
     }
 
     private function applyRecognitionFields(User $user): void
@@ -614,7 +632,7 @@ class PersonnelDetailManager extends Component
             'selectedDesignationId',
             'selectedEducationId',
             'selectedPositionId',
-            'selectedDepartmentId',
+            'selectedDepartmentIds',
             'selectedLabIds',
             'selectedLabSectionIds',
         ];
@@ -659,12 +677,15 @@ class PersonnelDetailManager extends Component
                 'selectedDesignationId' => ['required', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Job Description'))],
                 'selectedEducationId' => ['nullable', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Educational Levels'))],
                 'selectedPositionId' => ['required', 'string', Rule::exists('spatie_roles', 'id')],
-                'selectedDepartmentId' => 'required|string|exists:inventory_departments,id',
+                'selectedDepartmentIds' => 'required|array|min:1',
+                'selectedDepartmentIds.*' => 'string|exists:inventory_departments,id',
                 'selectedLabIds' => 'array',
                 'selectedLabIds.*' => 'string|exists:labs,id',
                 'selectedLabSectionIds' => 'array',
                 'selectedLabSectionIds.*' => 'string|exists:sample_analysis_stages,id',
             ], [], [
+                'selectedDepartmentIds' => 'department',
+                'selectedDepartmentIds.*' => 'department',
                 'selectedLabSectionIds.*' => 'lab section',
             ]);
             return;

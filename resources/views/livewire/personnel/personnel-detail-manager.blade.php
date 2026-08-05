@@ -403,19 +403,20 @@
                                 <label>{{ __('personnel.department') }} *</label>
                                 <div class="tag-select-container" wire:click.outside="$set('showDepartmentDropdown', false)">
                                     <div class="tag-select-input" wire:click="openSelectDropdown('department')">
-                                        @if($selectedDepartmentId)
+                                        @foreach($selectedDepartmentIds as $selectedDepartmentId)
                                             @php $s = $this->departments->firstWhere('id', $selectedDepartmentId); @endphp
                                             @if($s)
-                                                <span class="tag-badge">{{ $s->name ?? 'Selected department' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment"></i></span>
+                                                <span class="tag-badge">{{ $s->name }}<i class="mdi mdi-close-circle" wire:click.stop="clearDepartment(@js($selectedDepartmentId))"></i></span>
                                             @endif
-                                        @endif
+                                        @endforeach
                                         <input class="tag-input" wire:model.live="departmentSearch" wire:keyup="searchDepartment" placeholder="{{ __('personnel.search_department') }}">
                                     </div>
                                     @if($showDepartmentDropdown)
                                         <div class="tag-dropdown">@foreach($this->departments->filter(fn($d)=>$departmentSearch===''||stripos($d->name,$departmentSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDepartment('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
-                                @error('selectedDepartmentId')<small class="text-danger">{{ $message }}</small>@enderror
+                                @error('selectedDepartmentIds')<small class="text-danger">{{ $message }}</small>@enderror
+                                @error('selectedDepartmentIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <label>{{ __('personnel.lab') }}</label>

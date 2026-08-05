@@ -85,7 +85,7 @@ class PersonnelTableManager extends Component
         'date_of_gazzette' => '',
         'gazzette_no' => '',
         'start_of_career' => '',
-        'department' => '',
+        'department' => [],
         'lab_ids' => [],
         'lab_section_id' => [],
         'active' => true,
@@ -160,18 +160,7 @@ class PersonnelTableManager extends Component
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
-        $this->labsTableAvailable = Schema::hasTable('labs');
-        $this->labs = $this->labsTableAvailable
-            ? Lab::query()
-                ->where('active', 1)
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn ($item): array => [
-                    'id' => (string) $item->id,
-                    'name' => (string) $item->name,
-                ])
-                ->toArray()
-            : [];
+        $this->reloadLabs();
         $this->stages = SampleAnalysisStage::query()
             ->where('active', 1)
             ->where('is_sample_stage', 0)
@@ -253,12 +242,18 @@ class PersonnelTableManager extends Component
     public function goToAddPersonnelStep(int $step): void
     {
         $this->addPersonnelStep = max(1, min(4, $step));
+        if ($this->addPersonnelStep === 4) {
+            $this->reloadLabs();
+        }
     }
 
     public function nextAddPersonnelStep(): void
     {
         $this->validateAddPersonnelStep($this->addPersonnelStep);
         $this->addPersonnelStep = min(4, $this->addPersonnelStep + 1);
+        if ($this->addPersonnelStep === 4) {
+            $this->reloadLabs();
+        }
     }
 
     public function previousAddPersonnelStep(): void
@@ -296,7 +291,8 @@ class PersonnelTableManager extends Component
             'personnelForm.date_of_gazzette' => 'nullable|date',
             'personnelForm.gazzette_no' => 'nullable|string|max:255',
             'personnelForm.start_of_career' => 'nullable|date',
-            'personnelForm.department' => 'required|string|exists:inventory_departments,id',
+            'personnelForm.department' => 'required|array|min:1',
+            'personnelForm.department.*' => 'string|exists:inventory_departments,id',
             'personnelForm.lab_section_id' => 'array',
             'personnelForm.active' => 'boolean',
             'personnelForm.is_technical' => 'boolean',
@@ -324,7 +320,11 @@ class PersonnelTableManager extends Component
         $personnel->phone = (string) $this->personnelForm['phone'];
         $personnel->company_id = getUserCompany();
         $personnel->location_id = getCurrentUserLocation()->id;
-        $personnel->department_id = (string) $this->personnelForm['department'];
+        $departmentIds = array_values(array_unique(array_filter(
+            (array) ($this->personnelForm['department'] ?? []),
+            fn ($id): bool => (string) $id !== ''
+        )));
+        $personnel->department_id = $departmentIds[0] ?? null;
         $personnel->designation = (string) $this->personnelForm['designation'];
         $personnel->position = (string) $this->personnelForm['position'];
         $personnel->education_level = $this->personnelForm['educational_level'] !== '' ? (string) $this->personnelForm['educational_level'] : null;
@@ -356,6 +356,7 @@ class PersonnelTableManager extends Component
         );
 
         $personnel->save();
+        $personnel->syncDepartmentAssignments($departmentIds);
 
         $selectedRole = Role::query()
             ->where('guard_name', 'web')
@@ -697,7 +698,15 @@ class PersonnelTableManager extends Component
             })
             ->selectRaw("
                 users.*,
-                d.name as department_name,
+                COALESCE(
+                    (
+                        SELECT string_agg(dept.name, ', ' ORDER BY dept.name)
+                        FROM inventory_department_users idu
+                        INNER JOIN inventory_departments dept ON dept.id = idu.inventory_department_id
+                        WHERE idu.user_id = users.id
+                    ),
+                    d.name
+                ) as department_name,
                 e.name as education,
                 COALESCE(NULLIF(TRIM(p.description), ''), p.name) as position_label
             ")
@@ -891,24 +900,48 @@ class PersonnelTableManager extends Component
 
     public function selectDepartmentInput($id): void
     {
-        $this->personnelForm['department'] = (string) $id;
+        $selected = (array) ($this->personnelForm['department'] ?? []);
+        $id = (string) $id;
+
+        if (in_array($id, $selected, true)) {
+            $this->personnelForm['department'] = array_values(array_filter(
+                $selected,
+                fn (string $departmentId): bool => $departmentId !== $id
+            ));
+        } else {
+            $selected[] = $id;
+            $this->personnelForm['department'] = array_values(array_unique($selected));
+        }
+
         $this->departmentSearchInput = '';
-        $this->showDepartmentDropdown = false;
     }
 
-    public function clearDepartmentInput(): void
+    public function clearDepartmentInput(?string $id = null): void
     {
-        $this->personnelForm['department'] = '';
+        if ($id === null) {
+            $this->personnelForm['department'] = [];
+
+            return;
+        }
+
+        $this->personnelForm['department'] = array_values(array_filter(
+            (array) ($this->personnelForm['department'] ?? []),
+            fn (string $departmentId): bool => $departmentId !== $id
+        ));
+    }
+
+    public function openLabDropdown(): void
+    {
+        $this->reloadLabs();
+        $this->showLabDropdown = true;
+        $this->applyLabSearchFilter();
     }
 
     public function searchLabs(): void
     {
+        $this->reloadLabs();
         $this->showLabDropdown = true;
-        $search = trim($this->labSearch);
-        $this->filteredLabs = array_values(array_filter(
-            $this->labs,
-            fn (array $item): bool => $search === '' || stripos($item['name'], $search) !== false
-        ));
+        $this->applyLabSearchFilter();
     }
 
     public function selectLab(string $labId): void
@@ -931,6 +964,7 @@ class PersonnelTableManager extends Component
 
     public function selectAllLabs(): void
     {
+        $this->reloadLabs();
         $this->personnelForm['lab_ids'] = array_column($this->labs, 'id');
         $this->labSearch = '';
         $this->showLabDropdown = false;
@@ -992,7 +1026,7 @@ class PersonnelTableManager extends Component
             'date_of_gazzette' => '',
             'gazzette_no' => '',
             'start_of_career' => '',
-            'department' => '',
+            'department' => [],
             'lab_ids' => [],
             'lab_section_id' => [],
             'active' => true,
@@ -1007,6 +1041,7 @@ class PersonnelTableManager extends Component
     private function primeAddModalDropdowns(): void
     {
         $this->reloadDepartments();
+        $this->reloadLabs();
         $this->filteredDesignations = $this->designations;
         $this->filteredEducationLevels = $this->educationLevels;
         $this->filteredPositions = $this->positions;
@@ -1014,6 +1049,77 @@ class PersonnelTableManager extends Component
         $this->filteredLabSections = $this->stages;
         $this->filteredLabs = $this->labs;
         $this->showLabDropdown = false;
+    }
+
+    private function reloadLabs(): void
+    {
+        $this->labsTableAvailable = Schema::hasTable('labs');
+
+        if (! $this->labsTableAvailable) {
+            $this->labs = [];
+            $this->filteredLabs = [];
+
+            return;
+        }
+
+        $companyId = getUserCompany();
+
+        $query = Lab::query()
+            ->where('active', true)
+            ->when($companyId, function ($builder) use ($companyId): void {
+                $builder->where(function ($inner) use ($companyId): void {
+                    $inner->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                });
+            })
+            ->orderBy('name');
+
+        $this->labs = $query
+            ->get(['id', 'name'])
+            ->map(fn ($item): array => [
+                'id' => (string) $item->id,
+                'name' => (string) $item->name,
+            ])
+            ->values()
+            ->toArray();
+
+        // If company scoping returned nothing, fall back to all active labs.
+        if ($this->labs === [] && $companyId) {
+            $this->labs = Lab::query()
+                ->where('active', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($item): array => [
+                    'id' => (string) $item->id,
+                    'name' => (string) $item->name,
+                ])
+                ->values()
+                ->toArray();
+        }
+
+        // Last resort: include inactive labs so assignment is never blocked by flagging.
+        if ($this->labs === []) {
+            $this->labs = Lab::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($item): array => [
+                    'id' => (string) $item->id,
+                    'name' => (string) $item->name,
+                ])
+                ->values()
+                ->toArray();
+        }
+
+        $this->applyLabSearchFilter();
+    }
+
+    private function applyLabSearchFilter(): void
+    {
+        $search = trim($this->labSearch);
+        $this->filteredLabs = array_values(array_filter(
+            $this->labs,
+            fn (array $item): bool => $search === '' || stripos($item['name'], $search) !== false
+        ));
     }
 
     private function reloadDepartments(): void
@@ -1082,7 +1188,8 @@ class PersonnelTableManager extends Component
                     'string',
                     Rule::exists('spatie_roles', 'id'),
                 ],
-                'personnelForm.department' => 'required|string|exists:inventory_departments,id',
+                'personnelForm.department' => 'required|array|min:1',
+                'personnelForm.department.*' => 'string|exists:inventory_departments,id',
             ]);
         }
 
