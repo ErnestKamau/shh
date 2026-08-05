@@ -533,7 +533,6 @@
         </div>
     </div>
     @endif
-</div>
 
 <style>
 .schedule-details-page {
@@ -917,3 +916,4 @@
     }
 }
 </style>
+</div>

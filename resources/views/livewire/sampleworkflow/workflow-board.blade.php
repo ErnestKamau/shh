@@ -1280,6 +1280,7 @@
 											<i class="mdi mdi-clipboard-check-outline mr-2"></i> Open Integrity Check
 										</button>
 									</li>
+									{{-- Accept sample hidden on Sample Integrity Check tab
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-action-approve-request"
@@ -1289,6 +1290,7 @@
 											<i class="mdi mdi-check-circle-outline mr-2"></i> Accept sample
 										</button>
 									</li>
+									--}}
 									<li>
 										<button type="button" class="dropdown-item"
 											data-sf-trigger="workflow-action-reject-request"
@@ -1477,12 +1479,14 @@
 											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openSampleIntegrityCheckPageFromSelection(ids); } })()">
 											<i class="mdi mdi-clipboard-check-outline mr-1"></i> Open Integrity Check
 										</button>
+										{{-- Accept sample hidden on Sample Integrity Check tab
 										<button type="button"
 											class="btn btn-sm btn-primary"
 											data-sf-trigger="workflow-action-approve-request"
 											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openAcceptSampleWizardFromSelection(ids); } })()">
 											<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
 										</button>
+										--}}
 										<button type="button"
 											class="btn btn-sm btn-outline-danger"
 											data-sf-trigger="workflow-action-reject-request"

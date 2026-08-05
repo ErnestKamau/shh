@@ -9,10 +9,24 @@ trait ResolvesAmSpecCompany
 {
     protected function resolveAmSpecCompany(): ?Company
     {
-        return Company::query()
-            ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
-            ->orWhere('active', true)
-            ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [AmSpecSeedData::DUBAI_COMPANY_ID])
+        $preferredIds = [
+            AmSpecSeedData::DUBAI_COMPANY_ID,
+            AmSpecSeedData::BRAZIL_COMPANY_ID,
+        ];
+
+        $byPreferredId = Company::query()
+            ->whereIn('id', $preferredIds)
+            ->orderByRaw('CASE WHEN id = ? THEN 0 WHEN id = ? THEN 1 ELSE 2 END', $preferredIds)
             ->first();
+
+        if ($byPreferredId !== null) {
+            return $byPreferredId;
+        }
+
+        return Company::query()
+            ->where('active', true)
+            ->orderBy('created_at')
+            ->first()
+            ?? Company::query()->orderBy('created_at')->first();
     }
 }

@@ -4,10 +4,10 @@ namespace App\Console\Commands;
 
 use App\Company;
 use App\Console\Support\AmSpecCompanyCleanupTargets;
-use App\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class DeleteLegacyAmSpecCompaniesCommand extends Command
@@ -15,9 +15,9 @@ class DeleteLegacyAmSpecCompaniesCommand extends Command
     protected $signature = 'companies:delete-legacy-amspec
                             {--force : Actually delete the legacy AmSpec companies}
                             {--dry-run : List matching companies without deleting}
-                            {--reassign-to= : Company ID to move users onto before delete (defaults to the remaining active company)}';
+                            {--reassign-to= : Company ID to move owned rows onto before delete (defaults to the remaining active company)}';
 
-    protected $description = 'Delete legacy AmSpec companies (AmSpec + AmSpec Rio Crude Oil Center), reassigning users first to avoid CASCADE user wipes';
+    protected $description = 'Delete legacy AmSpec companies (AmSpec + AmSpec Rio Crude Oil Center), reassigning CASCADE-owned rows first to avoid wiping sample types / analysis data / users';
 
     public function handle(): int
     {
@@ -32,12 +32,14 @@ class DeleteLegacyAmSpecCompaniesCommand extends Command
             return self::SUCCESS;
         }
 
+        $fromIds = $companies->pluck('id')->map(fn ($id) => (string) $id)->all();
+
         $this->info('Legacy companies targeted for deletion:');
         $this->renderCompanyTable($companies);
 
         $reassignTo = $this->resolveReassignCompanyId($targetIds);
         if ($reassignTo === null) {
-            $this->error('Could not resolve a surviving company to reassign users onto. Pass --reassign-to=<uuid>.');
+            $this->error('Could not resolve a surviving company to reassign data onto. Pass --reassign-to=<uuid>.');
 
             return self::FAILURE;
         }
@@ -49,15 +51,15 @@ class DeleteLegacyAmSpecCompaniesCommand extends Command
             return self::FAILURE;
         }
 
-        $userCount = User::query()->whereIn('company_id', $companies->pluck('id')->all())->count();
-        $this->info("Users currently on targeted companies: {$userCount}");
-        $this->info("Will reassign those users to: {$keepCompany->name} ({$keepCompany->id})");
+        $this->info("Will reassign CASCADE-owned rows to: {$keepCompany->name} ({$keepCompany->id})");
+        $plannedMoves = $this->countCascadeOwnedRows($fromIds);
+        $this->renderReassignmentPlan($plannedMoves);
 
         if ($this->option('dry-run')) {
             foreach ($companies as $company) {
                 $this->line("[dry-run] Would delete {$company->name} ({$company->id})");
             }
-            $this->comment("Dry-run complete. Would delete {$companies->count()} company(ies) after reassigning {$userCount} user(s).");
+            $this->comment('Dry-run complete. No rows were modified.');
 
             return self::SUCCESS;
         }
@@ -69,16 +71,10 @@ class DeleteLegacyAmSpecCompaniesCommand extends Command
         }
 
         $deleted = 0;
-        $failed = 0;
 
         try {
-            DB::connection('pgsql')->transaction(function () use ($companies, $reassignTo, $userCount, &$deleted): void {
-                if ($userCount > 0) {
-                    $moved = User::query()
-                        ->whereIn('company_id', $companies->pluck('id')->all())
-                        ->update(['company_id' => $reassignTo]);
-                    $this->info("Reassigned {$moved} user(s).");
-                }
+            DB::connection('pgsql')->transaction(function () use ($companies, $fromIds, $reassignTo, &$deleted): void {
+                $this->reassignCascadeOwnedRows($fromIds, $reassignTo);
 
                 foreach ($companies as $company) {
                     $company->delete();
@@ -87,16 +83,118 @@ class DeleteLegacyAmSpecCompaniesCommand extends Command
                 }
             });
         } catch (Throwable $exception) {
-            $failed = $companies->count() - $deleted;
-            $this->error('Company delete failed: '.$exception->getMessage());
+            $this->error('Company delete failed (transaction rolled back): '.$exception->getMessage());
+            $this->warn('No companies were deleted. Fix conflicts (often duplicate codes on the destination company) and retry.');
 
             return self::FAILURE;
         }
 
         $this->newLine();
-        $this->info("Deleted {$deleted} company(ies); failed {$failed}.");
+        $this->info("Deleted {$deleted} company(ies).");
 
-        return $failed > 0 ? self::FAILURE : self::SUCCESS;
+        return self::SUCCESS;
+    }
+
+    /**
+     * @param  list<string>  $fromIds
+     * @return array<string, int>
+     */
+    protected function countCascadeOwnedRows(array $fromIds): array
+    {
+        $counts = [];
+
+        foreach ($this->companyCascadeTables() as $table) {
+            $count = (int) DB::connection('pgsql')
+                ->table($table)
+                ->whereIn('company_id', $fromIds)
+                ->count();
+
+            if ($count > 0) {
+                $counts[$table] = $count;
+            }
+        }
+
+        ksort($counts);
+
+        return $counts;
+    }
+
+    /**
+     * @param  array<string, int>  $plannedMoves
+     */
+    protected function renderReassignmentPlan(array $plannedMoves): void
+    {
+        if ($plannedMoves === []) {
+            $this->line('No CASCADE-owned rows found on targeted companies.');
+
+            return;
+        }
+
+        $this->table(
+            ['Table', 'Rows to reassign'],
+            collect($plannedMoves)->map(fn (int $count, string $table): array => [$table, $count])->values()->all()
+        );
+    }
+
+    /**
+     * @param  list<string>  $fromIds
+     */
+    protected function reassignCascadeOwnedRows(array $fromIds, string $toCompanyId): void
+    {
+        foreach ($this->companyCascadeTables() as $table) {
+            $moved = DB::connection('pgsql')
+                ->table($table)
+                ->whereIn('company_id', $fromIds)
+                ->update(['company_id' => $toCompanyId]);
+
+            if ($moved > 0) {
+                $this->line("  Reassigned {$moved} {$table} row(s)");
+            }
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function companyCascadeTables(): array
+    {
+        $rows = DB::connection('pgsql')->select("
+            SELECT DISTINCT tc.table_name
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.key_column_usage AS kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage AS ccu
+                ON ccu.constraint_name = tc.constraint_name
+                AND ccu.table_schema = tc.table_schema
+            JOIN information_schema.referential_constraints AS rc
+                ON tc.constraint_name = rc.constraint_name
+                AND tc.table_schema = rc.constraint_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_schema = 'public'
+                AND ccu.table_name = 'companies'
+                AND kcu.column_name = 'company_id'
+                AND rc.delete_rule = 'CASCADE'
+            ORDER BY tc.table_name
+        ");
+
+        $tables = [];
+
+        foreach ($rows as $row) {
+            $table = (string) $row->table_name;
+            if ($table === 'companies') {
+                continue;
+            }
+            if (! Schema::connection('pgsql')->hasTable($table)) {
+                continue;
+            }
+            if (! Schema::connection('pgsql')->hasColumn($table, 'company_id')) {
+                continue;
+            }
+            $tables[] = $table;
+        }
+
+        return $tables;
     }
 
     /**

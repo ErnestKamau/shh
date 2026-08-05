@@ -58,6 +58,7 @@ class DatabaseSeeder extends Seeder
             // Keep MAS translations last so migrated MAS keys win on overlap.
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,
+            UsersSeeder::class,
             LaboratoryServiceRequestFormSeeder::class,
             ClearsSampleWorkflowDataSeeder::class,
             Phase1FoundationSeeder::class,
