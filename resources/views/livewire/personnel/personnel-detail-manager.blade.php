@@ -419,11 +419,10 @@
                                 @error('selectedDepartmentIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                             <div class="col-md-4">
-                                <div class="form-group mb-2">
-                                    <label class="mb-2 d-block">Technical User</label>
-                                    <div class="form-check">
+                                    <div class="form-group mb-2">
+                                    <div class="form-check mt-4">
                                         <input class="form-check-input" type="checkbox" id="detailsIsTechnical" wire:model.live="detailsIsTechnical">
-                                        <label class="form-check-label" for="detailsIsTechnical">Support / sandbox user (separate job numbering)</label>
+                                        <label class="form-check-label" for="detailsIsTechnical">Technical User/Support</label>
                                     </div>
                                     @error('detailsIsTechnical')<small class="text-danger d-block">{{ $message }}</small>@enderror
                                 </div>

@@ -522,10 +522,10 @@
                                                         </label>
                                                     </div>
                                                     <div class="form-group mb-0 ptm-check-group flex-fill">
-                                                        <label class="control-label d-block">Technical User</label>
+                                                        <label class="control-label d-block">Technical User/Support</label>
                                                         <label class="ptm-check-card mb-0">
                                                             <input type="checkbox" wire:model="personnelForm.is_technical" />
-                                                            <span>Technical</span>
+                                                            <span>Technical User/Support</span>
                                                         </label>
                                                     </div>
                                                 </div>
