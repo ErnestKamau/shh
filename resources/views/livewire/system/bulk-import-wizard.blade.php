@@ -336,6 +336,31 @@
                             </div>
                         @endif
 
+                        @if ($selectedFormType === 'customer')
+                            <div class="alert alert-danger mb-4">
+                                <strong>Replace existing customers</strong>
+                                <p class="mb-2 small">
+                                    When enabled, all CRM customers in the system are permanently deleted before import,
+                                    including contacts, units, sample points, pricelist assignments, and linked invoices.
+                                    Sample batches and other records tied to those customers may also be removed by database rules.
+                                    Portal user accounts are unlinked but not deleted. New rows are imported into your active company.
+                                </p>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_customers">
+                                    <label class="form-check-label" for="replace_existing_customers">
+                                        Delete all existing customers before import
+                                    </label>
+                                </div>
+                                @if ($replaceExisting)
+                                    <div class="mb-0">
+                                        <label class="form-label" for="purge_confirmation_customers">Type <code>DELETE ALL CUSTOMERS</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_customers" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL CUSTOMERS">
+                                        @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
                         <form wire:submit.prevent="uploadFile()">
                             @if ($selectedFormType === 'user' || $selectedFormType === 'inventory')
                                 <div class="mb-4 text-start">

@@ -137,6 +137,11 @@ class BulkImportService
                     ->purgeForCompany((string) $batch->company_id);
             }
 
+            if ($replaceExisting && $batch->module === 'crm' && $batch->form_type === 'customer') {
+                $purgeSummary = app(\App\Services\CRM\CustomerPurgeService::class)
+                    ->purgeAll();
+            }
+
             $importerClass = $this->getImporterClass($batch->module, $batch->form_type);
             
             if (!class_exists($importerClass)) {

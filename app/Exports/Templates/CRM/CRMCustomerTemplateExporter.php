@@ -11,6 +11,7 @@ class CRMCustomerTemplateExporter extends ExcelTemplateGenerator
         return [
             'name*',
             'customer_code*',
+            'client_code',
             'physical_address',
             'email*',
             'phone1*',
