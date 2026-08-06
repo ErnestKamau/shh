@@ -132,6 +132,11 @@ class BulkImportService
                     ->purgeAnalytesForCompany((string) $batch->company_id);
             }
 
+            if ($replaceExisting && $batch->module === 'equipment' && $batch->form_type === 'equipment') {
+                $purgeSummary = app(\App\Services\Equipment\EquipmentPurgeService::class)
+                    ->purgeForCompany((string) $batch->company_id);
+            }
+
             $importerClass = $this->getImporterClass($batch->module, $batch->form_type);
             
             if (!class_exists($importerClass)) {

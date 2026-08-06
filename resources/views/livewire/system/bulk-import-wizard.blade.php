@@ -312,8 +312,32 @@
                             </div>
                         @endif
 
+                        @if ($selectedFormType === 'equipment')
+                            <div class="alert alert-danger mb-4">
+                                <strong>Replace existing equipment</strong>
+                                <p class="mb-2 small">
+                                    When enabled, all equipment records for your company are permanently deleted before import,
+                                    including calibration/maintenance logs and other equipment-linked records.
+                                    Asset types and asset locations are kept.
+                                </p>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="replaceExisting" class="form-check-input" id="replace_existing_equipment">
+                                    <label class="form-check-label" for="replace_existing_equipment">
+                                        Delete all existing equipment before import
+                                    </label>
+                                </div>
+                                @if ($replaceExisting)
+                                    <div class="mb-0">
+                                        <label class="form-label" for="purge_confirmation_equipment">Type <code>DELETE ALL EQUIPMENT</code> or your company name to confirm</label>
+                                        <input type="text" id="purge_confirmation_equipment" wire:model="purgeConfirmation" class="form-control" placeholder="DELETE ALL EQUIPMENT">
+                                        @error('purgeConfirmation') <span class="text-danger small">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
                         <form wire:submit.prevent="uploadFile()">
-                            @if ($selectedFormType === 'user' || $selectedFormType === 'equipment' || $selectedFormType === 'inventory')
+                            @if ($selectedFormType === 'user' || $selectedFormType === 'inventory')
                                 <div class="mb-4 text-start">
                                     <label class="form-label">
                                         <strong>Associate with Zone (Optional)</strong>

@@ -21,6 +21,7 @@ class BulkImportWizard extends Component
         'analyte',
         'analysis_method',
         'lab_hierarchy',
+        'equipment',
     ];
 
     public int $currentStep = 1;
@@ -187,6 +188,7 @@ class BulkImportWizard extends Component
             'analysis_method' => 'DELETE ALL METHODS',
             'analysis_type' => 'DELETE ALL SAMPLE AND ANALYSIS TYPES',
             'analyte' => 'DELETE ALL ANALYTES',
+            'equipment' => 'DELETE ALL EQUIPMENT',
             'amspec_parameters', 'lab_hierarchy' => 'DELETE ALL LAB DATA',
             default => 'CONFIRM REPLACE',
         };
