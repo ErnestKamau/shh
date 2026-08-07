@@ -839,7 +839,7 @@ abstract class BaseImporter implements
 
     /**
      * Resolve one or more equipment ids from code/name cells.
-     * Name cells may list multiple items separated by commas or slashes.
+     * Name cells may list multiple items separated by commas, pipes, or semicolons.
      *
      * @return list<string>
      */
@@ -889,14 +889,9 @@ abstract class BaseImporter implements
 
         $raw = trim($raw);
 
-        // Keep equipment numbers like AMS/M/INS/037 intact.
-        $looksLikeNumberList = (bool) preg_match('/\bAMS\s*\/|[A-Z]{2,}\/[A-Z0-9]+\/[A-Z0-9]+/i', $raw);
-
-        if ($looksLikeNumberList) {
-            $tokens = preg_split('/[,|;]+/', $raw) ?: [];
-        } else {
-            $tokens = preg_split('/[,\/|;]+/', $raw) ?: [];
-        }
+        // Equipment names/numbers often contain slashes (LC-MS/MS, AMS/M/INS/037).
+        // Split only on explicit list separators — not "/".
+        $tokens = preg_split('/[,|;]+/', $raw) ?: [];
 
         $normalized = [];
         foreach ($tokens as $token) {

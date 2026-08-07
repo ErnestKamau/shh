@@ -45,6 +45,15 @@ final class CustomerPurgeService
      * @param  list<string>  $customerIds
      * @return array<string, int>
      */
+    public function purgeByIds(array $customerIds): array
+    {
+        return $this->purgeCustomerIds($customerIds);
+    }
+
+    /**
+     * @param  list<string>  $customerIds
+     * @return array<string, int>
+     */
     private function purgeCustomerIds(array $customerIds): array
     {
         $summary = [

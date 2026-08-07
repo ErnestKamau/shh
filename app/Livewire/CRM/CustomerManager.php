@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Services\Commercial\AccountPaymentTermsService;
+use App\Services\CRM\CustomerPurgeService;
 
 class CustomerManager extends Component
 {
@@ -307,19 +308,15 @@ class CustomerManager extends Component
         }
 
         try {
-            DB::beginTransaction();
-            
-            CRMCustomer::whereIn('id', $this->selectedCustomers)->delete();
-            
-            DB::commit();
-            
+            app(CustomerPurgeService::class)->purgeByIds(
+                array_map(static fn ($id): string => (string) $id, $this->selectedCustomers)
+            );
+
             $this->selectedCustomers = [];
             $this->selectAll = false;
             $this->message = 'Selected customers deleted successfully!';
             $this->messageType = 'success';
-
         } catch (\Exception $e) {
-            DB::rollBack();
             $this->message = 'Error: ' . $e->getMessage();
             $this->messageType = 'error';
         }
@@ -807,28 +804,13 @@ class CustomerManager extends Component
     public function deleteCustomer($id)
     {
         try {
-            DB::beginTransaction();
+            CRMCustomer::findOrFail($id);
 
-            $customer = CRMCustomer::findOrFail($id);
-            
-            // Soft delete - set active to 0
-            $customer->active = 0;
-            $customer->save();
+            app(CustomerPurgeService::class)->purgeByIds([(string) $id]);
 
-            // Cascade effects on related entities
-            $customer->contacts()->update(['active' => 0]);
-            $customer->units()->update(['active' => 0]);
-            
-            // Update related users
-            \App\User::where('client_id', $customer->id)->update(['active' => 0]);
-
-            DB::commit();
-            
             $this->message = 'Customer deleted successfully!';
             $this->messageType = 'success';
-
         } catch (\Exception $e) {
-            DB::rollBack();
             $this->message = 'Error: ' . $e->getMessage();
             $this->messageType = 'error';
         }

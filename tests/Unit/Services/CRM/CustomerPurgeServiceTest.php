@@ -84,6 +84,32 @@ class CustomerPurgeServiceTest extends TestCase
         $this->assertSame(0, CRMCustomer::query()->count());
     }
 
+    public function test_purge_by_ids_removes_only_requested_customers(): void
+    {
+        $companyId = (string) Str::uuid();
+        $keepCompanyId = (string) Str::uuid();
+
+        $deleteCustomer = CRMCustomer::query()->create([
+            'name' => 'Delete Me',
+            'code' => 'DEL-001',
+            'company_id' => $companyId,
+            'active' => 1,
+        ]);
+
+        CRMCustomer::query()->create([
+            'name' => 'Keep Me',
+            'code' => 'KEEP-001',
+            'company_id' => $keepCompanyId,
+            'active' => 1,
+        ]);
+
+        $summary = app(CustomerPurgeService::class)->purgeByIds([(string) $deleteCustomer->id]);
+
+        $this->assertSame(1, $summary['customers']);
+        $this->assertDatabaseMissing('crm_customers', ['id' => $deleteCustomer->id]);
+        $this->assertSame(1, CRMCustomer::query()->count());
+    }
+
     public function test_purge_for_company_returns_zero_counts_when_no_customers_exist(): void
     {
         $summary = app(CustomerPurgeService::class)->purgeForCompany((string) Str::uuid());
