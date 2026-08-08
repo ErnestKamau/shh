@@ -1655,7 +1655,7 @@ class SampleWorkFlowController extends Controller
                             ccu.name AS customer_crm_unit
                         FROM sample_headers sh
                         JOIN sample_details sd ON sh.id = sd.sample_header_id
-                        JOIN crm_customers cc ON sh.crm_customer_id = cc.id
+                        LEFT JOIN crm_customers cc ON sh.crm_customer_id = cc.id
                         JOIN sample_types st ON sh.sample_type_id = st.id
                         LEFT JOIN company_products cp ON sd.company_product_id = cp.id
                         LEFT JOIN sample_conditions sc ON sd.sample_condition_id = sc.id

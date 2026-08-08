@@ -292,6 +292,21 @@
     .sample-ref-grid {
         margin-bottom: 4px;
     }
+    .sample-detail-grid {
+        margin-top: 6px;
+        margin-bottom: 4px;
+    }
+    .lab-section-banner {
+        margin-bottom: 6px;
+    }
+    .lab-section-banner td:not(.dlbl) {
+        font-weight: bold;
+    }
+    .trr-sample-block + .trr-sample-block {
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 1px dashed #d0d0d0;
+    }
 
     /* ── RESULTS TABLE ──────────────────────────── */
     .results-table {
@@ -767,6 +782,12 @@
         margin-bottom: 3px;
         page-break-after: avoid;
     }
+    .trr-sample-block + .trr-sample-block {
+        page-break-before: always;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+    }
     .results-table {
         font-size: 9px;
         margin-bottom: 6px;
@@ -947,110 +968,12 @@
         </div>
         @endif
 
-        {{-- ══════════════ DETAIL GRID (omit unfilled TRF fields) ══════════════ --}}
-        @php
-            $isDetailFieldFilled = static function (mixed $value): bool {
-                $normalized = trim((string) ($value ?? ''));
-
-                if ($normalized === '' || $normalized === '-' || $normalized === '—') {
-                    return false;
-                }
-
-                return ! in_array(strtolower($normalized), ['n/a', 'na', 'ns', 'null'], true);
-            };
-
-            $detailGridFields = [];
-            $pushDetailField = static function (string $label, mixed $value, bool $emphasize = false) use (&$detailGridFields, $isDetailFieldFilled): void {
-                if (! $isDetailFieldFilled($value)) {
-                    return;
-                }
-
-                $detailGridFields[] = [
-                    'label' => $label,
-                    'value' => $value,
-                    'emphasize' => $emphasize,
-                ];
-            };
-
-            $pushDetailField($labels['report_no'], $reportNumber, true);
-            $pushDetailField($labels['sample_no'], $batch->batch_code);
-            $pushDetailField(
-                $labels['date_received'],
-                $dateReceived ?? ($batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : null)
-            );
-            $pushDetailField($labels['date_reported'], date('d/m/Y'));
-            $pushDetailField($labels['container_type'], $containerType ?? null);
-            $pushDetailField(
-                $labels['sample_description'],
-                $sampleDescription ?? strip_tags($batch->description ?? '')
-            );
-            $pushDetailField($labels['weight'], $sampleWeight ?? null);
-            $pushDetailField(
-                $labels['sampled_by'],
-                $batch->sampling_officer_name ?? ($batch->receivingofficer?->name ?? null)
-            );
-            $pushDetailField($labels['sample_temperature'], $sampleTemperature ?? null);
-            $pushDetailField($labels['sample_preservation'], $samplePreservation ?? null);
-            $pushDetailField($labels['production_date'], $mfgDate ?? null);
-            $pushDetailField($labels['expiry_date'], $expiryDate ?? null);
-            $pushDetailField($labels['lot_no'], $batchLotNo ?? null);
-            $pushDetailField($labels['no_of_pages'], str_pad((string) $totalPages, 2, '0', STR_PAD_LEFT));
-            $pushDetailField($labels['date_of_analysis'] . ' Start', $analysisStartDate ?? null);
-            $pushDetailField($labels['date_of_analysis'] . ' End', $analysisEndDate ?? null);
-            $pushDetailField($labels['packaging'] ?? 'Packaging', $trfCollectionExtras['packaging'] ?? null);
-            $pushDetailField($labels['sample_information'] ?? 'Sample information', $trfCollectionExtras['sample_information'] ?? null);
-            $pushDetailField($labels['sample_weight'] ?? 'Sample weight', $trfCollectionExtras['sample_weight'] ?? null);
-            $pushDetailField($labels['ship_name'] ?? 'Ship / vessel', $trfCollectionExtras['ship_name'] ?? null);
-            $pushDetailField($labels['port_of_loading'] ?? 'Port of loading', $trfCollectionExtras['port_of_loading'] ?? null);
-            $pushDetailField($labels['port_of_discharge'] ?? 'Port of discharge', $trfCollectionExtras['port_of_discharge'] ?? null);
-            $pushDetailField($labels['seal_number'] ?? 'Seal number', $trfCollectionExtras['seal_number'] ?? null);
-
-            $detailGridRows = array_chunk($detailGridFields, 2);
-        @endphp
-        <table class="detail-grid">
-            @include('layouts.lab.sample-workflow.report-formats.partials.trr-detail-grid-cols')
-            @foreach($detailGridRows as $pair)
-            <tr>
-                <td class="dlbl">{{ $pair[0]['label'] }}</td>
-                @if(isset($pair[1]))
-                <td @class(['val-emphasize' => !empty($pair[0]['emphasize'])])>{{ $pair[0]['value'] }}</td>
-                <td class="dlbl">{{ $pair[1]['label'] }}</td>
-                <td @class(['val-emphasize' => !empty($pair[1]['emphasize'])])>{{ $pair[1]['value'] }}</td>
-                @else
-                <td colspan="3" @class(['val-emphasize' => !empty($pair[0]['emphasize'])])>{{ $pair[0]['value'] }}</td>
-                @endif
-            </tr>
-            @endforeach
-        </table>
-
-        {{-- ══════════════ TEST RESULTS ══════════════ --}}
+        {{-- ══════════════ TEST RESULTS (one section per sample) ══════════════ --}}
         @forelse ($samples as $sample)
-
-            {{-- Per-sample subheader --}}
-            <table class="detail-grid sample-ref-grid">
-                @include('layouts.lab.sample-workflow.report-formats.partials.trr-detail-grid-cols')
-                <tr>
-                    <td class="dlbl">{{ $labels['sample_reference'] }}</td>
-                    <td class="detail-val"><strong>{{ format_sample_code($sample->sample_code) }}</strong></td>
-                    @php
-                        $samplePointValue = $samplePointByIndex[$loop->index] ?? ($sample->sample_point_name ?? null);
-                        $samplePointFilled = filled(trim((string) ($samplePointValue ?? '')))
-                            && ! in_array(trim((string) $samplePointValue), ['-', '—'], true);
-                    @endphp
-                    @if($samplePointFilled)
-                    <td class="dlbl">{{ $labels['sample_point'] }}</td>
-                    <td class="detail-val">{{ $samplePointValue }}</td>
-                    @else
-                    <td colspan="2">&nbsp;</td>
-                    @endif
-                </tr>
-                @if($sample->sample_condition_name)
-                <tr>
-                    <td class="dlbl">{{ $labels['condition'] }}</td>
-                    <td colspan="3">{{ $sample->sample_condition_name }}</td>
-                </tr>
-                @endif
-            </table>
+            <div @class(['trr-sample-block' => true, 'trr-sample-block-first' => $loop->first])>
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-sample-detail-grid', [
+                'sampleIndex' => $loop->index,
+            ])
 
             <table class="results-table">
                 <thead>
@@ -1059,16 +982,16 @@
                             $includeReferenceMethod = !empty($includeReferenceMethod);
                             $resultsColspan = $includeReferenceMethod ? 9 : 8;
                         @endphp
-                        <th style="width:{{ $includeReferenceMethod ? '16%' : '18%' }}">{{ $labels['analyte'] }}</th>
-                        <th style="width:12%">{{ $labels['lab_section'] ?? 'Lab Section' }}</th>
-                        <th style="width:9%">{{ $labels['results'] }}</th>
-                        <th style="width:6%">{{ $labels['unit'] }}</th>
-                        <th style="width:10%">{{ $labels['specification'] }}</th>
-                        <th style="width:10%">{{ $labels['standard_name'] ?? 'Standard Name' }}</th>
+                        <th style="width:{{ $includeReferenceMethod ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
+                        <th style="width:10%">{{ $labels['results'] }}</th>
+                        <th style="width:7%">{{ $labels['unit'] }}</th>
+                        <th style="width:7%">{{ $labels['loq'] ?? 'LOQ' }}</th>
+                        <th style="width:12%">{{ $labels['specification'] }}</th>
+                        <th style="width:12%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
                         <th style="width:6%">{{ $labels['mu_percent'] }}</th>
-                        <th style="width:{{ $includeReferenceMethod ? '14%' : '19%' }}">{{ $labels['method'] }}</th>
+                        <th style="width:{{ $includeReferenceMethod ? '17%' : '19%' }}">{{ $labels['method'] }}</th>
                         @if($includeReferenceMethod)
-                        <th style="width:15%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
+                        <th style="width:14%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
                         @endif
                     </tr>
                 </thead>
@@ -1079,10 +1002,6 @@
                     @endphp
                     @foreach ($sample->getSampleByAnalysisType() as $atLevel)
                         @php $captured_results = $atLevel->getCapturedResults(); @endphp
-                        @if($captured_results->count() > 0)
-                        <tr class="analysis-group">
-                            <td colspan="{{ $resultsColspan }}">{{ $atLevel->analysis_type_name ?? 'General' }}</td>
-                        </tr>
                         @foreach ($captured_results as $cr)
                             @php
                                 $hasRows = true;
@@ -1093,11 +1012,11 @@
                                 <td>
                                     {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
                                 </td>
-                                <td>{{ $cr->labSection->name ?? '-' }}</td>
                                 <td class="{{ isset($cr->remark) && strtoupper($cr->remark) == 'FAIL' ? 'fail' : '' }}">
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
+                                <td>{{ $loqByCapturedResultId[$cr->id] ?? '-' }}</td>
                                 <td>
                                     {{ $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
                                 </td>
@@ -1105,13 +1024,12 @@
                                     {{ $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
                                 </td>
                                 <td>{{ $measureUncertaintyByCapturedResultId[$cr->id] ?? '-' }}</td>
-                                <td>{{ strtoupper($cr->method()->name ?? ($cr->ltmethod->name ?? '-')) }}</td>
+                                <td>{{ strtoupper($cr->method()?->name ?? $cr->ltmethod?->name ?? '-') }}</td>
                                 @if($includeReferenceMethod)
                                 <td>{{ $referenceMethodName ? strtoupper($referenceMethodName) : '-' }}</td>
                                 @endif
                             </tr>
                         @endforeach
-                        @endif
                     @endforeach
                     @if(!$hasRows)
                     <tr>
@@ -1138,6 +1056,8 @@
                 <strong>Notes:</strong> {!! $sample->notes_body !!}
             </div>
             @endif
+
+            </div>{{-- .trr-sample-block --}}
 
         @empty
             <div style="padding:14px 0;font-style:italic;color:#888;">{{ $labels['no_samples'] }}</div>
