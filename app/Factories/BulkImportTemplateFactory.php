@@ -533,7 +533,7 @@ class BulkImportTemplateFactory
             ],
             'crm' => [
                 'customer' => [
-                    'headers' => ['name*', 'customer_code*', 'physical_address', 'email*', 'phone1*', 'phone2', 'country_code*', 'vat_no', 'credit_days', 'currency_code*', 'lpos_required'],
+                    'headers' => ['name*', 'customer_code*', 'client_code', 'physical_address', 'email*', 'phone1*', 'phone2', 'country_code*', 'vat_no', 'credit_days', 'currency_code*', 'lpos_required'],
                     'examples' => [
                         ['Acme Corporation', 'CUST-001', '123 Business St', 'contact@acme.com', '+1234567890', '+0987654321', 'US', '123456789', '30', 'USD', 1],
                     ],

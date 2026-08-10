@@ -122,7 +122,7 @@ class AnalyteImporter extends BaseImporter
             );
 
             if ($equipmentIds !== []) {
-                $analyte->equipmentItems()->syncWithoutDetaching($equipmentIds);
+                $analyte->equipmentItems()->sync($equipmentIds);
             }
 
             $methodIds = $this->resolveAndCreateMethodIds($referenceMethod, $testMethodSop, $methodVersion);
