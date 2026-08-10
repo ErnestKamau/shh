@@ -6,30 +6,38 @@
 
     $showLoqColumn = (bool) ($showLoqColumn ?? true);
     $showMuColumn = (bool) ($showMuColumn ?? true);
+    $showTatColumn = (bool) ($showTatColumn ?? true);
+    $showQuantityColumn = (bool) ($showQuantityColumn ?? true);
     $showUnitPriceColumn = (bool) ($showUnitPriceColumn ?? true);
 
-    // S.No. | Tests | Test Method | [LOQ] | [MU%] | [Unit Price]
+    // S.No. | Tests | Test Method | [LOQ] | [MU%] | [TAT] | [Qty] | [Unit Price]
     $columnCount = 3
         + ($showLoqColumn ? 1 : 0)
         + ($showMuColumn ? 1 : 0)
+        + ($showTatColumn ? 1 : 0)
+        + ($showQuantityColumn ? 1 : 0)
         + ($showUnitPriceColumn ? 1 : 0);
     $labelColspan = max(1, $columnCount - 1);
 
     $wSno = 7.0;
-    $wTests = 28.0;
-    $wMethod = 24.0;
+    $wTests = 26.0;
+    $wMethod = 22.0;
     $optionalShare = 100.0 - $wSno - $wTests - $wMethod;
-    $optionalCount = ($showLoqColumn ? 1 : 0) + ($showMuColumn ? 1 : 0) + ($showUnitPriceColumn ? 1 : 0);
+    $optionalCount = ($showLoqColumn ? 1 : 0) + ($showMuColumn ? 1 : 0) + ($showTatColumn ? 1 : 0) + ($showQuantityColumn ? 1 : 0) + ($showUnitPriceColumn ? 1 : 0);
     if ($optionalCount === 0) {
         $wTests += $optionalShare * 0.55;
         $wMethod += $optionalShare * 0.45;
         $wLoq = 0.0;
         $wMu = 0.0;
+        $wTat = 0.0;
+        $wQty = 0.0;
         $wPrice = 0.0;
     } else {
         $each = $optionalShare / $optionalCount;
         $wLoq = $showLoqColumn ? $each : 0.0;
         $wMu = $showMuColumn ? $each : 0.0;
+        $wTat = $showTatColumn ? $each : 0.0;
+        $wQty = $showQuantityColumn ? $each : 0.0;
         $wPrice = $showUnitPriceColumn ? $each : 0.0;
     }
 
@@ -54,6 +62,12 @@
         @if($showMuColumn)
             <col class="amspec-col-num" style="width: {{ $wMu }}%;">
         @endif
+        @if($showTatColumn)
+            <col class="amspec-col-num" style="width: {{ $wTat }}%;">
+        @endif
+        @if($showQuantityColumn)
+            <col class="amspec-col-num" style="width: {{ $wQty }}%;">
+        @endif
         @if($showUnitPriceColumn)
             <col class="amspec-col-price" style="width: {{ $wPrice }}%;">
         @endif
@@ -73,6 +87,18 @@
                 <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wMu) }}">
                     MU%
                     <span class="amspec-th-sub">(Option to add)</span>
+                </th>
+            @endif
+            @if($showTatColumn)
+                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wTat) }}">
+                    TAT
+                    <span class="amspec-th-sub">(days)</span>
+                </th>
+            @endif
+            @if($showQuantityColumn)
+                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wQty) }}">
+                    Qty
+                    <span class="amspec-th-sub">(samples)</span>
                 </th>
             @endif
             @if($showUnitPriceColumn)
@@ -109,6 +135,7 @@
                         $packageParameters = array_values(array_filter(
                             array_map('strval', (array) ($row['package_parameters'] ?? []))
                         ));
+                        $rowTat = $row['tat'] ?? null;
                     @endphp
                     <tr class="amspec-test-row" @if($isPackageHeader) style="background-color: #f8fafc;" @endif>
                         <td class="text-center amspec-num-cell">{{ $serialNo }}</td>
@@ -124,6 +151,18 @@
                         @endif
                         @if($showMuColumn)
                             <td class="text-center amspec-num-cell">{{ $row['mu_percent'] ?? '' }}</td>
+                        @endif
+                        @if($showTatColumn)
+                            <td class="text-center amspec-num-cell">
+                                @if($rowTat !== null && (int) $rowTat > 0)
+                                    {{ (int) $rowTat }}
+                                @endif
+                            </td>
+                        @endif
+                        @if($showQuantityColumn)
+                            <td class="text-center amspec-num-cell">
+                                {{ max(1, (int) ($row['quantity'] ?? 1)) }}
+                            </td>
                         @endif
                         @if($showUnitPriceColumn)
                             <td class="text-right amspec-price-cell">

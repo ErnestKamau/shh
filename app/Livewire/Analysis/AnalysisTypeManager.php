@@ -129,8 +129,8 @@ class AnalysisTypeManager extends Component
     ];
 
     protected $messages = [
-        'analysisTypeForm.name.required' => 'Analysis type name is required.',
-        'analysisTypeForm.code.required' => 'Analysis type code is required.',
+        'analysisTypeForm.name.required' => 'Matrix sub category name is required.',
+        'analysisTypeForm.code.required' => 'Matrix sub category code is required.',
         'analysisTypeForm.lab_ids.required' => 'At least one lab is required.',
         'analysisTypeForm.lab_ids.min' => 'At least one lab is required.',
         'analysisTypeForm.lab_section_id.required' => 'Lab section is required.',
@@ -342,7 +342,7 @@ class AnalysisTypeManager extends Component
                 $this->syncAnalysisTypeLabs($analysisType, $selectedLabIds);
                 $this->cascadeLabSectionToChildren($analysisType);
                 
-                $this->message = 'Analysis type updated successfully!';
+                $this->message = 'Matrix sub category updated successfully!';
             } else {
                 $analysisType = AnalysisType::create([
                     'name' => $this->analysisTypeForm['name'],
@@ -369,7 +369,7 @@ class AnalysisTypeManager extends Component
                 $this->syncAnalysisTypeLabs($analysisType, $selectedLabIds);
                 $this->cascadeLabSectionToChildren($analysisType);
                 
-                $this->message = 'Analysis type created successfully!';
+                $this->message = 'Matrix sub category created successfully!';
             }
 
             DB::commit();
@@ -395,7 +395,7 @@ class AnalysisTypeManager extends Component
 
             DB::commit();
             $this->loadAnalysisTypes();
-            $this->message = 'Analysis type deleted successfully!';
+            $this->message = 'Matrix sub category deleted successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

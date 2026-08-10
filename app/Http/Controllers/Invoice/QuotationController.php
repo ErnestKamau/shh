@@ -39,6 +39,7 @@ use App\Services\Billing\QuotationStatisticsService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Commercial\EnquiryFromQuotationService;
+use App\Services\Commercial\EnquiryQuotationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -54,6 +55,7 @@ class QuotationController extends Controller
         private readonly QuotationStatisticsService $quotationStatisticsService,
         private readonly QuotationRevisionService $quotationRevisionService,
         private readonly EnquiryFromQuotationService $enquiryFromQuotationService,
+        private readonly EnquiryQuotationService $enquiryQuotationService,
     ) {
         $this->middleware('auth');
     }
@@ -354,19 +356,6 @@ class QuotationController extends Controller
         AmSpecQuotationNumberGenerator::assignIfMissing($header);
         $header = $header->fresh();
         $sample_types = SampleType::all();
-        if ($stage == false) {
-            $header->is_draft = 0;
-        } else {
-
-            $header->status = $stage;
-            if ($stage == 'Quote Complete') {
-                $header->is_complete = 1;
-                $header->save();
-            }
-        }
-        $header->save();
-        // return response()->json($header,200);
-
 
         $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
         $pricelist_items = $pricelist
@@ -435,9 +424,10 @@ class QuotationController extends Controller
         $structuredTermsConfig = $this->quotationReportService->resolveStructuredTermsConfig();
         $structuredTerms = $this->quotationReportService->resolveStructuredTerms($header);
         $revisionFamily = $this->quotationRevisionService->collectRevisionFamily($header);
+        $linkedEnquiryEngagements = $this->enquiryQuotationService->engagementsForQuotation($header);
         $accountPaymentOptions = $this->quotationReportService->accountPaymentOptions();
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'accountPaymentOptions'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -463,6 +453,7 @@ class QuotationController extends Controller
                 $header->approved_by = auth()->user()->id;
                 $header->is_complete = 1;
                 $header->is_draft = 0;
+                $this->enquiryQuotationService->markPriorRevisionSuperseded($header->fresh() ?? $header);
             } else {
                 $header->is_complete = 0;
                 $header->is_draft = 0;
@@ -745,12 +736,6 @@ class QuotationController extends Controller
     public function view_quotation_final($id, $stage = false)
     {
         $hd = QuotationHeader::findOrFail($id);
-        if ($stage != false) {
-            $hd->status = $stage;
-        } else {
-            $hd->is_draft = 0;
-        }
-        $hd->save();
 
         $this->recalculateQuotationTotals($hd);
         $hd->refresh();
@@ -1011,6 +996,8 @@ class QuotationController extends Controller
     }
     public function upload_quotation(Request $request, $id)
     {
+        // Billing-only send: records email_to_customer on the header. Per-enquiry send/accept
+        // lives on enquiry_quotations when enquiries are linked to this quote.
         $header = QuotationHeader::find($id);
         // return response()->json($request->all(),200);
 

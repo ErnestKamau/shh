@@ -488,6 +488,58 @@ class SubmissionRequestSampleLineServiceTest extends TestCase
         $this->assertNotSame((string) $samplePoint->id, $lines[0]['sampling_point']);
     }
 
+    public function test_it_keeps_identical_physical_samples_on_distinct_row_indexes(): void
+    {
+        $form = $this->createTemplateForm();
+        $section = SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Samples',
+            'section_type' => 'rows_section',
+            'sort_order' => 0,
+        ]);
+        $holder = SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'rows',
+            'sort_order' => 0,
+        ]);
+
+        $sampleTypeEl = $this->createElement($holder, 'sample_type_select', 'sample_type_id', 0);
+        $analysisTypeEl = $this->createElement($holder, 'analysis_type_select', 'analysis_type_id', 1);
+        $parametersEl = $this->createElement($holder, 'analysis_elements_select', 'parameters', 2);
+
+        $sampleTypeId = (string) Str::uuid7();
+        $analysisTypeId = (string) Str::uuid7();
+        $parameterIds = implode(',', [
+            (string) Str::uuid7(),
+            (string) Str::uuid7(),
+        ]);
+
+        $instance = SubmissionFormInstance::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Multi-sample instance',
+            'form_number' => 'CR400',
+            'status' => 'submitted',
+            'submitted_at' => now(),
+            'priority' => 'normal',
+        ]);
+
+        foreach ([0, 1, 2, 3] as $rowIndex) {
+            $this->createValue($instance, $sampleTypeEl, $sampleTypeId, $rowIndex);
+            $this->createValue($instance, $analysisTypeEl, $analysisTypeId, $rowIndex);
+            $this->createValue($instance, $parametersEl, $parameterIds, $rowIndex);
+        }
+
+        $lines = app(SubmissionRequestSampleLineService::class)->linesForInstance(
+            $instance->fresh(['values.element', 'submissionForm.sections.elementHolders.elements']),
+        );
+
+        $this->assertCount(4, $lines);
+        $this->assertSame([0, 1, 2, 3], array_column($lines, 'row_index'));
+    }
+
     private function createTemplateForm(): SubmissionForm
     {
         return SubmissionForm::query()->create([

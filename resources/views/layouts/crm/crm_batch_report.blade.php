@@ -308,7 +308,7 @@
 								</div>
 								<div class="col-md-3">
 									<label for="sample_point_filter" class="form-label text-muted">
-										Sample Point
+										Sampling Location
 									</label>
 									<select class="form-control select2" id="sample_point_filter" name="sample_point_filter[]" multiple disabled>
 										<!-- Options will be populated dynamically based on selected company units -->

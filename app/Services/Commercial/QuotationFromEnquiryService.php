@@ -5,6 +5,7 @@ namespace App\Services\Commercial;
 use App\AnalysisElements;
 use App\AnalysisType;
 use App\Models\CRM\CustomerContact;
+use App\Models\EnquiryQuotation;
 use App\Models\SampleSubmissionRequest;
 use App\QuotationDetailAnalysisSplit;
 use App\QuotationDetails;
@@ -32,6 +33,7 @@ final class QuotationFromEnquiryService
         private QuotationLineTaxResolver $taxResolver,
         private QuotationRevisionService $quotationRevisionService,
         private QuotationPricingResolver $quotationPricingResolver,
+        private EnquiryQuotationService $enquiryQuotationService,
     ) {}
 
     public function createOrOpen(SampleSubmissionRequest $enquiry): QuotationHeader
@@ -46,7 +48,7 @@ final class QuotationFromEnquiryService
                 $existing = $this->syncHeaderPricelistAndCurrency($existing, $enquiry);
 
                 if ($enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW
-                    && $existing->sent_to_customer_at !== null) {
+                    && $this->enquiryQuotationService->wasSentToCustomer($enquiry, $existing)) {
                     return $this->createRevision($enquiry, $existing);
                 }
 
@@ -110,6 +112,12 @@ final class QuotationFromEnquiryService
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
             $enquiry->save();
+
+            $this->enquiryQuotationService->linkEnquiryToQuotation(
+                $enquiry,
+                $header,
+                EnquiryQuotation::LINK_SOURCE_ENQUIRY_BORN,
+            );
 
             return $header->fresh(['details']);
         });
@@ -687,7 +695,16 @@ final class QuotationFromEnquiryService
             }
 
             $now = now();
-            $header->sent_to_customer_at = $now;
+            // Shared billing quotes: record send on enquiry_quotations pivot, NOT quotation_headers.
+            $this->enquiryQuotationService->recordSentToCustomer(
+                $enquiry,
+                $header,
+                sentViaPortal: true,
+                sentViaEmail: $sendEmail,
+                sentAt: $now,
+                linkSource: EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
+            );
+
             $header->email_to_customer = $sendEmail ? $now->toDateString() : $header->email_to_customer;
             $header->status = QuotationApprovalService::HEADER_STATUS_COMPLETE;
             $header->is_approved = 1;
@@ -760,14 +777,7 @@ final class QuotationFromEnquiryService
 
     public function quotationWasSentToCustomer(SampleSubmissionRequest $enquiry): bool
     {
-        $enquiry->loadMissing('currentQuotation');
-        $quotation = $enquiry->currentQuotation;
-
-        if ($quotation === null && $enquiry->current_quotation_header_id) {
-            $quotation = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
-        }
-
-        return $quotation !== null && $quotation->sent_to_customer_at !== null;
+        return $this->enquiryQuotationService->wasSentToCustomer($enquiry);
     }
 
     /**
@@ -781,7 +791,7 @@ final class QuotationFromEnquiryService
             $header = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
         }
 
-        if ($header === null || $header->sent_to_customer_at === null) {
+        if ($header === null || ! $this->enquiryQuotationService->wasSentToCustomer($enquiry, $header)) {
             return $enquiry;
         }
 
@@ -827,6 +837,12 @@ final class QuotationFromEnquiryService
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
             $enquiry->save();
+
+            $this->enquiryQuotationService->linkEnquiryToQuotation(
+                $enquiry,
+                $header,
+                EnquiryQuotation::LINK_SOURCE_ENQUIRY_BORN,
+            );
 
             return $header->fresh(['details']);
         });
@@ -885,19 +901,15 @@ final class QuotationFromEnquiryService
      */
     public function eligibleQuotationsForCustomer(string $customerId): \Illuminate\Support\Collection
     {
-        if ($customerId === '') {
-            return collect();
-        }
+        return $this->enquiryQuotationService->eligibleQuotationsForCustomer($customerId);
+    }
 
-        return QuotationHeader::query()
-            ->where('crm_customer_id', $customerId)
-            ->where('status', 'Quote Complete')
-            ->whereNull('sample_submission_request_id')
-            ->whereNotNull('expiring_date')
-            ->whereDate('expiring_date', '>=', now()->toDateString())
-            ->orderByDesc('quote_date')
-            ->orderByDesc('created_at')
-            ->get();
+    /**
+     * @return list<array{id: string, label: string, quote_number: string, revision_number: int, family_root_id: string}>
+     */
+    public function eligibleQuotationPickerOptions(string $customerId): array
+    {
+        return $this->enquiryQuotationService->eligibleQuotationPickerOptions($customerId);
     }
 
     /**
@@ -928,11 +940,6 @@ final class QuotationFromEnquiryService
                 throw new RuntimeException('Only completed quotations can be selected.');
             }
 
-            $linkedEnquiryId = trim((string) ($lockedHeader->sample_submission_request_id ?? ''));
-            if ($linkedEnquiryId !== '' && $linkedEnquiryId !== (string) $lockedEnquiry->id) {
-                throw new RuntimeException('Selected quotation is already owned by another enquiry.');
-            }
-
             $expiresOn = $lockedHeader->expiring_date !== null
                 ? \Carbon\Carbon::parse($lockedHeader->expiring_date)->startOfDay()
                 : null;
@@ -940,12 +947,12 @@ final class QuotationFromEnquiryService
                 throw new RuntimeException('Selected quotation has expired.');
             }
 
-            $lockedHeader->sample_submission_request_id = $lockedEnquiry->id;
-            $lockedHeader->from_enquiry = true;
-            // Existing completed quotations are treated as already approved for customer send.
-            $lockedHeader->is_approved = 1;
-            $lockedHeader->is_complete = 1;
-            $lockedHeader->save();
+            // Shared billing quotations must not claim sample_submission_request_id.
+            $this->enquiryQuotationService->linkEnquiryToQuotation(
+                $lockedEnquiry,
+                $lockedHeader,
+                EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
+            );
 
             $lockedEnquiry->current_quotation_header_id = $lockedHeader->id;
             if ($lockedEnquiry->status === SampleSubmissionRequest::STATUS_REQUESTED
@@ -1185,14 +1192,19 @@ final class QuotationFromEnquiryService
             $signerName,
             $acceptance,
         ): void {
-            $quotation->customer_acceptance_signature = $signature;
-            $quotation->customer_acceptance_signer_name = $signerName;
-            $quotation->customer_acceptance_signed_at = $signedAt;
-            $quotation->customer_acceptance_contact_id = filled($acceptance['contact_id'] ?? null)
-                ? (string) $acceptance['contact_id']
-                : null;
-            $quotation->customer_acceptance_channel = QuotationHeader::ACCEPTANCE_CHANNEL_WALK_IN;
-            $quotation->save();
+            $this->enquiryQuotationService->recordAcceptance(
+                $enquiry,
+                $quotation,
+                [
+                    'signature' => $signature,
+                    'signer_name' => $signerName,
+                    'contact_id' => $acceptance['contact_id'] ?? null,
+                    'signed_at' => $signedAt,
+                    'channel' => QuotationHeader::ACCEPTANCE_CHANNEL_WALK_IN,
+                ],
+                acceptedAt: $acceptedAt,
+                linkSource: EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
+            );
 
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED;
             $enquiry->accepted_quotation_header_id = (string) $quotation->id;

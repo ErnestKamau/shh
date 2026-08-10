@@ -12,9 +12,8 @@ final class AmSpecQuotationNumberGenerator
     {
         $date ??= now();
         $prefix ??= self::resolvePrefix();
-        $dayPrefix = $prefix.$date->format('ymd').'-';
 
-        $sequence = self::maxExistingSequence($dayPrefix) + 1;
+        $sequence = self::maxExistingSequenceForYear($prefix, $date) + 1;
 
         do {
             $candidate = self::formatLabRef($date, $sequence, $prefix);
@@ -83,12 +82,16 @@ final class AmSpecQuotationNumberGenerator
         return self::generate($date);
     }
 
-    private static function maxExistingSequence(string $dayPrefix): int
+    private static function maxExistingSequenceForYear(string $prefix, Carbon $date): int
     {
+        $year = $date->format('y');
+        $yearPrefix = $prefix.$year;
+        $pattern = '/^'.preg_quote($prefix, '/').'(\d{6})-(\d+)$/';
+
         $values = QuotationHeader::query()
-            ->where(function ($query) use ($dayPrefix): void {
-                $query->where('quote_number', 'like', $dayPrefix.'%')
-                    ->orWhere('laboratory_ref', 'like', $dayPrefix.'%');
+            ->where(function ($query) use ($yearPrefix): void {
+                $query->where('quote_number', 'like', $yearPrefix.'%')
+                    ->orWhere('laboratory_ref', 'like', $yearPrefix.'%');
             })
             ->get(['quote_number', 'laboratory_ref']);
 
@@ -96,14 +99,15 @@ final class AmSpecQuotationNumberGenerator
 
         foreach ($values as $row) {
             foreach ([$row->quote_number, $row->laboratory_ref] as $value) {
-                if (! is_string($value) || ! str_starts_with($value, $dayPrefix)) {
+                if (! is_string($value) || ! preg_match($pattern, $value, $matches)) {
                     continue;
                 }
 
-                $sequencePart = substr($value, strlen($dayPrefix));
-                if (ctype_digit($sequencePart)) {
-                    $max = max($max, (int) $sequencePart);
+                if (substr($matches[1], 0, 2) !== $year) {
+                    continue;
                 }
+
+                $max = max($max, (int) $matches[2]);
             }
         }
 

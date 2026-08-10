@@ -35,7 +35,7 @@
                         Sample {{ $rowIndex + 1 }}
                     </h6>
                     <div class="rft-sample-row-card__summary text-muted small" x-show="openRow !== {{ $rowIndex }}" x-cloak>
-                        <span>{{ $summary['analysis_label'] !== '' ? $summary['analysis_label'] : 'No analysis type' }}</span>
+                        <span>{{ $summary['analysis_label'] !== '' ? $summary['analysis_label'] : 'No analysis' }}</span>
                         <span class="mx-1">·</span>
                         <span>{{ $summary['param_count'] }} parameter{{ $summary['param_count'] === 1 ? '' : 's' }}</span>
                         @if($summary['param_preview'] !== '')

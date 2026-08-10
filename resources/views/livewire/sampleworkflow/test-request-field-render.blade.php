@@ -222,7 +222,7 @@
         @endif
         <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
             wire:click="openWalkInAddPointModal(@js($fieldName !== '' ? $fieldName : 'sampling_location'), @js($rowIndex))"
-            title="Add sample point">
+            title="Add sampling location">
             <i class="mdi mdi-plus"></i>
         </button>
     </div>
@@ -241,7 +241,7 @@
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif
         @if($field['readonly'] ?? false) disabled @endif>
-        <option value="">Select sampling {{ $fieldName === 'sampling_point' ? 'point' : 'location' }}</option>
+        <option value="">Select sampling location</option>
         @if ($orphanLocation !== null)
             <option value="{{ $orphanLocation }}">{{ $orphanLocation }}</option>
         @endif

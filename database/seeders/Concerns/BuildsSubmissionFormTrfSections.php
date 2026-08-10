@@ -74,20 +74,21 @@ trait BuildsSubmissionFormTrfSections
     {
         return [
             ['textarea', 'Sample description', 'sample_description', 1],
-            ['customer_sample_point_select', 'Sampling point / location', 'sampling_point', 2],
-            ['number', 'Qty', 'sample_quantity', 3],
-            ['text', 'Unit', 'sample_quantity_unit', 4],
-            ['radio', 'State of sample', 'state_of_sample', 5, [
+            ['customer_sample_point_select', 'Sampling Location', 'sampling_point', 2],
+            ['text', 'Sampling Point', 'sampling_point_manual', 3],
+            ['number', 'Qty', 'sample_quantity', 4],
+            ['text', 'Unit', 'sample_quantity_unit', 5],
+            ['radio', 'State of sample', 'state_of_sample', 6, [
                 ['value' => 'L', 'label' => 'L - Liquid'],
                 ['value' => 'SS', 'label' => 'SS - Semi solid'],
                 ['value' => 'S', 'label' => 'S - Solid'],
             ]],
-            ['date', 'Production date', 'production_date', 6],
-            ['date', 'Expiration date', 'expiration_date', 7],
-            ['text', 'Batch number', 'batch_number', 8],
-            ['analysis_type_select', 'Analysis type', 'analysis_type_id', 9, null, true],
-            ['analysis_elements_select', 'Parameters', 'parameters', 10],
-            ['checkbox', 'Test category', 'test_category', 11, [
+            ['date', 'Production date', 'production_date', 7],
+            ['date', 'Expiration date', 'expiration_date', 8],
+            ['text', 'Batch number', 'batch_number', 9],
+            ['analysis_type_select', 'ANALYSIS', 'analysis_type_id', 10, null, true],
+            ['analysis_elements_select', 'Parameters', 'parameters', 11],
+            ['checkbox', 'Test category', 'test_category', 12, [
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'chemistry', 'label' => 'Chemistry'],
             ]],
@@ -101,16 +102,16 @@ trait BuildsSubmissionFormTrfSections
     {
         return [
             ['textarea', 'Sample description', 'sample_description', 1],
-            ['text', 'Location', 'location', 2],
-            ['number', 'Qty', 'sample_quantity', 3],
-            ['text', 'Unit', 'sample_quantity_unit', 4],
-            ['customer_sample_point_select', 'Sampling point', 'sampling_point', 5],
+            ['customer_sample_point_select', 'Sampling Location', 'sampling_point', 2],
+            ['text', 'Sampling Point', 'sampling_point_manual', 3],
+            ['number', 'Qty', 'sample_quantity', 4],
+            ['text', 'Unit', 'sample_quantity_unit', 5],
             ['text', 'Field data - pH', 'field_ph', 6],
             ['text', 'Field data - Appearance', 'field_appearance', 7],
             ['text', 'Field data - Residual chlorine', 'field_residual_chlorine', 8],
             ['text', 'Field data - Odor', 'field_odor', 9],
             ['text', 'Field data - Sample temp (°C)', 'field_sample_temp', 10],
-            ['analysis_type_select', 'Analysis type', 'analysis_type_id', 11, null, true],
+            ['analysis_type_select', 'ANALYSIS', 'analysis_type_id', 11, null, true],
             ['analysis_elements_select', 'Parameters', 'parameters', 12],
             ['checkbox', 'Test requirements', 'test_requirements', 13, [
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
@@ -127,34 +128,35 @@ trait BuildsSubmissionFormTrfSections
     {
         return [
             ['textarea', 'Sample description', 'sample_description', 1],
-            ['customer_sample_point_select', 'Sampling point / location', 'sampling_point', 2],
-            ['number', 'Qty', 'sample_quantity', 3],
-            ['text', 'Unit', 'sample_quantity_unit', 4],
-            ['sample_type_select', 'Type of sample', 'sample_type_id', 5, null, true],
-            ['analysis_type_select', 'Analysis type', 'analysis_type_id', 6, null, true],
-            ['analysis_elements_select', 'Parameters', 'parameters', 7],
-            ['text', 'Field data - Appearance', 'field_appearance', 8],
-            ['text', 'Field data - Color', 'field_color', 9],
-            ['text', 'Field data - Odor', 'field_odor', 10],
-            ['text', 'Field data - pH', 'field_ph', 11],
-            ['text', 'Field data - Temperature (°C)', 'field_sample_temp', 12],
-            ['text', 'Field data - Free chlorine', 'field_free_chlorine', 13],
-            ['select', 'Sample condition', 'sample_condition', 14, [
+            ['customer_sample_point_select', 'Sampling Location', 'sampling_point', 2],
+            ['text', 'Sampling Point', 'sampling_point_manual', 3],
+            ['number', 'Qty', 'sample_quantity', 4],
+            ['text', 'Unit', 'sample_quantity_unit', 5],
+            ['sample_type_select', 'Type of sample', 'sample_type_id', 6, null, true],
+            ['analysis_type_select', 'ANALYSIS', 'analysis_type_id', 7, null, true],
+            ['analysis_elements_select', 'Parameters', 'parameters', 8],
+            ['text', 'Field data - Appearance', 'field_appearance', 9],
+            ['text', 'Field data - Color', 'field_color', 10],
+            ['text', 'Field data - Odor', 'field_odor', 11],
+            ['text', 'Field data - pH', 'field_ph', 12],
+            ['text', 'Field data - Temperature (°C)', 'field_sample_temp', 13],
+            ['text', 'Field data - Free chlorine', 'field_free_chlorine', 14],
+            ['select', 'Sample condition', 'sample_condition', 15, [
                 ['value' => 'acceptable', 'label' => 'Acceptable'],
                 ['value' => 'chilled', 'label' => 'Chilled'],
                 ['value' => 'frozen', 'label' => 'Frozen'],
                 ['value' => 'ambient', 'label' => 'Ambient'],
             ]],
-            ['select', 'State of sample', 'state_of_sample', 15, [
+            ['select', 'State of sample', 'state_of_sample', 16, [
                 ['value' => 'L', 'label' => 'L - Liquid'],
                 ['value' => 'SS', 'label' => 'SS - Semi solid'],
                 ['value' => 'S', 'label' => 'S - Solid'],
             ]],
-            ['checkbox', 'Test requirements', 'test_requirements', 16, [
+            ['checkbox', 'Test requirements', 'test_requirements', 17, [
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'chemistry', 'label' => 'Chemistry'],
             ]],
-            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 17],
+            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 18],
         ];
     }
 
@@ -265,8 +267,11 @@ trait BuildsSubmissionFormTrfSections
             ->exists();
 
         if ($hasValues) {
+            // Keep historic values, but allow safe control upgrades (e.g. select → CRM dropdown)
+            // and label/order sync from the canonical TRF field definitions.
             $element->update([
                 'label' => $payload['label'],
+                'element_type' => $payload['element_type'],
                 'sort_order' => $payload['sort_order'],
                 'is_required' => $payload['is_required'],
             ]);

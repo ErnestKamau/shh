@@ -2973,6 +2973,11 @@ class AcceptanceFormSampleConfigService
             }
         }
 
+        foreach ($configs as $index => &$config) {
+            $config['row_index'] = $index;
+        }
+        unset($config);
+
         return $configs;
     }
 

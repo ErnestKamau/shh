@@ -178,6 +178,9 @@
             @if(($header->revision_number ?? 1) > 1)
                 <span class="badge badge-info ml-1">Rev. {{ $header->revision_number }}</span>
             @endif
+            @if($header->isSuperseded())
+                <span class="badge badge-secondary ml-1">Superseded</span>
+            @endif
         </h3>
 
         @if(($revisionFamily ?? collect())->count() > 1)
@@ -187,10 +190,34 @@
                 @foreach($revisionFamily as $revision)
                     <li>
                         @if($revision->id === $header->id)
-                            <strong>Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }} (current)</strong>
+                            <strong>{{ $revision->quote_number }} Rev {{ $revision->revision_number ?? 1 }} (viewing)</strong>
                         @else
-                            <a href="{{ route('add-qoute-details-view', ['id' => $revision->id]) }}">Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }}</a>
-                            <span class="text-muted">({{ $revision->quote_date }})</span>
+                            <a href="{{ route('add-qoute-details-view', ['id' => $revision->id]) }}">{{ $revision->quote_number }} Rev {{ $revision->revision_number ?? 1 }}</a>
+                            @if($revision->isSuperseded())
+                                <span class="text-muted">(superseded)</span>
+                            @endif
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+
+        @if(($linkedEnquiryEngagements ?? collect())->isNotEmpty())
+        <div class="card-body border-bottom py-2">
+            <small class="text-muted d-block mb-1"><strong>Linked enquiries</strong></small>
+            <ul class="mb-0 pl-3" style="font-size: 12px;">
+                @foreach($linkedEnquiryEngagements as $engagement)
+                    <li>
+                        @if($engagement->enquiry)
+                            <a href="{{ $engagement->enquiry->staffViewUrl() }}">{{ $engagement->enquiry->reference_number ?? $engagement->enquiry->id }}</a>
+                            <span class="text-muted">— {{ $engagement->enquiry->status }}</span>
+                            @if($engagement->sent_to_customer_at)
+                                <span class="text-muted">· sent {{ $engagement->sent_to_customer_at->format('Y-m-d') }}</span>
+                            @endif
+                            @if($engagement->accepted_at)
+                                <span class="text-muted">· accepted {{ $engagement->accepted_at->format('Y-m-d') }}</span>
+                            @endif
                         @endif
                     </li>
                 @endforeach
@@ -418,7 +445,6 @@
                                     <th nowrap>Analysis Type <span class="text-danger">*</span></th>
                                     <th nowrap>Parameters<span class="text-danger">*</span></th>
                                     <th nowrap style="width: 88px;">Quantity<span class="text-danger">*</span></th>
-                                    <th nowrap style="width: 72px;">TAT</th>
                                     <th nowrap style="width: 130px;">Unit Price</th>
                                     <th nowrap style="width: 90px;">Tax%</th>
 
@@ -472,11 +498,6 @@
                                         <td class="align-middle">
                                             <div class="form-group mb-0">
                                                 <input type="number" id="" class="form-control form-control-sm" value="{{$detail->quantity}}" disabled>
-                                            </div>
-                                        </td>
-                                        <td class="align-middle">
-                                            <div class="form-group mb-0">
-                                                <input type="text" class="form-control form-control-sm text-center font-weight-bold" value="{{ $detail->tat !== null && $detail->tat !== '' ? $detail->tat : '—' }}" disabled title="Highest TAT of selected parameters">
                                             </div>
                                         </td>
                                         <td class="align-middle text-right">
@@ -947,11 +968,6 @@
                     parseFloat(data.tax) > 0 ? parseFloat(data.tax).toFixed(2) + '%' : '0%'
                 );
             }
-            if (data && data.max_tat !== null && typeof data.max_tat !== 'undefined') {
-                $row.find('.quotation-tat').val(data.max_tat);
-            } else if (data && (data.max_tat === null || data.max_tat === '')) {
-                $row.find('.quotation-tat').val('');
-            }
         }
 
         function clearRowParameterFields($row) {
@@ -960,7 +976,6 @@
             $row.find('.quotation-unit-price').val(0);
             $row.find('.quotation-tax').val(0);
             $row.find('.quotation-tax-display').text('0%');
-            $row.find('.quotation-tat').val('');
             $row.removeData('pricelistSuggestion');
             $row.find('.quotation-price-hint').text('Pick tests in Parameters to load pricelist total.');
         }
@@ -1046,7 +1061,6 @@
                     $row.find('.quotation-unit-price').val(0);
                     $row.find('.quotation-tax').val(0);
                     $row.find('.quotation-tax-display').text('0%');
-                    $row.find('.quotation-tat').val('');
                     $row.removeData('pricelistSuggestion');
                     $hint.text(data && data.hint ? data.hint : 'Pick tests in Parameters to load pricelist total.');
                 } else {
@@ -1285,11 +1299,6 @@
                                             <input type="number" name="quantity[]" id="" class="form-control" value="" required>
                                         </div>
                                     </td>
-                                    <td style="min-width: 70px;">
-                                        <div class="form-group mb-0">
-                                            <input type="text" name="tat[]" class="form-control quotation-tat" value="" readonly placeholder="-">
-                                        </div>
-                                    </td>
                                     <td>
                                         <div class="form-group mb-1">
                                             <div class="input-group input-group-sm">
@@ -1412,11 +1421,6 @@
             <div class="form-group">
                 <label class="control-label">Quantity</label>
                 <input type="text" name="quantity" value="${data.quantity}" class="form-control">
-            </div>
-            <div class="form-group">
-                <label class="control-label">TAT (days)</label>
-                <input type="text" name="tat" class="form-control quotation-edit-tat" value="${data.tat !== null && typeof data.tat !== 'undefined' ? data.tat : ''}" readonly title="Highest TAT of selected parameters">
-                <small class="text-muted">Highest TAT among selected analysis elements.</small>
             </div>
             <div class="form-group">
                 <label class="control-label">Unit Price</label>
@@ -1676,12 +1680,6 @@
                 $holder.append($('<input type="hidden" name="sub_acc">').val(state.sub_acc.toString()));
                 $holder.append($('<input type="hidden" name="default_analytes">').val(state.default_analytes.toString()));
                 $holder.append($('<input type="hidden" name="element_loq_json">').val(JSON.stringify(state.loqMap)));
-                var $tat = $('#detail-edit-mode').find('.quotation-edit-tat');
-                if (state.maxTat !== null) {
-                    $tat.val(state.maxTat);
-                } else {
-                    $tat.val('');
-                }
                 $('#edit-detail-analytes').modal('hide');
             });
         });
@@ -1753,11 +1751,6 @@
                 $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(state.loqMap)));
 
                 var $row = $('#create-detail').find('tr#detail-row-' + row_no);
-                if (state.maxTat !== null) {
-                    $row.find('.quotation-tat').val(state.maxTat);
-                } else {
-                    $row.find('.quotation-tat').val('');
-                }
                 refreshQuotationRowPricingHint($row, true);
                 $('#quote-description-analytes').modal('hide');
             });

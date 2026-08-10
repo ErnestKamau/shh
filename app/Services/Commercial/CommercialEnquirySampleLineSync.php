@@ -138,11 +138,14 @@ final class CommercialEnquirySampleLineSync
                 ->all();
 
             $customerSampleId = trim((string) ($config['customer_sample_id'] ?? ''));
+            $testCategory = $config['parameter_category']
+                ?? $config['test_category']
+                ?? $config['test_requirements']
+                ?? null;
 
             $lines[] = [
-                'row_index' => array_key_exists('row_index', $config) && $config['row_index'] !== null
-                    ? (int) $config['row_index']
-                    : $index,
+                // One TRF/enquiry line per physical sample — always use sequential index.
+                'row_index' => $index,
                 'sample_description' => $config['sample_description'] ?? null,
                 'sample_type_id' => $config['sample_type_id'] ?? null,
                 'analysis_type_id' => $config['analysis_type_id'] ?? null,
@@ -158,9 +161,9 @@ final class CommercialEnquirySampleLineSync
                 'production_date' => $config['production_date'] ?? null,
                 'expiration_date' => $config['expiration_date'] ?? null,
                 'batch_number' => $config['batch_number'] ?? null,
-                'test_category' => $config['test_category'] ?? null,
+                'test_category' => $config['test_category'] ?? $config['test_requirements'] ?? null,
                 'test_requirements' => $config['test_requirements'] ?? null,
-                'parameter_category' => $config['parameter_category'] ?? null,
+                'parameter_category' => $testCategory,
                 'sample_condition' => $config['sample_condition'] ?? null,
                 'state_of_sample' => $config['state_of_sample'] ?? null,
                 'attributes' => $parameterKeys !== []

@@ -77,6 +77,7 @@ class CustomerSamplePointsTab extends BaseCrmComponent
     public function getSamplePointsProperty()
     {
         return SamplePoint::query()
+            ->with(['unit', 'contact'])
             ->where('crm_customer_id', $this->customer->id)
             ->whereHas('unit', function ($query) {
                 $query->where('crm_customer_id', $this->customer->id);
@@ -94,7 +95,7 @@ class CustomerSamplePointsTab extends BaseCrmComponent
             $this->editingPoint = SamplePoint::find($pointId);
 
             if (! $this->editingPoint) {
-                $this->showError('Sample point not found.');
+                $this->showError('Sampling location not found.');
 
                 return;
             }

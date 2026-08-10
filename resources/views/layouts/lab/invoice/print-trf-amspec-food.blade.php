@@ -39,8 +39,7 @@
         </tr>
         @if($has_customer_extras ?? false)
             <tr>
-                <td><strong>CNPJ / Tax ID:</strong> {{ $customer_tax_id }}</td>
-                <td><strong>Email:</strong> {{ $customer_email }}</td>
+                <td colspan="2"><strong>Email:</strong> {{ $customer_email }}</td>
             </tr>
         @endif
         <tr>

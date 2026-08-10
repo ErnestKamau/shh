@@ -18,6 +18,7 @@ class SubmissionFormTrfRowsSectionPatchSeeder extends Seeder
             'TRF-WATER-020' => function (SubmissionForm $form): void {
                 $this->patchSampleRowsSection($form, $this->waterTrfRowFields());
                 $this->removeRowElementsByName($form, [
+                    'location',
                     'sampling_point_other',
                     'sampling_point_others',
                     'other_sampling_point',

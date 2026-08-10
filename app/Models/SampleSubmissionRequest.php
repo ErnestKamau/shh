@@ -139,6 +139,7 @@ class SampleSubmissionRequest extends Model
         'quotation_creation_token',
         'enquiry_notes',
         'enquiry_sample_configuration',
+        'trf_section_field_values',
         'quotation_accepted_at',
         'quotation_first_sent_to_customer_at',
         'subcontracting_dispatch_status',
@@ -237,6 +238,7 @@ class SampleSubmissionRequest extends Model
             'collection_data' => 'array',
             'sample_lines' => 'array',
             'enquiry_sample_configuration' => 'array',
+            'trf_section_field_values' => 'array',
         ];
     }
 
@@ -503,6 +505,48 @@ SQL);
     public function createdFromQuotation(): BelongsTo
     {
         return $this->belongsTo(QuotationHeader::class, 'created_from_quotation_header_id');
+    }
+
+    public function enquiryQuotations(): HasMany
+    {
+        return $this->hasMany(EnquiryQuotation::class, 'sample_submission_request_id');
+    }
+
+    /**
+     * @return BelongsToMany<QuotationHeader, $this>
+     */
+    public function linkedQuotations(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            QuotationHeader::class,
+            'enquiry_quotations',
+            'sample_submission_request_id',
+            'quotation_header_id',
+        )->withPivot([
+            'link_source',
+            'linked_at',
+            'sent_to_customer_at',
+            'accepted_at',
+            'customer_acceptance_signature',
+            'customer_acceptance_signer_name',
+            'customer_acceptance_signed_at',
+        ])->withTimestamps();
+    }
+
+    public function currentQuotationEngagement(): ?EnquiryQuotation
+    {
+        if ($this->current_quotation_header_id === null) {
+            return null;
+        }
+
+        if ($this->relationLoaded('enquiryQuotations')) {
+            return $this->enquiryQuotations
+                ->firstWhere('quotation_header_id', $this->current_quotation_header_id);
+        }
+
+        return $this->enquiryQuotations()
+            ->where('quotation_header_id', $this->current_quotation_header_id)
+            ->first();
     }
 
     /**

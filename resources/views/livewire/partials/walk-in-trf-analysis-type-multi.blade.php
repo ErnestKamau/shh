@@ -19,7 +19,7 @@
     'syncMethod' => 'setWalkInAnalysisTypes',
     'options' => $analysisOptions,
     'selected' => $selectedIds,
-    'placeholder' => 'Choose analysis type(s)…',
+    'placeholder' => 'Choose analysis…',
     'emptyHint' => 'Select sample type(s) first.',
-    'searchPlaceholder' => 'Search analysis types...',
+    'searchPlaceholder' => 'Search analysis...',
 ])

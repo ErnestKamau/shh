@@ -108,6 +108,17 @@ final class QuotationAcceptanceTatService
             return Carbon::parse($submissionRequest->quotation_first_sent_to_customer_at);
         }
 
+        if (Schema::hasTable('enquiry_quotations')) {
+            $pivotSentAt = DB::table('enquiry_quotations')
+                ->where('sample_submission_request_id', (string) $submissionRequest->id)
+                ->whereNotNull('sent_to_customer_at')
+                ->min('sent_to_customer_at');
+
+            if ($pivotSentAt !== null) {
+                return Carbon::parse($pivotSentAt);
+            }
+        }
+
         $earliestSentAt = DB::table('quotation_headers')
             ->where('sample_submission_request_id', (string) $submissionRequest->id)
             ->whereNotNull('sent_to_customer_at')

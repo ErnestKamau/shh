@@ -6,14 +6,29 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\SamplePoint;
 use App\Models\Currency;
+use App\Models\EnquiryQuotation;
 use App\Models\SampleSubmissionRequest;
 use App\SampleHeader;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
+/**
+ * Quotation document (lines, PDF, revision chain, billing workflow status).
+ *
+ * Send/accept semantics:
+ * - enquiry_quotations pivot: per-enquiry send/accept when one quote serves many enquiries.
+ * - Header sent_to_customer_at / customer_acceptance_*: billing-module delivery or acceptance
+ *   with NO enquiry context (e.g. upload_quotation email from Billing), OR legacy enquiry-exclusive
+ *   quotes (sample_submission_request_id set). Enquiry workflow MUST use the pivot when
+ *   enquiry_quotations rows exist for that (enquiry, quotation) pair.
+ *
+ * @see EnquiryQuotation
+ * @see \App\Services\Commercial\EnquiryQuotationService
+ */
 class QuotationHeader extends Model implements Auditable
 {
     use HasUuids;
@@ -37,6 +52,7 @@ class QuotationHeader extends Model implements Auditable
         return [
             'from_enquiry' => 'boolean',
             'sent_to_customer_at' => 'datetime',
+            'superseded_at' => 'datetime',
             'customer_acceptance_signed_at' => 'datetime',
             'prepared_by_id' => 'string',
             'approved_by' => 'string',
@@ -121,6 +137,39 @@ class QuotationHeader extends Model implements Auditable
     public function revisions()
     {
         return $this->hasMany(self::class, 'revision_of_quotation_header_id');
+    }
+
+    public function supersededBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'superseded_by_quotation_header_id');
+    }
+
+    public function enquiryQuotations(): HasMany
+    {
+        return $this->hasMany(EnquiryQuotation::class, 'quotation_header_id');
+    }
+
+    /**
+     * @return BelongsToMany<SampleSubmissionRequest, $this>
+     */
+    public function linkedEnquiries(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SampleSubmissionRequest::class,
+            'enquiry_quotations',
+            'quotation_header_id',
+            'sample_submission_request_id',
+        )->withPivot([
+            'link_source',
+            'linked_at',
+            'sent_to_customer_at',
+            'accepted_at',
+        ])->withTimestamps();
+    }
+
+    public function isSuperseded(): bool
+    {
+        return $this->superseded_by_quotation_header_id !== null;
     }
 
     public function samplePoint()

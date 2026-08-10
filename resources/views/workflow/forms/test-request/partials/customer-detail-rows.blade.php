@@ -39,11 +39,7 @@
 </tr>
 @if($hasCustomerExtras)
     <tr>
-        <td colspan="{{ (int) floor($customerCols / 2) }}" class="trf-customer-field">
-            <span class="trf-field-label">CNPJ / Tax ID:</span>
-            <span class="trf-field-value">{{ $customer['customer_tax_id'] ?: '' }}</span>
-        </td>
-        <td colspan="{{ $customerCols - (int) floor($customerCols / 2) }}" class="trf-customer-field">
+        <td colspan="{{ $customerCols }}" class="trf-customer-field">
             <span class="trf-field-label">Email:</span>
             <span class="trf-field-value">{{ $customer['customer_email'] ?: '' }}</span>
         </td>

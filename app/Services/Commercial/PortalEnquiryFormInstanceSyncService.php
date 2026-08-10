@@ -25,13 +25,6 @@ final class PortalEnquiryFormInstanceSyncService
         bool $submit = true,
     ): ?SubmissionFormInstance
     {
-        if ($enquiry->submission_form_instance_id) {
-            $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
-            if ($existing !== null) {
-                return $existing->fresh(['values']);
-            }
-        }
-
         $instances = $this->syncAllSampleTypesFromEnquiry($enquiry, $submit);
 
         return $instances[0] ?? null;
@@ -52,6 +45,8 @@ final class PortalEnquiryFormInstanceSyncService
         if ($lines === []) {
             $lines = [$this->flatLineFromEnquiry($enquiry)];
         }
+        $lines = $this->assignSequentialRowIndices($lines);
+        $lines = $this->applyWizardValuesToSampleLines($enquiry, $lines);
 
         $grouped = collect($lines)->groupBy(
             static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')),
@@ -77,7 +72,11 @@ final class PortalEnquiryFormInstanceSyncService
                 continue;
             }
 
-            $form = $this->resolveSubmissionFormForSampleType($sampleTypeId);
+            $crmCustomerId = trim((string) ($enquiry->crm_customer_id ?? ''));
+            $form = $this->resolveSubmissionFormForSampleType(
+                $sampleTypeId,
+                $crmCustomerId !== '' ? $crmCustomerId : null,
+            );
             if ($form === null) {
                 continue;
             }
@@ -154,21 +153,22 @@ final class PortalEnquiryFormInstanceSyncService
     public function resolveSubmissionFormForEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionForm
     {
         $sampleTypeId = trim((string) ($enquiry->sample_type_id ?? $enquiry->batch_sample_type_id ?? ''));
+        $crmCustomerId = trim((string) ($enquiry->crm_customer_id ?? ''));
 
-        return $this->resolveSubmissionFormForSampleType($sampleTypeId !== '' ? $sampleTypeId : null);
+        return $this->resolveSubmissionFormForSampleType(
+            $sampleTypeId !== '' ? $sampleTypeId : null,
+            $crmCustomerId !== '' ? $crmCustomerId : null,
+        );
     }
 
-    public function resolveSubmissionFormForSampleType(?string $sampleTypeId): ?SubmissionForm
+    public function resolveSubmissionFormForSampleType(?string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
     {
         $sampleTypeId = trim((string) ($sampleTypeId ?? ''));
 
         if ($sampleTypeId !== '') {
-            $trfForms = $this->portalAccess->testRequestTemplatesQuery()
-                ->whereHas('sampleTypes', fn ($query) => $query->where('sample_types.id', $sampleTypeId))
-                ->get();
-
-            if ($trfForms->count() === 1) {
-                return $trfForms->first();
+            $form = $this->portalAccess->testRequestFormForSampleType($sampleTypeId, $crmCustomerId);
+            if ($form !== null) {
+                return $form;
             }
         }
 
@@ -279,6 +279,15 @@ final class PortalEnquiryFormInstanceSyncService
         $this->storeValue($instance, $elementMap, 'submitted_by_signature', $enquiry->submitted_by_signature);
         $this->storeValue($instance, $elementMap, 'submitted_by_date', $this->formatDate($enquiry->submitted_by_date));
 
+        $physicalSampleCount = max(
+            1,
+            (int) ($enquiry->number_of_samples ?? 0),
+            count(is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : []),
+        );
+        $this->storeValue($instance, $elementMap, 'number_of_samples', (string) $physicalSampleCount);
+        $this->storeValue($instance, $elementMap, 'no_of_samples', (string) $physicalSampleCount);
+        $this->storeValue($instance, $elementMap, 'sample_count', (string) $physicalSampleCount);
+
         if (! $enquiry->request_for_sampling) {
             return;
         }
@@ -371,6 +380,102 @@ final class PortalEnquiryFormInstanceSyncService
                 $rowIndex,
             );
         }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private function assignSequentialRowIndices(array $lines): array
+    {
+        foreach ($lines as $index => &$line) {
+            $line['row_index'] = $index;
+        }
+        unset($line);
+
+        return $lines;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private function applyWizardValuesToSampleLines(SampleSubmissionRequest $enquiry, array $lines): array
+    {
+        $byType = is_array($enquiry->trf_section_field_values)
+            ? $enquiry->trf_section_field_values
+            : [];
+
+        if ($byType === [] || $lines === []) {
+            return $lines;
+        }
+
+        $keys = [
+            'sample_description',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'sampling_point',
+            'location',
+            'production_date',
+            'expiration_date',
+            'batch_number',
+            'test_category',
+            'test_requirements',
+            'parameter_category',
+            'sample_condition',
+            'state_of_sample',
+            'field_ph',
+            'field_appearance',
+            'field_residual_chlorine',
+            'field_odor',
+            'field_sample_temp',
+        ];
+
+        $typeRowCounters = [];
+
+        foreach ($lines as &$line) {
+            $typeId = trim((string) ($line['sample_type_id'] ?? ''));
+            if ($typeId === '' || ! is_array($byType[$typeId] ?? null)) {
+                continue;
+            }
+
+            $rowWithinType = $typeRowCounters[$typeId] ?? 0;
+            $typeRowCounters[$typeId] = $rowWithinType + 1;
+
+            $source = \App\Services\Commercial\EnquiryFromQuotationService::resolveTrfSectionRowFields(
+                $byType[$typeId],
+                $rowWithinType,
+            );
+
+            foreach ($keys as $key) {
+                $existing = trim((string) ($line[$key] ?? ''));
+                if ($existing !== '') {
+                    continue;
+                }
+
+                $candidate = $source[$key] ?? null;
+                if ($candidate === null || $candidate === '' || $candidate === []) {
+                    continue;
+                }
+
+                $line[$key] = is_array($candidate) ? implode(',', array_filter(array_map('strval', $candidate))) : (string) $candidate;
+            }
+
+            if (trim((string) ($line['parameter_category'] ?? '')) === '') {
+                $category = $source['parameter_category']
+                    ?? $source['test_category']
+                    ?? $source['test_requirements']
+                    ?? null;
+                if ($category !== null && $category !== '') {
+                    $line['parameter_category'] = is_array($category)
+                        ? implode(',', $category)
+                        : (string) $category;
+                }
+            }
+        }
+        unset($line);
+
+        return $lines;
     }
 
     /**

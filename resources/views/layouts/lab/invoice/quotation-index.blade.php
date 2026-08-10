@@ -87,7 +87,7 @@
                                 <div class="dropdown-menu dropdown-menu-right quotation-drafts-menu p-2">
                                     @forelse($drafts as $draft)
                                         <a class="dropdown-item quotation-draft-item"
-                                           href="{{ route('add-qoute-details-view', ['id' => $draft->id, 'stage' => $draft->status]) }}">
+                                           href="{{ route('add-qoute-details-view', ['id' => $draft->id]) }}">
                                             <strong>{{ $draft->quote_number }}</strong>
                                             <small class="text-muted d-block">{{ $draft->created_at }}</small>
                                         </a>
@@ -251,14 +251,21 @@
                                         <tr class="quotation-preview-hover-parent">
                                             <td>
                                                 <div class="d-flex quotation-actions-cell">
-                                                    <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id, 'stage' => 'Quote In Reception']) }}"
-                                                       class="rm-act-btn rm-act-btn--edit"
-                                                       title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
+                                                    <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}"
+                                                       class="rm-act-btn rm-act-btn--open"
+                                                       title="Open quotation">
+                                                        <i class="mdi mdi-eye"></i>
                                                     </a>
+                                                    @if($quotation->status === 'Quote In Preparation')
+                                                        <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}"
+                                                           class="rm-act-btn rm-act-btn--edit"
+                                                           title="Edit in preparation">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </a>
+                                                    @endif
                                                     <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
-                                                       class="rm-act-btn rm-act-btn--view quotation-preview-quote-btn"
-                                                       title="Preview quotation"
+                                                       class="rm-act-btn rm-act-btn--preview quotation-preview-quote-btn"
+                                                       title="Preview quotation PDF"
                                                        target="_blank">
                                                         <i class="mdi mdi-file-eye"></i>
                                                     </a>
@@ -500,6 +507,32 @@
         justify-content: center;
         line-height: 1;
         box-shadow: none;
+    }
+
+    .quotation-index-page .rm-act-btn--open {
+        border-color: #bbf7d0;
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    .quotation-index-page .rm-act-btn--open:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+        color: #166534;
+        text-decoration: none;
+    }
+
+    .quotation-index-page .rm-act-btn--preview {
+        border-color: #c4b5fd;
+        color: #6d28d9;
+        background: #f5f3ff;
+    }
+
+    .quotation-index-page .rm-act-btn--preview:hover {
+        background: #ede9fe;
+        border-color: #a78bfa;
+        color: #5b21b6;
+        text-decoration: none;
     }
 
     .quotation-index-page .rm-act-btn--view {

@@ -402,7 +402,7 @@
                                         @error('job_occupation') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                     <div class="cf-field">
-                                        <label>{{ __('crm.department') }}</label>
+                                        <label>{{ __('crm.company_unit') }}</label>
                                         <div class="tag-select-container @error('unit_name') is-invalid @enderror"
                                             wire:click="$set('showUnitDropdown', true)"
                                             wire:click.outside="$set('showUnitDropdown', false)">
@@ -416,7 +416,7 @@
                                                 <input type="text"
                                                     wire:model.live="unitSearch"
                                                     class="tag-input"
-                                                    placeholder="{{ __('crm.select_department') }}"
+                                                    placeholder="{{ __('crm.search_or_select_units') }}"
                                                     autocomplete="off">
                                             </div>
 
@@ -431,7 +431,7 @@
                                                             @endif
                                                         </div>
                                                     @empty
-                                                        <div class="tag-dropdown-item text-muted">No departments found</div>
+                                                        <div class="tag-dropdown-item text-muted">{{ __('crm.no_units_found_static') }}</div>
                                                     @endforelse
                                                 </div>
                                             @endif

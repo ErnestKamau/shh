@@ -1,12 +1,4 @@
 @php
-    $renderSamplingPoint = function (array $checks) {
-        $html = '';
-        foreach ($checks as $label => $checked) {
-            $class = $checked ? 'trf-check trf-check-on' : 'trf-check trf-check-off';
-            $html .= '<span class="' . $class . '"></span> ' . e($label) . ' ';
-        }
-        return $html;
-    };
     $renderTestReq = function (array $row) {
         $items = [
             'Microbiology' => $row['microbiology'] ?? false,
@@ -29,7 +21,8 @@
         <th rowspan="2" style="width:10%;">SAMPLE DESCRIPTION</th>
         <th rowspan="2" style="width:8%;">LOCATION</th>
         <th rowspan="2" style="width:4%;">QTY.</th>
-        <th colspan="5">SAMPLING POINT</th>
+        <th colspan="5">SAMPLING LOCATION</th>
+        <th rowspan="2" style="width:8%;">SAMPLING POINT</th>
         <th colspan="5">FIELD DATA</th>
         <th colspan="3">TEST REQUIREMENTS</th>
     </tr>
@@ -49,18 +42,19 @@
         <th class="trf-subheader">Chemistry</th>
     </tr>
     @forelse($sampleRows as $row)
-        @php $sp = $row['sampling_point_checks'] ?? []; @endphp
+        @php $sp = $row['sampling_location_checks'] ?? $row['sampling_point_checks'] ?? []; @endphp
         <tr>
             <td class="trf-center">{{ $row['serial'] }}</td>
             <td>{{ $row['sample_no'] }}</td>
             <td>{{ $row['sample_description'] }}</td>
-            <td>{{ $row['location'] }}</td>
+            <td>{{ $row['location'] ?? $row['sampling_location'] ?? '' }}</td>
             <td class="trf-center">{{ $row['qty'] }}</td>
             <td class="trf-center"><span class="{{ ($sp['Tap'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
             <td class="trf-center"><span class="{{ ($sp['Tank'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
             <td class="trf-center"><span class="{{ ($sp['Pool'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
             <td class="trf-center"><span class="{{ ($sp['Shower Head'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
             <td class="trf-center"><span class="{{ ($sp['Others'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
+            <td>{{ $row['sampling_point'] ?? '' }}</td>
             <td class="trf-center">{{ $row['ph'] }}</td>
             <td class="trf-center">{{ $row['appearance'] }}</td>
             <td class="trf-center">{{ $row['residual_chlorine'] }}</td>
@@ -72,7 +66,7 @@
         </tr>
     @empty
         <tr>
-            <td colspan="18" class="trf-center">&nbsp;</td>
+            <td colspan="19" class="trf-center">&nbsp;</td>
         </tr>
     @endforelse
 </table>

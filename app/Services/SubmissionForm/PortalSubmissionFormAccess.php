@@ -157,6 +157,11 @@ class PortalSubmissionFormAccess
 
     private function findTestRequestFormForSampleType(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
     {
+        $byDocumentCode = $this->findTestRequestFormBySampleTypeDocumentCode($sampleTypeId);
+        if ($byDocumentCode !== null) {
+            return $byDocumentCode;
+        }
+
         $scopedToSampleType = fn (Builder $query) => $query->whereHas(
             'sampleTypes',
             fn (Builder $sampleTypeQuery) => $sampleTypeQuery->where('sample_types.id', $sampleTypeId)
@@ -186,7 +191,7 @@ class PortalSubmissionFormAccess
             return $templateMatch;
         }
 
-        return $this->findTestRequestFormBySampleTypeDocumentCode($sampleTypeId);
+        return null;
     }
 
     private function findTestRequestFormBySampleTypeDocumentCode(string $sampleTypeId): ?SubmissionForm

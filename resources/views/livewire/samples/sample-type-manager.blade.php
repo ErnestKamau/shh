@@ -8,12 +8,12 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-flask-outline text-primary"></i>
-                                Sample Types Management
+                                Matrix Category Management
                             </h2>
-                            <p class="text-muted mb-0">Manage sample types, analysis types, and analysis elements</p>
+                            <p class="text-muted mb-0">Manage matrix categories, matrix sub categories, and analysis elements</p>
                         </div>
                         <button wire:click="showCreateSampleTypeModal" class="btn btn-outline-primary sampletype-action-btn">
-                            <i class="mdi mdi-plus"></i> Add Sample Type
+                            <i class="mdi mdi-plus"></i> Add Matrix
                         </button>
                     </div>
                 </div>
@@ -43,7 +43,7 @@
                         <div class="col-md-12">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search sample types...">
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search matrix categories...">
                             </div>
                         </div>
                     </div>
@@ -52,12 +52,12 @@
         </div>
     </div>
 
-    <!-- Sample Types Table -->
+    <!-- Matrix Categories Table -->
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Sample Types</h5>
+                    <h5 class="card-title mb-0">Matrix Categories</h5>
                     <div class="d-flex align-items-center">
                         <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
                         <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
@@ -76,7 +76,7 @@
                                         <th>Actions</th>
                                         <th>Code</th>
                                         <th>Name</th>
-                                        <th>Analysis Types</th>
+                                        <th>Matrix Sub Categories</th>
                                         <th>Has Attachable Result</th>
                                         <th>Exhibit Returned On Reception</th>
                                         <th>Status</th>
@@ -89,7 +89,7 @@
                                                 <div class="d-flex sampletype-actions-cell">
                                                     <a href="{{ route('livewire.analysis-types', ['sampleTypeId' => $sampleType->id]) }}" 
                                                        class="rm-act-btn rm-act-btn--view" 
-                                                       title="View Analysis Types">
+                                                       title="View Matrix Sub Categories">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
                                                     <button type="button"
@@ -102,14 +102,14 @@
                                                             wire:click="cloneSampleType(@js($sampleType->id))" 
                                                             class="rm-act-btn rm-act-btn--clone" 
                                                             title="Clone"
-                                                            onclick="return confirm('Are you sure you want to clone this sample type?')">
+                                                            onclick="return confirm('Are you sure you want to clone this matrix?')">
                                                         <i class="mdi mdi-content-duplicate"></i>
                                                     </button>
                                                     <button type="button"
                                                             wire:click="deleteSampleType(@js($sampleType->id))" 
                                                             class="rm-act-btn rm-act-btn--delete" 
                                                             title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this sample type? This will also delete all associated analysis types and elements.')">
+                                                            onclick="return confirm('Are you sure you want to delete this matrix? This will also delete all associated matrix sub categories and elements.')">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
@@ -167,8 +167,8 @@
                     @else
                         <div class="text-center py-5">
                             <i class="mdi mdi-flask-outline text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No sample types found</h5>
-                            <p class="text-muted">Create your first sample type to get started.</p>
+                            <h5 class="text-muted mt-3">No matrix categories found</h5>
+                            <p class="text-muted">Create your first matrix to get started.</p>
                         </div>
                     @endif
                 </div>
@@ -176,7 +176,7 @@
         </div>
     </div>
 
-    <!-- Sample Type Modal -->
+    <!-- Matrix Modal -->
     @if($showSampleTypeModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -184,7 +184,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingSampleType ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingSampleType ? 'Edit' : 'Create' }} Sample Type
+                            {{ $editingSampleType ? 'Edit' : 'Create' }} Matrix
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeSampleTypeModal"></button>
                     </div>
@@ -241,13 +241,13 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Sample Type Options Section -->
+                            <!-- Matrix Options Section -->
                             <div class="card bg-light mb-3">
                                 <div class="card-header">
                                     <h6 class="mb-0 text-muted">
-                                        <i class="mdi mdi-cog"></i> Sample Type Options
+                                        <i class="mdi mdi-cog"></i> Matrix Options
                                     </h6>
-                                    <small class="text-muted">Configure sample type settings and features</small>
+                                    <small class="text-muted">Configure matrix settings and features</small>
                                 </div>
                                 <div class="card-body">
                                     <div class="row">
@@ -291,7 +291,7 @@
         </div>
     @endif
 
-    <!-- Analysis Type Modal -->
+    <!-- Matrix Sub Category Modal -->
     @if($showAnalysisTypeModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -299,7 +299,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingAnalysisType ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingAnalysisType ? 'Edit' : 'Create' }} Analysis Type
+                            {{ $editingAnalysisType ? 'Edit' : 'Create' }} Matrix Sub Category
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeAnalysisTypeModal"></button>
                     </div>

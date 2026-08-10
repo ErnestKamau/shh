@@ -565,6 +565,14 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.sample_conditions') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		<a href="{{ route('type_of_analysis_index') }}" class="list-group-item list-group-item-action">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.type_of_analysis') }}
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		<a href="{{ route('parameter_groups_index') }}" class="list-group-item list-group-item-action">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Parameter Groups
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
 		<a href="{{ route('lab.amendment-report-configuration') }}" class="list-group-item list-group-item-action">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Amendment Report Configuration
 				<small class="float-right badge badge-pill"></small></span>

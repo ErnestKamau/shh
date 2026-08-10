@@ -5,6 +5,7 @@ namespace Tests\Unit\Services\Commercial;
 use App\AnalysisElements;
 use App\AnalysisType;
 use App\Analyte;
+use App\Models\EnquiryQuotation;
 use App\Models\SampleSubmissionRequest;
 use App\QuotationDetails;
 use App\QuotationHeader;
@@ -20,7 +21,7 @@ class EnquiryFromQuotationServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_creates_an_enquiry_with_an_owned_quotation_and_lab_configuration(): void
+    public function test_it_creates_an_enquiry_linked_to_the_billing_quotation_without_cloning(): void
     {
         [$quotation, $element] = $this->createMappableQuotation();
         $token = (string) Str::uuid();
@@ -35,29 +36,47 @@ class EnquiryFromQuotationServiceTest extends TestCase
         $this->assertSame(CommercialEnquirySyncService::SOURCE_WALK_IN, $enquiry->source_channel);
         $this->assertSame((string) $quotation->id, (string) $enquiry->created_from_quotation_header_id);
         $this->assertSame('PO-ENQ-100', $enquiry->reference_number);
-        $this->assertNotSame((string) $quotation->id, (string) $enquiry->current_quotation_header_id);
+        $this->assertSame((string) $quotation->id, (string) $enquiry->current_quotation_header_id);
         $this->assertContains((string) $element->id, $enquiry->parameter_ids);
         $this->assertCount(2, $enquiry->enquiry_sample_configuration);
 
-        $ownedQuotation = $enquiry->currentQuotation;
-        $this->assertNotNull($ownedQuotation);
-        $this->assertSame((string) $quotation->id, (string) $ownedQuotation->source_quotation_header_id);
-        $this->assertSame((string) $enquiry->id, (string) $ownedQuotation->sample_submission_request_id);
-        $this->assertNotSame((string) $quotation->quote_number, (string) $ownedQuotation->quote_number);
-        $this->assertTrue(
-            \App\Services\Commercial\AmSpecQuotationNumberGenerator::isAmsqFormat($ownedQuotation->quote_number),
-            'Owned clone should receive a normal AMSQ quote number, not a -E suffix.',
-        );
-        $this->assertCount(1, $ownedQuotation->details);
+        $this->assertDatabaseHas('enquiry_quotations', [
+            'sample_submission_request_id' => $enquiry->id,
+            'quotation_header_id' => $quotation->id,
+            'link_source' => EnquiryQuotation::LINK_SOURCE_BILLING_WIZARD,
+        ]);
 
         $quotation->refresh();
         $this->assertNull($quotation->sample_submission_request_id);
+        $this->assertSame(1, QuotationHeader::query()->where('id', $quotation->id)->count());
 
         $retried = app(EnquiryFromQuotationService::class)->create($quotation, [], $token);
         $this->assertSame((string) $enquiry->id, (string) $retried->id);
         $this->assertSame(1, SampleSubmissionRequest::query()
             ->where('quotation_creation_token', $token)
             ->count());
+    }
+
+    public function test_multiple_enquiries_can_link_to_the_same_billing_quotation(): void
+    {
+        [$quotation] = $this->createMappableQuotation();
+
+        $first = app(EnquiryFromQuotationService::class)->create($quotation, [
+            'number_of_samples' => 1,
+        ], (string) Str::uuid());
+
+        $second = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $quotation->crm_customer_id,
+            'status' => SampleSubmissionRequest::STATUS_REQUESTED,
+            'source_channel' => 'walk_in',
+        ]);
+
+        app(\App\Services\Commercial\QuotationFromEnquiryService::class)
+            ->attachExistingQuotation($second, $quotation);
+
+        $this->assertSame((string) $quotation->id, (string) $first->fresh()->current_quotation_header_id);
+        $this->assertSame((string) $quotation->id, (string) $second->fresh()->current_quotation_header_id);
+        $this->assertSame(2, EnquiryQuotation::query()->where('quotation_header_id', $quotation->id)->count());
     }
 
     public function test_it_rejects_general_quotations(): void
@@ -132,7 +151,7 @@ class EnquiryFromQuotationServiceTest extends TestCase
         );
     }
 
-    public function test_already_sent_intent_marks_quotation_sent(): void
+    public function test_already_sent_intent_marks_quotation_sent_on_pivot(): void
     {
         [$quotation] = $this->createMappableQuotation();
 
@@ -143,7 +162,16 @@ class EnquiryFromQuotationServiceTest extends TestCase
 
         $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_SENT, $enquiry->status);
         $this->assertNotNull($enquiry->quotation_first_sent_to_customer_at);
-        $this->assertNotNull($enquiry->currentQuotation?->sent_to_customer_at);
+        $this->assertDatabaseHas('enquiry_quotations', [
+            'sample_submission_request_id' => $enquiry->id,
+            'quotation_header_id' => $quotation->id,
+        ]);
+        $this->assertNotNull(
+            EnquiryQuotation::query()
+                ->where('sample_submission_request_id', $enquiry->id)
+                ->where('quotation_header_id', $quotation->id)
+                ->value('sent_to_customer_at')
+        );
     }
 
     public function test_accepted_intent_marks_ready_for_reception(): void
@@ -235,6 +263,26 @@ class EnquiryFromQuotationServiceTest extends TestCase
         $groups = $service->fillableTrfGroups($quotation);
         $this->assertCount(2, $groups);
 
+        $waterGroup = collect($groups)->first(
+            static fn (array $group): bool => (string) ($group['sample_type_id'] ?? '') === $waterTypeId,
+        );
+        $this->assertNotNull($waterGroup);
+        $wizardFields = collect($waterGroup['sections'] ?? [])->flatMap(
+            static fn (array $section): array => $section['fields'] ?? [],
+        );
+        $qtyField = $wizardFields->firstWhere('name', 'sample_quantity');
+        $unitField = $wizardFields->firstWhere('name', 'sample_quantity_unit');
+        $this->assertNotNull($qtyField);
+        $this->assertNotNull($unitField);
+        $descField = $wizardFields->firstWhere('name', 'sample_description');
+        $this->assertNotNull($descField);
+        $this->assertSame('rich_text', $descField['element_type'] ?? null);
+        $this->assertSame('number', $qtyField['element_type'] ?? null);
+        $this->assertSame('select', $unitField['element_type'] ?? null);
+        $this->assertTrue((bool) ($unitField['render_paired'] ?? false));
+        $this->assertNotEmpty($qtyField['unit_options'] ?? []);
+        $this->assertNull($wizardFields->firstWhere('name', 'number_of_samples'));
+
         $enquiry = $service->create($quotation, [
             'number_of_samples' => 3,
             'creation_intent' => EnquiryFromQuotationService::INTENT_PREPARE,
@@ -258,6 +306,113 @@ class EnquiryFromQuotationServiceTest extends TestCase
             ->where('portal_request_id', (string) $enquiry->id)
             ->count();
         $this->assertGreaterThanOrEqual(1, $linkedTrfCount);
+    }
+
+    public function test_it_persists_wizard_supplemental_fields_through_configs_sample_lines_and_trf(): void
+    {
+        [$quotation, $element] = $this->createMappableQuotation();
+        unset($element);
+
+        $sampleTypeId = (string) $quotation->details->first()->sample_type;
+        $service = app(EnquiryFromQuotationService::class);
+
+        $enquiry = $service->create($quotation, [
+            'number_of_samples' => 2,
+            'creation_intent' => EnquiryFromQuotationService::INTENT_PREPARE,
+            'section_field_values_by_type' => [
+                $sampleTypeId => [
+                    'sample_quantity' => '4',
+                    'sample_quantity_unit' => 'L',
+                    'sampling_point' => 'Tap',
+                    'test_requirements' => 'microbiology',
+                ],
+            ],
+        ], (string) Str::uuid());
+
+        $stored = is_array($enquiry->trf_section_field_values) ? $enquiry->trf_section_field_values : [];
+        $this->assertArrayHasKey($sampleTypeId, $stored);
+        $this->assertSame('4', $stored[$sampleTypeId]['sample_quantity'] ?? null);
+
+        $configs = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+        $this->assertCount(2, $configs);
+        foreach ($configs as $config) {
+            $this->assertSame('4', $config['sample_quantity'] ?? null);
+            $this->assertSame('L', $config['sample_quantity_unit'] ?? null);
+            $this->assertSame('Tap', $config['sampling_point'] ?? null);
+            $this->assertSame('microbiology', $config['test_requirements'] ?? null);
+        }
+
+        $sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $this->assertCount(2, $sampleLines);
+        foreach ($sampleLines as $line) {
+            $this->assertSame('4', $line['sample_quantity'] ?? null);
+            $this->assertSame('L', $line['sample_quantity_unit'] ?? null);
+            $this->assertSame('Tap', $line['sampling_point'] ?? null);
+            $this->assertSame('microbiology', $line['test_requirements'] ?? null);
+        }
+
+        $instance = \App\Models\SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
+        $this->assertNotNull($instance);
+
+        $parsedLines = app(\App\Services\SubmissionForm\SubmissionRequestSampleLineService::class)
+            ->linesForInstance($instance->fresh(['values.element', 'submissionForm.sections.elementHolders.elements']));
+        $this->assertCount(2, $parsedLines);
+        $this->assertSame('4', $parsedLines[0]['sample_quantity'] ?? null);
+        $this->assertSame('L', $parsedLines[0]['sample_quantity_unit'] ?? null);
+        $this->assertSame('Tap', $parsedLines[0]['sampling_point'] ?? null);
+    }
+
+    public function test_it_applies_distinct_per_sample_wizard_supplemental_fields(): void
+    {
+        [$quotation] = $this->createMappableQuotation();
+        $sampleTypeId = (string) $quotation->details->first()->sample_type;
+        $service = app(EnquiryFromQuotationService::class);
+
+        $enquiry = $service->create($quotation, [
+            'number_of_samples' => 3,
+            'creation_intent' => EnquiryFromQuotationService::INTENT_PREPARE,
+            'section_field_values_by_type' => [
+                $sampleTypeId => [
+                    [
+                        'sample_quantity' => '4',
+                        'sample_quantity_unit' => 'L',
+                        'sampling_point' => 'Tap A',
+                        'test_requirements' => 'microbiology',
+                    ],
+                    [
+                        'sample_quantity' => '10',
+                        'sample_quantity_unit' => 'L',
+                        'sampling_point' => 'Tap B',
+                        'test_requirements' => 'chemistry',
+                    ],
+                    [
+                        'sample_quantity' => '2',
+                        'sample_quantity_unit' => 'L',
+                        'sampling_point' => 'Tap C',
+                        'test_requirements' => 'microbiology',
+                    ],
+                ],
+            ],
+        ], (string) Str::uuid());
+
+        $stored = is_array($enquiry->trf_section_field_values) ? $enquiry->trf_section_field_values : [];
+        $this->assertTrue(EnquiryFromQuotationService::isRowIndexedTrfSectionValues($stored[$sampleTypeId] ?? []));
+        $this->assertSame('Tap B', $stored[$sampleTypeId][1]['sampling_point'] ?? null);
+
+        $configs = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+        $this->assertCount(3, $configs);
+        $this->assertSame('Tap A', $configs[0]['sampling_point'] ?? null);
+        $this->assertSame('Tap B', $configs[1]['sampling_point'] ?? null);
+        $this->assertSame('Tap C', $configs[2]['sampling_point'] ?? null);
+        $this->assertSame('4', $configs[0]['sample_quantity'] ?? null);
+        $this->assertSame('10', $configs[1]['sample_quantity'] ?? null);
+        $this->assertSame('2', $configs[2]['sample_quantity'] ?? null);
+
+        $sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $this->assertCount(3, $sampleLines);
+        $this->assertSame('Tap A', $sampleLines[0]['sampling_point'] ?? null);
+        $this->assertSame('Tap B', $sampleLines[1]['sampling_point'] ?? null);
+        $this->assertSame('Tap C', $sampleLines[2]['sampling_point'] ?? null);
     }
 
     /**
