@@ -4,12 +4,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>@if(!empty($isPreviewMode))Preview — @endif Test Report &mdash; {{ $reportNumber }}</title>
+<title>@if(!empty($isPreviewMode))Preview — @endif Shelf Life Study Report &mdash; {{ $reportNumber }}</title>
 @endif
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     /* ═══════════════════════════════════════════
-       AmSpec Test Report — matches PDF
+       AmSpec Shelf Life Study Report — matches PDF
        ═══════════════════════════════════════════ */
     @if(empty($isEmbedded))
     body { background: #e9ecef; }
@@ -282,6 +282,34 @@
     }
     .lab-section-banner td {
         font-weight: normal;
+    }
+    .sls-conditions {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0 10px;
+        font-size: 10pt;
+        table-layout: fixed;
+    }
+    .sls-conditions th {
+        background: #8B1A1A;
+        color: #fff;
+        text-align: left;
+        padding: 6px 8px;
+        border: 1px solid #6e1515;
+        font-size: 10pt;
+        letter-spacing: 0.02em;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .sls-conditions td {
+        border: 1px solid #000;
+        padding: 4px 7px;
+        vertical-align: top;
+        background: #fff;
+    }
+    .sls-conditions .sls-cond-label {
+        font-weight: bold;
+        width: 34%;
     }
     .trr-sample-block + .trr-sample-block {
         margin-top: 18px;
@@ -801,9 +829,9 @@
             <div class="trr-preview-chrome">
                 <div class="trr-preview-copy">
                     <span class="trr-preview-badge">Draft preview</span>
-                    <h1>Test Report</h1>
+                    <h1>Shelf Life Study Report</h1>
                     <p>
-                        This is how the final report will look with the current results and comments.
+                        This is how the final shelf life report will look with the current results and study conditions.
                         It does not issue a revision and is not saved as an official PDF.
                         @if(!empty($reportNumber))
                             Provisional number: <strong style="color:#fff;">{{ $reportNumber }}</strong>
@@ -838,38 +866,70 @@
                 'sampleIndex' => $loop->index,
             ])
 
+            @php
+                $context = $sampleDetailContexts[$loop->index] ?? [];
+                $conditions = is_array($context['conditions'] ?? null)
+                    ? $context['conditions']
+                    : ($shelfLifeConditionsBySampleDetailId[$sample->id] ?? []);
+            @endphp
+            <table class="sls-conditions">
+                <thead>
+                    <tr>
+                        <th colspan="2">{{ $labels['accelerated_conditions'] ?? 'Accelerated Shelf-Life Study Conditions' }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="sls-cond-label">{{ $labels['study_type'] ?? 'Study Type' }}</td>
+                        <td>{{ $conditions['study_type'] ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="sls-cond-label">{{ $labels['accelerated_temperature'] ?? 'Accelerated Temperature' }}</td>
+                        <td>{{ $conditions['accelerated_temperature'] ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="sls-cond-label">{{ $labels['study_duration'] ?? 'Study Duration' }}</td>
+                        <td>{{ $conditions['study_duration'] ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="sls-cond-label">{{ $labels['relative_humidity'] ?? 'Relative Humidity' }}</td>
+                        <td>{{ $conditions['relative_humidity'] ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="sls-cond-label">{{ $labels['evaluation_type'] ?? 'Evaluation Type' }}</td>
+                        <td>{{ $conditions['evaluation_type'] ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="sls-cond-label">{{ $labels['sampling_frequency'] ?? 'Sampling Frequency' }}</td>
+                        <td>{{ $conditions['sampling_frequency'] ?? '—' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
             <table class="results-table">
                 <thead>
                     <tr>
-                        @php
-                            $includeReferenceMethod = !empty($includeReferenceMethod);
-                            $resultsColspan = $includeReferenceMethod ? 9 : 8;
-                        @endphp
-                        <th style="width:{{ $includeReferenceMethod ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
-                        <th style="width:10%">{{ $labels['results'] }}</th>
-                        <th style="width:7%">{{ $labels['unit'] }}</th>
-                        <th style="width:7%">{{ $labels['loq'] ?? 'LOQ' }}</th>
-                        <th style="width:12%">{{ $labels['specification'] }}</th>
-                        <th style="width:12%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
-                        <th style="width:6%">{{ $labels['mu_percent'] }}</th>
-                        <th style="width:{{ $includeReferenceMethod ? '17%' : '19%' }}">{{ $labels['method'] }}</th>
-                        @if($includeReferenceMethod)
-                        <th style="width:14%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
-                        @endif
+                        <th style="width:18%">{{ $labels['analyte'] }}</th>
+                        <th style="width:12%">{{ $labels['results'] }}</th>
+                        <th style="width:8%">{{ $labels['unit'] }}</th>
+                        <th style="width:14%">{{ $labels['specification'] }}</th>
+                        <th style="width:16%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
+                        <th style="width:18%">{{ $labels['method'] }}</th>
+                        <th style="width:14%">{{ $labels['conclusion'] ?? 'Conclusion' }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @php
                         $hasRows = false;
                         $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
+                        $resultsColspan = 7;
                     @endphp
                     @foreach ($sample->getSampleByAnalysisType() as $atLevel)
                         @php $captured_results = $atLevel->getCapturedResults(); @endphp
                         @foreach ($captured_results as $cr)
                             @php
                                 $hasRows = true;
-                                $analysisMethod = $cr->method() ?: $cr->ltmethod;
-                                $referenceMethodName = $analysisMethod?->referencemethod?->name ?? null;
+                                $conclusion = $conclusionByCapturedResultId[$cr->id] ?? '—';
                             @endphp
                             <tr>
                                 <td>
@@ -879,18 +939,16 @@
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
-                                <td>{{ $loqByCapturedResultId[$cr->id] ?? '-' }}</td>
                                 <td>
                                     {{ $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
                                 </td>
                                 <td>
                                     {{ $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
                                 </td>
-                                <td>{{ $measureUncertaintyByCapturedResultId[$cr->id] ?? '-' }}</td>
                                 <td>{{ strtoupper($cr->method()?->name ?? $cr->ltmethod?->name ?? '-') }}</td>
-                                @if($includeReferenceMethod)
-                                <td>{{ $referenceMethodName ? strtoupper($referenceMethodName) : '-' }}</td>
-                                @endif
+                                <td class="{{ strtoupper((string) $conclusion) === 'FAIL' ? 'fail' : (strtoupper((string) $conclusion) === 'PASS' ? 'pass' : '') }}">
+                                    {{ $conclusion }}
+                                </td>
                             </tr>
                         @endforeach
                     @endforeach
@@ -909,15 +967,18 @@
                 <strong>Remarks:</strong> {!! str_ireplace(['not conforming', 'non-conforming'], 'Non-Conforming', $sample->header_body) !!}
             </div>
             @endif
-            @if($sample->main_body)
-            <div class="sample-interpretations">
-                <strong>Recommendations / Interpretations:</strong> {!! $sample->main_body !!}
-            </div>
-            @endif
 
             @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing', [
                 'sampleIndex' => $loop->index,
             ])
+
+            <div class="sample-notes" style="margin-top:8px;">
+                <strong>{{ $labels['notes'] ?? 'Note' }}:</strong>
+                <ol style="margin:4px 0 0 18px;padding:0;">
+                    <li>{{ $labels['shelf_life_note_1'] }}</li>
+                    <li>{{ $labels['shelf_life_note_2'] }}</li>
+                </ol>
+            </div>
 
             @if(empty($isPdfMode))
                 @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-legal-footer')

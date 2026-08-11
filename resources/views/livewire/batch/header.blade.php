@@ -312,6 +312,14 @@
                                             <i class="mdi mdi-eye-outline mr-2"></i> Preview Test Report
                                         </a>
                                     </li>
+                                    @if(!empty($batch->is_shelf_life))
+                                    <li>
+                                        <a href="{{ route('generateShelfLifeStudyReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
+                                           class="dropdown-item">
+                                            <i class="mdi mdi-flask-outline mr-2"></i> Preview Shelf Life Report
+                                        </a>
+                                    </li>
+                                    @endif
                                     @endcan
                                     {{-- Temporarily hidden: Update Sample Data
                                     <li><span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)"
@@ -341,6 +349,14 @@
                                             <i class="mdi mdi-eye-outline mr-2"></i> Preview Test Report
                                         </a>
                                     </li>
+                                    @if(!empty($batch->is_shelf_life))
+                                    <li>
+                                        <a href="{{ route('generateShelfLifeStudyReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
+                                           class="dropdown-item">
+                                            <i class="mdi mdi-flask-outline mr-2"></i> Preview Shelf Life Report
+                                        </a>
+                                    </li>
+                                    @endif
                                     @endcan
                                 @endif
 
@@ -412,7 +428,29 @@
                                         @endif
                                     @endif
                                     @if($batch->status == "Sample Approval")
+                                        @can('laboratory.components.lab-reports.view')
+                                        @if(!empty($batch->is_shelf_life))
+                                        <li>
+                                            <a href="{{ route('generateShelfLifeStudyReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
+                                               class="dropdown-item">
+                                                <i class="mdi mdi-flask-outline mr-2"></i> Preview Shelf Life Report
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @endcan
                                         <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" data-next-modal="#process-test-request-report-modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Report</span></li>
+                                        @if(!empty($batch->is_shelf_life))
+                                        <li>
+                                            <form action="{{ route('processShelfLifeStudyReport') }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="batch_id" value="{{ $batch->id }}">
+                                                <input type="hidden" name="language" value="en">
+                                                <button type="submit" class="btn btn-sm dropdown-item">
+                                                    <i class="mdi mdi-flask-outline mr-2"></i> Generate Shelf Life Report
+                                                </button>
+                                            </form>
+                                        </li>
+                                        @endif
                                         @if(in_array($batch->status, ["Sample Approval", "Reports for Collection", "Reports In Payment"]))
                                             {{-- <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal"
                                                     data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process

@@ -200,9 +200,14 @@
 									<input type="checkbox" name="client_instruction_clear" value="1" {{ isset($batch->client_instruction_clear) ? ($batch->client_instruction_clear == 1 ? 'checked' : '') : 'checked' }}> Are client`s instructions clear?
 								</label>
 							</div>
-							<div class="form-group col-md-6 col-lg-3 btn-group-sm mb-0 mb-lg-3">
+							<div class="form-group col-md-6 col-lg-3 btn-group-sm mb-2 mb-lg-3">
 								<label class="control-label d-block mb-0">
 									<input type="checkbox" class="lab_capable" name="lab_capable" value="1" {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'checked' : '') : 'checked' }}> Is the laboratory capable of performing the requested tests?
+								</label>
+							</div>
+							<div class="form-group col-md-6 col-lg-3 btn-group-sm mb-0 mb-lg-3">
+								<label class="control-label d-block mb-0">
+									<input type="checkbox" name="is_shelf_life" value="1" {{ isset($batch->id) && !empty($batch->is_shelf_life) ? 'checked' : '' }}> Shelf life study?
 								</label>
 							</div>
 						</div>

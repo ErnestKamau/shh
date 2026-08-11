@@ -341,6 +341,16 @@
                                 </button>
                                 @endif
 
+                                {{-- Accelerated Shelf-Life Study Conditions --}}
+                                @if($sampleForm['id'] && !empty($batch->is_shelf_life))
+                                <button type="button"
+                                    wire:click="openShelfLifeConditionsModal('{{ $sampleForm['id'] }}')"
+                                    class="btn btn-sm btn-icon btn-light text-danger mx-1"
+                                    title="Accelerated Shelf-Life Study Conditions">
+                                    <i class="mdi mdi-thermometer-lines"></i>
+                                </button>
+                                @endif
+
                                 @if($isEditing)
                                 <button type="button" wire:click="saveSample({{ $index }})"
                                     class="btn btn-sm btn-icon btn-light text-success mx-1" title="Save Row">
@@ -1692,6 +1702,152 @@
                         </button>
                         <button type="button" class="btn btn-default btn-sm text-danger"
                             wire:click="cancelInterlab">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Accelerated Shelf-Life Study Conditions Modal --}}
+    @if($showShelfLifeConditionsModal)
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog"
+        wire:key="shelf-life-conditions-modal-{{ $editingShelfLifeSampleId }}">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-thermometer-lines"></i> Accelerated Shelf-Life Study Conditions
+                        @if($editingShelfLifeSampleCode !== '')
+                            <small class="text-muted">— {{ format_sample_code($editingShelfLifeSampleCode) }}</small>
+                        @endif
+                    </h5>
+                    <button type="button" class="close" wire:click="cancelShelfLifeConditions">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <form wire:submit.prevent="saveShelfLifeConditions">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Study Type</label>
+                                    <input type="text" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.study_type"
+                                        placeholder="Accelerated Shelf-Life Testing">
+                                    @error('shelfLifeConditionsForm.study_type')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Accelerated Temperature</label>
+                                    <input type="text" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.accelerated_temperature"
+                                        placeholder="e.g. 45 ± 2 °C">
+                                    @error('shelfLifeConditionsForm.accelerated_temperature')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Study Duration</label>
+                                    <input type="number" min="0" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.study_duration_value"
+                                        placeholder="e.g. 6">
+                                    @error('shelfLifeConditionsForm.study_duration_value')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>Unit</label>
+                                    <select class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.study_duration_unit">
+                                        <option value="days">Days</option>
+                                        <option value="weeks">Weeks</option>
+                                        <option value="months">Months</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Relative Humidity</label>
+                                    <input type="text" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.relative_humidity"
+                                        placeholder="e.g. 70 ± 5 % RH">
+                                    @error('shelfLifeConditionsForm.relative_humidity')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Evaluation Type</label>
+                                    <input type="text" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.evaluation_type"
+                                        placeholder="e.g. Chemical, Microbial, Physical and Sensory Evaluation">
+                                    @error('shelfLifeConditionsForm.evaluation_type')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Sampling Frequency</label>
+                                    <input type="text" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.sampling_frequency"
+                                        placeholder="e.g. Weekly">
+                                    @error('shelfLifeConditionsForm.sampling_frequency')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Declared Shelf Life</label>
+                                    <input type="text" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.declared_shelf_life"
+                                        placeholder="e.g. 6 Months">
+                                    @error('shelfLifeConditionsForm.declared_shelf_life')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Storage Condition</label>
+                                    <input type="text" class="form-control"
+                                        wire:model.defer="shelfLifeConditionsForm.storage_condition"
+                                        placeholder="e.g. 45 °C">
+                                    @error('shelfLifeConditionsForm.storage_condition')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group mb-0">
+                                    <label>Notes</label>
+                                    <textarea class="form-control" rows="3"
+                                        wire:model.defer="shelfLifeConditionsForm.notes"
+                                        placeholder="Optional notes..."></textarea>
+                                    @error('shelfLifeConditionsForm.notes')
+                                    <small class="text-danger">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-danger btn-sm" wire:loading.attr="disabled">
+                            <span wire:loading.remove><i class="mdi mdi-content-save"></i> Save</span>
+                            <span wire:loading><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                        </button>
+                        <button type="button" class="btn btn-default btn-sm text-danger"
+                            wire:click="cancelShelfLifeConditions">Cancel</button>
                     </div>
                 </form>
             </div>

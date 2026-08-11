@@ -4,6 +4,7 @@ namespace App\Services\Sampleworkflow;
 
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
+use App\Country;
 use App\Models\SubmissionFormInstance;
 use App\SampleAnalysisDates;
 use App\SampleDetails;
@@ -1152,24 +1153,42 @@ class TestRequestReportDataService
         }
 
         $lines = [];
-        $address = trim((string) ($company->address ?? ''));
-        if ($address !== '') {
-            foreach (preg_split('/\r\n|\r|\n/', $address) ?: [] as $line) {
-                $line = trim((string) $line);
-                if ($line !== '' && ! in_array($line, $lines, true)) {
-                    $lines[] = $line;
-                }
+        $haystack = '';
+
+        $pushLine = function (string $line) use (&$lines, &$haystack): void {
+            $line = trim($line);
+            if ($line === '') {
+                return;
+            }
+
+            $key = mb_strtolower($line);
+            if (str_contains($haystack, $key)) {
+                return;
+            }
+
+            $lines[] = $line;
+            $haystack .= ' '.$key;
+        };
+
+        $postalAddress = html_entity_decode(
+            strip_tags(str_replace(['<br>', '<br/>', '<br />', '<BR>'], "\n", (string) ($company->address ?? ''))),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+        $postalAddress = trim($postalAddress);
+        if ($postalAddress !== '') {
+            foreach (preg_split('/\r\n|\r|\n/', $postalAddress) ?: [] as $line) {
+                $pushLine((string) $line);
             }
         }
 
-        $street = trim((string) ($company->street ?? ''));
-        if ($street !== '' && ! in_array($street, $lines, true)) {
-            $lines[] = $street;
-        }
+        $pushLine(trim((string) ($company->street ?? '')));
+        $pushLine(trim((string) ($company->location ?? '')));
 
-        $location = trim((string) ($company->location ?? ''));
-        if ($location !== '' && ! in_array($location, $lines, true)) {
-            $lines[] = $location;
+        $countryId = $company->country_id ?? null;
+        if (filled($countryId)) {
+            $countryName = trim((string) (Country::query()->where('id', $countryId)->value('name') ?? ''));
+            $pushLine($countryName);
         }
 
         $phone = trim((string) ($company->telephone ?? ''));
@@ -1177,7 +1196,7 @@ class TestRequestReportDataService
             $phone = trim((string) ($company->cell_phone ?? ''));
         }
         if ($phone !== '') {
-            $lines[] = 'T: '.$phone;
+            $pushLine('T: '.$phone);
         }
 
         $website = trim((string) ($company->website ?? ''));
@@ -1185,7 +1204,7 @@ class TestRequestReportDataService
             $host = preg_replace('#^https?://#i', '', $website) ?? $website;
             $host = rtrim((string) $host, '/');
             if ($host !== '') {
-                $lines[] = 'W: '.$host;
+                $pushLine('W: '.$host);
             }
         }
 

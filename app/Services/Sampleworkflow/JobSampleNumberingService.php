@@ -35,8 +35,8 @@ class JobSampleNumberingService
     public const TECHNICAL_JOB_PREFIX = 'T';
 
     /**
-     * Generate job/batch number: YYMMDD + 3-digit daily sequence (resets each calendar day).
-     * Example: 260428001
+     * Generate job/batch number: YYMMDD + 3-digit yearly sequence (resets each calendar year).
+     * Example: 260428001 — sequence continues across days; next year starts again at 001.
      *
      * Technical (sandbox) jobs use a separate counter and a leading T, e.g. T260428001.
      */
@@ -48,74 +48,80 @@ class JobSampleNumberingService
 
         $at ??= Carbon::now();
         $datePart = $at->format('ymd');
+        $yearPart = $at->format('y');
 
-        return DB::transaction(function () use ($datePart): string {
-            $sequence = JobNumberSequence::query()
-                ->where('date_ymd', $datePart)
-                ->lockForUpdate()
-                ->first();
+        return DB::transaction(function () use ($datePart, $yearPart): string {
+            $next = $this->claimNextYearlySequence(JobNumberSequence::class, $yearPart);
 
-            if ($sequence === null) {
-                $sequence = JobNumberSequence::query()->create([
-                    'date_ymd' => $datePart,
-                    'last_sequence' => 0,
-                ]);
-
-                $sequence = JobNumberSequence::query()
-                    ->where('id', $sequence->id)
-                    ->lockForUpdate()
-                    ->first();
-            }
-
-            $next = (int) $sequence->last_sequence + 1;
-
-            if ($next > 999) {
-                throw new RuntimeException("Daily job number limit exceeded for {$datePart}.");
-            }
-
-            $sequence->update(['last_sequence' => $next]);
-
-            return $datePart . str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+            return $datePart.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
         });
     }
 
     /**
-     * Sandbox job number: T + YYMMDD + 3-digit sequence from technical_job_number_sequences.
+     * Sandbox job number: T + YYMMDD + 3-digit yearly sequence from technical_job_number_sequences.
      * Example: T260428001
      */
     public function generateTechnicalJobNumber(?Carbon $at = null): string
     {
         $at ??= Carbon::now();
         $datePart = $at->format('ymd');
+        $yearPart = $at->format('y');
 
-        return DB::transaction(function () use ($datePart): string {
-            $sequence = TechnicalJobNumberSequence::query()
-                ->where('date_ymd', $datePart)
+        return DB::transaction(function () use ($datePart, $yearPart): string {
+            $next = $this->claimNextYearlySequence(TechnicalJobNumberSequence::class, $yearPart);
+
+            return self::TECHNICAL_JOB_PREFIX.$datePart.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+        });
+    }
+
+    /**
+     * Increment and return the next sequence for a calendar year (YY).
+     * Seeds from legacy daily rows when a yearly row does not exist yet.
+     *
+     * @param  class-string<JobNumberSequence|TechnicalJobNumberSequence>  $modelClass
+     */
+    private function claimNextYearlySequence(string $modelClass, string $yearPart): int
+    {
+        $sequence = $modelClass::query()
+            ->where('date_ymd', $yearPart)
+            ->lockForUpdate()
+            ->first();
+
+        if ($sequence === null) {
+            $legacyMax = (int) $modelClass::query()
+                ->where('date_ymd', 'like', $yearPart.'%')
+                ->where('date_ymd', '!=', $yearPart)
+                ->sum('last_sequence');
+
+            $sequence = $modelClass::query()->create([
+                'date_ymd' => $yearPart,
+                'last_sequence' => $legacyMax,
+            ]);
+
+            $modelClass::query()
+                ->where('date_ymd', 'like', $yearPart.'%')
+                ->where('date_ymd', '!=', $yearPart)
+                ->delete();
+
+            $sequence = $modelClass::query()
+                ->where('id', $sequence->id)
                 ->lockForUpdate()
                 ->first();
 
             if ($sequence === null) {
-                $sequence = TechnicalJobNumberSequence::query()->create([
-                    'date_ymd' => $datePart,
-                    'last_sequence' => 0,
-                ]);
-
-                $sequence = TechnicalJobNumberSequence::query()
-                    ->where('id', $sequence->id)
-                    ->lockForUpdate()
-                    ->first();
+                throw new RuntimeException("Failed to lock yearly job number sequence for year {$yearPart}.");
             }
+        }
 
-            $next = (int) $sequence->last_sequence + 1;
+        $next = (int) $sequence->last_sequence + 1;
 
-            if ($next > 999) {
-                throw new RuntimeException("Daily technical job number limit exceeded for {$datePart}.");
-            }
+        if ($next > 999) {
+            throw new RuntimeException("Yearly job number limit exceeded for year {$yearPart}.");
+        }
 
-            $sequence->update(['last_sequence' => $next]);
+        $sequence->update(['last_sequence' => $next]);
 
-            return self::TECHNICAL_JOB_PREFIX.$datePart.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
-        });
+        return $next;
     }
 
     /**

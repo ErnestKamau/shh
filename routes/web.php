@@ -1892,6 +1892,8 @@ Route::post('/moveToLab', 'SampleWorkFlowController@moveToLab')->name('moveToLab
 Route::get('/generate-test-request-report', 'SampleWorkFlowController@generateTestRequestReport')->name('generateTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/process-test-request-report', 'SampleWorkFlowController@processTestRequestReport')->name('processTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/deliver-test-request-report', 'SampleWorkFlowController@deliverTestRequestReport')->name('deliverTestRequestReport')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/generate-shelf-life-study-report', 'SampleWorkFlowController@generateShelfLifeStudyReport')->name('generateShelfLifeStudyReport')->middleware('can:laboratory.components.lab-reports.view');
+Route::post('/process-shelf-life-study-report', 'SampleWorkFlowController@processShelfLifeStudyReport')->name('processShelfLifeStudyReport')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::post('/add-Section/Approval', 'SampleAnalysisStageController@addSectionApproval')->name('addSectionApproval')->middleware('can:laboratory.components.sample-tracking-stages.edit');
 Route::post('/delete-Section/Approval', 'SampleAnalysisStageController@deleteSectionApproval')->name('deleteSectionApproval')->middleware('can:laboratory.components.sample-tracking-stages.edit');

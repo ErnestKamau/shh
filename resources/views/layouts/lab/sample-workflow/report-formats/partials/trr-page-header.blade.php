@@ -1,18 +1,16 @@
-{{-- Letterhead: logo + company name left, address right, TEST REPORT title (repeats every PDF page) --}}
+{{-- Letterhead: company logo + name left, System Settings address right, TEST REPORT title --}}
 @php
     $letterhead = $companyLetterhead ?? ['name' => ($company->name ?? 'AmSpec'), 'lines' => []];
+    $letterheadLogo = $companyLogo ?: ($reportLogo ?? '');
 @endphp
 <table class="pg-header">
     <tr>
         <td class="pg-header-logo">
-            @if(!empty($reportLogos['top_left']))
-                <img src="{{ $reportLogos['top_left']['src'] }}" alt="{{ $letterhead['name'] }}">
-            @elseif($reportLogo && empty($reportLogos))
-                <img src="{{ $reportLogo }}" alt="{{ $letterhead['name'] }}">
+            @if($letterheadLogo !== '')
+                <img src="{{ $letterheadLogo }}" alt="{{ $letterhead['name'] }}">
             @else
                 <span class="logo-text">AmSpec</span>
             @endif
-            <div class="pg-header-company">{{ $letterhead['name'] }}</div>
         </td>
         <td class="pg-header-address">
             @foreach($letterhead['lines'] ?? [] as $line)

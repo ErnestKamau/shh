@@ -1631,13 +1631,6 @@ SQL);
             'sampleSubmissionRequest.supportingDocumentTemplates',
             'sampleSubmissionRequest.supportingDocumentInstances.template',
         ])->where('isactive', 1)
-            ->when(
-                \Illuminate\Support\Facades\Schema::hasColumn('sample_headers', 'is_shelf_life'),
-                fn ($query) => $query->where(function ($inner): void {
-                    $inner->where('is_shelf_life', false)
-                        ->orWhereNull('is_shelf_life');
-                })
-            )
             ->where('status', '!=', \App\Services\ShelfLife\ShelfLifeStudyBootstrapService::BATCH_STATUS);
     }
 
