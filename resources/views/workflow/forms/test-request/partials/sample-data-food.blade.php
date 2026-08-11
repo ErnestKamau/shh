@@ -73,9 +73,9 @@
         <tr class="trf-data-row">
             <td class="trf-center">{{ $row['serial'] ?? '' }}</td>
             <td>{{ $row['sample_no'] ?? '' }}</td>
-            <td class="trf-text-cell">{!! $row['sample_description'] ?? '' !!}</td>
-            <td class="trf-text-cell">{!! $row['sampling_location'] ?? '' !!}</td>
-            <td class="trf-text-cell">{!! $row['sampling_point'] ?? '' !!}</td>
+            <td class="trf-text-cell">{{ $row['sample_description'] ?? '' }}</td>
+            <td class="trf-text-cell">{{ $row['sampling_location'] ?? '' }}</td>
+            <td class="trf-text-cell">{{ $row['sampling_point'] ?? '' }}</td>
             <td class="trf-center">{{ $row['qty'] ?? '' }}</td>
             @foreach($typeKeys as $key)
                 <td class="trf-tick-cell">

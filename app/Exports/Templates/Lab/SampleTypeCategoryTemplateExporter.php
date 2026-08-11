@@ -4,14 +4,12 @@ namespace App\Exports\Templates\Lab;
 
 use App\Exports\Templates\ExcelTemplateGenerator;
 
-class SampleTypeTemplateExporter extends ExcelTemplateGenerator
+class SampleTypeCategoryTemplateExporter extends ExcelTemplateGenerator
 {
     protected function defineHeaders(): array
     {
         return [
             'category_name*',
-            'sample_type_code',
-            'sample_type_name*',
             'active',
         ];
     }
@@ -19,8 +17,8 @@ class SampleTypeTemplateExporter extends ExcelTemplateGenerator
     protected function defineExamples(): array
     {
         return [
-            ['Water', 'Drinking Water', 'Drinking Water', '1'],
-            ['Food', 'Sea Food', 'Seafood', '1'],
+            ['Food', '1'],
+            ['Water', '1'],
         ];
     }
 }

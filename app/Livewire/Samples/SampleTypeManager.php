@@ -108,6 +108,7 @@ class SampleTypeManager extends Component
 
     // Search and Filter
     public $search = '';
+    public $categoryFilter = '';
 
     // Searchable dropdown properties
     public $categorySearch = '';
@@ -146,7 +147,7 @@ class SampleTypeManager extends Component
         'sampleTypeForm.name' => 'required|string|max:255',
         'sampleTypeForm.code' => 'required|string|max:255|unique:sample_types,code',
         'sampleTypeForm.description' => 'nullable|string|max:255',
-        'sampleTypeForm.category_id' => 'nullable|exists:sample_type_categories,id',
+        'sampleTypeForm.category_id' => 'required|exists:sample_type_categories,id',
         'sampleTypeForm.disposal_count' => 'nullable|integer|min:0',
         'analysisTypeForm.name' => 'required|string|max:255',
         'analysisTypeForm.code' => 'required|string|max:255',
@@ -158,10 +159,11 @@ class SampleTypeManager extends Component
     ];
 
     protected $messages = [
-        'sampleTypeForm.name.required' => 'Matrix name is required.',
-        'sampleTypeForm.code.required' => 'Matrix code is required.',
-        'sampleTypeForm.code.unique' => 'This matrix code already exists.',
-        'analysisTypeForm.name.required' => 'Matrix sub category name is required.',
+        'sampleTypeForm.name.required' => 'Sample type name is required.',
+        'sampleTypeForm.code.required' => 'Sample type code is required.',
+        'sampleTypeForm.code.unique' => 'This sample type code already exists.',
+        'sampleTypeForm.category_id.required' => 'Sample type category is required.',
+        'analysisTypeForm.name.required' => 'Analysis type name is required.',
         'analysisTypeForm.lab_id.required' => 'Lab selection is required.',
         'elementForm.analyte_id.required' => 'Analyte selection is required.',
     ];
@@ -193,16 +195,25 @@ class SampleTypeManager extends Component
     {
         $query = SampleType::with(['analysis_types' => function($q) {
             $q->orderBy('level', 'asc');
-        }, 'reportFormat', 'sampleAnalysisStages']);
+        }, 'reportFormat', 'sampleAnalysisStages', 'sampleTypeCategory']);
 
         if ($this->search) {
             $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $this->search);
+        }
+
+        if ($this->categoryFilter !== '' && $this->categoryFilter !== null) {
+            $query->where('sample_type_category', $this->categoryFilter);
         }
 
         return $query->orderBy('name', 'asc')->paginate($this->perPage);
     }
 
     public function updatedSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedCategoryFilter()
     {
         $this->resetPage();
     }
@@ -255,7 +266,7 @@ class SampleTypeManager extends Component
                 Rule::unique('sample_types', 'code')->ignore($this->editingSampleType)
             ],
             'sampleTypeForm.description' => 'nullable|string|max:255',
-            'sampleTypeForm.category_id' => 'nullable|exists:sample_type_categories,id',
+            'sampleTypeForm.category_id' => 'required|exists:sample_type_categories,id',
         ]);
 
         try {
@@ -290,7 +301,7 @@ class SampleTypeManager extends Component
                 $sampleType->analysis_types()->update(['has_no_result' => $this->sampleTypeForm['is_results_attachable']]);
 
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
-                $this->message = 'Matrix updated successfully!';
+                $this->message = 'Sample type updated successfully!';
             } else {
                 $payload = [
                     'name' => $this->sampleTypeForm['name'],
@@ -312,7 +323,7 @@ class SampleTypeManager extends Component
 
                 $sampleType = SampleType::create($payload);
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
-                $this->message = 'Matrix created successfully!';
+                $this->message = 'Sample type created successfully!';
             }
 
             DB::commit();
@@ -388,7 +399,7 @@ class SampleTypeManager extends Component
             $sampleType->delete();
 
             DB::commit();
-            $this->message = 'Matrix deleted successfully!';
+            $this->message = 'Sample type deleted successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
@@ -424,7 +435,7 @@ class SampleTypeManager extends Component
             }
 
             DB::commit();
-            $this->message = 'Matrix cloned successfully!';
+            $this->message = 'Sample type cloned successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
@@ -533,7 +544,7 @@ class SampleTypeManager extends Component
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                 ]);
-                $this->message = 'Matrix sub category updated successfully!';
+                $this->message = 'Analysis type updated successfully!';
             } else {
                 AnalysisType::create([
                     'name' => $this->analysisTypeForm['name'],
@@ -545,7 +556,7 @@ class SampleTypeManager extends Component
                     'active' => $this->analysisTypeForm['active'],
                     'company_id' => getUserCompany(),
                 ]);
-                $this->message = 'Matrix sub category created successfully!';
+                $this->message = 'Analysis type created successfully!';
             }
 
             DB::commit();
@@ -571,7 +582,7 @@ class SampleTypeManager extends Component
 
             DB::commit();
             $this->loadAnalysisTypes();
-            $this->message = 'Matrix sub category deleted successfully!';
+            $this->message = 'Analysis type deleted successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

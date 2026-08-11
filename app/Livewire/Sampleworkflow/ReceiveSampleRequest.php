@@ -343,7 +343,10 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
-     * Sample-type cards for the tablet Request For Testing page (UI only).
+     * TRF cards for the Request For Testing page (UI only).
+     *
+     * Walk-in RFT prefers one card per category-bound TRF (Food / Water / Swab),
+     * not one card per sample type. Planner mode still lists by sample type.
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
@@ -351,47 +354,100 @@ class ReceiveSampleRequest extends Component
     {
         $linkedFormIds = [];
 
-        $sampleTypeCards = collect($this->sampleTypes)
-            ->map(function ($sampleType) use (&$linkedFormIds): ?array {
-                $form = $this->resolveSubmissionFormForSampleType((string) $sampleType->id);
-                if ($form === null) {
-                    return null;
-                }
-
-                if (! $this->shouldIncludeFormOnRft($form)) {
-                    return null;
-                }
-
-                $linkedFormIds[(string) $form->id] = true;
-
-                $defaultDescription = $this->plannerMode
-                    ? 'Fill a sampling form for '.$sampleType->name.'.'
-                    : 'Capture a test request for '.$sampleType->name.'.';
-
-                return [
-                    'submission_form_id' => (string) $form->id,
-                    'sample_type_id' => (string) $sampleType->id,
-                    'requires_inline_sample_type' => false,
-                    'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
-                    'name' => (string) $sampleType->name,
-                    'sample_type_name' => (string) $sampleType->name,
-                    'document_code' => $form->document_code,
-                    'sections_count' => $this->wizardStepCountForForm($form),
-                    'description' => filled($form->description)
-                        ? (string) $form->description
-                        : $defaultDescription,
-                    'icon' => $this->plannerMode ? 'mdi-clipboard-edit-outline' : 'mdi-flask-outline',
-                    'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
-                    'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
-                    'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
-                    'start_action' => 'sampleType',
-                ];
-            })
-            ->filter()
-            ->values();
-
         if ($this->plannerMode) {
-            return $sampleTypeCards;
+            return collect($this->sampleTypes)
+                ->map(function ($sampleType) use (&$linkedFormIds): ?array {
+                    $form = $this->resolveSubmissionFormForSampleType((string) $sampleType->id);
+                    if ($form === null) {
+                        return null;
+                    }
+
+                    if (! $this->shouldIncludeFormOnRft($form)) {
+                        return null;
+                    }
+
+                    $linkedFormIds[(string) $form->id] = true;
+
+                    return [
+                        'submission_form_id' => (string) $form->id,
+                        'sample_type_id' => (string) $sampleType->id,
+                        'requires_inline_sample_type' => false,
+                        'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
+                        'name' => (string) $sampleType->name,
+                        'sample_type_name' => (string) $sampleType->name,
+                        'document_code' => $form->document_code,
+                        'sections_count' => $this->wizardStepCountForForm($form),
+                        'description' => filled($form->description)
+                            ? (string) $form->description
+                            : 'Fill a sampling form for '.$sampleType->name.'.',
+                        'icon' => 'mdi-clipboard-edit-outline',
+                        'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
+                        'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
+                        'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
+                        'start_action' => 'sampleType',
+                    ];
+                })
+                ->filter()
+                ->values();
+        }
+
+        // One card per category-bound TRF — vial line shows category name(s).
+        $categoryBoundCards = collect();
+        if (\Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories')) {
+            $categoryBoundForms = SubmissionForm::query()
+                ->where('is_active', true)
+                ->where('is_published', true)
+                ->where('form_type', 'template')
+                ->where(function ($q): void {
+                    $q->where('document_code', 'like', 'TRF%')
+                        ->orWhereRaw('lower(name) like ?', ['%test request form%']);
+                })
+                ->whereDoesntHave('sampleTypes')
+                ->whereHas('sampleTypeCategories')
+                ->when(
+                    ! $this->showHiddenRftForms,
+                    fn ($q) => $q->where(function ($hq): void {
+                        $hq->where('is_hidden_from_rft', false)->orWhereNull('is_hidden_from_rft');
+                    }),
+                )
+                ->with(['sampleTypeCategories'])
+                ->orderBy('name')
+                ->get();
+
+            $categoryBoundCards = $categoryBoundForms
+                ->map(function (SubmissionForm $form) use (&$linkedFormIds): array {
+                    $form->loadMissing(['sections.elementHolders.elements']);
+                    $linkedFormIds[(string) $form->id] = true;
+
+                    $categoryNames = $form->sampleTypeCategories
+                        ->pluck('sample_type_category')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->implode(', ');
+
+                    $cardTitle = $categoryNames !== '' ? $categoryNames : (string) $form->name;
+
+                    return [
+                        'submission_form_id' => (string) $form->id,
+                        'sample_type_id' => null,
+                        'requires_inline_sample_type' => true,
+                        'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
+                        'name' => $cardTitle,
+                        'sample_type_name' => $categoryNames !== '' ? $categoryNames : 'Select in form',
+                        'document_code' => $form->document_code,
+                        'sections_count' => $this->wizardStepCountForForm($form),
+                        'description' => filled($form->description)
+                            ? (string) $form->description
+                            : 'Capture a test request for '.$cardTitle.'.',
+                        'icon' => 'mdi-flask-outline',
+                        'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
+                        'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
+                        'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
+                        'start_action' => 'form',
+                    ];
+                })
+                ->values();
         }
 
         $unlinkedCards = SubmissionForm::query()
@@ -403,6 +459,10 @@ class ReceiveSampleRequest extends Component
                     ->orWhereRaw('lower(name) like ?', ['%test request form%']);
             })
             ->whereDoesntHave('sampleTypes')
+            ->when(
+                \Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories'),
+                fn ($q) => $q->whereDoesntHave('sampleTypeCategories')
+            )
             ->when(
                 ! $this->showHiddenRftForms,
                 fn ($query) => $query->where(function ($hiddenQuery): void {
@@ -436,7 +496,7 @@ class ReceiveSampleRequest extends Component
             })
             ->values();
 
-        return $sampleTypeCards->concat($unlinkedCards)->values();
+        return $categoryBoundCards->concat($unlinkedCards)->values();
     }
 
     private function shouldIncludeFormOnRft(SubmissionForm $form): bool
@@ -863,7 +923,10 @@ class ReceiveSampleRequest extends Component
 
     public function selectAllWalkInParameters(int $rowIndex): void
     {
-        $this->formData['parameters'][$rowIndex] = $this->parametersForRow($rowIndex)->pluck('name')->values()->all();
+        $this->formData['parameters'][$rowIndex] = array_values(array_map(
+            static fn (array $option): string => (string) $option['id'],
+            $this->walkInParameterPickerState($rowIndex)['options']
+        ));
     }
 
     public function clearWalkInParameters(int $rowIndex): void
@@ -876,10 +939,13 @@ class ReceiveSampleRequest extends Component
      */
     public function setWalkInParameters(int $rowIndex, array $parameters): void
     {
-        $normalized = array_values(array_map(
-            static fn ($value): string => (string) $value,
-            $parameters
-        ));
+        $groups = $this->parameterGroupsForRow(
+            ($rowIndex < 0 || ! $this->walkInUsesIndexedSampleRows()) ? null : $rowIndex
+        );
+        $normalized = $this->normalizeWalkInParameterSelection(
+            array_values(array_map(static fn ($value): string => (string) $value, $parameters)),
+            $groups
+        );
 
         if ($rowIndex < 0 || ! $this->walkInUsesIndexedSampleRows()) {
             $this->formData['parameters'] = $normalized;
@@ -914,6 +980,43 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
+     * Sync analysis-type checkbox toggle into formData and auto-pick tests.
+     */
+    public function toggleWalkInAnalysisType(string $wireKey, string $analysisTypeId): void
+    {
+        $relative = preg_replace('/^formData\./', '', $wireKey) ?: 'analysis_type_id';
+        $id = trim((string) $analysisTypeId);
+        if ($id === '') {
+            return;
+        }
+
+        $current = data_get($this->formData, $relative, []);
+        if (! is_array($current)) {
+            $current = filled($current) ? [(string) $current] : [];
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn ($value): string => (string) $value,
+            $current
+        ), static fn (string $value): bool => $value !== '')));
+
+        if (in_array($id, $ids, true)) {
+            $ids = array_values(array_filter($ids, static fn (string $value): bool => $value !== $id));
+        } else {
+            $ids[] = $id;
+        }
+
+        data_set($this->formData, $relative, $ids);
+
+        $rowIndex = null;
+        if (preg_match('/^(?:analysis_type_id|analysis_type|analysis_types)\.(\d+)$/', $relative, $matches)) {
+            $rowIndex = (int) $matches[1];
+        }
+
+        $this->refreshWalkInParametersForAnalysisChange($rowIndex);
+    }
+
+    /**
      * Sync Alpine multi analysis-type picker into formData.
      *
      * @param  list<string|int|float>  $analysisTypeIds
@@ -942,13 +1045,13 @@ class ReceiveSampleRequest extends Component
      */
     private function refreshWalkInParametersForAnalysisChange(?int $rowIndex): void
     {
-        $options = $this->parametersForRow($rowIndex)
-            ->pluck('name')
-            ->map(static fn ($name): string => (string) $name)
-            ->values()
-            ->all();
-
-        $selected = $options;
+        $state = $this->walkInParameterPickerState($rowIndex);
+        $options = $state['options'];
+        $groups = $state['groups'];
+        $selected = array_values(array_map(
+            static fn (array $option): string => (string) $option['id'],
+            $options
+        ));
 
         if ($rowIndex !== null) {
             $this->formData['parameters'][$rowIndex] = $selected;
@@ -958,6 +1061,7 @@ class ReceiveSampleRequest extends Component
                 rowIndex: $rowIndex,
                 options: $options,
                 selected: $selected,
+                groups: $groups,
             );
 
             return;
@@ -978,6 +1082,7 @@ class ReceiveSampleRequest extends Component
             rowIndex: -1,
             options: $options,
             selected: $selected,
+            groups: $groups,
         );
     }
 
@@ -1437,7 +1542,11 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
-     * @return array{selected: list<string>, options: list<string>}
+     * @return array{
+     *     selected: list<string>,
+     *     options: list<array{id: string, name: string}>,
+     *     groups: list<array{analysis_type_id: string, analysis_type: string, sample_type: string, tests: list<array{id: string, name: string}>}>
+     * }
      */
     public function walkInParameterPickerState(?int $rowIndex = null): array
     {
@@ -1450,15 +1559,13 @@ class ReceiveSampleRequest extends Component
                 ? array_values(array_map('strval', $raw))
                 : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
 
-            $options = $this->parametersForRow(null)
-                ->pluck('name')
-                ->map(fn ($name) => (string) $name)
-                ->values()
-                ->all();
+            $groups = $this->parameterGroupsForRow(null);
+            $options = $this->flattenParameterPickerOptions($groups);
 
             return [
-                'selected' => $selected,
+                'selected' => $this->normalizeWalkInParameterSelection($selected, $groups),
                 'options' => $options,
+                'groups' => $groups,
             ];
         }
 
@@ -1467,16 +1574,130 @@ class ReceiveSampleRequest extends Component
             ? array_values(array_map('strval', $raw))
             : ($raw !== '' && $raw !== null ? [(string) $raw] : []);
 
-        $options = $this->parametersForRow($rowIndex)
-            ->pluck('name')
-            ->map(fn ($name) => (string) $name)
-            ->values()
-            ->all();
+        $groups = $this->parameterGroupsForRow($rowIndex);
+        $options = $this->flattenParameterPickerOptions($groups);
 
         return [
-            'selected' => $selected,
+            'selected' => $this->normalizeWalkInParameterSelection($selected, $groups),
             'options' => $options,
+            'groups' => $groups,
         ];
+    }
+
+    /**
+     * @return list<array{analysis_type_id: string, analysis_type: string, sample_type: string, tests: list<array{id: string, name: string}>}>
+     */
+    private function parameterGroupsForRow(?int $rowIndex = null): array
+    {
+        $sampleTypeIds = $this->resolveSampleTypeIdsForRow($rowIndex);
+        $analysisTypeIds = $this->resolveAnalysisTypeIdsForRow($rowIndex);
+        if ($sampleTypeIds === [] || $analysisTypeIds === []) {
+            return [];
+        }
+
+        $analysisTypes = \App\AnalysisType::query()
+            ->with('sample_type')
+            ->whereIn('sample_type_id', $sampleTypeIds)
+            ->whereIn('id', $analysisTypeIds)
+            ->orderBy('name')
+            ->get();
+
+        if ($analysisTypes->isEmpty()) {
+            return [];
+        }
+
+        $testsByTypeId = \App\AnalysisElements::query()
+            ->whereIn('analysis_type_id', $analysisTypes->modelKeys())
+            ->where('active', 1)
+            ->with('analyte:id,name')
+            ->get()
+            ->groupBy(static fn (\App\AnalysisElements $row): string => (string) $row->analysis_type_id)
+            ->map(static function ($rows): array {
+                return $rows
+                    ->filter(static fn (\App\AnalysisElements $row): bool => filled($row->analyte?->name))
+                    ->unique(static fn (\App\AnalysisElements $row): string => (string) $row->analyte_id)
+                    ->sortBy(static fn (\App\AnalysisElements $row): string => mb_strtolower((string) $row->analyte?->name))
+                    ->values()
+                    ->map(static fn (\App\AnalysisElements $row): array => [
+                        'id' => (string) $row->id,
+                        'name' => (string) $row->analyte?->name,
+                    ])
+                    ->all();
+            });
+
+        $groups = [];
+        foreach ($analysisTypes as $analysisType) {
+            $groups[] = [
+                'analysis_type_id' => (string) $analysisType->id,
+                'analysis_type' => (string) $analysisType->name,
+                'sample_type' => (string) ($analysisType->sample_type?->name ?? 'Sample type'),
+                'tests' => $testsByTypeId->get((string) $analysisType->id, []),
+            ];
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param  list<array{tests: list<array{id: string, name: string}>}>  $groups
+     * @return list<array{id: string, name: string}>
+     */
+    private function flattenParameterPickerOptions(array $groups): array
+    {
+        return collect($groups)
+            ->flatMap(static fn (array $group): array => $group['tests'])
+            ->unique('id')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Accept analysis_element ids, or legacy analyte names (maps into every matching element).
+     *
+     * @param  list<string>  $selected
+     * @param  list<array{tests: list<array{id: string, name: string}>}>  $groups
+     * @return list<string>
+     */
+    private function normalizeWalkInParameterSelection(array $selected, array $groups): array
+    {
+        if ($selected === [] || $groups === []) {
+            return [];
+        }
+
+        $ids = [];
+        $idsByName = [];
+
+        foreach ($groups as $group) {
+            foreach ($group['tests'] as $test) {
+                $id = (string) ($test['id'] ?? '');
+                $name = mb_strtolower(trim((string) ($test['name'] ?? '')));
+                if ($id === '') {
+                    continue;
+                }
+                $ids[$id] = true;
+                if ($name !== '') {
+                    $idsByName[$name][] = $id;
+                }
+            }
+        }
+
+        $normalized = [];
+        foreach ($selected as $token) {
+            $token = trim((string) $token);
+            if ($token === '') {
+                continue;
+            }
+            if (isset($ids[$token])) {
+                $normalized[] = $token;
+                continue;
+            }
+
+            foreach ($idsByName[mb_strtolower($token)] ?? [] as $id) {
+                $normalized[] = $id;
+            }
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     /**
@@ -1516,6 +1737,33 @@ class ReceiveSampleRequest extends Component
         }
 
         return $this->resolveSubmissionFormForSampleType((string) $this->selectedSampleTypeId);
+    }
+
+    /**
+     * Sample types offered in the walk-in sample type picker.
+     * When the resolved form has category bindings the list is restricted to those categories;
+     * otherwise all sample types are returned (original behaviour).
+     *
+     * @return \Illuminate\Support\Collection<int, \App\SampleType>
+     */
+    public function getWalkInSampleTypeOptionsProperty(): \Illuminate\Support\Collection
+    {
+        $form = $this->submissionForm;
+
+        if ($form !== null && \Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories')) {
+            $form->loadMissing(['sampleTypeCategories']);
+            $categoryIds = $form->sampleTypeCategories->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+            if ($categoryIds !== []) {
+                return \App\SampleType::query()
+                    ->where('active', true)
+                    ->whereIn('sample_type_category', $categoryIds)
+                    ->orderBy('name')
+                    ->get();
+            }
+        }
+
+        return collect($this->sampleTypes);
     }
 
     public function addSchemaRow(string $sectionId): void
@@ -2029,7 +2277,54 @@ class ReceiveSampleRequest extends Component
             $this->selectedSampleTypeId = null;
         }
 
-        $this->clearAnalysisSelectionsForRow($rowIndex);
+        // Selecting sample type(s) auto-selects every analysis type under them.
+        $this->autoSelectAnalysisTypesForRow($rowIndex);
+        $this->refreshWalkInParametersForAnalysisChange($rowIndex);
+    }
+
+    /**
+     * Auto-select all analysis types available for the row's sample type(s).
+     */
+    private function autoSelectAnalysisTypesForRow(?int $rowIndex = null): void
+    {
+        $analysisTypeIds = $this->analysisTypesForRow($rowIndex)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->values()
+            ->all();
+
+        $keys = ['analysis_type_id', 'analysis_type', 'analysis_types'];
+        $wroteCanonical = false;
+
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $this->formData) && $key !== 'analysis_type_id') {
+                continue;
+            }
+
+            if ($rowIndex !== null) {
+                if (! isset($this->formData[$key]) || ! is_array($this->formData[$key])) {
+                    $this->formData[$key] = [];
+                }
+                $this->formData[$key][$rowIndex] = $analysisTypeIds;
+            } else {
+                $this->formData[$key] = $analysisTypeIds;
+            }
+
+            if ($key === 'analysis_type_id') {
+                $wroteCanonical = true;
+            }
+        }
+
+        if (! $wroteCanonical) {
+            if ($rowIndex !== null) {
+                if (! isset($this->formData['analysis_type_id']) || ! is_array($this->formData['analysis_type_id'])) {
+                    $this->formData['analysis_type_id'] = [];
+                }
+                $this->formData['analysis_type_id'][$rowIndex] = $analysisTypeIds;
+            } else {
+                $this->formData['analysis_type_id'] = $analysisTypeIds;
+            }
+        }
     }
 
     private function clearAnalysisSelectionsForRow(?int $rowIndex = null): void
@@ -2053,8 +2348,9 @@ class ReceiveSampleRequest extends Component
             $this->dispatch(
                 'walk-in-params-row-reset',
                 rowIndex: $rowIndex,
-                options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(),
+                options: [],
                 selected: [],
+                groups: [],
             );
         }
     }
@@ -2078,10 +2374,11 @@ class ReceiveSampleRequest extends Component
     {
         $sampleTypeIds = $this->resolveSampleTypeIdsForRow($rowIndex);
         if ($sampleTypeIds === []) {
-            return collect();
+            return new \Illuminate\Database\Eloquent\Collection;
         }
 
         return \App\AnalysisType::query()
+            ->with('sample_type')
             ->whereIn('sample_type_id', $sampleTypeIds)
             ->orderBy('name')
             ->get();

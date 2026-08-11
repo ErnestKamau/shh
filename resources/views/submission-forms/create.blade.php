@@ -252,7 +252,23 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="sample_type_ids">Sample Types</label>
+                  <label for="sample_type_category_ids">Sample Type Categories</label>
+                  <select class="form-control ls-select2 @error('sample_type_category_ids') is-invalid @enderror" id="sample_type_category_ids" name="sample_type_category_ids[]" multiple>
+                    @php($selectedCategoryIds = old('sample_type_category_ids', []))
+                    @foreach($sampleTypeCategories as $category)
+                      <option value="{{ $category->id }}" {{ in_array($category->id, $selectedCategoryIds) ? 'selected' : '' }}>
+                        {{ $category->sample_type_category }}
+                      </option>
+                    @endforeach
+                  </select>
+                  @error('sample_type_category_ids')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Bind this TRF to one or more sample type categories (e.g. Food, Water). The portal and walk-in flow will offer sample types from these categories.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="sample_type_ids">Sample Types <small class="text-muted">(legacy — prefer categories above)</small></label>
                   <select class="form-control ls-select2 @error('sample_type_ids') is-invalid @enderror" id="sample_type_ids" name="sample_type_ids[]" multiple>
                     @php($selectedSampleTypes = old('sample_type_ids', []))
                     @foreach($sampleTypes as $sampleType)
@@ -264,7 +280,7 @@
                   @error('sample_type_ids')
                     <div class="invalid-feedback d-block">{{ $message }}</div>
                   @enderror
-                  <small class="form-text text-muted">Restrict this form to specific sample types. Leave empty to apply to all sample types.</small>
+                  <small class="form-text text-muted">Restrict this form to specific sample types. Leave empty when using category binding above.</small>
                 </div>
 
                 <div class="form-group">

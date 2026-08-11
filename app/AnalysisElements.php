@@ -27,10 +27,8 @@ class AnalysisElements extends Model implements Auditable
 
   protected $appends = ['parametername'];
   protected $fillable = [
-    'lab_section_id', 
-    'analysis_type_id', 
-    'type_of_analysis_id',
-    'parameter_group_id',
+    'lab_section_id',
+    'analysis_type_id',
     'analyte_id', 
     'method', 
     'equipment_id',
@@ -85,16 +83,6 @@ class AnalysisElements extends Model implements Auditable
   public function analysis_type(){
     return $this->belongsTo('App\AnalysisType');
 	}
-
-  public function typeOfAnalysis()
-  {
-      return $this->belongsTo(TypeOfAnalysis::class, 'type_of_analysis_id');
-  }
-
-  public function parameterGroup()
-  {
-      return $this->belongsTo(ParameterGroup::class, 'parameter_group_id');
-  }
 
   public function analyte(){
     return $this->belongsTo('App\Analyte');

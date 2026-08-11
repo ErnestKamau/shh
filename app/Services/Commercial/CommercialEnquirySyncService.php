@@ -135,6 +135,13 @@ final class CommercialEnquirySyncService
             $enquiry->submission_form_instance_id = $instance->id;
             $enquiry->save();
 
+            // Link walk-in/portal TRF so later Process Enquiry sync reuses it
+            // instead of creating a blank sibling instance.
+            if (trim((string) ($instance->portal_request_id ?? '')) !== (string) $enquiry->id) {
+                $instance->portal_request_id = (string) $enquiry->id;
+                $instance->save();
+            }
+
             $asDraft = $status === SampleSubmissionRequest::STATUS_DRAFT;
 
             if (! $asDraft && $this->contractCustomerService->isScheduledEnquiry($enquiry)) {

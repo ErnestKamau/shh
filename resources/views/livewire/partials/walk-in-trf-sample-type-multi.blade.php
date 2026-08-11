@@ -13,9 +13,9 @@
     'wireKey' => $wirePrefix,
     'fieldId' => $fieldId,
     'syncMethod' => 'setWalkInSampleTypes',
-    'options' => $this->sampleTypes ?? collect(),
+    'options' => $this->walkInSampleTypeOptions ?? collect(),
     'selected' => $selectedIds,
-    'placeholder' => 'Choose sample type(s)…',
-    'emptyHint' => 'No sample types available.',
+    'placeholder' => 'Choose sample type…',
+    'emptyHint' => 'No sample types available for the selected form.',
     'searchPlaceholder' => 'Search sample types...',
 ])

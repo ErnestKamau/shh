@@ -4,6 +4,7 @@ namespace App\Imports\Lab;
 
 use App\Imports\BaseImporter;
 use App\SampleType;
+use App\SampleTypeCategory;
 
 class SampleTypeImporter extends BaseImporter
 {
@@ -13,9 +14,19 @@ class SampleTypeImporter extends BaseImporter
 
         $code = $this->fuzzyGet($row, ['code', 'id', 'sample_type_code', 'matrix_code']);
         $name = $this->fuzzyGet($row, ['name', 'title', 'sample_type_name', 'matrix_name', 'matrix', 'description']);
+        $categoryName = trim((string) $this->fuzzyGet($row, [
+            'category_name',
+            'sample_type_category_name',
+            'sample_type_category',
+            'category',
+        ], ''));
 
         if (empty($code) && empty($name)) {
-            $errors[] = 'Either Code or Name is required';
+            $errors[] = 'Either sample type code or name is required';
+        }
+
+        if ($categoryName === '') {
+            $errors[] = 'category_name is required';
         }
 
         return $errors;
@@ -23,40 +34,49 @@ class SampleTypeImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $code = $this->fuzzyGet($row, ['code', 'id', 'sample_type_code', 'matrix_code', 'parameter_code']);
-        $name = $this->fuzzyGet($row, ['name', 'title', 'sample_type_name', 'matrix_name', 'matrix', 'description', 'parameter_name']);
+        $code = trim((string) $this->fuzzyGet($row, ['code', 'id', 'sample_type_code', 'matrix_code', 'parameter_code'], ''));
+        $name = trim((string) $this->fuzzyGet($row, ['name', 'title', 'sample_type_name', 'matrix_name', 'matrix', 'description', 'parameter_name'], ''));
         $isAttachable = $this->fuzzyGet($row, ['is_results_attachable', 'attachable'], 0);
         $disposalCount = $this->fuzzyGet($row, ['disposal_count', 'disposal'], 0);
         $active = $this->fuzzyGet($row, ['active', 'is_active', 'status'], 1);
-        $category = $this->fuzzyGet($row, ['sample_type_category', 'category', 'category_id'], 1);
-
-        // Clean values
-        $code = trim((string)$code);
-        $name = trim((string)$name);
+        $categoryName = trim((string) $this->fuzzyGet($row, [
+            'category_name',
+            'sample_type_category_name',
+            'sample_type_category',
+            'category',
+        ], ''));
 
         return [
-            'code' => $code ?: ($name ?: 'ST-' . uniqid()),
+            'code' => $code ?: ($name ?: 'ST-'.uniqid()),
             'name' => $name ?: $code,
-            'is_results_attachable' => !in_array(strtolower((string)$isAttachable), ['0', 'no', 'false', 'off', '']),
-            'disposal_count' => is_numeric($disposalCount) ? (int)$disposalCount : 0,
-            'active' => !in_array(strtolower((string)$active), ['0', 'no', 'false', 'off', '']),
-            'sample_type_category' => is_numeric($category) ? (int)$category : 1,
+            'is_results_attachable' => ! in_array(strtolower((string) $isAttachable), ['0', 'no', 'false', 'off', ''], true),
+            'disposal_count' => is_numeric($disposalCount) ? (int) $disposalCount : 0,
+            'active' => ! in_array(strtolower((string) $active), ['0', 'no', 'false', 'off', ''], true),
+            'category_name' => $categoryName,
             'company_id' => $this->batch->company_id,
         ];
     }
 
     protected function importRow(array $transformedData, array $originalRow): bool
     {
-        try {
-            SampleType::updateOrCreate(
-                ['code' => $transformedData['code'], 'company_id' => $this->batch->company_id],
-                $transformedData
-            );
+        $category = SampleTypeCategory::query()
+            ->whereRaw('LOWER(sample_type_category) = ?', [strtolower($transformedData['category_name'])])
+            ->first();
 
-            $this->recordUpsert($transformedData['code'], 'inserted');
-            return true;
-        } catch (\Exception $e) {
-            throw new \Exception("Failed to import sample type: {$e->getMessage()}");
+        if (! $category) {
+            throw new \Exception("Sample type category not found: {$transformedData['category_name']}");
         }
+
+        unset($transformedData['category_name']);
+        $transformedData['sample_type_category'] = $category->id;
+
+        SampleType::updateOrCreate(
+            ['code' => $transformedData['code'], 'company_id' => $this->batch->company_id],
+            $transformedData
+        );
+
+        $this->recordUpsert($transformedData['code'], 'inserted');
+
+        return true;
     }
 }

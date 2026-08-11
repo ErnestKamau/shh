@@ -120,6 +120,16 @@ class SubmissionForm extends Model implements Auditable
         );
     }
 
+    public function sampleTypeCategories()
+    {
+        return $this->belongsToMany(
+            \App\SampleTypeCategory::class,
+            'submission_form_sample_type_categories',
+            'submission_form_id',
+            'sample_type_category_id'
+        );
+    }
+
     /**
      * (For attachment forms) The template forms this attachment form is linked to.
      */

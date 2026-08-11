@@ -51,11 +51,43 @@ class SubmissionFormInstanceAttachment extends Model
         return ($heading !== '' ? str_replace(' ', '-', $heading) : 'Test-Request-Form').'.pdf';
     }
 
-    public function getFileUrlAttribute()
+    public function getFileUrlAttribute(): ?string
     {
-        if ($this->file_path) {
-            return asset('storage/' . $this->file_path);
+        if ($trfInstanceId = $this->resolveTrfInstanceId()) {
+            return route('test-request-form.pdf', $trfInstanceId);
         }
+
+        if ($this->file_path) {
+            return asset('storage/'.$this->file_path);
+        }
+
+        return null;
+    }
+
+    public function getFileDownloadUrlAttribute(): ?string
+    {
+        if ($trfInstanceId = $this->resolveTrfInstanceId()) {
+            return route('test-request-form.download', $trfInstanceId);
+        }
+
+        return $this->file_url;
+    }
+
+    private function resolveTrfInstanceId(): ?string
+    {
+        $path = (string) ($this->file_path ?? '');
+        if (preg_match('#^test-request-forms/trf-sfi-([0-9a-f-]+)\.pdf$#i', $path, $matches) === 1) {
+            return $matches[1];
+        }
+
+        $heading = trim((string) ($this->attachment_heading ?? ''));
+        if (
+            $heading === \App\Services\Sampleworkflow\TestRequestFormPdfService::ATTACHMENT_TITLE
+            && filled($this->submission_form_instance_id)
+        ) {
+            return (string) $this->submission_form_instance_id;
+        }
+
         return null;
     }
 }

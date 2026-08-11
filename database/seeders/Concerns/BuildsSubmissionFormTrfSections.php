@@ -8,6 +8,7 @@ use App\Models\SubmissionFormElementHolder;
 use App\Models\SubmissionFormInstanceValue;
 use App\Models\SubmissionFormSection;
 use App\SampleType;
+use App\SampleTypeCategory;
 use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use Illuminate\Support\Str;
 
@@ -86,12 +87,9 @@ trait BuildsSubmissionFormTrfSections
             ['date', 'Production date', 'production_date', 7],
             ['date', 'Expiration date', 'expiration_date', 8],
             ['text', 'Batch number', 'batch_number', 9],
-            ['analysis_type_select', 'ANALYSIS', 'analysis_type_id', 10, null, true],
-            ['analysis_elements_select', 'Parameters', 'parameters', 11],
-            ['checkbox', 'Test category', 'test_category', 12, [
-                ['value' => 'microbiology', 'label' => 'Microbiology'],
-                ['value' => 'chemistry', 'label' => 'Chemistry'],
-            ]],
+            ['sample_type_select', 'Sample type', 'sample_type_id', 10, null, true],
+            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 11, null, true],
+            ['analysis_elements_select', 'Tests', 'parameters', 12],
         ];
     }
 
@@ -111,13 +109,9 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Field data - Residual chlorine', 'field_residual_chlorine', 8],
             ['text', 'Field data - Odor', 'field_odor', 9],
             ['text', 'Field data - Sample temp (°C)', 'field_sample_temp', 10],
-            ['analysis_type_select', 'ANALYSIS', 'analysis_type_id', 11, null, true],
-            ['analysis_elements_select', 'Parameters', 'parameters', 12],
-            ['checkbox', 'Test requirements', 'test_requirements', 13, [
-                ['value' => 'microbiology', 'label' => 'Microbiology'],
-                ['value' => 'legionella', 'label' => 'Legionella'],
-                ['value' => 'chemistry', 'label' => 'Chemistry'],
-            ]],
+            ['sample_type_select', 'Sample type', 'sample_type_id', 11, null, true],
+            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 12, null, true],
+            ['analysis_elements_select', 'Tests', 'parameters', 13],
         ];
     }
 
@@ -132,9 +126,9 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Sampling Point', 'sampling_point_manual', 3],
             ['number', 'Qty', 'sample_quantity', 4],
             ['text', 'Unit', 'sample_quantity_unit', 5],
-            ['sample_type_select', 'Type of sample', 'sample_type_id', 6, null, true],
-            ['analysis_type_select', 'ANALYSIS', 'analysis_type_id', 7, null, true],
-            ['analysis_elements_select', 'Parameters', 'parameters', 8],
+            ['sample_type_select', 'Sample type', 'sample_type_id', 6, null, true],
+            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 7, null, true],
+            ['analysis_elements_select', 'Tests', 'parameters', 8],
             ['text', 'Field data - Appearance', 'field_appearance', 9],
             ['text', 'Field data - Color', 'field_color', 10],
             ['text', 'Field data - Odor', 'field_odor', 11],
@@ -152,11 +146,24 @@ trait BuildsSubmissionFormTrfSections
                 ['value' => 'SS', 'label' => 'SS - Semi solid'],
                 ['value' => 'S', 'label' => 'S - Solid'],
             ]],
-            ['checkbox', 'Test requirements', 'test_requirements', 17, [
-                ['value' => 'microbiology', 'label' => 'Microbiology'],
-                ['value' => 'chemistry', 'label' => 'Chemistry'],
-            ]],
-            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 18],
+            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 17],
+        ];
+    }
+
+    /**
+     * @return list<array{0: string, 1: string, 2: string, 3: int, 4?: mixed, 5?: bool}>
+     */
+    protected function swabTrfRowFields(): array
+    {
+        return [
+            ['textarea', 'Sample description', 'sample_description', 1],
+            ['customer_sample_point_select', 'Sampling Location', 'sampling_point', 2],
+            ['text', 'Sampling Point', 'sampling_point_manual', 3],
+            ['number', 'Qty', 'sample_quantity', 4],
+            ['text', 'Unit', 'sample_quantity_unit', 5],
+            ['sample_type_select', 'Sample type', 'sample_type_id', 6, null, true],
+            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 7, null, true],
+            ['analysis_elements_select', 'Tests', 'parameters', 8],
         ];
     }
 
@@ -221,7 +228,15 @@ trait BuildsSubmissionFormTrfSections
 
                     if (! $hasValues) {
                         $element->delete();
+
+                        return;
                     }
+
+                    // Keep rows with historic values, but hide obsolete Step 3 controls.
+                    $element->update([
+                        'is_hidden' => true,
+                        'is_required' => false,
+                    ]);
                 });
         }
     }
@@ -605,6 +620,53 @@ trait BuildsSubmissionFormTrfSections
                     $section->delete();
                 }
             });
+    }
+
+    /**
+     * Bind TRF to sample type categories and clear the legacy sample-type pivot.
+     *
+     * @param  list<string>  $categoryNames
+     */
+    protected function syncSampleTypeCategoriesByNames(SubmissionForm $form, array $categoryNames): void
+    {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories')) {
+                $this->command?->warn('Pivot submission_form_sample_type_categories missing — run migrations first.');
+
+                return;
+            }
+
+            $normalized = collect($categoryNames)
+                ->map(fn (string $name): string => mb_strtolower(trim($name)))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $ids = SampleTypeCategory::query()
+                ->where(function ($query) use ($normalized): void {
+                    foreach ($normalized as $name) {
+                        $query->orWhereRaw('LOWER(TRIM(sample_type_category)) = ?', [$name]);
+                    }
+                })
+                ->pluck('id')
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($ids === []) {
+                $this->command?->warn('No sample type categories matched for '.$form->name.' ('.implode(', ', $categoryNames).').');
+
+                return;
+            }
+
+            $form->sampleTypeCategories()->sync($ids);
+            $form->sampleTypes()->sync([]);
+
+            $this->command?->info('Linked categories ['.implode(', ', $categoryNames).'] to '.$form->name.' (cleared sample-type pivot).');
+        } catch (\Exception $e) {
+            $this->command?->warn('Could not sync sample type categories: '.$e->getMessage());
+        }
     }
 
     /**

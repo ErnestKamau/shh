@@ -19,7 +19,9 @@ class BulkImportService
             'lab' => [
                 'name' => 'Lab Management',
                 'forms' => [
-                    'analysis_type' => 'Sample Types & Analysis Types',
+                    'sample_type_category' => 'Sample Type Category',
+                    'sample_type' => 'Sample Type',
+                    'analysis_type' => 'Analysis Type',
                     'analyte' => 'Analyte',
                     'sample_condition' => 'Sample Condition (requires Sample Type)',
                     'standard' => 'Standard & Analytes',
@@ -204,6 +206,7 @@ class BulkImportService
                 'pricelist' => 'App\Imports\Lab\PricelistImporter',
                 'analyte' => 'App\Imports\Lab\AnalyteImporter',
                 'lab' => 'App\Imports\Lab\LabImporter',
+                'sample_type_category' => 'App\Imports\Lab\SampleTypeCategoryImporter',
                 'sample_type' => 'App\Imports\Lab\SampleTypeImporter',
                 'analysis_type' => 'App\Imports\Lab\AnalysisTypeImporter',
                 'analysis_elements' => 'App\Imports\Lab\AnalysisElementsImporter',

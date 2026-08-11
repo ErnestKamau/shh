@@ -9,8 +9,6 @@ use App\Analyte;
 use App\Models\Equipments\Equipment;
 use App\ReportingUnit;
 use App\SampleAnalysisStage;
-use App\TypeOfAnalysis;
-use App\ParameterGroup;
 use App\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -106,25 +104,11 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
                     $equipmentLabel = trim((string) $this->value($rowData, [
                         'equipment', 'equipment_name', 'equipment_code', 'equipment_number', 'instrument',
                     ], ''));
-                    $typeOfAnalysisLabel = trim((string) $this->value($rowData, [
-                        'type_of_analysis', 'type of analysis', 'analysis_type', 'analysis discipline',
-                    ], ''));
-                    $parameterGroupLabel = trim((string) $this->value($rowData, [
-                        'parameter_group', 'parameter group', 'group',
-                    ], ''));
                     $tat = $this->value($rowData, ['tat', 'reporting_time', 'turnaround_time', 'turn_around_time']);
 
                     $labSectionId = $this->resolveLabSectionId($labSectionLabel !== '' ? $labSectionLabel : null);
                     $operatorId = $this->resolveOperatorId($operatorLabel !== '' ? $operatorLabel : null, $rowNumber);
                     $equipmentId = $this->resolveEquipmentId($equipmentLabel !== '' ? $equipmentLabel : null);
-                    $typeOfAnalysisId = $this->resolveTypeOfAnalysisId(
-                        $typeOfAnalysisLabel !== '' ? $typeOfAnalysisLabel : null,
-                        $rowNumber
-                    );
-                    $parameterGroupId = $this->resolveParameterGroupId(
-                        $parameterGroupLabel !== '' ? $parameterGroupLabel : null,
-                        $rowNumber
-                    );
 
                     $payload = [
                         'method' => $method->id,
@@ -147,14 +131,6 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
 
                     if ($equipmentId !== null) {
                         $payload['equipment_id'] = $equipmentId;
-                    }
-
-                    if ($typeOfAnalysisId !== null) {
-                        $payload['type_of_analysis_id'] = $typeOfAnalysisId;
-                    }
-
-                    if ($parameterGroupId !== null) {
-                        $payload['parameter_group_id'] = $parameterGroupId;
                     }
 
                     if ($tat !== null && trim((string) $tat) !== '') {
@@ -291,9 +267,19 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
         $equipment = Equipment::create([
             'name' => $label,
             'equipment_number' => $equipmentNumber,
-            'company_id' => $companyId,
+            'description' => $label,
+            'make' => 'Unknown',
+            'model' => 'Unknown',
+            'manufacturer' => 'Unknown',
+            'date_purchased' => now()->toDateString(),
+            'maintainance_days' => 365,
+            'calibration_days' => 365,
+            'status' => 'In Use',
+            'condition' => 'Good',
             'active' => 1,
+            'is_disposal' => false,
             'picture' => '/images/default-equipment.png',
+            'company_id' => $companyId,
         ]);
 
         return (string) $equipment->id;
@@ -368,60 +354,6 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
             'name' => $name,
             'active' => 1,
         ]);
-    }
-
-    protected function resolveTypeOfAnalysisId(?string $label, int $rowNumber): ?string
-    {
-        if ($label === null || trim($label) === '') {
-            return null;
-        }
-
-        $label = trim($label);
-
-        $type = TypeOfAnalysis::query()
-            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($label)])
-            ->first();
-
-        if ($type) {
-            if (! $type->active) {
-                $this->errors[] = "Row {$rowNumber}: type of analysis '{$label}' is inactive — parameter imported without type.";
-
-                return null;
-            }
-
-            return (string) $type->id;
-        }
-
-        $this->errors[] = "Row {$rowNumber}: type of analysis '{$label}' was not found — configure it under Lab → Configurations → Type of Analysis.";
-
-        return null;
-    }
-
-    protected function resolveParameterGroupId(?string $label, int $rowNumber): ?string
-    {
-        if ($label === null || trim($label) === '') {
-            return null;
-        }
-
-        $label = trim($label);
-
-        $group = ParameterGroup::query()
-            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($label)])
-            ->first();
-
-        if ($group) {
-            if (! $group->active) {
-                $this->errors[] = "Row {$rowNumber}: parameter group '{$label}' is inactive — parameter imported without group.";
-
-                return null;
-            }
-
-            return (string) $group->id;
-        }
-
-        $this->errors[] = "Row {$rowNumber}: parameter group '{$label}' was not found — configure it under Lab → Configurations → Parameter Groups.";
-
-        return null;
     }
 
     /**

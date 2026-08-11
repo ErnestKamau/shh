@@ -71,9 +71,7 @@ class AnalysisTypeImporter extends BaseImporter
             $errors[] = 'Sample type code or name is required';
         }
 
-        if ($labCode === '') {
-            $errors[] = 'Lab code or name is required';
-        } elseif (! $this->resolveLab($labCode)) {
+        if ($labCode !== '' && ! $this->resolveLab($labCode)) {
             $errors[] = "Lab '{$labCode}' does not exist — import Labs first";
         }
 
@@ -98,8 +96,8 @@ class AnalysisTypeImporter extends BaseImporter
             $analysisTypeName = $analysisTypeCode;
         }
 
-        $sampleType = $this->resolveOrCreateSampleType($sampleTypeCode, $sampleTypeName);
-        $lab = $this->resolveLab($labCode);
+        $sampleType = $this->resolveSampleType($sampleTypeCode, $sampleTypeName);
+        $lab = $labCode !== '' ? $this->resolveLab($labCode) : null;
 
         $hasNoResult = $this->fuzzyGet($row, ['has_no_result'], 0);
         $reportingTime = $this->fuzzyGet($row, ['reporting_time']);
@@ -127,7 +125,7 @@ class AnalysisTypeImporter extends BaseImporter
                 ? (string) $reportingTime
                 : null,
             'company_id' => $this->batch->company_id,
-            'active' => 1,
+            'active' => ! in_array(strtolower((string) $this->fuzzyGet($row, ['active', 'is_active', 'status'], 1)), ['0', 'no', 'false', 'off', ''], true) ? 1 : 0,
             'equipment_code' => $equipmentCode !== '' ? $equipmentCode : null,
             'equipment_name' => $equipmentName !== '' ? $equipmentName : null,
             'reference_method' => $referenceMethod,
@@ -250,7 +248,7 @@ class AnalysisTypeImporter extends BaseImporter
         return false;
     }
 
-    protected function resolveOrCreateSampleType(string $code, string $name): ?SampleType
+    protected function resolveSampleType(string $code, string $name): ?SampleType
     {
         $code = trim($code);
         $name = trim($name);
@@ -259,6 +257,37 @@ class AnalysisTypeImporter extends BaseImporter
             return null;
         }
 
+        $companyId = $this->batch->company_id;
+
+        return SampleType::query()
+            ->where('company_id', $companyId)
+            ->where(function ($query) use ($code, $name): void {
+                if ($code !== '') {
+                    $query->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($code)]);
+                }
+                if ($name !== '') {
+                    $method = $code !== '' ? 'orWhereRaw' : 'whereRaw';
+                    $query->{$method}('LOWER(TRIM(name)) = ?', [strtolower($name)]);
+                }
+            })
+            ->first();
+    }
+
+    /**
+     * @deprecated Prefer resolveSampleType — kept for callers that still upsert.
+     */
+    protected function resolveOrCreateSampleType(string $code, string $name): ?SampleType
+    {
+        $existing = $this->resolveSampleType($code, $name);
+        if ($existing) {
+            return $existing;
+        }
+
+        $code = trim($code);
+        $name = trim($name);
+        if ($code === '' && $name === '') {
+            return null;
+        }
         if ($code === '') {
             $code = $this->resolveCodeFromName($name);
         }
@@ -266,32 +295,10 @@ class AnalysisTypeImporter extends BaseImporter
             $name = $code;
         }
 
-        $companyId = $this->batch->company_id;
-
-        $sampleType = SampleType::query()
-            ->where('company_id', $companyId)
-            ->where(function ($query) use ($code, $name): void {
-                $query->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($code)])
-                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)]);
-            })
-            ->first();
-
-        if ($sampleType) {
-            $updates = [];
-            if ($sampleType->name !== $name && $name !== '') {
-                $updates['name'] = $name;
-            }
-            if ($updates !== []) {
-                $sampleType->update($updates);
-            }
-
-            return $sampleType->fresh();
-        }
-
         return SampleType::create([
             'code' => $code,
             'name' => $name,
-            'company_id' => $companyId,
+            'company_id' => $this->batch->company_id,
             'is_results_attachable' => 1,
             'disposal_count' => 30,
             'active' => 1,

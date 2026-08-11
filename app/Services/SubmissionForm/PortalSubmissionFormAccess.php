@@ -147,12 +147,37 @@ class PortalSubmissionFormAccess
             return null;
         }
 
-        $match = $this->findTestRequestFormForSampleType($sampleTypeId, $crmCustomerId);
-        if ($match !== null) {
-            return $match;
+        return $this->findTestRequestFormForSampleType($sampleTypeId, $crmCustomerId);
+    }
+
+    /**
+     * Resolve the canonical TRF for a sample type category (by integer category id).
+     */
+    public function testRequestFormForSampleTypeCategory(int $categoryId, ?string $crmCustomerId = null): ?SubmissionForm
+    {
+        if (! Schema::hasTable('submission_form_sample_type_categories')) {
+            return null;
         }
 
-        return null;
+        return $this->testRequestTemplatesQuery($crmCustomerId)
+            ->whereHas('sampleTypeCategories', function (Builder $q) use ($categoryId): void {
+                $q->where('sample_type_categories.id', $categoryId);
+            })
+            ->first();
+    }
+
+    /**
+     * Resolve a TRF by a raw sample_type_category_id string (from a query param).
+     * Returns null when the string is not numeric or the category has no bound TRF.
+     */
+    public function testRequestFormForSampleTypeCategoryId(string $categoryId, ?string $crmCustomerId = null): ?SubmissionForm
+    {
+        $categoryId = trim($categoryId);
+        if ($categoryId === '' || ! is_numeric($categoryId)) {
+            return null;
+        }
+
+        return $this->testRequestFormForSampleTypeCategory((int) $categoryId, $crmCustomerId);
     }
 
     private function findTestRequestFormForSampleType(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
@@ -160,6 +185,22 @@ class PortalSubmissionFormAccess
         $byDocumentCode = $this->findTestRequestFormBySampleTypeDocumentCode($sampleTypeId);
         if ($byDocumentCode !== null) {
             return $byDocumentCode;
+        }
+
+        // Try lookup via the sample type's category pivot (preferred over direct sample-type pivot).
+        if (Schema::hasTable('submission_form_sample_type_categories')) {
+            $sampleType = SampleType::query()->find($sampleTypeId);
+            if ($sampleType && filled($sampleType->sample_type_category)) {
+                $byCategoryPivot = $this->testRequestTemplatesQuery($crmCustomerId)
+                    ->whereHas('sampleTypeCategories', function (Builder $q) use ($sampleType): void {
+                        $q->where('sample_type_categories.id', (int) $sampleType->sample_type_category);
+                    })
+                    ->first();
+
+                if ($byCategoryPivot !== null) {
+                    return $byCategoryPivot;
+                }
+            }
         }
 
         $scopedToSampleType = fn (Builder $query) => $query->whereHas(
