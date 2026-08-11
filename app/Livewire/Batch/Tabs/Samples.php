@@ -27,6 +27,7 @@ use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Services\ResultRemarkService;
+use App\Models\SampleShelfLifeCondition;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -4098,6 +4099,159 @@ class Samples extends Component
     {
         $this->showInterlabModal = false;
         $this->reset('interlabSampleId', 'interlabSampleCode', 'interlabForm');
+    }
+
+    // ========== Accelerated Shelf-Life Study Conditions ==========
+
+    public bool $showShelfLifeConditionsModal = false;
+
+    public ?string $editingShelfLifeSampleId = null;
+
+    public string $editingShelfLifeSampleCode = '';
+
+    /** @var array<string, mixed> */
+    public array $shelfLifeConditionsForm = [
+        'study_type' => 'Accelerated Shelf-Life Testing',
+        'accelerated_temperature' => '',
+        'study_duration_value' => '',
+        'study_duration_unit' => SampleShelfLifeCondition::DURATION_WEEKS,
+        'relative_humidity' => '',
+        'evaluation_type' => '',
+        'sampling_frequency' => '',
+        'declared_shelf_life' => '',
+        'storage_condition' => '',
+        'notes' => '',
+    ];
+
+    public function openShelfLifeConditionsModal(string $sampleId): void
+    {
+        if (! (bool) ($this->batch->is_shelf_life ?? false)) {
+            session()->flash('error', 'Enable Shelf life study on Batch Info before configuring conditions.');
+
+            return;
+        }
+
+        try {
+            $sample = SampleDetails::query()->findOrFail($sampleId);
+            $condition = $sample->shelfLifeCondition;
+
+            $this->editingShelfLifeSampleId = $sampleId;
+            $this->editingShelfLifeSampleCode = (string) ($sample->sample_code ?? '');
+            $this->shelfLifeConditionsForm = [
+                'study_type' => (string) ($condition?->study_type ?: 'Accelerated Shelf-Life Testing'),
+                'accelerated_temperature' => (string) ($condition?->accelerated_temperature ?? ''),
+                'study_duration_value' => $condition?->study_duration_value !== null
+                    ? (string) $condition->study_duration_value
+                    : '',
+                'study_duration_unit' => (string) ($condition?->study_duration_unit ?: SampleShelfLifeCondition::DURATION_WEEKS),
+                'relative_humidity' => (string) ($condition?->relative_humidity ?? ''),
+                'evaluation_type' => (string) ($condition?->evaluation_type ?? ''),
+                'sampling_frequency' => (string) ($condition?->sampling_frequency ?? ''),
+                'declared_shelf_life' => (string) ($condition?->declared_shelf_life ?? ''),
+                'storage_condition' => (string) ($condition?->storage_condition ?? ''),
+                'notes' => (string) ($condition?->notes ?? ''),
+            ];
+
+            $this->showShelfLifeConditionsModal = true;
+        } catch (\Exception $e) {
+            Log::error('Error loading shelf life conditions: '.$e->getMessage());
+            session()->flash('error', 'Failed to load shelf life conditions');
+        }
+    }
+
+    public function saveShelfLifeConditions(): void
+    {
+        if (! $this->editingShelfLifeSampleId) {
+            return;
+        }
+
+        if (! (bool) ($this->batch->is_shelf_life ?? false)) {
+            session()->flash('error', 'Enable Shelf life study on Batch Info before saving conditions.');
+
+            return;
+        }
+
+        $this->validate([
+            'shelfLifeConditionsForm.study_type' => 'nullable|string|max:255',
+            'shelfLifeConditionsForm.accelerated_temperature' => 'nullable|string|max:255',
+            'shelfLifeConditionsForm.study_duration_value' => 'nullable|integer|min:0',
+            'shelfLifeConditionsForm.study_duration_unit' => 'nullable|in:days,weeks,months',
+            'shelfLifeConditionsForm.relative_humidity' => 'nullable|string|max:255',
+            'shelfLifeConditionsForm.evaluation_type' => 'nullable|string|max:255',
+            'shelfLifeConditionsForm.sampling_frequency' => 'nullable|string|max:255',
+            'shelfLifeConditionsForm.declared_shelf_life' => 'nullable|string|max:255',
+            'shelfLifeConditionsForm.storage_condition' => 'nullable|string|max:255',
+            'shelfLifeConditionsForm.notes' => 'nullable|string|max:5000',
+        ]);
+
+        try {
+            $sample = SampleDetails::query()->findOrFail($this->editingShelfLifeSampleId);
+
+            $durationValue = $this->shelfLifeConditionsForm['study_duration_value'];
+            $durationValue = $durationValue === '' || $durationValue === null
+                ? null
+                : (int) $durationValue;
+
+            SampleShelfLifeCondition::query()->updateOrCreate(
+                ['sample_detail_id' => $sample->id],
+                [
+                    'study_type' => $this->nullableTrimmed($this->shelfLifeConditionsForm['study_type'] ?? null),
+                    'accelerated_temperature' => $this->nullableTrimmed($this->shelfLifeConditionsForm['accelerated_temperature'] ?? null),
+                    'study_duration_value' => $durationValue,
+                    'study_duration_unit' => $this->shelfLifeConditionsForm['study_duration_unit']
+                        ?: SampleShelfLifeCondition::DURATION_WEEKS,
+                    'relative_humidity' => $this->nullableTrimmed($this->shelfLifeConditionsForm['relative_humidity'] ?? null),
+                    'evaluation_type' => $this->nullableTrimmed($this->shelfLifeConditionsForm['evaluation_type'] ?? null),
+                    'sampling_frequency' => $this->nullableTrimmed($this->shelfLifeConditionsForm['sampling_frequency'] ?? null),
+                    'declared_shelf_life' => $this->nullableTrimmed($this->shelfLifeConditionsForm['declared_shelf_life'] ?? null),
+                    'storage_condition' => $this->nullableTrimmed($this->shelfLifeConditionsForm['storage_condition'] ?? null),
+                    'notes' => $this->nullableTrimmed($this->shelfLifeConditionsForm['notes'] ?? null),
+                ]
+            );
+
+            $this->showShelfLifeConditionsModal = false;
+            $this->resetShelfLifeConditionsForm();
+
+            session()->flash('success', 'Accelerated Shelf-Life Study Conditions saved');
+        } catch (\Exception $e) {
+            Log::error('Error saving shelf life conditions: '.$e->getMessage());
+            session()->flash('error', 'Failed to save shelf life conditions: '.$e->getMessage());
+        }
+    }
+
+    public function cancelShelfLifeConditions(): void
+    {
+        $this->showShelfLifeConditionsModal = false;
+        $this->resetShelfLifeConditionsForm();
+    }
+
+    private function resetShelfLifeConditionsForm(): void
+    {
+        $this->editingShelfLifeSampleId = null;
+        $this->editingShelfLifeSampleCode = '';
+        $this->shelfLifeConditionsForm = [
+            'study_type' => 'Accelerated Shelf-Life Testing',
+            'accelerated_temperature' => '',
+            'study_duration_value' => '',
+            'study_duration_unit' => SampleShelfLifeCondition::DURATION_WEEKS,
+            'relative_humidity' => '',
+            'evaluation_type' => '',
+            'sampling_frequency' => '',
+            'declared_shelf_life' => '',
+            'storage_condition' => '',
+            'notes' => '',
+        ];
+    }
+
+    private function nullableTrimmed(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     public function render()

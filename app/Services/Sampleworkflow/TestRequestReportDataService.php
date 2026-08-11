@@ -4,6 +4,7 @@ namespace App\Services\Sampleworkflow;
 
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
+use App\Country;
 use App\Models\SubmissionFormInstance;
 use App\SampleAnalysisDates;
 use App\SampleDetails;
@@ -37,6 +38,10 @@ class TestRequestReportDataService
         $normalizedRows = is_array($trfPayload['sampleRows'] ?? null) ? $trfPayload['sampleRows'] : [];
 
         $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
+        if ($samples->isEmpty() && SampleDetails::where('sample_header_id', $batch->id)->exists()) {
+            app(SamplesByCategoryViewService::class)->recreate();
+            $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
+        }
         $firstDetail = SampleDetails::where('sample_header_id', $batch->id)->first();
 
         $analysisDate = SampleAnalysisDates::where('sample_header_id', $batch->id)
@@ -111,12 +116,39 @@ class TestRequestReportDataService
             $formData['sample_temperature'] ?? null,
         ) ?? '-';
 
-        $samplePreservation = $this->firstNonEmptyFromMixed(
+        $transportCondition = $this->firstNonEmptyFromMixed(
             $this->selectedCheckboxLabels($collection['transport_condition'] ?? null),
             $formData['transport_condition'] ?? null,
+        ) ?? '-';
+
+        $samplingMethod = $this->firstNonEmptyFromMixed(
+            $this->selectedCheckboxLabels($collection['method_of_sampling'] ?? null),
+            $formData['method_of_sampling'] ?? null,
+        ) ?? '-';
+
+        $samplingLocation = $this->firstNonEmptyFromMixed(
+            $collection['sampling_location'] ?? null,
+            $formData['sampling_location'] ?? null,
+            $batch->crm_unit_name ?? null,
+        ) ?? '-';
+
+        $additionalNotes = $this->firstNonEmptyFromMixed(
+            $formData['remarks'] ?? null,
+            is_array($trfPayload) ? ($trfPayload['signatures']['remarks'] ?? null) : null,
+        ) ?? '-';
+
+        $originCountry = $this->firstNonEmptyFromMixed(
+            $formData['origin_country'] ?? null,
+            $formData['country_of_origin'] ?? null,
+            $firstRawRow['origin_country'] ?? null,
+            $firstRawRow['country_of_origin'] ?? null,
+        ) ?? '-';
+
+        $samplePreservation = $this->firstNonEmptyFromMixed(
             $firstRawRow['preservation'] ?? null,
-            $formData['sample_preservation'] ?? null,
             $firstRawRow['storage_condition'] ?? null,
+            $formData['sample_preservation'] ?? null,
+            $this->scalarValue($firstRawRow['state_of_sample'] ?? null),
         ) ?? '-';
 
         $mfgDate = $this->formatReportDate(
@@ -137,14 +169,7 @@ class TestRequestReportDataService
             $firstRawRow['batch_number'] ?? null,
         ) ?? '-';
 
-        $attention = $batch->getContactPersonDetail();
-        if ($attention === '-' || trim($attention) === '') {
-            $attention = $this->firstNonEmptyFromMixed(
-                $formData['contact_person'] ?? null,
-                is_array($trfPayload) ? ($trfPayload['signatures']['customer_rep_name'] ?? null) : null,
-                $formData['customer_representative_name'] ?? null,
-            ) ?? '-';
-        }
+        $attention = $this->resolveAttention($batch, $formData, is_array($trfPayload) ? $trfPayload : null);
 
         $samplePointByIndex = [];
         foreach ($samples->values() as $index => $sample) {
@@ -157,7 +182,7 @@ class TestRequestReportDataService
 
         $totalPages = max(1, $samples->count() + 1);
         $company = getActiveCompany();
-        $customer = $batch->customer;
+        $customer = $this->resolveReportCustomer($batch, $sfi, $formData, is_array($trfPayload) ? $trfPayload : null);
 
         [$reportLogos, $reportLogo, $companyLogo] = $this->resolveLogos(
             $company,
@@ -166,12 +191,42 @@ class TestRequestReportDataService
 
         [$approver, $approverUser, $approverRole, $approvalDate, $signatureSrc, $signatureWarning] = $this->resolveApproverSignature($batch);
 
+        $capturedResults = CapturedResult::query()
+            ->where('sample_header_id', $batch->id)
+            ->with(['analysisElement:id,hod,lod', 'labSection:id,name', 'user:id,name,id_number'])
+            ->get();
+
+        $companyLetterhead = $this->buildCompanyLetterhead($company);
+
         $measureUncertaintyByCapturedResultId = app(UncertaintyBudgetResolver::class)
-            ->buildMuPercentIndexForCapturedResults(
-                CapturedResult::query()
-                    ->where('sample_header_id', $batch->id)
-                    ->get()
-            );
+            ->buildMuPercentIndexForCapturedResults($capturedResults);
+
+        $loqByCapturedResultId = $this->buildLoqIndex($capturedResults);
+
+        $sampleDetailContexts = $this->buildSampleDetailContexts(
+            $batch,
+            $samples,
+            $reportNumber,
+            $normalizedRows,
+            $trfRows,
+            $formData,
+            $collection,
+            $trfCollectionExtras,
+            [
+                'dateReceived' => $dateReceived,
+                'analysisStartDate' => $analysisStartDate,
+                'analysisEndDate' => $analysisEndDate,
+                'containerType' => $containerType,
+                'transportCondition' => $transportCondition,
+                'samplingMethod' => $samplingMethod,
+                'samplingLocation' => $samplingLocation,
+                'additionalNotes' => $additionalNotes,
+                'originCountry' => $originCountry,
+                'samplePreservation' => $samplePreservation,
+                'approvalDate' => $approvalDate,
+            ],
+            $capturedResults,
+        );
 
         return [
             'batch' => $batch,
@@ -185,6 +240,7 @@ class TestRequestReportDataService
             'analysisStartDate' => $analysisStartDate,
             'analysisEndDate' => $analysisEndDate,
             'company' => $company,
+            'companyLetterhead' => $companyLetterhead,
             'customer' => $customer,
             'reportLogo' => $reportLogo,
             'reportLogos' => $reportLogos,
@@ -196,16 +252,243 @@ class TestRequestReportDataService
             'containerType' => $containerType,
             'sampleTemperature' => $sampleTemperature,
             'samplePreservation' => $samplePreservation,
+            'transportCondition' => $transportCondition,
+            'samplingMethod' => $samplingMethod,
+            'samplingLocation' => $samplingLocation,
+            'additionalNotes' => $additionalNotes,
+            'originCountry' => $originCountry,
             'sampleDescription' => $sampleDescription,
             'dateReceived' => $dateReceived,
             'trfCollectionExtras' => $trfCollectionExtras,
             'attention' => $attention,
             'samplePointByIndex' => $samplePointByIndex,
+            'sampleDetailContexts' => $sampleDetailContexts,
             'totalPages' => $totalPages,
             'signatureSrc' => $signatureSrc,
             'signatureWarning' => $signatureWarning,
             'measureUncertaintyByCapturedResultId' => $measureUncertaintyByCapturedResultId,
+            'loqByCapturedResultId' => $loqByCapturedResultId,
         ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, SamplesCategory>  $samples
+     * @param  list<array<string, mixed>>  $normalizedRows
+     * @param  list<array<string, mixed>>  $trfRows
+     * @param  array<string, mixed>  $formData
+     * @param  array<string, mixed>  $collection
+     * @param  array<string, mixed>  $trfCollectionExtras
+     * @param  array<string, string|null>  $shared
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     * @return list<array{rows: list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}}>, lab_section: string, conducted_by: string}>
+     */
+    private function buildSampleDetailContexts(
+        SampleHeader $batch,
+        $samples,
+        string $reportNumber,
+        array $normalizedRows,
+        array $trfRows,
+        array $formData,
+        array $collection,
+        array $trfCollectionExtras,
+        array $shared,
+        $capturedResults,
+    ): array {
+        $contexts = [];
+        $usersById = $this->analystUsersById($capturedResults);
+
+        foreach ($samples->values() as $index => $sample) {
+            $normalizedRow = $normalizedRows[$index] ?? [];
+            $rawRow = $trfRows[$index] ?? [];
+
+            $sampleCode = format_sample_code($sample->sample_code ?? '');
+            $sampleDescription = $this->firstNonEmptyFromMixed(
+                strip_tags((string) ($sample->comments ?? '')),
+                $normalizedRow['sample_description'] ?? null,
+                $rawRow['sample_description'] ?? null,
+            ) ?? '-';
+
+            $sampleType = $this->firstNonEmptyFromMixed(
+                $batch->sample_type?->name ?? null,
+                $normalizedRow['sample_type'] ?? null,
+                $rawRow['sample_type'] ?? null,
+                $formData['sample_type'] ?? null,
+            ) ?? '-';
+
+            $productionDate = $this->formatReportDate(
+                $sample->mfg_date ?? null,
+                $normalizedRow['production_date'] ?? null,
+                $rawRow['production_date'] ?? null,
+            );
+
+            $lotNo = $this->firstNonEmptyFromMixed(
+                $sample->batch_lot_no ?? null,
+                $normalizedRow['batch_number'] ?? null,
+                $rawRow['batch_number'] ?? null,
+            ) ?? '-';
+
+            $expiry = $this->formatReportDate(
+                $sample->expiry_date ?? null,
+                $normalizedRow['expiration_date'] ?? null,
+                $rawRow['expiration_date'] ?? $rawRow['expiry_date'] ?? null,
+            );
+
+            $quantity = $this->firstNonEmptyFromMixed(
+                $sample->quantity ?? null,
+                $this->trfMapper->formatRowQuantity($rawRow),
+                $normalizedRow['qty'] ?? null,
+            ) ?? '-';
+
+            $sampleTemperature = $this->firstNonEmptyFromMixed(
+                $rawRow['sample_temp'] ?? null,
+                $normalizedRow['sample_temp'] ?? null,
+                $batch->condition_quality_sample ?? null,
+                $formData['sample_temperature'] ?? null,
+            ) ?? '-';
+
+            $samplingPoint = $this->firstNonEmptyFromMixed(
+                $sample->sample_point_name ?? null,
+                $normalizedRow['sampling_point'] ?? $normalizedRow['location'] ?? null,
+                $rawRow['sampling_point'] ?? $rawRow['location'] ?? null,
+            ) ?? '-';
+
+            $sampleCondition = $this->firstNonEmptyFromMixed(
+                $sample->sample_condition_name ?? null,
+                $normalizedRow['sample_condition'] ?? null,
+                $rawRow['sample_condition'] ?? null,
+            ) ?? '-';
+
+            $containerPackaging = $this->firstNonEmptyFromMixed(
+                $trfCollectionExtras['packaging'] ?? null,
+                $shared['containerType'] ?? null,
+                $this->selectedCheckboxLabels($collection['sampling_apparatus'] ?? null),
+                $formData['sampling_apparatus'] ?? null,
+                $rawRow['container_type'] ?? null,
+            ) ?? '-';
+
+            $preservation = $this->firstNonEmptyFromMixed(
+                $rawRow['preservation'] ?? null,
+                $rawRow['storage_condition'] ?? null,
+                $this->scalarValue($rawRow['state_of_sample'] ?? null),
+                $normalizedRow['sample_condition'] ?? null,
+            ) ?? ($shared['samplePreservation'] ?? '-');
+
+            $sampledBy = $this->firstNonEmptyFromMixed(
+                $batch->sampling_officer_name ?? null,
+                $batch->receivingofficer?->name ?? null,
+                $formData['sampled_by'] ?? null,
+            ) ?? '-';
+
+            $labSectionNames = $capturedResults
+                ->where('sample_detail_id', $sample->id)
+                ->pluck('labSection.name')
+                ->filter(static fn ($name) => filled(trim((string) $name)))
+                ->unique()
+                ->values()
+                ->implode(', ');
+
+            if ($labSectionNames === '') {
+                $labSectionNames = $batch->getLabSectionsNames() ?: 'Laboratory';
+            }
+
+            $sampleResults = $capturedResults->where('sample_detail_id', $sample->id);
+            $additionalNotes = (string) ($shared['additionalNotes'] ?? '');
+            if ($additionalNotes === '-') {
+                $additionalNotes = '';
+            }
+
+            $contexts[] = [
+                'rows' => [
+                    [
+                        'left' => ['label' => 'job_no', 'value' => (string) $batch->batch_code],
+                        'right' => ['label' => 'sample_no', 'value' => $sampleCode !== '' ? $sampleCode : '-'],
+                    ],
+                    [
+                        'left' => ['label' => 'sample_description', 'value' => $sampleDescription],
+                        'right' => ['label' => 'report_no', 'value' => $this->perSampleReportNumber($sampleCode, $reportNumber), 'emphasize' => true],
+                    ],
+                    [
+                        'left' => ['label' => 'sample_type', 'value' => $sampleType],
+                        'right' => ['label' => 'production_date', 'value' => $productionDate],
+                    ],
+                    [
+                        'left' => ['label' => 'lot_no', 'value' => $lotNo],
+                        'right' => ['label' => 'expiry_date', 'value' => $expiry],
+                    ],
+                    [
+                        'left' => ['label' => 'weight', 'value' => $quantity],
+                        'right' => ['label' => 'date_received', 'value' => (string) ($shared['dateReceived'] ?? '-')],
+                    ],
+                    [
+                        'left' => ['label' => 'sampled_by', 'value' => $sampledBy],
+                        'right' => ['label' => 'analysis_start_date', 'value' => (string) ($shared['analysisStartDate'] ?? '-')],
+                    ],
+                    [
+                        'left' => ['label' => 'sample_point', 'value' => $samplingPoint],
+                        'right' => ['label' => 'analysis_end_date', 'value' => (string) ($shared['analysisEndDate'] ?? '-')],
+                    ],
+                    [
+                        'left' => ['label' => 'sampling_location', 'value' => (string) ($shared['samplingLocation'] ?? '-')],
+                        'right' => ['label' => 'reporting_date', 'value' => (string) ($shared['approvalDate'] ?? date('d/m/Y'))],
+                    ],
+                    [
+                        'left' => ['label' => 'sample_condition', 'value' => $sampleCondition],
+                        'right' => ['label' => 'container_type', 'value' => $containerPackaging],
+                    ],
+                    [
+                        'left' => ['label' => 'sample_temperature', 'value' => $sampleTemperature],
+                        'right' => ['label' => 'origin_country', 'value' => (string) ($shared['originCountry'] ?? '-')],
+                    ],
+                    [
+                        'left' => ['label' => 'transport_condition', 'value' => (string) ($shared['transportCondition'] ?? '-')],
+                        'right' => ['label' => 'sampling_method', 'value' => (string) ($shared['samplingMethod'] ?? '-')],
+                    ],
+                    [
+                        'left' => ['label' => 'additional_notes', 'value' => $additionalNotes],
+                        'right' => ['label' => 'sample_preservation', 'value' => $preservation],
+                    ],
+                ],
+                'lab_section' => $labSectionNames,
+                'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
+            ];
+        }
+
+        return $contexts;
+    }
+
+    private function perSampleReportNumber(string $sampleCode, string $batchReportNumber): string
+    {
+        $formattedCode = format_sample_code($sampleCode);
+
+        if ($formattedCode === '') {
+            return $batchReportNumber;
+        }
+
+        if (preg_match('/(-R\d+.*)$/i', $batchReportNumber, $matches)) {
+            return $formattedCode.$matches[1];
+        }
+
+        return $formattedCode;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     * @return array<string, string>
+     */
+    private function buildLoqIndex($capturedResults): array
+    {
+        $index = [];
+
+        foreach ($capturedResults as $capturedResult) {
+            $element = $capturedResult->analysisElement;
+            $loq = $element?->hod ?? $element?->lod ?? null;
+
+            $index[(string) $capturedResult->id] = ($loq !== null && $loq !== '')
+                ? (string) $loq
+                : '-';
+        }
+
+        return $index;
     }
 
     private function resolveSubmissionFormInstance(SampleHeader $batch): ?SubmissionFormInstance
@@ -217,6 +500,107 @@ class TestRequestReportDataService
         return SubmissionFormInstance::query()
             ->with(['values.element', 'submissionForm', 'crmCustomer'])
             ->find($batch->submission_form_instance_id);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $trfPayload
+     */
+    private function resolveAttention(SampleHeader $batch, array $formData, ?array $trfPayload): string
+    {
+        $attention = trim($batch->getContactPersonDetail());
+        if ($this->isUsableAttention($attention)) {
+            return $attention;
+        }
+
+        foreach ([
+            $formData['contact_person'] ?? null,
+            is_array($trfPayload) ? ($trfPayload['signatures']['customer_rep_name'] ?? null) : null,
+            $formData['customer_representative_name'] ?? null,
+        ] as $candidate) {
+            $resolved = $this->resolveContactLabel($candidate);
+            if ($this->isUsableAttention($resolved)) {
+                return $resolved;
+            }
+        }
+
+        return '-';
+    }
+
+    private function isUsableAttention(string $value): bool
+    {
+        $normalized = trim($value);
+
+        return $normalized !== ''
+            && $normalized !== '-'
+            && ! $this->looksLikeUuid($normalized);
+    }
+
+    private function resolveContactLabel(mixed $candidate): string
+    {
+        $value = trim($this->scalarValue($candidate));
+        if ($value === '') {
+            return '';
+        }
+
+        if ($this->looksLikeUuid($value)) {
+            $contact = getCrmCustomerContactById($value);
+            if ($contact !== null) {
+                return trim(implode(' ', array_filter([
+                    $contact->first_name ?? null,
+                    $contact->middle_name ?? null,
+                    $contact->last_name ?? null,
+                ])));
+            }
+
+            return '';
+        }
+
+        return $value;
+    }
+
+    private function looksLikeUuid(string $value): bool
+    {
+        return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $trfPayload
+     */
+    private function resolveReportCustomer(
+        SampleHeader $batch,
+        ?SubmissionFormInstance $sfi,
+        array $formData,
+        ?array $trfPayload,
+    ): object {
+        if ($batch->customer !== null) {
+            return $batch->customer;
+        }
+
+        $customerBlock = is_array($trfPayload['customer'] ?? null) ? $trfPayload['customer'] : [];
+
+        $name = $this->firstNonEmptyFromMixed(
+            $formData['customer_name'] ?? null,
+            $customerBlock['name'] ?? null,
+            $sfi?->crmCustomer?->name ?? null,
+        ) ?? '-';
+
+        $physicalAddress = $this->firstNonEmptyFromMixed(
+            $formData['physical_address'] ?? null,
+            $customerBlock['physical_address'] ?? null,
+            $sfi?->crmCustomer?->physical_address ?? null,
+        );
+
+        $postalAddress = $this->firstNonEmptyFromMixed(
+            $formData['postal_address'] ?? null,
+            $customerBlock['postal_address'] ?? null,
+            $sfi?->crmCustomer?->postal_address ?? null,
+        );
+
+        return (object) [
+            'name' => $name,
+            'physical_address' => $physicalAddress,
+            'postal_address' => $postalAddress,
+        ];
     }
 
     /**
@@ -754,5 +1138,162 @@ class TestRequestReportDataService
         }
 
         return null;
+    }
+
+    /**
+     * @return array{name: string, lines: list<string>}
+     */
+    private function buildCompanyLetterhead(?object $company): array
+    {
+        if ($company === null) {
+            return [
+                'name' => 'AmSpec',
+                'lines' => [],
+            ];
+        }
+
+        $lines = [];
+        $haystack = '';
+
+        $pushLine = function (string $line) use (&$lines, &$haystack): void {
+            $line = trim($line);
+            if ($line === '') {
+                return;
+            }
+
+            $key = mb_strtolower($line);
+            if (str_contains($haystack, $key)) {
+                return;
+            }
+
+            $lines[] = $line;
+            $haystack .= ' '.$key;
+        };
+
+        $postalAddress = html_entity_decode(
+            strip_tags(str_replace(['<br>', '<br/>', '<br />', '<BR>'], "\n", (string) ($company->address ?? ''))),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+        $postalAddress = trim($postalAddress);
+        if ($postalAddress !== '') {
+            foreach (preg_split('/\r\n|\r|\n/', $postalAddress) ?: [] as $line) {
+                $pushLine((string) $line);
+            }
+        }
+
+        $pushLine(trim((string) ($company->street ?? '')));
+        $pushLine(trim((string) ($company->location ?? '')));
+
+        $countryId = $company->country_id ?? null;
+        if (filled($countryId)) {
+            $countryName = trim((string) (Country::query()->where('id', $countryId)->value('name') ?? ''));
+            $pushLine($countryName);
+        }
+
+        $phone = trim((string) ($company->telephone ?? ''));
+        if ($phone === '') {
+            $phone = trim((string) ($company->cell_phone ?? ''));
+        }
+        if ($phone !== '') {
+            $pushLine('T: '.$phone);
+        }
+
+        $website = trim((string) ($company->website ?? ''));
+        if ($website !== '') {
+            $host = preg_replace('#^https?://#i', '', $website) ?? $website;
+            $host = rtrim((string) $host, '/');
+            if ($host !== '') {
+                $pushLine('W: '.$host);
+            }
+        }
+
+        $name = trim((string) ($company->name ?? ''));
+
+        return [
+            'name' => $name !== '' ? $name : 'AmSpec',
+            'lines' => $lines,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     * @return \Illuminate\Support\Collection<string, User>
+     */
+    private function analystUsersById($capturedResults)
+    {
+        $userIds = [];
+
+        foreach ($capturedResults as $result) {
+            $userId = trim((string) ($result->user_id ?? ''));
+            if ($userId !== '') {
+                $userIds[$userId] = true;
+            }
+
+            $assigned = $result->assigned_analyst_ids ?? [];
+            if (! is_array($assigned)) {
+                continue;
+            }
+
+            foreach ($assigned as $assignedId) {
+                $assignedId = trim((string) $assignedId);
+                if ($assignedId !== '') {
+                    $userIds[$assignedId] = true;
+                }
+            }
+        }
+
+        if ($userIds === []) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', array_keys($userIds))
+            ->get(['id', 'name', 'id_number'])
+            ->keyBy('id');
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $sampleResults
+     * @param  \Illuminate\Support\Collection<string, User>  $usersById
+     */
+    private function conductedByEmployeeIds($sampleResults, $usersById): string
+    {
+        $ids = [];
+
+        foreach ($sampleResults as $result) {
+            $userId = trim((string) ($result->user_id ?? ''));
+            if ($userId !== '') {
+                $ids[$userId] = true;
+            }
+
+            $assigned = $result->assigned_analyst_ids ?? [];
+            if (! is_array($assigned)) {
+                continue;
+            }
+
+            foreach ($assigned as $assignedId) {
+                $assignedId = trim((string) $assignedId);
+                if ($assignedId !== '') {
+                    $ids[$assignedId] = true;
+                }
+            }
+        }
+
+        $labels = [];
+        foreach (array_keys($ids) as $userId) {
+            $user = $usersById->get($userId) ?? $sampleResults->firstWhere('user_id', $userId)?->user;
+            if ($user === null) {
+                continue;
+            }
+
+            $employeeId = trim((string) ($user->id_number ?? ''));
+            $label = $employeeId !== '' ? $employeeId : trim((string) ($user->name ?? ''));
+            if ($label !== '') {
+                $labels[] = $label;
+            }
+        }
+
+        return implode(', ', array_values(array_unique($labels)));
     }
 }

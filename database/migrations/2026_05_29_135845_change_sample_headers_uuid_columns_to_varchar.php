@@ -196,7 +196,7 @@ SELECT
     ccu.name AS customer_crm_unit
 FROM sample_headers sh
 JOIN sample_details sd ON sh.id = sd.sample_header_id
-JOIN crm_customers cc ON NULLIF(TRIM(sh.crm_customer_id), '')::uuid = cc.id
+LEFT JOIN crm_customers cc ON NULLIF(TRIM(sh.crm_customer_id), '')::uuid = cc.id
 JOIN sample_types st ON NULLIF(TRIM(sh.sample_type_id), '')::uuid = st.id
 LEFT JOIN company_products cp ON sd.company_product_id = cp.id
 LEFT JOIN sample_conditions sc ON sd.sample_condition_id = sc.id

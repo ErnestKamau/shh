@@ -11,14 +11,20 @@ class JobNumberSequence extends Model
         'last_sequence',
     ];
 
-    protected $casts = [
-        'last_sequence' => 'integer',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'last_sequence' => 'integer',
+        ];
+    }
 
-    public static function forDate(string $dateYmd): self
+    /**
+     * @param  string  $yearYy  Two-digit calendar year (e.g. "26"). Stored in date_ymd.
+     */
+    public static function forYear(string $yearYy): self
     {
         return self::query()->firstOrCreate(
-            ['date_ymd' => $dateYmd],
+            ['date_ymd' => $yearYy],
             ['last_sequence' => 0],
         );
     }

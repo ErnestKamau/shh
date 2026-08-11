@@ -719,6 +719,9 @@ class SampleWorkFlowController extends Controller
             $header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
             $header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
             $header->begin_proccess = isset($request->is_qc_batch) ? 1 : 0;
+            if (Schema::hasColumn('sample_headers', 'is_shelf_life')) {
+                $header->is_shelf_life = isset($request->is_shelf_life);
+            }
             if ($request->has('quote_no')) {
                 $header->quote_no = $request->quote_no;
             }
@@ -1655,7 +1658,7 @@ class SampleWorkFlowController extends Controller
                             ccu.name AS customer_crm_unit
                         FROM sample_headers sh
                         JOIN sample_details sd ON sh.id = sd.sample_header_id
-                        JOIN crm_customers cc ON sh.crm_customer_id = cc.id
+                        LEFT JOIN crm_customers cc ON sh.crm_customer_id = cc.id
                         JOIN sample_types st ON sh.sample_type_id = st.id
                         LEFT JOIN company_products cp ON sd.company_product_id = cp.id
                         LEFT JOIN sample_conditions sc ON sd.sample_condition_id = sc.id
@@ -6107,6 +6110,178 @@ class SampleWorkFlowController extends Controller
             'mode'     => 'pdf',
             'include_reference_method' => $request->boolean('include_reference_method') ? 1 : 0,
         ]);
+    }
+
+    public function processShelfLifeStudyReport(Request $request)
+    {
+        $request->validate([
+            'batch_id' => ['required', 'string'],
+            'language' => ['nullable', 'in:en,ar,pt'],
+        ]);
+
+        $batch = SampleHeader::find($request->batch_id);
+        if (! $batch) {
+            return redirect()->back()->with('error', 'Batch not found.');
+        }
+
+        if (! Schema::hasColumn('sample_headers', 'is_shelf_life') || ! (bool) ($batch->is_shelf_life ?? false)) {
+            return redirect()->back()->with('error', 'This batch is not marked as a shelf life study.');
+        }
+
+        $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+        $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+        $batch->test_request_report_sequence = max($nextFromSequence, $amendmentVersion);
+        $batch->save();
+
+        app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+            ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
+
+        return redirect()->route('generateShelfLifeStudyReport', [
+            'batch_id' => $batch->id,
+            'seq' => $batch->test_request_report_sequence,
+            'lang' => $request->input('language', 'en'),
+            'mode' => 'pdf',
+        ]);
+    }
+
+    public function generateShelfLifeStudyReport(Request $request)
+    {
+        $batch = SampleHeader::with(['customer', 'sample_type', 'samples'])->find($request->batch_id);
+
+        if (! $batch) {
+            return redirect()->back()->with('error', 'Batch not found.');
+        }
+
+        if (! Schema::hasColumn('sample_headers', 'is_shelf_life') || ! (bool) ($batch->is_shelf_life ?? false)) {
+            return redirect()->back()->with('error', 'This batch is not marked as a shelf life study.');
+        }
+
+        $mode = strtolower((string) $request->query('mode', 'view'));
+        $isPreviewMode = $mode === 'preview';
+        $isPreviewDoc = $mode === 'preview-doc';
+        $isPreviewPdf = $mode === 'preview-pdf';
+        $isPdfMode = $mode === 'pdf' || $isPreviewPdf;
+        $skipSequenceBump = $isPreviewMode || $isPreviewDoc || $isPreviewPdf;
+
+        if (! $skipSequenceBump && ! $request->has('seq')) {
+            $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+            $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+            $batch->test_request_report_sequence = max($nextFromSequence, $amendmentVersion);
+            $batch->save();
+
+            app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+                ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
+        }
+
+        if ($skipSequenceBump) {
+            $provisionalNext = max(1, (int) ($batch->test_request_report_sequence ?? 0) + 1);
+            $sequence = max($provisionalNext, max(1, (int) ($batch->is_amendment ?? 1)));
+        } else {
+            $sequence = $batch->test_request_report_sequence ?: 1;
+        }
+
+        $jobNumber = $batch->batch_code;
+        $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
+            ->formatReportNumber((string) $jobNumber, (int) $sequence);
+
+        $pdfService = app(\App\Services\Sampleworkflow\ShelfLifeStudyReportPdfService::class);
+        $language = app(\App\Services\Sampleworkflow\TestRequestReportPdfService::class)
+            ->normalizeLanguage((string) ($request->lang ?? 'en'));
+
+        $batchBackUrl = route('view-batch-details', [
+            'batch' => $batch->id,
+            'client' => 0,
+            'portal' => 0,
+            'status' => $batch->status ?? 'Samples In Lab',
+        ]);
+
+        // Shell page with sidebar; iframe loads preview-doc for isolated report CSS
+        // (same draft preview chrome as the Test Report).
+        if ($isPreviewMode) {
+            return view('layouts.lab.sample-workflow.report-formats.shelf_life_study_report_preview_page', [
+                'batch' => $batch,
+                'reportNumber' => $reportNumber,
+                'batchBackUrl' => $batchBackUrl,
+                'language' => $language,
+            ]);
+        }
+
+        $verificationUrl = route('generateShelfLifeStudyReport', [
+            'batch_id' => $batch->id,
+            'seq' => $sequence,
+            'lang' => $language,
+            'mode' => 'pdf',
+        ]);
+
+        $viewData = $pdfService->buildViewData($batch, $reportNumber, (int) $sequence, $language, [
+            'logoPublicUrlFallback' => ! $isPdfMode,
+            'isPdfMode' => $isPdfMode,
+            'isPreviewMode' => $isPreviewPdf || $isPreviewDoc,
+            'verificationUrl' => $verificationUrl,
+        ]);
+
+        $viewData['batchBackUrl'] = $batchBackUrl;
+        $viewData['reportNumber'] = $reportNumber;
+        $ammendment = BatchAmmendment::resolveForBatch($batch);
+        $viewData['ammendment'] = $ammendment;
+        $viewData['amendmentDisplay'] = app(\App\Services\Sampleworkflow\TestRequestReportPdfService::class)
+            ->amendmentDisplayData(
+                $viewData['labels'],
+                (int) ($ammendment?->version_number ?? $batch->is_amendment ?? $sequence),
+                (string) $batch->batch_code
+            );
+
+        if (! empty($viewData['signatureWarning'])) {
+            session()->flash('warning', $viewData['signatureWarning']);
+        }
+
+        if ($isPdfMode) {
+            $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.shelf_life_study_report', $viewData);
+            $pdfService->configurePdf($pdf);
+            $pdf->render();
+            $dompdf = $pdf->getDomPDF();
+            app(\App\Services\Reports\ReportWatermarkService::class)->applyToDompdf($dompdf);
+
+            if ($isPreviewPdf) {
+                $this->applyTestRequestReportPreviewWatermark($dompdf);
+            }
+
+            $filename = ($isPreviewPdf ? 'SLSR_PREVIEW_' : 'SLSR_').$reportNumber.'.pdf';
+
+            if (! $isPreviewPdf) {
+                $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
+                $customerName = trim((string) $customerName, '_') ?: 'customer';
+                $relativePath = '/reports/'.$customerName.'/'.$filename;
+                $absoluteDir = storage_path('app/reports/'.$customerName);
+
+                if (! is_dir($absoluteDir)) {
+                    mkdir($absoluteDir, 0755, true);
+                }
+
+                $pdf->save($absoluteDir.'/'.$filename);
+            }
+
+            return $pdf->stream($filename, [
+                'Attachment' => false,
+            ]);
+        }
+
+        // Bare report document for the in-app preview iframe (no revision bump).
+        // Keep isPreviewMode so the Draft Preview watermark still renders; hide the
+        // in-document chrome because the outer shell already provides it.
+        if ($isPreviewDoc) {
+            return view(
+                'layouts.lab.sample-workflow.report-formats.shelf_life_study_report',
+                array_merge($viewData, [
+                    'isPreviewMode' => true,
+                    'isEmbedded' => false,
+                    'isPdfMode' => false,
+                    'hideScreenToolbar' => true,
+                ])
+            );
+        }
+
+        return view('layouts.lab.sample-workflow.report-formats.shelf_life_study_report', $viewData);
     }
 
     public function deliverTestRequestReport(Request $request)

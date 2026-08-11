@@ -17,4 +17,15 @@ class TechnicalJobNumberSequence extends Model
             'last_sequence' => 'integer',
         ];
     }
+
+    /**
+     * @param  string  $yearYy  Two-digit calendar year (e.g. "26"). Stored in date_ymd.
+     */
+    public static function forYear(string $yearYy): self
+    {
+        return self::query()->firstOrCreate(
+            ['date_ymd' => $yearYy],
+            ['last_sequence' => 0],
+        );
+    }
 }
