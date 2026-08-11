@@ -192,8 +192,10 @@ class TestRequestReportDataService
 
         $capturedResults = CapturedResult::query()
             ->where('sample_header_id', $batch->id)
-            ->with(['analysisElement:id,hod,lod', 'labSection:id,name'])
+            ->with(['analysisElement:id,hod,lod', 'labSection:id,name', 'user:id,name,id_number'])
             ->get();
+
+        $companyLetterhead = $this->buildCompanyLetterhead($company);
 
         $measureUncertaintyByCapturedResultId = app(UncertaintyBudgetResolver::class)
             ->buildMuPercentIndexForCapturedResults($capturedResults);
@@ -237,6 +239,7 @@ class TestRequestReportDataService
             'analysisStartDate' => $analysisStartDate,
             'analysisEndDate' => $analysisEndDate,
             'company' => $company,
+            'companyLetterhead' => $companyLetterhead,
             'customer' => $customer,
             'reportLogo' => $reportLogo,
             'reportLogos' => $reportLogos,
@@ -276,7 +279,7 @@ class TestRequestReportDataService
      * @param  array<string, mixed>  $trfCollectionExtras
      * @param  array<string, string|null>  $shared
      * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
-     * @return list<array{rows: list<array{left: array{label: string, value: string}, right: array{label: string, value: string}}>, lab_section: string}>
+     * @return list<array{rows: list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}}>, lab_section: string, conducted_by: string}>
      */
     private function buildSampleDetailContexts(
         SampleHeader $batch,
@@ -291,6 +294,7 @@ class TestRequestReportDataService
         $capturedResults,
     ): array {
         $contexts = [];
+        $usersById = $this->analystUsersById($capturedResults);
 
         foreach ($samples->values() as $index => $sample) {
             $normalizedRow = $normalizedRows[$index] ?? [];
@@ -386,6 +390,12 @@ class TestRequestReportDataService
                 $labSectionNames = $batch->getLabSectionsNames() ?: 'Laboratory';
             }
 
+            $sampleResults = $capturedResults->where('sample_detail_id', $sample->id);
+            $additionalNotes = (string) ($shared['additionalNotes'] ?? '');
+            if ($additionalNotes === '-') {
+                $additionalNotes = '';
+            }
+
             $contexts[] = [
                 'rows' => [
                     [
@@ -433,11 +443,12 @@ class TestRequestReportDataService
                         'right' => ['label' => 'sampling_method', 'value' => (string) ($shared['samplingMethod'] ?? '-')],
                     ],
                     [
-                        'left' => ['label' => 'additional_notes', 'value' => (string) ($shared['additionalNotes'] ?? '-')],
+                        'left' => ['label' => 'additional_notes', 'value' => $additionalNotes],
                         'right' => ['label' => 'sample_preservation', 'value' => $preservation],
                     ],
                 ],
                 'lab_section' => $labSectionNames,
+                'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
             ];
         }
 
@@ -1126,5 +1137,144 @@ class TestRequestReportDataService
         }
 
         return null;
+    }
+
+    /**
+     * @return array{name: string, lines: list<string>}
+     */
+    private function buildCompanyLetterhead(?object $company): array
+    {
+        if ($company === null) {
+            return [
+                'name' => 'AmSpec',
+                'lines' => [],
+            ];
+        }
+
+        $lines = [];
+        $address = trim((string) ($company->address ?? ''));
+        if ($address !== '') {
+            foreach (preg_split('/\r\n|\r|\n/', $address) ?: [] as $line) {
+                $line = trim((string) $line);
+                if ($line !== '' && ! in_array($line, $lines, true)) {
+                    $lines[] = $line;
+                }
+            }
+        }
+
+        $street = trim((string) ($company->street ?? ''));
+        if ($street !== '' && ! in_array($street, $lines, true)) {
+            $lines[] = $street;
+        }
+
+        $location = trim((string) ($company->location ?? ''));
+        if ($location !== '' && ! in_array($location, $lines, true)) {
+            $lines[] = $location;
+        }
+
+        $phone = trim((string) ($company->telephone ?? ''));
+        if ($phone === '') {
+            $phone = trim((string) ($company->cell_phone ?? ''));
+        }
+        if ($phone !== '') {
+            $lines[] = 'T: '.$phone;
+        }
+
+        $website = trim((string) ($company->website ?? ''));
+        if ($website !== '') {
+            $host = preg_replace('#^https?://#i', '', $website) ?? $website;
+            $host = rtrim((string) $host, '/');
+            if ($host !== '') {
+                $lines[] = 'W: '.$host;
+            }
+        }
+
+        $name = trim((string) ($company->name ?? ''));
+
+        return [
+            'name' => $name !== '' ? $name : 'AmSpec',
+            'lines' => $lines,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     * @return \Illuminate\Support\Collection<string, User>
+     */
+    private function analystUsersById($capturedResults)
+    {
+        $userIds = [];
+
+        foreach ($capturedResults as $result) {
+            $userId = trim((string) ($result->user_id ?? ''));
+            if ($userId !== '') {
+                $userIds[$userId] = true;
+            }
+
+            $assigned = $result->assigned_analyst_ids ?? [];
+            if (! is_array($assigned)) {
+                continue;
+            }
+
+            foreach ($assigned as $assignedId) {
+                $assignedId = trim((string) $assignedId);
+                if ($assignedId !== '') {
+                    $userIds[$assignedId] = true;
+                }
+            }
+        }
+
+        if ($userIds === []) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', array_keys($userIds))
+            ->get(['id', 'name', 'id_number'])
+            ->keyBy('id');
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $sampleResults
+     * @param  \Illuminate\Support\Collection<string, User>  $usersById
+     */
+    private function conductedByEmployeeIds($sampleResults, $usersById): string
+    {
+        $ids = [];
+
+        foreach ($sampleResults as $result) {
+            $userId = trim((string) ($result->user_id ?? ''));
+            if ($userId !== '') {
+                $ids[$userId] = true;
+            }
+
+            $assigned = $result->assigned_analyst_ids ?? [];
+            if (! is_array($assigned)) {
+                continue;
+            }
+
+            foreach ($assigned as $assignedId) {
+                $assignedId = trim((string) $assignedId);
+                if ($assignedId !== '') {
+                    $ids[$assignedId] = true;
+                }
+            }
+        }
+
+        $labels = [];
+        foreach (array_keys($ids) as $userId) {
+            $user = $usersById->get($userId) ?? $sampleResults->firstWhere('user_id', $userId)?->user;
+            if ($user === null) {
+                continue;
+            }
+
+            $employeeId = trim((string) ($user->id_number ?? ''));
+            $label = $employeeId !== '' ? $employeeId : trim((string) ($user->name ?? ''));
+            if ($label !== '') {
+                $labels[] = $label;
+            }
+        }
+
+        return implode(', ', array_values(array_unique($labels)));
     }
 }

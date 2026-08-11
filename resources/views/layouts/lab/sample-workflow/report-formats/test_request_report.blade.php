@@ -159,31 +159,31 @@
         padding: 26px 30px 22px;
         /* Dompdf ships with DejaVu fonts; use them for Arabic glyph coverage. */
         font-family: {{ $isRTL ? "'DejaVu Sans', 'DejaVu Serif', Arial" : 'Arial, Helvetica, sans-serif' }};
-        font-size: 10.5px;
+        font-size: 11pt;
         color: #1a1a1a;
-        line-height: 1.45;
+        line-height: 1.4;
     }
 
     /* ── PAGE HEADER ──────────────────────────────── */
     .pg-header {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
         padding-bottom: 0;
         border-bottom: none;
     }
     .pg-header td {
         border: none;
         padding: 0;
-        vertical-align: middle;
+        vertical-align: top;
     }
     .pg-header-logo {
-        width: 38%;
+        width: 58%;
         text-align: left;
     }
     .pg-header-logo img {
-        max-height: 110px;
-        max-width: 300px;
+        max-height: 72px;
+        max-width: 280px;
         object-fit: contain;
         display: block;
     }
@@ -192,98 +192,79 @@
         font-weight: 900;
         color: #8B1A1A;
         letter-spacing: 1px;
+        display: block;
     }
-    .pg-header-center {
-        width: 24%;
-        text-align: center;
-        vertical-align: middle;
-        padding: 0 6px;
+    .pg-header-company {
+        font-size: 10pt;
+        font-weight: bold;
+        color: #111;
+        margin-top: 4px;
+        line-height: 1.3;
     }
-    .pg-header-center .cert-no {
-        font-size: 10.5px;
-        color: #333;
-        letter-spacing: 0.02em;
-        line-height: 1.35;
-    }
-    .pg-header-center .page-of {
-        font-size: 10px;
-        color: #666;
-    }
-    .pg-header-right {
-        width: 38%;
+    .pg-header-address {
+        width: 42%;
         text-align: right;
+        font-size: 9pt;
+        line-height: 1.35;
+        color: #111;
     }
-    .pg-header-right img {
-        max-height: 110px;
-        max-width: 260px;
-        object-fit: contain;
-        display: inline-block;
+    .pg-header-address div {
+        margin: 0;
     }
 
     /* Report title bar */
     .report-title-bar {
         text-align: center;
-        font-size: 13px;
+        font-size: 13pt;
         font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 1.6px;
-        padding: 6px 0 5px;
-        margin: 0 0 0;
+        letter-spacing: 1.2px;
+        padding: 8px 0 4px;
+        margin: 2px 0 8px;
         color: #111;
-        border-top: 1px solid #d8d8d8;
-        border-bottom: 2px solid #8B1A1A;
+        border-top: none;
+        border-bottom: 3px solid #8B1A1A;
     }
 
     /* ── INFO TABLE (Attention / Client / Address) ── */
     .info-table {
         width: 100%;
         border-collapse: collapse;
-        margin: 6px 0 0;
-        font-size: 10.5px;
-        border: 1px solid #bdbdbd;
+        margin: 0;
+        font-size: 11pt;
+        border: 1px solid #000;
     }
     .info-table td {
-        padding: 5px 8px;
+        padding: 4px 8px;
         vertical-align: middle;
         text-align: left;
-        border-bottom: 1px solid #e0e0e0;
+        border: 1px solid #000;
+        background: #fff;
+        color: #111;
     }
-    .info-table tr:last-child td { border-bottom: none; }
-    .info-table .lbl {
-        font-weight: bold;
-        white-space: nowrap;
-        width: 150px;
-        color: #333;
-        background: #fafafa;
-    }
-    .info-table .colon { width: 12px; color: #888; background: #fafafa; }
 
     /* ── DETAILS GRID (2-column, bordered) ──────── */
     .detail-grid {
         width: 100%;
         border-collapse: collapse;
-        margin: 0 0 8px;
-        font-size: 10.5px;
+        margin: 0 0 0;
+        font-size: 11pt;
         table-layout: fixed;
     }
-    .detail-grid col.detail-col-label { width: 16%; }
-    .detail-grid col.detail-col-value { width: 34%; }
-    .detail-grid + .detail-grid,
-    .info-table + .detail-grid {
+    .detail-grid col.detail-col-half { width: 50%; }
+    .detail-grid + .detail-grid {
         margin-top: -1px;
     }
+    .info-table + .detail-grid {
+        margin-top: 8px;
+    }
     .detail-grid td {
-        border: 1px solid #c4c4c4;
+        border: 1px solid #000;
         padding: 4px 7px;
         vertical-align: middle;
         text-align: left;
-    }
-    .detail-grid .dlbl {
-        font-weight: bold;
-        white-space: nowrap;
-        background: #f6f6f6;
-        width: 16%;
-        color: #333;
+        background: #fff;
+        color: #111;
     }
     .detail-grid .val-emphasize {
         font-weight: bold;
@@ -299,8 +280,8 @@
     .lab-section-banner {
         margin-bottom: 6px;
     }
-    .lab-section-banner td:not(.dlbl) {
-        font-weight: bold;
+    .lab-section-banner td {
+        font-weight: normal;
     }
     .trr-sample-block + .trr-sample-block {
         margin-top: 18px;
@@ -312,7 +293,7 @@
     .results-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 10px;
+        font-size: 9.5pt;
         margin-bottom: 10px;
     }
     .results-table th {
@@ -323,12 +304,21 @@
         border: 1px solid #6e1515;
         text-align: center;
         letter-spacing: 0.02em;
-        font-size: 9.5px;
+        font-size: 9pt;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .results-table th:first-child {
+        text-align: left;
     }
     .results-table td {
-        border: 1px solid #d5d5d5;
+        border: 1px solid #000;
         padding: 4px 5px;
         vertical-align: middle;
+        text-align: center;
+    }
+    .results-table td:first-child {
+        text-align: left;
     }
     .results-table tr:nth-child(even) td { background: #fbfbfb; }
     .results-table .analysis-group td {
@@ -374,6 +364,10 @@
     .sample-amendment strong {
         color: #111;
     }
+    .sample-notes > strong {
+        display: block;
+        margin-bottom: 2px;
+    }
     .sample-notes ol {
         margin: 4px 0 0 18px;
         padding: 0;
@@ -387,71 +381,50 @@
     .meta-box {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 12px;
-        font-size: 10.5px;
+        margin-top: 8px;
+        font-size: 11pt;
     }
     .meta-box td {
-        border: 1px solid #c4c4c4;
+        border: 1px solid #000;
         padding: 6px 10px;
         width: 50%;
         vertical-align: middle;
-        background: #fcfcfc;
+        background: #fff;
     }
 
     /* ── SIGNATURE BLOCK ────────────────────────── */
     .sig-section {
-        margin-top: 16px;
-        border-top: 1px solid #c4c4c4;
-        padding-top: 10px;
+        margin-top: 14px;
+        border-top: none;
+        padding-top: 4px;
         page-break-inside: avoid;
     }
     .sig-section .sig-intro {
         font-weight: bold;
-        font-size: 10.5px;
-        margin-bottom: 10px;
+        font-size: 11pt;
+        margin-bottom: 8px;
         color: #111;
     }
-    .sig-block {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 6px;
+    .sig-name { font-weight: bold; font-size: 11pt; margin-top: 0; color: #111; }
+    .sig-title-line { font-size: 11pt; color: #111; }
+    .sig-company-line { font-size: 11pt; margin-bottom: 6px; color: #111; }
+    .sig-image-box {
+        display: inline-block;
+        border: 1px solid #7eb6d9;
+        padding: 4px 10px;
+        min-width: 140px;
+        min-height: 42px;
+        margin-top: 2px;
     }
-    .sig-block td {
-        vertical-align: bottom;
-        border: none;
-        padding: 0;
-    }
-    .sig-block .sig-left {
-        width: 62%;
-        padding-right: 14px;
-        vertical-align: top;
-    }
-    .sig-block .sig-right {
-        width: 38%;
-        text-align: right;
-        vertical-align: middle;
-    }
-    .sig-block .sig-right img {
-        max-height: 90px;
-        max-width: 200px;
-        object-fit: contain;
-    }
-    .sig-name { font-weight: bold; font-size: 11px; margin-top: 0; color: #111; }
-    .sig-title-line { font-size: 10.5px; color: #333; }
-    .sig-company-line { font-size: 10.5px; margin-bottom: 2px; color: #333; }
-    .sig-image {
-        margin: 2px 0 1px;
-        min-height: 36px;
-    }
-    .sig-image img {
+    .sig-image-box img {
         max-height: 48px;
         max-width: 180px;
         display: block;
     }
-    .sig-underline {
-        border-top: 1px solid #555;
-        margin: 1px 0 0;
-        width: 200px;
+    .sig-image-box .sig-missing {
+        color: #aaa;
+        font-size: 9pt;
+        font-style: italic;
     }
 
     /* ── FOOTER TEXT ────────────────────────────── */
@@ -485,38 +458,54 @@
     }
     .end-text {
         text-align: center;
-        font-size: 10px;
-        margin: 14px 0 8px;
+        font-size: 10pt;
+        margin: 28px 0 8px;
         font-style: italic;
         color: #555;
         letter-spacing: 0.03em;
     }
 
     /* ── PAGE DISCLAIMER FOOTER (every page) ─────── */
-    .page-disclaimer {
-        margin-top: 16px;
-        border-top: 1px solid #ccc;
+    .page-disclaimer,
+    .pdf-footer-legal {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        border-top: 1px solid #999;
         padding-top: 6px;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        page-break-inside: avoid;
     }
-    .page-disclaimer .disclaimer-text {
-        flex: 1;
-        font-size: 7px;
-        color: #222;
+    .page-disclaimer td,
+    .pdf-footer-legal td {
+        border: none;
+        vertical-align: top;
+        padding: 0;
+    }
+    .page-disclaimer .disclaimer-page,
+    .pdf-footer-legal .pdf-footer-page {
+        width: 72px;
+        font-size: 8pt;
         font-weight: bold;
-        line-height: 1.6;
-        font-family: inherit;
+        color: #111;
+        padding-right: 8px;
+        white-space: nowrap;
     }
-    .page-disclaimer .disclaimer-qr {
-        flex-shrink: 0;
-        margin-left: 10px;
+    .page-disclaimer .disclaimer-text,
+    .pdf-footer-legal .pdf-footer-disclaimer {
+        font-size: 7.5pt;
+        color: #222;
+        line-height: 1.35;
+        text-align: justify;
+        padding-right: 8px;
     }
-    .page-disclaimer .disclaimer-qr img {
-        width: 70px;
-        height: 70px;
+    .page-disclaimer .disclaimer-qr,
+    .pdf-footer-legal .pdf-footer-qr {
+        width: 58px;
+        text-align: right;
+    }
+    .page-disclaimer .disclaimer-qr img,
+    .pdf-footer-legal .pdf-footer-qr img {
+        width: 54px;
+        height: 54px;
         display: block;
     }
 
@@ -540,20 +529,16 @@
 
     @if(!empty($isPdfMode))
     /*
-     * Verified against this dompdf build (storage/tmp-pdf-test harness):
-     * - The `*` reset zeroes html margins, which dompdf uses as the page
-     *   margins — so page margins MUST be re-asserted on `html` here.
-     * - position:fixed is relative to the CONTENT box; negative offsets pull
-     *   the header/footer into the reserved margins on every page.
-     * - Fixed elements only repeat when they are direct children of <body>.
-     * - Client details sit in the body (page 1) so they sit flush against batch info.
+     * DomPDF: `*` reset zeroes html margins (used as page margins).
+     * position:fixed is relative to the CONTENT box; negative offsets pull
+     * the header/footer into the reserved margins on every page.
+     * Fixed elements only repeat when they are direct children of <body>.
      */
     @page {
         size: A4 portrait;
     }
     html {
-        /* Header band is logos + title only; client info flows in the body. */
-        margin: 32mm 12mm 100mm 12mm;
+        margin: 42mm 12mm 28mm 12mm;
         padding: 0;
     }
     body, main {
@@ -568,11 +553,11 @@
         border: none;
         padding: 0;
         overflow: visible;
+        font-size: 10pt;
     }
     .pdf-doc-header {
         position: fixed;
-        /* Pull up into the 32mm top margin (4mm from the page edge). */
-        top: -28mm;
+        top: -38mm;
         left: 0;
         right: 0;
         width: auto;
@@ -587,46 +572,34 @@
     .pdf-doc-header .pg-header td {
         padding: 0;
         border: none;
-        vertical-align: middle;
+        vertical-align: top;
     }
-    .pdf-doc-header .pg-header-logo img,
-    .pdf-doc-header .pg-header-right img {
-        max-height: 22mm;
-        max-width: 68mm;
+    .pdf-doc-header .pg-header-logo img {
+        max-height: 16mm;
+        max-width: 62mm;
     }
     .pdf-doc-header .logo-text {
-        font-size: 22px;
+        font-size: 18px;
     }
-    .pdf-doc-header .cert-no {
-        font-size: 9.5px;
+    .pdf-doc-header .pg-header-company {
+        font-size: 8pt;
+        margin-top: 1px;
+    }
+    .pdf-doc-header .pg-header-address {
+        font-size: 7.5pt;
+        line-height: 1.25;
     }
     .pdf-doc-header .report-title-bar {
-        margin: 0;
-        padding: 3px 0 3px;
-        font-size: 11px;
+        margin: 2px 0 0;
+        padding: 3px 0 2px;
+        font-size: 11pt;
         letter-spacing: 1px;
-        border-top: 1px solid #d8d8d8;
-        border-bottom-width: 1.5px;
-    }
-    .pdf-body-client-info .info-table {
-        margin: 0 0 0;
-        font-size: 9px;
-        page-break-inside: avoid;
-        page-break-after: avoid;
-    }
-    .pdf-body-client-info .info-table td {
-        padding: 2px 5px;
-    }
-    .pdf-body-client-info .info-table .lbl {
-        width: 120px;
-    }
-    .pdf-body-client-info + .detail-grid {
-        margin-top: -1px;
+        border-top: none;
+        border-bottom: 2.5px solid #8B1A1A;
     }
     .pdf-doc-footer {
         position: fixed;
-        /* Pull down into the 100mm bottom margin (6mm from the page edge). */
-        bottom: -94mm;
+        bottom: -24mm;
         left: 0;
         right: 0;
         width: auto;
@@ -634,152 +607,57 @@
         padding: 0;
         background: #fff;
     }
-    .pdf-doc-footer .pdf-footer-closing {
-        border-top: 1px solid #cfcfcf;
-        padding-top: 2px;
-        margin-bottom: 2px;
-    }
-    .pdf-doc-footer .sample-notes,
-    .pdf-doc-footer .sample-amendment {
-        font-size: 7.5px;
-        padding: 1px 0;
-        line-height: 1.3;
-        margin: 0;
-    }
-    .pdf-doc-footer .sample-amendment {
-        border: 1px solid #d4b896;
-        background: #fffaf0;
-        padding: 3px 5px;
-        margin: 2px 0;
-    }
-    .pdf-doc-footer .sample-amendment div[style] {
-        margin-top: 1px !important;
-    }
-    .pdf-doc-footer .meta-box {
-        margin-top: 2px;
-        font-size: 8px;
-    }
-    .pdf-doc-footer .meta-box td {
-        padding: 2px 5px;
-    }
-    .pdf-doc-footer .sig-section {
-        margin-top: 3px;
-        padding-top: 3px;
-        border-top: 1px solid #c4c4c4;
-    }
-    .pdf-doc-footer .sig-section .sig-intro {
-        font-size: 8px;
-        margin-bottom: 2px;
-    }
-    .pdf-doc-footer .sig-name {
-        font-size: 8.5px;
-    }
-    .pdf-doc-footer .sig-title-line,
-    .pdf-doc-footer .sig-company-line {
-        font-size: 8px;
-    }
-    .pdf-doc-footer .sig-image {
-        min-height: 18px;
-        margin: 0;
-    }
-    .pdf-doc-footer .sig-image img {
-        max-height: 28px;
-        max-width: 110px;
-    }
-    .pdf-doc-footer .sig-block .sig-right img {
-        max-height: 18mm;
-        max-width: 42mm;
-    }
-    .pdf-doc-footer .sig-underline {
-        width: 130px;
+    .pdf-doc-footer .pdf-footer-legal {
         margin-top: 0;
+        border-top: 1px solid #999;
+        padding-top: 3px;
     }
-    .pdf-doc-footer .bottom-logos {
-        margin: 2px 0 1px;
-    }
-    .pdf-doc-footer .bottom-logos img {
-        max-height: 20mm !important;
-        max-width: 52mm !important;
-    }
-    .pdf-doc-footer .end-text {
-        display: block;
-        text-align: center;
-        font-size: 7.5px;
-        font-style: italic;
-        color: #555;
-        margin: 2px 0 3px;
-    }
-    .pdf-doc-footer .pdf-footer-meta {
-        border-top: 1px solid #cfcfcf;
+    .pdf-doc-footer .pdf-footer-page {
+        width: 78px;
+        font-size: 8pt;
         padding-top: 2px;
     }
-    .pdf-doc-footer .meta-top {
-        font-size: 6.5px;
-        line-height: 1.2;
-        color: #333;
-        margin-bottom: 1px;
+    .pdf-doc-footer .pdf-footer-disclaimer {
+        font-size: 6.5pt;
+        line-height: 1.3;
+        font-weight: normal;
     }
-    .pdf-doc-footer .meta-issued {
-        text-align: center;
-        font-size: 6.5px;
-        color: #333;
-        margin-bottom: 1px;
+    .pdf-doc-footer .pdf-footer-qr {
+        width: 48px;
     }
-    .pdf-doc-footer .meta-company {
-        text-align: center;
-        font-size: 7.5px;
-        font-weight: bold;
-        letter-spacing: .3px;
-        margin-bottom: 2px;
-        text-transform: uppercase;
-        color: #111;
-    }
-    .pdf-doc-footer .meta-legal-wrap {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .pdf-doc-footer .meta-legal-wrap td {
-        border: none;
-        vertical-align: top;
-        padding: 0;
-    }
-    .pdf-doc-footer .meta-legal {
-        font-size: 5px;
-        line-height: 1.25;
-        color: #222;
-        font-weight: bold;
-        padding-right: 6px;
-    }
-    .pdf-doc-footer .meta-qr {
-        width: 42px;
-        text-align: right;
-    }
-    .pdf-doc-footer .meta-qr img {
-        width: 38px;
-        height: 38px;
-        display: block;
+    .pdf-doc-footer .pdf-footer-qr img {
+        width: 44px;
+        height: 44px;
     }
     .info-table,
     .detail-grid,
     .results-table,
     .meta-box,
-    .sig-block,
     .pg-header {
         width: 100%;
         margin-left: 0;
         margin-right: 0;
     }
-    .detail-grid {
-        margin-bottom: 6px;
-        font-size: 9.5px;
-        page-break-inside: auto;
+    .info-table {
+        font-size: 9pt;
+        page-break-inside: avoid;
         page-break-after: avoid;
+    }
+    .info-table td {
+        padding: 3px 6px;
+    }
+    .info-table + .detail-grid {
+        margin-top: 6px;
+    }
+    .detail-grid {
+        margin-bottom: 0;
+        font-size: 9pt;
+        page-break-inside: auto;
     }
     .detail-grid td {
         padding: 3px 5px;
     }
-    .sample-ref-grid {
-        margin-bottom: 3px;
+    .lab-section-banner {
         page-break-after: avoid;
     }
     .trr-sample-block + .trr-sample-block {
@@ -789,13 +667,13 @@
         border-top: none;
     }
     .results-table {
-        font-size: 9px;
+        font-size: 8pt;
         margin-bottom: 6px;
         page-break-inside: auto;
     }
     .results-table th {
         padding: 4px 3px;
-        font-size: 8.5px;
+        font-size: 7.5pt;
     }
     .results-table td {
         padding: 3px 3px;
@@ -808,10 +686,32 @@
         page-break-after: auto;
     }
     .sample-remarks,
-    .sample-interpretations {
-        font-size: 9px;
+    .sample-interpretations,
+    .sample-notes {
+        font-size: 9pt;
         padding: 3px 0;
         page-break-inside: avoid;
+    }
+    .meta-box {
+        font-size: 9pt;
+        page-break-inside: avoid;
+    }
+    .sig-section {
+        page-break-inside: avoid;
+    }
+    .sig-section .sig-intro,
+    .sig-name,
+    .sig-title-line,
+    .sig-company-line {
+        font-size: 9pt;
+    }
+    .sig-image-box img {
+        max-height: 36px;
+        max-width: 140px;
+    }
+    .end-text {
+        font-size: 9pt;
+        margin: 16px 0 4px;
     }
     @endif
 
@@ -864,12 +764,6 @@
 @endif
 
 @php
-    $footerNotesBodies = collect($samples ?? [])
-        ->map(static fn ($sample) => $sample->notes_body ?? null)
-        ->filter(static fn ($body) => filled(trim(strip_tags((string) $body))))
-        ->values()
-        ->all();
-
     $amendmentRevision = (int) ($ammendment?->version_number ?? ($batch->is_amendment ?? 0));
     $display = $amendmentDisplay ?? [];
     $amendmentRevisionLabel = $display['formattedRevision']
@@ -892,37 +786,10 @@
 {{-- Repeating header / footer. Must be direct children of <body> (outside
      <main>) or DomPDF only paints them on the first page. --}}
 <div class="pdf-doc-header">
-    @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header', ['showClientInfo' => false])
+    @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
 </div>
 <div class="pdf-doc-footer">
-    <div class="pdf-footer-closing">
-        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing')
-    </div>
-    <div class="pdf-footer-meta">
-        <div class="meta-top">
-            {{ $labels['results_relate'] }}<br>
-            {{ $labels['no_reproduce'] }}
-        </div>
-        <div class="meta-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
-        <div class="meta-company">{{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}</div>
-        <table class="meta-legal-wrap">
-            <tr>
-                <td class="meta-legal">
-                    This document is issued by the Company subject to the Terms and Conditions at
-                    https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
-                    information contained herein reflects the Company&#8217;s findings at the time and place of its
-                    intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
-                    responsibility is to its Client and the Company disclaims any liability to third parties.
-                    Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
-                </td>
-                <td class="meta-qr">
-                    @if(!empty($footerQrCode))
-                        <img src="{{ $footerQrCode }}" alt="Report QR Code">
-                    @endif
-                </td>
-            </tr>
-        </table>
-    </div>
+    @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-legal-footer')
 </div>
 @endif
 
@@ -958,19 +825,15 @@
 
     <div class="trr-page">
 
-        @if(empty($isPdfMode))
-        {{-- ══════════════ PAGE HEADER (logo + client info) ══════════════ --}}
-        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
-        @else
-        {{-- Client details flow with batch info (page 1 only; not in fixed header) --}}
-        <div class="pdf-body-client-info">
-            @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-client-info')
-        </div>
-        @endif
-
-        {{-- ══════════════ TEST RESULTS (one section per sample) ══════════════ --}}
+        {{-- ══════════════ One complete report section per sample ══════════════ --}}
         @forelse ($samples as $sample)
             <div @class(['trr-sample-block' => true, 'trr-sample-block-first' => $loop->first])>
+            @if(empty($isPdfMode))
+                @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
+            @endif
+
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-client-info')
+
             @include('layouts.lab.sample-workflow.report-formats.partials.trr-sample-detail-grid', [
                 'sampleIndex' => $loop->index,
             ])
@@ -1051,10 +914,13 @@
                 <strong>Recommendations / Interpretations:</strong> {!! $sample->main_body !!}
             </div>
             @endif
-            @if(empty($isPdfMode) && $sample->notes_body)
-            <div class="sample-notes">
-                <strong>Notes:</strong> {!! $sample->notes_body !!}
-            </div>
+
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing', [
+                'sampleIndex' => $loop->index,
+            ])
+
+            @if(empty($isPdfMode))
+                @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-legal-footer')
             @endif
 
             </div>{{-- .trr-sample-block --}}
@@ -1062,40 +928,6 @@
         @empty
             <div style="padding:14px 0;font-style:italic;color:#888;">{{ $labels['no_samples'] }}</div>
         @endforelse
-
-        @if(empty($isPdfMode))
-        {{-- ══════════════ CLOSING (Notes → End of text) ══════════════ --}}
-        @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-closing')
-
-        <div class="report-footer-text">
-            {{ $labels['results_relate'] }}<br>
-            {{ $labels['no_reproduce'] }}
-        </div>
-        <div class="report-issued">{{ $labels['issued_on'] }} {{ $approvalDate }}.</div>
-        <div class="report-company-tag">
-            {{ strtoupper($company->name ?? 'AMSPEC FIRST CLASS SUPERINTENDENT COMPANY') }}
-        </div>
-
-        <div class="page-disclaimer">
-            <div class="disclaimer-text">
-                This document is issued by the Company subject to the Terms and Conditions at
-                https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that
-                information contained herein reflects the Company&#8217;s findings at the time and place of its
-                intervention only and within the scope of the Client&#8217;s instructions. The Company&#8217;s sole
-                responsibility is to its Client and the Company disclaims any liability to third parties.
-                Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
-            </div>
-            <div class="disclaimer-qr">
-                @if(!empty($footerQrCode))
-                    <img src="{{ $footerQrCode }}" alt="Report QR Code">
-                @else
-                    <div style="width:70px;height:70px;border:1px solid #bbb;font-size:8px;display:flex;align-items:center;justify-content:center;text-align:center;color:#888;">
-                        QR unavailable
-                    </div>
-                @endif
-            </div>
-        </div>
-        @endif
 
     </div>{{-- end .trr-page --}}
 
@@ -1113,10 +945,9 @@
         $pageText = {!! var_export($pageNumberText, true) !!};
         $size = 8;
         $font = $fontMetrics->getFont("DejaVu Sans");
-        $width = $fontMetrics->get_text_width("Page 99 of 99", $font, $size);
-        // Match @page right margin (12mm ≈ 34pt).
-        $x = $pdf->get_width() - $width - 34;
-        $y = $pdf->get_height() - 14;
+        // Match @page left margin (12mm ≈ 34pt) and the slim footer band.
+        $x = 34;
+        $y = $pdf->get_height() - 62;
         $pdf->page_text($x, $y, $pageText, $font, $size);
     }
 </script>
