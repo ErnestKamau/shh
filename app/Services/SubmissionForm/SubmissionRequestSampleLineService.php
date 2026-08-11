@@ -5,6 +5,7 @@ namespace App\Services\SubmissionForm;
 use App\AnalysisElements;
 use App\AnalysisType;
 use App\Models\CRM\SamplePoint;
+use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
@@ -44,21 +45,196 @@ class SubmissionRequestSampleLineService
         if ($trfRowLines !== []) {
             return $this->finalizeInstanceLines(
                 $instance,
-                $this->enrichTrfRowLinesFromRowsSection($instance, $trfRowLines),
+                $this->supplementLinesFromEnquirySampleLines(
+                    $instance,
+                    $this->enrichTrfRowLinesFromRowsSection($instance, $trfRowLines),
+                ),
             );
         }
 
         $rowLines = $this->deduplicateLines($this->parseRowsSections($instance));
 
         if ($this->linesHaveRichSampleDetail($rowLines)) {
-            return $this->finalizeInstanceLines($instance, $rowLines);
+            return $this->finalizeInstanceLines(
+                $instance,
+                $this->supplementLinesFromEnquirySampleLines($instance, $rowLines),
+            );
         }
 
         if ($rowLines !== []) {
-            return $this->finalizeInstanceLines($instance, $rowLines);
+            return $this->finalizeInstanceLines(
+                $instance,
+                $this->supplementLinesFromEnquirySampleLines($instance, $rowLines),
+            );
         }
 
-        return $this->finalizeInstanceLines($instance, $this->fallbackLinesFromHeader($instance));
+        return $this->finalizeInstanceLines(
+            $instance,
+            $this->supplementLinesFromEnquirySampleLines(
+                $instance,
+                $this->fallbackLinesFromHeader($instance),
+            ),
+        );
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private function supplementLinesFromEnquirySampleLines(
+        SubmissionFormInstance $instance,
+        array $lines,
+    ): array {
+        if ($lines === []) {
+            return [];
+        }
+
+        $portalRequestId = trim((string) ($instance->portal_request_id ?? ''));
+        if ($portalRequestId === '') {
+            return $lines;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()->find($portalRequestId);
+        if ($enquiry === null) {
+            return $lines;
+        }
+
+        $storedLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        if ($storedLines === []) {
+            return $lines;
+        }
+
+        $supplementalKeys = [
+            'sample_description',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'sampling_point',
+            'location',
+            'production_date',
+            'expiration_date',
+            'batch_number',
+            'test_category',
+            'test_requirements',
+            'parameter_category',
+            'sample_condition',
+            'state_of_sample',
+        ];
+
+        foreach ($lines as &$line) {
+            $rowIndex = (int) ($line['row_index'] ?? 0);
+            $source = $storedLines[$rowIndex] ?? null;
+            if (! is_array($source)) {
+                continue;
+            }
+
+            foreach ($supplementalKeys as $key) {
+                $existing = trim((string) ($line[$key] ?? ''));
+                if ($existing !== '') {
+                    continue;
+                }
+
+                $candidate = $source[$key] ?? null;
+                if ($candidate === null || $candidate === '') {
+                    continue;
+                }
+
+                $line[$key] = $candidate;
+            }
+
+            if (trim((string) ($line['parameter_category'] ?? '')) === '') {
+                $category = $source['parameter_category']
+                    ?? $source['test_category']
+                    ?? $source['test_requirements']
+                    ?? null;
+                if ($category !== null && $category !== '') {
+                    $line['parameter_category'] = $category;
+                }
+            }
+        }
+        unset($line);
+
+        return $this->supplementLinesFromEnquiryWizardValues($enquiry, $lines);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private function supplementLinesFromEnquiryWizardValues(
+        SampleSubmissionRequest $enquiry,
+        array $lines,
+    ): array {
+        $byType = is_array($enquiry->trf_section_field_values)
+            ? $enquiry->trf_section_field_values
+            : [];
+
+        if ($byType === []) {
+            return $lines;
+        }
+
+        $supplementalKeys = [
+            'sample_description',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'sampling_point',
+            'location',
+            'production_date',
+            'expiration_date',
+            'batch_number',
+            'test_category',
+            'test_requirements',
+            'parameter_category',
+            'sample_condition',
+            'state_of_sample',
+        ];
+
+        $typeRowCounters = [];
+
+        foreach ($lines as &$line) {
+            $typeId = trim((string) ($line['sample_type_id'] ?? ''));
+            if ($typeId === '' || ! is_array($byType[$typeId] ?? null)) {
+                continue;
+            }
+
+            $rowWithinType = $typeRowCounters[$typeId] ?? 0;
+            $typeRowCounters[$typeId] = $rowWithinType + 1;
+
+            $source = \App\Services\Commercial\EnquiryFromQuotationService::resolveTrfSectionRowFields(
+                $byType[$typeId],
+                $rowWithinType,
+            );
+
+            foreach ($supplementalKeys as $key) {
+                $existing = trim((string) ($line[$key] ?? ''));
+                if ($existing !== '') {
+                    continue;
+                }
+
+                $candidate = $source[$key] ?? null;
+                if ($candidate === null || $candidate === '' || $candidate === []) {
+                    continue;
+                }
+
+                $line[$key] = is_array($candidate)
+                    ? implode(',', array_filter(array_map('strval', $candidate)))
+                    : (string) $candidate;
+            }
+
+            if (trim((string) ($line['parameter_category'] ?? '')) === '') {
+                $category = $source['parameter_category']
+                    ?? $source['test_category']
+                    ?? $source['test_requirements']
+                    ?? null;
+                if ($category !== null && $category !== '') {
+                    $line['parameter_category'] = is_array($category)
+                        ? implode(',', $category)
+                        : (string) $category;
+                }
+            }
+        }
+        unset($line);
+
+        return $lines;
     }
 
     /**
@@ -252,11 +428,14 @@ class SubmissionRequestSampleLineService
 
         ksort($rowsByIndex);
 
-        $anchorCount = $this->countAnchorRowsFromInstance($instance);
-        if ($anchorCount > 0) {
+        $rowCap = max(
+            $this->countAnchorRowsFromInstance($instance),
+            $this->countPhysicalSampleRowsFromInstance($instance),
+        );
+        if ($rowCap > 0) {
             $rowsByIndex = array_filter(
                 $rowsByIndex,
-                static fn (array $cells, int|string $index): bool => (int) $index < $anchorCount,
+                static fn (array $cells, int|string $index): bool => (int) $index < $rowCap,
                 ARRAY_FILTER_USE_BOTH,
             );
         }
@@ -294,6 +473,46 @@ class SubmissionRequestSampleLineService
         }
 
         return $count;
+    }
+
+    /**
+     * Count distinct TRF row indexes that carry sample/analysis data.
+     */
+    private function countPhysicalSampleRowsFromInstance(SubmissionFormInstance $instance): int
+    {
+        $indicatorFields = array_merge(
+            SubmissionFormSchemaHelper::sampleRowAnchorFieldNames(),
+            [
+                'sample_type_id',
+                'sample_type',
+                'analysis_type_id',
+                'analysis_type',
+                'analysis_types',
+                'parameters',
+                'parameter',
+                'sample_id',
+                'customer_sample_id',
+                'sample_description',
+            ],
+        );
+        $maxIndex = -1;
+
+        foreach ($instance->values as $value) {
+            $name = (string) ($value->element?->name ?? '');
+            if ($name === '' || ! in_array($name, $indicatorFields, true)) {
+                continue;
+            }
+            if ($value->array_index === null) {
+                continue;
+            }
+            if (trim((string) ($value->value ?? '')) === '') {
+                continue;
+            }
+
+            $maxIndex = max($maxIndex, (int) $value->array_index);
+        }
+
+        return $maxIndex >= 0 ? $maxIndex + 1 : 0;
     }
 
     /**
@@ -347,6 +566,7 @@ class SubmissionRequestSampleLineService
 
         foreach ($lines as $line) {
             $fingerprint = implode('|', [
+                (string) ($line['row_index'] ?? ''),
                 (string) ($line['analysis_type_id'] ?? ''),
                 (string) ($line['analysis_element_id'] ?? ''),
                 mb_strtolower(trim((string) ($line['parameter_label'] ?? ''))),
@@ -1773,7 +1993,10 @@ class SubmissionRequestSampleLineService
     private function rowTestCategory(array $row): string
     {
         return implode(',', SubmissionFormSchemaHelper::testCategoryTokens(
-            $row['test_category'] ?? $row['parameter_category'] ?? null,
+            $row['test_category']
+                ?? $row['test_requirements']
+                ?? $row['parameter_category']
+                ?? null,
         ));
     }
 }

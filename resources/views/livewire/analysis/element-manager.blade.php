@@ -1,4 +1,4 @@
-<div class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
+<div class="container-fluid lab-surface-theme ls-admin-page element-manager-page" data-ls-type="plex">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -48,6 +48,34 @@
         </div>
     @endif
 
+    <!-- View Tabs -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 quotation-stage-tabs-card">
+                <div class="quotation-stage-tabs px-3 px-md-4 py-3">
+                    <button
+                        type="button"
+                        class="quotation-stage-tab {{ $activeTab === 'parameters' ? 'is-active' : '' }}"
+                        wire:click="switchTab('parameters')"
+                    >
+                        <i class="mdi mdi-format-list-bulleted"></i>
+                        <span>Parameters</span>
+                        <span class="quotation-stage-tab__count">{{ $this->parametersTabCount }}</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="quotation-stage-tab {{ $activeTab === 'parameter_groups' ? 'is-active' : '' }}"
+                        wire:click="switchTab('parameter_groups')"
+                    >
+                        <i class="mdi mdi-folder-outline"></i>
+                        <span>Parameter Groups</span>
+                        <span class="quotation-stage-tab__count">{{ $this->parameterGroupsTabCount }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filters -->
     <div class="row mb-4">
         <div class="col-12">
@@ -59,13 +87,36 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
                                 <input type="text" wire:model.live="search" class="form-control" placeholder="Search by analyte name...">
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Type of Analysis</label>
+                                <select wire:model.live="typeOfAnalysisFilter" class="form-select">
+                                    <option value="">All Types</option>
+                                    @foreach($this->filterTypesOfAnalysis as $type)
+                                        <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Parameter Group</label>
+                                <select wire:model.live="parameterGroupFilter" class="form-select">
+                                    <option value="">All Groups</option>
+                                    <option value="none">Ungrouped</option>
+                                    @foreach($this->filterParameterGroups as $group)
+                                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Status</label>
                                 <div class="tag-select-container status-filter-container">
@@ -93,155 +144,249 @@
         </div>
     </div>
 
-    <!-- Parameters Table -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card" style="border-radius: 15px;">
-                <div class="card-body">
-                    @if($this->elements->count() > 0)
-                        <!-- Show Entries -->
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="d-flex align-items-center">
-                                <span class="text-muted">
-                                    Showing {{ $this->elements->firstItem() ?? 0 }} to {{ $this->elements->lastItem() ?? 0 }} of {{ $this->elements->total() }} entries
-                                </span>
+    @if($activeTab === 'parameters')
+        <!-- Parameters Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card" style="border-radius: 15px;">
+                    <div class="card-body">
+                        @if(count($selectedElementIds) > 0)
+                            <div class="d-flex flex-wrap align-items-center mb-3 p-3 bg-light rounded">
+                                <span class="text-muted mr-3">{{ count($selectedElementIds) }} selected</span>
+                                <button type="button" class="btn btn-sm btn-primary mr-2" wire:click="openBulkAssignModal">
+                                    <i class="mdi mdi-folder-move-outline"></i> Assign to Group
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="$set('selectedElementIds', [])">
+                                    Clear selection
+                                </button>
                             </div>
-                            <div class="d-flex align-items-center">
-                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
-                                <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
-                                    @foreach($perPageOptions as $option)
-                                        <option value="{{ $option }}">{{ $option }}</option>
-                                    @endforeach
-                                </select>
+                        @endif
+
+                        @if($this->elements->count() > 0)
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-muted">
+                                        Showing {{ $this->elements->firstItem() ?? 0 }} to {{ $this->elements->lastItem() ?? 0 }} of {{ $this->elements->total() }} entries
+                                    </span>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
+                                    <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
+                                        @foreach($perPageOptions as $option)
+                                            <option value="{{ $option }}">{{ $option }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-hover elements-data-table" id="elements-table">
-                                <thead>
-                                    <tr>
-                                        <th class="em-actions-col" style="min-width: 132px;">
-                                            <span class="d-inline-flex align-items-center gap-1 text-muted" style="font-size: 12px; font-weight: 600;">
-                                                <i class="mdi mdi-drag-vertical" title="Drag to reorder"></i>
-                                                <span>Actions</span>
-                                            </span>
-                                        </th>
-                                        <th>Level</th>
-                                        <th>Analyte</th>
-                                        <th>Method</th>
-                                        <th>Equipment</th>
-                                        <th>Operator</th>
-                                        <th>Reporting Unit</th>
-                                        <th>LOD</th>
-                                        <th>LOQ</th>
-                                        <th title="Turnaround time (days)">TAT</th>
-                                        <th>Calculated</th>
-                                        <th>Method Sequence</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sortable-elements">
-                                    @foreach($this->elements as $element)
-                                        <tr class="sortable-row" data-element-id="{{ $element->id }}">
-                                            <td class="em-actions-cell">
-                                                <div class="d-flex align-items-center flex-nowrap em-actions-inner">
-                                                    <span class="drag-handle d-inline-flex align-items-center justify-content-center text-muted" title="Drag to reorder" style="cursor: move; min-width: 28px;">
-                                                        <i class="mdi mdi-drag-vertical" style="font-size: 18px;"></i>
-                                                    </span>
-                                                    <button type="button"
-                                                        wire:click="showEditElementModal('{{ $element->id }}')"
-                                                        class="btn btn-sm rm-act-btn rm-act-btn--edit"
-                                                        title="Edit parameter">
-                                                        <i class="mdi mdi-pencil-outline"></i>
-                                                    </button>
-                                                    <button type="button"
-                                                        wire:click="deleteElement('{{ $element->id }}')"
-                                                        class="btn btn-sm rm-act-btn rm-act-btn--delete"
-                                                        title="Delete"
-                                                        onclick="return confirm('Are you sure you want to delete this parameter?')">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span class="em-pill em-pill--level">{{ $element->level ?? 'N/A' }}</span>
-                                            </td>
-                                            <td>{{ $element->analyte->name ?? 'N/A' }}</td>
-                                            <td>{{ $element->mmethod->name ?? $element->ltmethod->name ?? 'N/A' }}</td>
-                                            <td>{{ $element->equipment->name ?? 'N/A' }}</td>
-                                            <td>{{ $element->operator->name ?? 'N/A' }}</td>
-                                            <td>{{ $element->reporting_unit }}</td>
-                                            <td>{{ $element->lod ?? '—' }}</td>
-                                            <td>{{ $element->hod ?? '—' }}</td>
-                                            <td>
-                                                @if($element->reporting_time)
-                                                    <span class="badge bg-info text-white">{{ $element->reporting_time }}d</span>
-                                                @else
-                                                    —
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($element->result_is_calculated)
-                                                    <span class="em-pill em-pill--calc em-pill--on" title="Result is Calculated">
-                                                        <i class="mdi mdi-calculator"></i> Yes
-                                                    </span>
-                                                    @if($element->formular)
-                                                        <br><small class="text-muted">{{ $element->formular->name }}</small>
-                                                    @endif
-                                                @else
-                                                    <span class="em-pill em-pill--calc em-pill--off">No</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($element->has_method_sequence)
-                                                    <span class="em-pill em-pill--sequence em-pill--on" title="Has Method Sequence">
-                                                        <i class="mdi mdi-timeline-check"></i> Yes
-                                                    </span>
-                                                    @if($element->methodSequence)
-                                                        <br><small class="text-muted">
-                                                            {{ $element->methodSequence->name }}
-                                                            @php
-                                                                $activeVersion = $element->methodSequence->activeVersion->first();
-                                                                $latestVersion = $element->methodSequence->latestVersion->first();
-                                                            @endphp
-                                                            @if($activeVersion)
-                                                                <br><span class="em-pill em-pill--ver em-pill--ver-active">v{{ $activeVersion->version_number }} · Active</span>
-                                                            @elseif($latestVersion)
-                                                                <br><span class="em-pill em-pill--ver em-pill--ver-latest">v{{ $latestVersion->version_number }} · Latest</span>
-                                                            @endif
-                                                        </small>
-                                                    @endif
-                                                @else
-                                                    <span class="em-pill em-pill--sequence em-pill--off">No</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($element->active)
-                                                    <span class="em-pill em-pill--status-active">Active</span>
-                                                @else
-                                                    <span class="em-pill em-pill--status-inactive">Inactive</span>
-                                                @endif
-                                            </td>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover elements-data-table" id="elements-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;" class="text-center">
+                                                @php
+                                                    $pageIds = $this->elements->pluck('id')->map(fn ($id) => (string) $id)->all();
+                                                    $allPageSelected = $pageIds !== [] && count(array_intersect($pageIds, $selectedElementIds)) === count($pageIds);
+                                                @endphp
+                                                <input
+                                                    type="checkbox"
+                                                    class="form-check-input"
+                                                    wire:click="toggleSelectAllOnPage"
+                                                    @checked($allPageSelected)
+                                                >
+                                            </th>
+                                            <th class="em-actions-col" style="min-width: 132px;">
+                                                <span class="d-inline-flex align-items-center gap-1 text-muted" style="font-size: 12px; font-weight: 600;">
+                                                    <i class="mdi mdi-drag-vertical" title="Drag to reorder"></i>
+                                                    <span>Actions</span>
+                                                </span>
+                                            </th>
+                                            <th>Level</th>
+                                            <th>Analyte</th>
+                                            <th>Type of Analysis</th>
+                                            <th>Parameter Group</th>
+                                            <th>Method</th>
+                                            <th>Equipment</th>
+                                            <th>Operator</th>
+                                            <th>Reporting Unit</th>
+                                            <th>LOD</th>
+                                            <th>LOQ</th>
+                                            <th title="Turnaround time (days)">TAT</th>
+                                            <th>Calculated</th>
+                                            <th>Method Sequence</th>
+                                            <th>Status</th>
                                         </tr>
-                                    @endforeach
+                                    </thead>
+                                    <tbody id="sortable-elements">
+                                        @foreach($this->elements as $element)
+                                            @include('livewire.analysis.partials.element-table-row', [
+                                                'element' => $element,
+                                                'showCheckbox' => true,
+                                                'showDragHandle' => true,
+                                                'selectedElementIds' => $selectedElementIds,
+                                            ])
+                                        @endforeach
                                     </tbody>
-                            </table>
-                        </div>
-                        <!-- Pagination -->
-                        <div class="d-flex justify-content-center mt-3">
-                            {{ $this->elements->links() }}
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="mdi mdi-flask-outline text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No parameters found</h5>
-                            <p class="text-muted">Start by adding your first analysis parameter.</p>
-                        </div>
-                    @endif
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-center mt-3">
+                                {{ $this->elements->links() }}
+                            </div>
+                        @else
+                            <div class="text-center py-4">
+                                <i class="mdi mdi-flask-outline text-muted" style="font-size: 3rem;"></i>
+                                <h5 class="text-muted mt-3">No parameters found</h5>
+                                <p class="text-muted">Start by adding your first analysis parameter.</p>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    @else
+        @php
+            $groupedView = $this->groupedElementsView;
+            $groupBlocks = $groupedView['blocks'];
+        @endphp
+
+        <!-- Parameter Groups View -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card" style="border-radius: 15px;">
+                    <div class="card-body">
+                        @if(count($groupBlocks) > 0)
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">{{ count($groupBlocks) }} group(s) · {{ collect($groupBlocks)->sum(fn ($block) => $block['elements']->count()) }} grouped parameter(s)</span>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover elements-data-table" id="elements-grouped-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="em-actions-col" style="min-width: 100px;">Actions</th>
+                                            <th>Level</th>
+                                            <th>Analyte</th>
+                                            <th>Type of Analysis</th>
+                                            <th>Parameter Group</th>
+                                            <th>Method</th>
+                                            <th>Equipment</th>
+                                            <th>Operator</th>
+                                            <th>Reporting Unit</th>
+                                            <th>LOD</th>
+                                            <th>LOQ</th>
+                                            <th title="Turnaround time (days)">TAT</th>
+                                            <th>Calculated</th>
+                                            <th>Method Sequence</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($groupBlocks as $block)
+                                            @php
+                                                $group = $block['group'];
+                                                $isExpanded = in_array($group->id, $expandedGroupIds, true);
+                                            @endphp
+                                            <tr class="element-parameter-group-row" wire:key="param-group-header-{{ $group->id }}">
+                                                <td colspan="15" class="element-parameter-group-cell">
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-link p-0 text-decoration-none element-parameter-group-toggle"
+                                                        wire:click="toggleGroup('{{ $group->id }}')"
+                                                    >
+                                                        <i class="mdi mdi-chevron-{{ $isExpanded ? 'down' : 'right' }}"></i>
+                                                        <span class="element-parameter-group-label">{{ $group->name }}</span>
+                                                        <span class="badge bg-light text-dark border ml-1">{{ $block['elements']->count() }}</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            @if($isExpanded)
+                                                @foreach($block['elements'] as $element)
+                                                    @include('livewire.analysis.partials.element-table-row', [
+                                                        'element' => $element,
+                                                        'showCheckbox' => false,
+                                                        'showDragHandle' => false,
+                                                        'selectedElementIds' => [],
+                                                    ])
+                                                @endforeach
+                                            @endif
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <div class="text-center py-5">
+                                <i class="mdi mdi-folder-plus-outline text-muted" style="font-size: 3rem;"></i>
+                                <h5 class="text-muted mt-3">No parameter groups yet</h5>
+                                <p class="text-muted mb-3">
+                                    Go to the <strong>Parameters</strong> tab, select parameters, then use <strong>Assign to Group</strong>.
+                                </p>
+                                <button type="button" class="btn btn-primary btn-sm" wire:click="switchTab('parameters')">
+                                    <i class="mdi mdi-format-list-bulleted"></i> Go to Parameters
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Bulk Assign Modal -->
+    @if($showBulkAssignModal)
+        <div class="modal fade show d-block element-manager-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-folder-move-outline"></i> Assign to Parameter Group
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeBulkAssignModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">Assign {{ count($selectedElementIds) }} selected parameter(s) to a group.</p>
+
+                        <div class="form-group mb-3">
+                            <label class="form-label fw-bold">Action</label>
+                            <select wire:model.live="bulkAssignMode" class="form-select">
+                                <option value="existing">Assign to existing group</option>
+                                <option value="new">Create new group</option>
+                                <option value="remove">Remove from group</option>
+                            </select>
+                        </div>
+
+                        @if($bulkAssignMode === 'existing')
+                            <div class="form-group mb-0">
+                                <label class="form-label fw-bold">Parameter group</label>
+                                <select wire:model="bulkAssignGroupId" class="form-select @error('bulkAssignGroupId') is-invalid @enderror">
+                                    <option value="">Select a group...</option>
+                                    @foreach($this->activeParameterGroups as $group)
+                                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('bulkAssignGroupId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            </div>
+                        @elseif($bulkAssignMode === 'new')
+                            <div class="form-group mb-0">
+                                <label class="form-label fw-bold">New group name</label>
+                                <input type="text" wire:model="bulkAssignNewGroupName" class="form-control @error('bulkAssignNewGroupName') is-invalid @enderror" placeholder="e.g. Contaminants">
+                                @error('bulkAssignNewGroupName') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            </div>
+                        @else
+                            <div class="alert alert-warning mb-0">
+                                Selected parameters will be removed from their current groups.
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeBulkAssignModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="applyBulkAssign">
+                            <i class="mdi mdi-content-save"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Parameter Modal -->
     @if($showElementModal)
@@ -320,6 +465,45 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
+                                            <i class="mdi mdi-shape-outline text-primary"></i> Type of Analysis
+                                        </label>
+                                        <div class="tag-select-container" wire:click="openTypeOfAnalysisDropdown">
+                                            <div class="tag-select-input">
+                                                @if($selectedTypeOfAnalysisName)
+                                                    <span class="tag-badge">
+                                                        {{ $selectedTypeOfAnalysisName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearTypeOfAnalysis"></i>
+                                                    </span>
+                                                @else
+                                                    <input type="text"
+                                                           wire:model.live.debounce.250ms="typeOfAnalysisSearch"
+                                                           wire:focus="openTypeOfAnalysisDropdown"
+                                                           class="tag-input"
+                                                           placeholder="Search types of analysis..."
+                                                           autocomplete="off">
+                                                @endif
+                                            </div>
+
+                                            @if($showTypeOfAnalysisDropdown)
+                                                <div class="tag-dropdown">
+                                                    @forelse($filteredTypesOfAnalysis as $type)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectTypeOfAnalysis('{{ $type->id }}')">
+                                                            {{ $type->name }}
+                                                        </div>
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No types of analysis found</div>
+                                                    @endforelse
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('elementForm.type_of_analysis_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
                                             <i class="mdi mdi-test-tube text-success"></i> Method
                                         </label>
                                         <div class="tag-select-container" wire:click="openMethodDropdown">
@@ -356,47 +540,6 @@
                                         @error('elementForm.method') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-cog text-warning"></i> Equipment
-                                        </label>
-                                        <div class="tag-select-container" wire:click="openEquipmentDropdown">
-                                            <div class="tag-select-input">
-                                                <!-- Display selected equipment -->
-                                                @if($selectedEquipmentName)
-                                                    <span class="tag-badge">
-                                                        {{ $selectedEquipmentName }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearEquipment"></i>
-                                                    </span>
-                                                @else
-                                                    <input type="text" 
-                                                           wire:model.live.debounce.250ms="equipmentSearch" 
-                                                           wire:focus="openEquipmentDropdown"
-                                                           class="tag-input" 
-                                                           placeholder="Search equipment..."
-                                                           autocomplete="off">
-                                                @endif
-                                            </div>
-                                            
-                                            <!-- Dropdown -->
-                                            @if($showEquipmentDropdown)
-                                                <div class="tag-dropdown">
-                                                    @forelse($filteredEquipment as $equipment)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectEquipment('{{ $equipment->id }}')">
-                                                            {{ $equipment->name }}
-                                                        </div>
-                                                    @empty
-                                                        <div class="tag-dropdown-item text-muted">No equipment found</div>
-                                                    @endforelse
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('elementForm.equipment_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
@@ -404,7 +547,6 @@
                                         </label>
                                         <div class="tag-select-container" wire:click="openOperatorDropdown">
                                             <div class="tag-select-input">
-                                                <!-- Display selected operator -->
                                                 @if($selectedOperatorName)
                                                     <span class="tag-badge">
                                                         {{ $selectedOperatorName }}
@@ -420,7 +562,6 @@
                                                 @endif
                                             </div>
                                             
-                                            <!-- Dropdown -->
                                             @if($showOperatorDropdown)
                                                 <div class="tag-dropdown">
                                                     @forelse($filteredOperators as $operator)
@@ -434,6 +575,45 @@
                                             @endif
                                         </div>
                                         @error('elementForm.operator_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-cog text-warning"></i> Equipment
+                                        </label>
+                                        <div class="tag-select-container" wire:click="openEquipmentDropdown">
+                                            <div class="tag-select-input">
+                                                @if($selectedEquipmentName)
+                                                    <span class="tag-badge">
+                                                        {{ $selectedEquipmentName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearEquipment"></i>
+                                                    </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live.debounce.250ms="equipmentSearch" 
+                                                           wire:focus="openEquipmentDropdown"
+                                                           class="tag-input" 
+                                                           placeholder="Search equipment..."
+                                                           autocomplete="off">
+                                                @endif
+                                            </div>
+                                            
+                                            @if($showEquipmentDropdown)
+                                                <div class="tag-dropdown">
+                                                    @forelse($filteredEquipment as $equipment)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectEquipment('{{ $equipment->id }}')">
+                                                            {{ $equipment->name }}
+                                                        </div>
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No equipment found</div>
+                                                    @endforelse
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('elementForm.equipment_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -772,6 +952,7 @@
                                 <code>parameter</code>, <code>method</code>
                                 &nbsp;·&nbsp;
                                 <strong>Optional:</strong>
+                                <code>type_of_analysis</code>, <code>parameter_group</code>,
                                 <code>reporting_unit</code>, <code>accredited</code>
                                 (1/Yes = accredited),
                                 <code>lab_section</code>, <code>operator</code>,
@@ -1127,8 +1308,8 @@ function initializeSortable() {
                 console.log('Drag ended, new index:', evt.newIndex, 'old index:', evt.oldIndex);
                 
                 const elementIds = Array.from(sortableElement.children).map(row => {
-                    return parseInt(row.getAttribute('data-element-id'));
-                });
+                    return row.getAttribute('data-element-id');
+                }).filter(Boolean);
                 
                 console.log('New element order:', elementIds);
                 
@@ -1357,6 +1538,81 @@ document.addEventListener('click', function (e) {
     font-size: 24px;
     display: block;
     margin-bottom: 8px;
+}
+
+.element-manager-page .quotation-stage-tabs-card {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.element-manager-page .quotation-stage-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.element-manager-page .quotation-stage-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.5rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid var(--ls-color-border, #e2e8f0);
+    background: #fff;
+    color: var(--ls-color-muted, #64748b);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.element-manager-page .quotation-stage-tab:hover {
+    border-color: var(--color-primary-border-soft, #e2b4b4);
+    color: var(--color-primary, #6D0A0E);
+}
+
+.element-manager-page .quotation-stage-tab.is-active {
+    border-color: var(--color-primary, #6D0A0E);
+    color: var(--color-primary, #6D0A0E);
+    background: var(--color-primary-soft, #f8ecec);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+.element-manager-page .quotation-stage-tab__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.element-manager-page .quotation-stage-tab.is-active .quotation-stage-tab__count {
+    background: rgba(109, 10, 14, 0.12);
+    color: var(--color-primary, #6D0A0E);
+}
+
+.element-parameter-group-row {
+    background-color: #f8fafc;
+}
+
+.element-parameter-group-cell {
+    padding: 0.65rem 0.75rem !important;
+    border-top: 2px solid #e2e8f0;
+}
+
+.element-parameter-group-toggle {
+    color: #1e293b !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.element-parameter-group-label {
+    margin-left: 0.15rem;
 }
 </style>
 

@@ -115,6 +115,67 @@
                                 @error('unitId') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
 
+                            <div class="form-group">
+                                <label class="control-label">Contact Details</label>
+                                <div class="tag-select-container @error('contactId') is-invalid @enderror"
+                                    wire:click="$set('showContactDropdown', true)"
+                                    wire:click.outside="$set('showContactDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedContact)
+                                            <span class="tag-badge">
+                                                {{ $this->formatContactLabel($this->selectedContact) }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="clearContact"></i>
+                                            </span>
+                                        @endif
+
+                                        <input type="text"
+                                            wire:model.live="contactSearch"
+                                            class="tag-input"
+                                            placeholder="{{ $this->selectedContact ? '' : 'Select contact details...' }}"
+                                            autocomplete="off">
+                                    </div>
+
+                                    @if($showContactDropdown)
+                                        <div class="tag-dropdown">
+                                            @if(count($this->filteredContacts) > 0)
+                                                @foreach($this->filteredContacts as $contact)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectContact('{{ $contact->id }}')">
+                                                        <div class="fw-semibold">{{ $this->formatContactLabel($contact) }}</div>
+                                                        <small class="text-muted">
+                                                            {{ $contact->email ?: __('crm.not_available') }}
+                                                            @if($contact->telephone)
+                                                                · {{ $contact->telephone }}
+                                                            @endif
+                                                        </small>
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="tag-dropdown-item text-muted">{{ __('crm.no_contacts_found') }}</div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                                @error('contactId') <span class="text-danger">{{ $message }}</span> @enderror
+
+                                @if($this->selectedContact)
+                                    <div class="mt-2 p-2 rounded border bg-light">
+                                        <small class="d-block text-muted mb-1">Contact Details</small>
+                                        <div class="small">
+                                            <div><strong>{{ $this->formatContactLabel($this->selectedContact) }}</strong></div>
+                                            @if($this->selectedContact->email)
+                                                <div><i class="mdi mdi-email-outline mr-1"></i>{{ $this->selectedContact->email }}</div>
+                                            @endif
+                                            @if($this->selectedContact->telephone)
+                                                <div><i class="mdi mdi-phone-outline mr-1"></i>{{ $this->selectedContact->telephone }}</div>
+                                            @endif
+                                            @if($this->selectedContact->mobile)
+                                                <div><i class="mdi mdi-cellphone mr-1"></i>{{ $this->selectedContact->mobile }}</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+
                             <div class="form-group mb-0">
                                 <label class="control-label">Location</label>
                                 <div id="sample-point-map" class="sample-point-map" wire:ignore></div>

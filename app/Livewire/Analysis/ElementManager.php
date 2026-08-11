@@ -16,6 +16,8 @@ use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
 use App\User;
 use App\ReportingUnit;
+use App\TypeOfAnalysis;
+use App\ParameterGroup;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -67,6 +69,7 @@ class ElementManager extends Component
         'method_sequence_id' => null,
         'stage_header_id' => null,
         'log_entry_worksheet_id' => null,
+        'type_of_analysis_id' => null,
     ];
 
     // Supporting Data (kept empty — options load on demand via search)
@@ -93,6 +96,7 @@ class ElementManager extends Component
     public $methodSequenceSearch = '';
     public $reportingUnitSearch = '';
     public $labSectionSearch = '';
+    public $typeOfAnalysisSearch = '';
 
     public $showAnalyteDropdown = false;
     public $showMethodDropdown = false;
@@ -104,6 +108,7 @@ class ElementManager extends Component
     public $showMethodSequenceDropdown = false;
     public $showReportingUnitDropdown = false;
     public $showLabSectionDropdown = false;
+    public $showTypeOfAnalysisDropdown = false;
 
     public $selectedAnalyteName = '';
     public $selectedMethodName = '';
@@ -114,6 +119,7 @@ class ElementManager extends Component
     public $selectedLogEntryWorksheetName = '';
     public $selectedMethodSequenceName = '';
     public $selectedLabSectionName = '';
+    public $selectedTypeOfAnalysisName = '';
 
     public $filteredAnalytes = [];
     public $filteredMethods = [];
@@ -125,12 +131,32 @@ class ElementManager extends Component
     public $filteredMethodSequences = [];
     public $filteredReportingUnits = [];
     public $filteredLabSections = [];
+    public $filteredTypesOfAnalysis = [];
 
     protected int $searchResultLimit = 20;
 
     // Search and Filter
     public $search = '';
     public $statusFilter = '';
+    public $typeOfAnalysisFilter = '';
+    public $parameterGroupFilter = '';
+
+    // Tabs & bulk assign
+    public string $activeTab = 'parameters';
+
+    /** @var list<string> */
+    public array $selectedElementIds = [];
+
+    public bool $showBulkAssignModal = false;
+
+    public string $bulkAssignMode = 'existing';
+
+    public ?string $bulkAssignGroupId = null;
+
+    public string $bulkAssignNewGroupName = '';
+
+    /** @var list<string> */
+    public array $expandedGroupIds = [];
 
     // UI State
     public $loading = false;
@@ -161,6 +187,7 @@ class ElementManager extends Component
         'elementForm.has_method_sequence' => 'boolean',
         'elementForm.method_sequence_id' => 'nullable',
         'elementForm.stage_header_id' => 'nullable|exists:stage_headers,id',
+        'elementForm.type_of_analysis_id' => 'nullable|uuid|exists:types_of_analysis,id',
     ];
 
     public function getRules()
@@ -208,6 +235,7 @@ class ElementManager extends Component
         $this->filteredFormulars = collect([]);
         $this->filteredLogEntryWorksheets = collect([]);
         $this->filteredLabSections = collect([]);
+        $this->filteredTypesOfAnalysis = collect([]);
     }
 
     public function getAnalysisTypeProperty()
@@ -240,17 +268,96 @@ class ElementManager extends Component
 
     public function getElementsProperty()
     {
+        return $this->baseElementsQuery()
+            ->orderBy('level', 'asc')
+            ->orderBy('id', 'asc')
+            ->paginate($this->perPage);
+    }
+
+    /**
+     * @return array{blocks: list<array{group: ParameterGroup, elements: \Illuminate\Support\Collection<int, AnalysisElements>}>}
+     */
+    public function getGroupedElementsViewProperty(): array
+    {
+        $groupedElements = AnalysisElements::query()
+            ->with([
+                'analyte',
+                'mmethod',
+                'ltmethod',
+                'equipment',
+                'operator',
+                'remedyHeader',
+                'formular',
+                'methodSequence.activeVersion',
+                'methodSequence.latestVersion',
+                'procedureWorksheet',
+                'typeOfAnalysis',
+                'parameterGroup',
+            ])
+            ->where('analysis_type_id', $this->analysisTypeId)
+            ->whereNotNull('parameter_group_id')
+            ->when($this->search, function ($query): void {
+                $query->whereHas('analyte', function ($q): void {
+                    $this->applyCaseInsensitiveSearch($q, ['name'], (string) $this->search);
+                });
+            })
+            ->when($this->statusFilter, function ($query): void {
+                $query->where('active', $this->statusFilter === 'active');
+            })
+            ->when($this->typeOfAnalysisFilter !== '', function ($query): void {
+                $query->where('type_of_analysis_id', $this->typeOfAnalysisFilter);
+            })
+            ->when($this->parameterGroupFilter !== '' && $this->parameterGroupFilter !== 'none', function ($query): void {
+                $query->where('parameter_group_id', $this->parameterGroupFilter);
+            })
+            ->when($this->parameterGroupFilter === 'none', function ($query): void {
+                $query->whereRaw('1 = 0');
+            })
+            ->orderBy('level', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $groupIds = $groupedElements->pluck('parameter_group_id')->filter()->unique()->values();
+
+        $groups = ParameterGroup::query()
+            ->whereIn('id', $groupIds)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $blocks = [];
+
+        foreach ($groups as $group) {
+            $groupElements = $groupedElements->where('parameter_group_id', $group->id)->values();
+
+            if ($groupElements->isNotEmpty()) {
+                $blocks[] = [
+                    'group' => $group,
+                    'elements' => $groupElements,
+                ];
+            }
+        }
+
+        return [
+            'blocks' => $blocks,
+        ];
+    }
+
+    protected function baseElementsQuery()
+    {
         $query = AnalysisElements::with([
-            'analyte', 
-            'mmethod', 
-            'ltmethod', 
-            'equipment', 
-            'operator', 
-            'remedyHeader', 
+            'analyte',
+            'mmethod',
+            'ltmethod',
+            'equipment',
+            'operator',
+            'remedyHeader',
             'formular',
             'methodSequence.activeVersion',
             'methodSequence.latestVersion',
-            'procedureWorksheet'
+            'procedureWorksheet',
+            'typeOfAnalysis',
+            'parameterGroup',
         ])->where('analysis_type_id', $this->analysisTypeId);
 
         if ($this->search) {
@@ -263,9 +370,17 @@ class ElementManager extends Component
             $query->where('active', $this->statusFilter === 'active');
         }
 
-        return $query->orderBy('level', 'asc')
-            ->orderBy('id', 'asc')
-            ->paginate($this->perPage);
+        if ($this->typeOfAnalysisFilter !== '') {
+            $query->where('type_of_analysis_id', $this->typeOfAnalysisFilter);
+        }
+
+        if ($this->parameterGroupFilter === 'none') {
+            $query->whereNull('parameter_group_id');
+        } elseif ($this->parameterGroupFilter !== '') {
+            $query->where('parameter_group_id', $this->parameterGroupFilter);
+        }
+
+        return $query;
     }
 
     public function updatedSearch()
@@ -276,6 +391,154 @@ class ElementManager extends Component
     public function updatedStatusFilter()
     {
         $this->resetPage();
+    }
+
+    public function updatedTypeOfAnalysisFilter()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedParameterGroupFilter()
+    {
+        $this->resetPage();
+    }
+
+    public function switchTab(string $tab): void
+    {
+        if (! in_array($tab, ['parameters', 'parameter_groups'], true)) {
+            return;
+        }
+
+        $this->activeTab = $tab;
+
+        if ($tab === 'parameter_groups') {
+            $this->selectedElementIds = [];
+        }
+    }
+
+    public function toggleGroup(string $groupId): void
+    {
+        if (in_array($groupId, $this->expandedGroupIds, true)) {
+            $this->expandedGroupIds = array_values(array_filter(
+                $this->expandedGroupIds,
+                fn (string $id): bool => $id !== $groupId
+            ));
+        } else {
+            $this->expandedGroupIds[] = $groupId;
+        }
+    }
+
+    public function toggleElementSelection(string $elementId): void
+    {
+        if (in_array($elementId, $this->selectedElementIds, true)) {
+            $this->selectedElementIds = array_values(array_filter(
+                $this->selectedElementIds,
+                fn (string $id): bool => $id !== $elementId
+            ));
+        } else {
+            $this->selectedElementIds[] = $elementId;
+        }
+    }
+
+    public function toggleSelectAllOnPage(): void
+    {
+        $pageIds = $this->elements->pluck('id')->map(fn ($id): string => (string) $id)->all();
+
+        if ($pageIds === []) {
+            return;
+        }
+
+        $allSelected = count(array_intersect($pageIds, $this->selectedElementIds)) === count($pageIds);
+
+        if ($allSelected) {
+            $this->selectedElementIds = array_values(array_diff($this->selectedElementIds, $pageIds));
+        } else {
+            $this->selectedElementIds = array_values(array_unique(array_merge($this->selectedElementIds, $pageIds)));
+        }
+    }
+
+    public function openBulkAssignModal(): void
+    {
+        if ($this->selectedElementIds === []) {
+            $this->message = 'Select at least one parameter to assign.';
+            $this->messageType = 'danger';
+
+            return;
+        }
+
+        $this->bulkAssignMode = 'existing';
+        $this->bulkAssignGroupId = null;
+        $this->bulkAssignNewGroupName = '';
+        $this->resetValidation();
+        $this->showBulkAssignModal = true;
+    }
+
+    public function closeBulkAssignModal(): void
+    {
+        $this->showBulkAssignModal = false;
+        $this->bulkAssignGroupId = null;
+        $this->bulkAssignNewGroupName = '';
+        $this->resetValidation();
+    }
+
+    public function applyBulkAssign(): void
+    {
+        if ($this->selectedElementIds === []) {
+            $this->message = 'Select at least one parameter to assign.';
+            $this->messageType = 'danger';
+
+            return;
+        }
+
+        try {
+            if ($this->bulkAssignMode === 'remove') {
+                AnalysisElements::query()
+                    ->where('analysis_type_id', $this->analysisTypeId)
+                    ->whereIn('id', $this->selectedElementIds)
+                    ->update(['parameter_group_id' => null]);
+
+                $this->message = count($this->selectedElementIds).' parameter(s) removed from their groups.';
+                $this->messageType = 'success';
+                $this->selectedElementIds = [];
+                $this->closeBulkAssignModal();
+
+                return;
+            }
+
+            if ($this->bulkAssignMode === 'new') {
+                $this->validate([
+                    'bulkAssignNewGroupName' => 'required|string|max:255|unique:parameter_groups,name',
+                ]);
+
+                $nextSort = (int) ParameterGroup::query()->max('sort_order');
+                $group = ParameterGroup::create([
+                    'name' => trim($this->bulkAssignNewGroupName),
+                    'sort_order' => $nextSort + 1,
+                    'active' => true,
+                ]);
+                $groupId = $group->id;
+            } else {
+                $this->validate([
+                    'bulkAssignGroupId' => 'required|uuid|exists:parameter_groups,id',
+                ]);
+                $groupId = $this->bulkAssignGroupId;
+            }
+
+            AnalysisElements::query()
+                ->where('analysis_type_id', $this->analysisTypeId)
+                ->whereIn('id', $this->selectedElementIds)
+                ->update(['parameter_group_id' => $groupId]);
+
+            $this->message = count($this->selectedElementIds).' parameter(s) assigned to group successfully.';
+            $this->messageType = 'success';
+            $this->selectedElementIds = [];
+            $this->closeBulkAssignModal();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            $this->message = 'Error assigning parameters: '.$e->getMessage();
+            $this->messageType = 'danger';
+        }
     }
 
     public function openImportModal(): void
@@ -362,7 +625,7 @@ class ElementManager extends Component
 
     public function showEditElementModal($elementId)
     {
-        $element = AnalysisElements::findOrFail($elementId);
+        $element = AnalysisElements::with('typeOfAnalysis')->findOrFail($elementId);
         
         // Set editing element first to ensure wire:key updates
         $this->editingElement = $element;
@@ -401,6 +664,7 @@ class ElementManager extends Component
             'method_sequence_id' => $element->method_sequence_id,
             'stage_header_id' => $element->stage_header_id,
             'log_entry_worksheet_id' => $element->log_entry_worksheet_id,
+            'type_of_analysis_id' => $element->type_of_analysis_id,
         ];
         
         // Set selected names for searchable selects
@@ -415,6 +679,9 @@ class ElementManager extends Component
         
         $this->selectedOperatorName = $element->operator->name ?? '';
         $this->operatorSearch = $this->selectedOperatorName;
+
+        $this->selectedTypeOfAnalysisName = $element->typeOfAnalysis?->name ?? '';
+        $this->typeOfAnalysisSearch = '';
         
         $this->selectedRemedyHeaderName = $element->remedyHeader->name ?? '';
         $this->remedyHeaderSearch = $this->selectedRemedyHeaderName;
@@ -454,6 +721,10 @@ class ElementManager extends Component
             $this->elementForm['method_sequence_id'] = null;
         } else {
             $this->elementForm['method_sequence_id'] = null;
+        }
+
+        if (($this->elementForm['type_of_analysis_id'] ?? '') === '') {
+            $this->elementForm['type_of_analysis_id'] = null;
         }
 
         $this->validate($this->getRules());
@@ -529,6 +800,7 @@ class ElementManager extends Component
             'method_sequence_id' => null,
             'stage_header_id' => null,
             'log_entry_worksheet_id' => null,
+            'type_of_analysis_id' => null,
         ];
         
         // Reset searchable select properties
@@ -542,6 +814,7 @@ class ElementManager extends Component
         $this->labSectionSearch = '';
         $this->logEntryWorksheetSearch = '';
         $this->reportingUnitSearch = '';
+        $this->typeOfAnalysisSearch = '';
         
         $this->selectedAnalyteName = '';
         $this->selectedMethodName = '';
@@ -552,6 +825,7 @@ class ElementManager extends Component
         $this->selectedMethodSequenceName = '';
         $this->selectedLabSectionName = '';
         $this->selectedLogEntryWorksheetName = '';
+        $this->selectedTypeOfAnalysisName = '';
         
         $this->showAnalyteDropdown = false;
         $this->showMethodDropdown = false;
@@ -563,6 +837,7 @@ class ElementManager extends Component
         $this->showLabSectionDropdown = false;
         $this->showLogEntryWorksheetDropdown = false;
         $this->showReportingUnitDropdown = false;
+        $this->showTypeOfAnalysisDropdown = false;
 
         $this->filteredAnalytes = collect([]);
         $this->filteredMethods = collect([]);
@@ -572,6 +847,7 @@ class ElementManager extends Component
         $this->filteredFormulars = collect([]);
         $this->filteredLogEntryWorksheets = collect([]);
         $this->filteredLabSections = collect([]);
+        $this->filteredTypesOfAnalysis = collect([]);
         
         $this->editingElement = null;
     }
@@ -605,6 +881,7 @@ class ElementManager extends Component
             'method_sequence_id' => null,
             'stage_header_id' => null,
             'log_entry_worksheet_id' => null,
+            'type_of_analysis_id' => null,
         ];
         
         // Reset searchable select properties
@@ -618,6 +895,7 @@ class ElementManager extends Component
         $this->methodSequenceSearch = '';
         $this->labSectionSearch = '';
         $this->reportingUnitSearch = '';
+        $this->typeOfAnalysisSearch = '';
         
         $this->selectedAnalyteName = '';
         $this->selectedMethodName = '';
@@ -628,6 +906,7 @@ class ElementManager extends Component
         $this->selectedMethodSequenceName = '';
         $this->selectedLabSectionName = '';
         $this->selectedLogEntryWorksheetName = '';
+        $this->selectedTypeOfAnalysisName = '';
         
         $this->showAnalyteDropdown = false;
         $this->showMethodDropdown = false;
@@ -639,6 +918,7 @@ class ElementManager extends Component
         $this->showLabSectionDropdown = false;
         $this->showLogEntryWorksheetDropdown = false;
         $this->showReportingUnitDropdown = false;
+        $this->showTypeOfAnalysisDropdown = false;
 
         $this->filteredAnalytes = collect([]);
         $this->filteredMethods = collect([]);
@@ -648,6 +928,7 @@ class ElementManager extends Component
         $this->filteredFormulars = collect([]);
         $this->filteredLogEntryWorksheets = collect([]);
         $this->filteredLabSections = collect([]);
+        $this->filteredTypesOfAnalysis = collect([]);
     }
 
     public function updatedElementFormRecommendRemedies()
@@ -780,6 +1061,11 @@ class ElementManager extends Component
     public function updatedReportingUnitSearch(): void
     {
         $this->searchReportingUnits();
+    }
+
+    public function updatedTypeOfAnalysisSearch(): void
+    {
+        $this->searchTypesOfAnalysis();
     }
 
     public function updatedLabSectionSearch(): void
@@ -1153,6 +1439,51 @@ class ElementManager extends Component
         $this->showReportingUnitDropdown = false;
     }
 
+    public function openTypeOfAnalysisDropdown(): void
+    {
+        $this->searchTypesOfAnalysis();
+    }
+
+    public function searchTypesOfAnalysis(): void
+    {
+        $this->showTypeOfAnalysisDropdown = true;
+        $selectedId = $this->elementForm['type_of_analysis_id'] ?? null;
+
+        $query = TypeOfAnalysis::query()
+            ->where(function ($q) use ($selectedId): void {
+                $q->where('active', true);
+                if ($selectedId) {
+                    $q->orWhere('id', $selectedId);
+                }
+            })
+            ->orderBy('sort_order')
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $this->typeOfAnalysisSearch);
+        $this->filteredTypesOfAnalysis = $query->limit($this->searchResultLimit)->get();
+    }
+
+    public function selectTypeOfAnalysis(string $id): void
+    {
+        $type = TypeOfAnalysis::query()->find($id);
+        if (! $type) {
+            return;
+        }
+
+        $this->elementForm['type_of_analysis_id'] = (string) $type->id;
+        $this->selectedTypeOfAnalysisName = $type->name;
+        $this->typeOfAnalysisSearch = '';
+        $this->showTypeOfAnalysisDropdown = false;
+    }
+
+    public function clearTypeOfAnalysis(): void
+    {
+        $this->elementForm['type_of_analysis_id'] = null;
+        $this->selectedTypeOfAnalysisName = '';
+        $this->typeOfAnalysisSearch = '';
+        $this->showTypeOfAnalysisDropdown = false;
+    }
+
     public function openLabSectionDropdown(): void
     {
         $this->searchLabSections();
@@ -1205,7 +1536,74 @@ class ElementManager extends Component
     {
         $this->search = '';
         $this->statusFilter = '';
+        $this->typeOfAnalysisFilter = '';
+        $this->parameterGroupFilter = '';
         $this->resetPage();
+    }
+
+    public function getActiveTypesOfAnalysisProperty()
+    {
+        return TypeOfAnalysis::query()
+            ->where('active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'active', 'sort_order']);
+    }
+
+    public function getElementTypeOfAnalysisOptionsProperty()
+    {
+        $options = $this->activeTypesOfAnalysis->keyBy('id');
+        $selectedId = $this->elementForm['type_of_analysis_id'] ?? null;
+
+        if ($selectedId && ! $options->has($selectedId)) {
+            $selected = TypeOfAnalysis::query()->find($selectedId);
+            if ($selected) {
+                $options->put($selected->id, $selected);
+            }
+        }
+
+        return $options->sortBy('sort_order')->values();
+    }
+
+    public function getFilterTypesOfAnalysisProperty()
+    {
+        return TypeOfAnalysis::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'active']);
+    }
+
+    public function getFilterParameterGroupsProperty()
+    {
+        return ParameterGroup::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'active']);
+    }
+
+    public function getActiveParameterGroupsProperty()
+    {
+        return ParameterGroup::query()
+            ->where('active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'active', 'sort_order']);
+    }
+
+    public function getParametersTabCountProperty(): int
+    {
+        return AnalysisElements::query()
+            ->where('analysis_type_id', $this->analysisTypeId)
+            ->count();
+    }
+
+    public function getParameterGroupsTabCountProperty(): int
+    {
+        return (int) AnalysisElements::query()
+            ->where('analysis_type_id', $this->analysisTypeId)
+            ->whereNotNull('parameter_group_id')
+            ->distinct()
+            ->count('parameter_group_id');
     }
 
     public function updatedPerPage()

@@ -16,6 +16,8 @@ class AnalysisParameterImportTemplateExport implements FromArray, WithHeadings, 
     {
         return [
             'parameter',
+            'type_of_analysis',
+            'parameter_group',
             'reporting_unit',
             'method',
             'accredited',
@@ -31,6 +33,8 @@ class AnalysisParameterImportTemplateExport implements FromArray, WithHeadings, 
         return [
             [
                 'pH',
+                'Chemical',
+                'Contaminants',
                 'pH Units',
                 'APHA 4500-H+',
                 '1',
@@ -41,6 +45,8 @@ class AnalysisParameterImportTemplateExport implements FromArray, WithHeadings, 
             ],
             [
                 'Iron as Fe',
+                'Chemical',
+                '',
                 'mg/L',
                 'APHA 3111B',
                 '0',
@@ -54,7 +60,7 @@ class AnalysisParameterImportTemplateExport implements FromArray, WithHeadings, 
 
     public function styles(Worksheet $sheet): array
     {
-        $lastColumn = 'H';
+        $lastColumn = 'J';
 
         $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
             'fill' => [

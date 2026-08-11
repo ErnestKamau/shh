@@ -13,6 +13,7 @@ use App\SampleType;
 use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Commercial\CommercialEnquiryCustomerResolver;
 use App\Services\Commercial\EnquiryReviewDisplayService;
+use App\Services\Commercial\EnquiryQuotationService;
 use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Lab\UncertaintyBudgetResolver;
@@ -350,16 +351,25 @@ class ProcessEnquiryWizard extends Component
         $this->approvalNotifyEmail = true;
         $this->approvalComments = '';
         $this->refreshLabManagerOptions();
-        $this->quotationMode = 'build_new';
+
+        if ($this->enquiryReusesExistingQuotation($enquiry) && $header !== null) {
+            $this->quotationMode = 'use_existing';
+            $this->selectedExistingQuotationId = (string) $header->id;
+        } else {
+            $this->quotationMode = 'build_new';
+            $this->selectedExistingQuotationId = null;
+        }
+
         $this->quotationModeRenderKey = 0;
-        $this->selectedExistingQuotationId = null;
         $this->existingQuotationSearch = '';
         $this->showExistingQuotationDropdown = false;
         $this->quotationMismatchWarning = '';
         $this->requiresNewQuotationHeader = false;
         $this->refreshExistingQuotationOptions();
 
-        if ($header !== null && $header->details->isNotEmpty()) {
+        if ($this->quotationMode === 'use_existing' && $this->selectedExistingQuotationId) {
+            $this->applySelectedExistingQuotation();
+        } elseif ($header !== null && $header->details->isNotEmpty()) {
             $this->lines = $quotationService->buildInlineLinesFromQuotationHeader($header);
             $this->quotationBuilt = true;
             if ($this->quotationMode === 'build_new' && $this->crmCustomerId !== '') {
@@ -410,7 +420,15 @@ class ProcessEnquiryWizard extends Component
 
         if ($step === 'pricing') {
             $this->refreshExistingQuotationOptions();
-            if ($this->quotationMode === 'use_existing') {
+            $enquiry = $this->enquiryId !== null
+                ? SampleSubmissionRequest::query()->find($this->enquiryId)
+                : null;
+
+            if ($enquiry !== null && $this->enquiryReusesExistingQuotation($enquiry)) {
+                if ($this->selectedExistingQuotationId) {
+                    $this->applySelectedExistingQuotation();
+                }
+            } elseif ($this->quotationMode === 'use_existing') {
                 if ($this->selectedExistingQuotationId) {
                     $this->applySelectedExistingQuotation();
                 }
@@ -619,13 +637,35 @@ class ProcessEnquiryWizard extends Component
 
         foreach ($this->existingQuotationOptions as $option) {
             if (($option['id'] ?? '') === $quotationId) {
-                $number = (string) ($option['quote_number'] ?? '');
-
-                return $number !== '' ? $number : (string) ($option['label'] ?? 'Quotation');
+                return (string) ($option['label'] ?? $option['quote_number'] ?? 'Quotation');
             }
         }
 
         return '';
+    }
+
+    public function newerRevisionAvailableLabel(): ?string
+    {
+        if ($this->enquiryId === null) {
+            return null;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+        if ($enquiry === null || $enquiry->currentQuotation === null) {
+            return null;
+        }
+
+        $service = app(EnquiryQuotationService::class);
+        if (! $service->enquiryHasNewerRevisionAvailable($enquiry)) {
+            return null;
+        }
+
+        $latest = $service->latestCompleteRevisionInFamily($enquiry->currentQuotation);
+        if ($latest === null) {
+            return null;
+        }
+
+        return $service->formatPickerLabel($latest);
     }
 
     public function updatedSelectedExistingQuotationId(?string $value): void
@@ -661,24 +701,8 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        $quotes = app(QuotationFromEnquiryService::class)
-            ->eligibleQuotationsForCustomer($this->crmCustomerId);
-
-        foreach ($quotes as $quote) {
-            $number = (string) ($quote->quote_number ?? '');
-            $expires = $quote->expiring_date
-                ? \Carbon\Carbon::parse($quote->expiring_date)->format('Y-m-d')
-                : '—';
-            $total = number_format((float) ($quote->total_amount ?? 0), 2);
-
-            $this->existingQuotationOptions[] = [
-                'id' => (string) $quote->id,
-                'quote_number' => $number,
-                'expiring_date' => $expires,
-                'total' => $total,
-                'label' => $number !== '' ? $number : 'Quotation',
-            ];
-        }
+        $this->existingQuotationOptions = app(QuotationFromEnquiryService::class)
+            ->eligibleQuotationPickerOptions($this->crmCustomerId);
     }
 
     public function applySelectedExistingQuotation(): void
@@ -1009,6 +1033,25 @@ class ProcessEnquiryWizard extends Component
         }
 
         try {
+            $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+            $header = $this->resolveQuotationHeader();
+
+            if ($enquiry !== null
+                && $header !== null
+                && (
+                    $this->enquiryReusesExistingQuotation($enquiry)
+                    || $this->quotationMode === 'use_existing'
+                )
+                && ! empty($header->upload_url)) {
+                $this->dispatch(
+                    'open-quotation-preview',
+                    url: route('quotation.preview.pdf', ['id' => $header->id]),
+                );
+                $this->setStatus('success', 'Quotation opened in a new tab.');
+
+                return;
+            }
+
             $quotationService = app(QuotationFromEnquiryService::class);
 
             if ($this->quotationMode === 'use_existing') {
@@ -1560,6 +1603,21 @@ class ProcessEnquiryWizard extends Component
             ->syncFromSampleConfigs($enquiry, $this->sampleConfigs);
 
         $enquiry = $enquiry->fresh(['requestedAnalyses']);
+
+        if ($enquiry !== null && $enquiry->submission_form_instance_id) {
+            $instance = \App\Models\SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
+            $submit = $instance !== null
+                && in_array(strtolower((string) $instance->status), ['submitted'], true);
+
+            app(\App\Services\Commercial\PortalEnquiryFormInstanceSyncService::class)
+                ->syncAllSampleTypesFromEnquiry(
+                    $enquiry->fresh(['customer', 'requestedAnalyses']) ?? $enquiry,
+                    submit: $submit,
+                );
+
+            $enquiry = $enquiry->fresh(['requestedAnalyses', 'submissionFormInstance']);
+        }
+
         if ($enquiry !== null) {
             $this->sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
             $this->requestedTests = app(\App\Services\Commercial\EnquiryReviewDisplayService::class)
@@ -1579,6 +1637,22 @@ class ProcessEnquiryWizard extends Component
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
         ], true);
+    }
+
+    private function enquiryReusesExistingQuotation(SampleSubmissionRequest $enquiry): bool
+    {
+        $createdFrom = trim((string) ($enquiry->created_from_quotation_header_id ?? ''));
+        if ($createdFrom === '') {
+            return false;
+        }
+
+        if ((string) ($enquiry->pricing_source ?? '') !== 'existing_quotation') {
+            return false;
+        }
+
+        $current = trim((string) ($enquiry->current_quotation_header_id ?? ''));
+
+        return $current === '' || $current === $createdFrom;
     }
 
     private function syncApprovalState(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): void
@@ -1613,7 +1687,7 @@ class ProcessEnquiryWizard extends Component
 
     private function resolveOpeningStep(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): string
     {
-        if ($header !== null && ($header->details->isNotEmpty() || $header->sent_to_customer_at !== null)) {
+        if ($header !== null && ($header->details->isNotEmpty() || app(QuotationFromEnquiryService::class)->quotationWasSentToCustomer($enquiry))) {
             return 'pricing';
         }
 

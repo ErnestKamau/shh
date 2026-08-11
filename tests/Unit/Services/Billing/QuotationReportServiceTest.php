@@ -35,6 +35,7 @@ class QuotationReportServiceTest extends TestCase
 
         $this->assertFalse($data['showLoqColumn']);
         $this->assertFalse($data['showMuColumn']);
+        $this->assertTrue($data['showTatColumn']);
         $this->assertTrue($data['showUnitPriceColumn']);
     }
 

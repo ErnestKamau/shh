@@ -8,12 +8,12 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-test-tube text-primary"></i>
-                                Analysis Types Management
+                                Matrix Sub Category Management
                             </h2>
-                            <p class="text-muted mb-0">Manage analysis types and their elements</p>
+                            <p class="text-muted mb-0">Manage matrix sub categories and their elements</p>
                         </div>
                         <button wire:click="showCreateAnalysisTypeModal" class="btn btn-outline-primary analysis-add-btn">
-                            <i class="mdi mdi-plus"></i> Add Analysis Type
+                            <i class="mdi mdi-plus"></i> Add Matrix Sub Category
                         </button>
                     </div>
                 </div>
@@ -43,7 +43,7 @@
                         <div class="col-md-4">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search analysis types...">
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search matrix sub categories...">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -81,12 +81,12 @@
         </div>
     </div>
 
-    <!-- Analysis Types Table -->
+    <!-- Matrix Sub Categories Table -->
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Analysis Types</h5>
+                    <h5 class="card-title mb-0">Matrix Sub Categories</h5>
                 </div>
                 <div class="card-body">
                     @if($this->analysisTypes->count() > 0)
@@ -124,7 +124,7 @@
                                                     <button wire:click="deleteAnalysisType('{{ $analysisType->id }}')" 
                                                             class="rm-act-btn rm-act-btn--delete" 
                                                             title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this analysis type? This will also delete all associated elements.')">
+                                                            onclick="return confirm('Are you sure you want to delete this matrix sub category? This will also delete all associated elements.')">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
@@ -212,8 +212,8 @@
                     @else
                         <div class="text-center py-5">
                             <i class="mdi mdi-test-tube text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No analysis types found</h5>
-                            <p class="text-muted">Create your first analysis type to get started.</p>
+                            <h5 class="text-muted mt-3">No matrix sub categories found</h5>
+                            <p class="text-muted">Create your first matrix sub category to get started.</p>
                         </div>
                     @endif
                 </div>
@@ -221,7 +221,7 @@
         </div>
     </div>
 
-    <!-- Analysis Type Modal -->
+    <!-- Matrix Sub Category Modal -->
     @if($showAnalysisTypeModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -229,7 +229,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingAnalysisType ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingAnalysisType ? 'Edit' : 'Create' }} Analysis Type
+                            {{ $editingAnalysisType ? 'Edit' : 'Create' }} Matrix Sub Category
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeAnalysisTypeModal"></button>
                     </div>
@@ -367,7 +367,7 @@
                                     </span>
                                     <div>
                                         <h6 class="at-options-heading">Analysis Options</h6>
-                                        <p class="at-options-subheading">Configure analysis type settings and worksheet behaviour</p>
+                                        <p class="at-options-subheading">Configure matrix sub category settings and worksheet behaviour</p>
                                     </div>
                                 </div>
 
@@ -381,7 +381,7 @@
                                                     </span>
                                                     <span class="at-option-text">
                                                         <span class="at-option-title">Active</span>
-                                                        <span class="at-option-desc">Make this analysis type available for sample assignment</span>
+                                                        <span class="at-option-desc">Make this matrix sub category available for sample assignment</span>
                                                     </span>
                                                 </span>
                                                 <span class="at-option-toggle">
@@ -496,7 +496,7 @@
                                                     </div>
                                                 @endif
                                             </div>
-                                            <p class="at-nested-hint">Select the procedure worksheet used when capturing results for this analysis type.</p>
+                                            <p class="at-nested-hint">Select the procedure worksheet used when capturing results for this matrix sub category.</p>
                                             @error('analysisTypeForm.procedure_worksheet_id')
                                                 <span class="at-field-error">{{ $message }}</span>
                                             @enderror

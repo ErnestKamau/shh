@@ -47,4 +47,37 @@ class AmSpecQuotationNumberGeneratorTest extends TestCase
         $this->assertFalse(AmSpecQuotationNumberGenerator::isLegacyNumber('AMSQ260620-001'));
         $this->assertFalse(AmSpecQuotationNumberGenerator::isLegacyNumber('MaerskOilTrading2026001'));
     }
+
+    #[Test]
+    public function it_uses_year_scoped_sequence_not_day_scoped(): void
+    {
+        $prefix = 'AMSQ';
+        $july21 = Carbon::parse('2026-07-21');
+        $july22 = Carbon::parse('2026-07-22');
+
+        $this->assertSame(1, $this->sequenceFromNumber(
+            AmSpecQuotationNumberGenerator::formatLabRef($july21, 1, $prefix),
+            $prefix
+        ));
+
+        $this->assertSame(2, $this->sequenceFromNumber(
+            AmSpecQuotationNumberGenerator::formatLabRef($july22, 2, $prefix),
+            $prefix
+        ));
+
+        $jan2027 = Carbon::parse('2027-01-01');
+        $this->assertSame(1, $this->sequenceFromNumber(
+            AmSpecQuotationNumberGenerator::formatLabRef($jan2027, 1, $prefix),
+            $prefix
+        ));
+    }
+
+    private function sequenceFromNumber(string $number, string $prefix): int
+    {
+        $pattern = '/^'.preg_quote($prefix, '/').'\d{6}-(\d+)$/';
+
+        $this->assertMatchesRegularExpression($pattern, $number);
+
+        return (int) preg_replace($pattern, '$1', $number);
+    }
 }

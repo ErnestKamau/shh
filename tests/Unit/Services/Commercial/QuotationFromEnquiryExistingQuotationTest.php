@@ -86,7 +86,11 @@ class QuotationFromEnquiryExistingQuotationTest extends TestCase
 
         $this->assertSame((string) $header->id, (string) $enquiry->current_quotation_header_id);
         $this->assertSame(SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS, $enquiry->status);
-        $this->assertSame((string) $enquiry->id, (string) $attached->sample_submission_request_id);
+        $this->assertNull($attached->sample_submission_request_id);
+        $this->assertDatabaseHas('enquiry_quotations', [
+            'sample_submission_request_id' => $enquiry->id,
+            'quotation_header_id' => $header->id,
+        ]);
     }
 
     public function test_quotation_mismatch_warnings_when_config_has_extra_parameters(): void
@@ -121,7 +125,7 @@ class QuotationFromEnquiryExistingQuotationTest extends TestCase
         $this->assertStringContainsString('not covered by the selected quotation', $warnings[0]);
     }
 
-    public function test_attach_existing_quotation_cannot_steal_a_quote_from_another_enquiry(): void
+    public function test_attach_existing_quotation_allows_multiple_enquiries_on_shared_billing_quote(): void
     {
         $customerId = (string) Str::uuid();
         $owner = SampleSubmissionRequest::query()->create([
@@ -136,7 +140,6 @@ class QuotationFromEnquiryExistingQuotationTest extends TestCase
         ]);
         $header = QuotationHeader::query()->create([
             'crm_customer_id' => $customerId,
-            'sample_submission_request_id' => $owner->id,
             'status' => 'Quote Complete',
             'quote_date' => now()->toDateString(),
             'expiring_date' => now()->addDays(5)->toDateString(),
@@ -144,10 +147,11 @@ class QuotationFromEnquiryExistingQuotationTest extends TestCase
             'is_complete' => 1,
         ]);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('already owned by another enquiry');
+        app(QuotationFromEnquiryService::class)->attachExistingQuotation($owner, $header);
+        app(QuotationFromEnquiryService::class)->attachExistingQuotation($secondEnquiry, $header);
 
-        app(QuotationFromEnquiryService::class)
-            ->attachExistingQuotation($secondEnquiry, $header);
+        $this->assertSame((string) $header->id, (string) $owner->fresh()->current_quotation_header_id);
+        $this->assertSame((string) $header->id, (string) $secondEnquiry->fresh()->current_quotation_header_id);
+        $this->assertNull($header->fresh()->sample_submission_request_id);
     }
 }

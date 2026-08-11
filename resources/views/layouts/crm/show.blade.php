@@ -1349,7 +1349,7 @@
 		<form class="modal-content" method="POST" action="{{ url('/sample-point') }}" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Point' }}</h4>
+				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sampling Location' }}</h4>
 			</div>
 			<div class="modal-body">
 				<div class="form-group">

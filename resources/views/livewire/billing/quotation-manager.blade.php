@@ -355,17 +355,18 @@
                                         <tr class="quotation-preview-hover-parent">
                                             <td>
                                                 <div class="d-flex quotation-actions-cell">
-                                                    <button type="button"
-                                                            wire:click="viewQuotation({{ $quotation->id }})"
-                                                            class="rm-act-btn rm-act-btn--view"
-                                                            title="View Details">
-                                                        <i class="mdi mdi-eye"></i>
-                                                    </button>
                                                     <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}"
-                                                       class="rm-act-btn rm-act-btn--edit"
-                                                       title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
+                                                       class="rm-act-btn rm-act-btn--view"
+                                                       title="Open quotation">
+                                                        <i class="mdi mdi-eye"></i>
                                                     </a>
+                                                    @if($quotation->status === 'Quote In Preparation')
+                                                        <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}"
+                                                           class="rm-act-btn rm-act-btn--edit"
+                                                           title="Edit in preparation">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </a>
+                                                    @endif
                                                     <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
                                                        class="rm-act-btn rm-act-btn--view quotation-preview-quote-btn"
                                                        title="Preview quotation document"

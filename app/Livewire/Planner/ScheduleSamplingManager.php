@@ -1709,28 +1709,7 @@ class ScheduleSamplingManager extends Component
     {
         if (preg_match('/^formData\.analysis_type_id(?:\.(\d+))?$/', $propertyName, $matches)) {
             $rowIndex = isset($matches[1]) ? (int) $matches[1] : null;
-
-            if ($rowIndex !== null) {
-                if (isset($this->formData['parameters'][$rowIndex])) {
-                    $this->formData['parameters'][$rowIndex] = [];
-                }
-
-                $this->dispatch(
-                    'schedule-trf-params-row-reset',
-                    rowIndex: $rowIndex,
-                    options: $this->parametersForRow($rowIndex)->pluck('name')->values()->all(),
-                    selected: [],
-                );
-            } elseif (array_key_exists('parameters', $this->formData)) {
-                $this->formData['parameters'] = is_array($this->formData['parameters']) ? [] : '';
-
-                $this->dispatch(
-                    'schedule-trf-params-row-reset',
-                    rowIndex: 0,
-                    options: $this->parametersForRow(0)->pluck('name')->values()->all(),
-                    selected: [],
-                );
-            }
+            $this->refreshScheduleParametersForAnalysisChange($rowIndex);
 
             return;
         }
@@ -1759,15 +1738,9 @@ class ScheduleSamplingManager extends Component
             }
         }
 
-        // Clear parameter selection when analysis type changes
+        // Auto-select all parameters when analysis changes.
         if (in_array($fieldKey, ['analysis_type', 'analysis_types', 'analysis_type_id'], true)) {
-            foreach (['parameter', 'parameters'] as $paramKey) {
-                if (! array_key_exists($paramKey, $this->formData)) {
-                    continue;
-                }
-
-                $this->formData[$paramKey] = is_array($this->formData[$paramKey]) ? [] : '';
-            }
+            $this->refreshScheduleParametersForAnalysisChange(null);
         }
     }
 
@@ -1994,19 +1967,52 @@ class ScheduleSamplingManager extends Component
             $rowIndex = (int) $matches[1];
         }
 
+        $this->refreshScheduleParametersForAnalysisChange($rowIndex);
+    }
+
+    /**
+     * Auto-select every parameter available for the selected analysis.
+     */
+    private function refreshScheduleParametersForAnalysisChange(?int $rowIndex): void
+    {
+        $effectiveRowIndex = $rowIndex ?? 0;
+        $options = $this->parametersForRow($rowIndex ?? 0)
+            ->pluck('name')
+            ->map(static fn ($name): string => (string) $name)
+            ->values()
+            ->all();
+
+        $selected = $options;
+
         if ($rowIndex !== null) {
-            if (isset($this->formData['parameters'][$rowIndex])) {
-                $this->formData['parameters'][$rowIndex] = [];
-            }
+            $this->formData['parameters'][$rowIndex] = $selected;
+
+            $this->dispatch(
+                'schedule-trf-params-row-reset',
+                rowIndex: $rowIndex,
+                options: $options,
+                selected: $selected,
+            );
 
             return;
         }
 
         foreach (['parameter', 'parameters'] as $paramKey) {
             if (array_key_exists($paramKey, $this->formData)) {
-                $this->formData[$paramKey] = [];
+                $this->formData[$paramKey] = $selected;
             }
         }
+
+        if (! array_key_exists('parameters', $this->formData) && ! array_key_exists('parameter', $this->formData)) {
+            $this->formData['parameters'] = $selected;
+        }
+
+        $this->dispatch(
+            'schedule-trf-params-row-reset',
+            rowIndex: $effectiveRowIndex,
+            options: $options,
+            selected: $selected,
+        );
     }
 
     public function getCustomersProperty()

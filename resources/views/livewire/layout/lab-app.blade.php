@@ -28,7 +28,7 @@
     if (isset($componentType) && in_array($componentType, ['sample-types', 'analytes', 'analysis-types', 'elements'])) {
         $breadcrumbItems[] = [
             'link' => route('livewire.sample-types'),
-            'name' => 'Sample Types',
+            'name' => 'Matrix Categories',
             'icon' => null
         ];
     }
@@ -105,7 +105,7 @@
     if (isset($analysisType) && $analysisType) {
         $breadcrumbItems[] = [
             'link' => route('livewire.analysis-types', ['sampleTypeId' => $analysisType->sample_type_id ?? null]),
-            'name' => $analysisType->sample_type->name ?? 'Sample Type',
+            'name' => $analysisType->sample_type->name ?? 'Matrix Category',
             'icon' => null
         ];
         $breadcrumbItems[] = [

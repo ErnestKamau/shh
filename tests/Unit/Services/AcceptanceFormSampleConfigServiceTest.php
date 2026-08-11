@@ -187,8 +187,9 @@ class AcceptanceFormSampleConfigServiceTest extends TestCase
         ]);
 
         $this->assertCount(5, $configs);
-        foreach ($configs as $config) {
+        foreach ($configs as $index => $config) {
             $this->assertSame(1, $config['number_of_samples']);
+            $this->assertSame($index, $config['row_index']);
             $this->assertSame(['el-1', 'el-2'], $config['parameter_keys']);
         }
     }

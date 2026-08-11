@@ -180,10 +180,10 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     'ar' => 'مراحل تحليل العينات',
                 ],
                 'sample_types' => [
-                    'en' => 'Sample Types',
-                    'sw' => 'Aina za Sampuli',
-                    'pt' => 'Tipos de Amostra',
-                    'ar' => 'أنواع العينات',
+                    'en' => 'Matrix Categories',
+                    'sw' => 'Makategoria ya Matrix',
+                    'pt' => 'Categorias de Matrix',
+                    'ar' => 'فئات المصفوفة',
                 ],
                 'formulas' => [
                     'en' => 'WorkSheets',
@@ -268,6 +268,18 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     'sw' => 'Hali za Sampuli',
                     'pt' => 'Condições da Amostra',
                     'ar' => 'حالات العينة',
+                ],
+                'type_of_analysis' => [
+                    'en' => 'Type of Analysis',
+                    'sw' => 'Aina ya Uchambuzi',
+                    'pt' => 'Tipo de Análise',
+                    'ar' => 'نوع التحليل',
+                ],
+                'parameter_groups' => [
+                    'en' => 'Parameter Groups',
+                    'sw' => 'Makundi ya Vigezo',
+                    'pt' => 'Grupos de Parâmetros',
+                    'ar' => 'مجموعات المعاملات',
                 ],
                 'checklist_approvals' => [
                     'en' => 'Checklist Approvals',

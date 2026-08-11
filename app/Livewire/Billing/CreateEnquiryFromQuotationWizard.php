@@ -40,8 +40,11 @@ class CreateEnquiryFromQuotationWizard extends Component
     /** @var array<string, list<string>> sample_type_id => section ids */
     public array $selectedSectionIdsByType = [];
 
-    /** @var array<string, array<string, mixed>> sample_type_id => field values */
+    /** @var array<string, array<string, mixed>> sample_type_id => non-row section field values */
     public array $sectionFieldValuesByType = [];
+
+    /** @var array<string, array<int, array<string, mixed>>> sample_type_id => row index => row field values */
+    public array $sectionRowFieldValuesByType = [];
 
     public bool $sendEmail = true;
 
@@ -155,12 +158,14 @@ class CreateEnquiryFromQuotationWizard extends Component
                 'selectedSectionIdsByType.'.$typeId => ['array'],
                 'selectedSectionIdsByType.'.$typeId.'.*' => ['string'],
             ]);
+            $this->ensureRowFieldBucketsForType($typeId);
             $this->phase = 'fill';
 
             return;
         }
 
         if ($this->phase === 'fill') {
+            $this->syncOpenSampleRowEditorsBeforeSubmit();
             $this->validateCurrentTypeRequiredFields();
             if ($this->trfIndex + 1 < count($this->trfGroups)) {
                 $this->trfIndex++;
@@ -210,6 +215,105 @@ class CreateEnquiryFromQuotationWizard extends Component
         $this->applyDeliveryDefaultsForChannel();
     }
 
+    public function updatedNumberOfSamples(): void
+    {
+        if ($this->isMultiSampleType) {
+            return;
+        }
+
+        foreach ($this->trfGroups as $group) {
+            $typeId = trim((string) ($group['sample_type_id'] ?? ''));
+            if ($typeId !== '') {
+                $this->ensureRowFieldBucketsForType($typeId);
+            }
+        }
+    }
+
+    public function physicalSampleCountForType(string $typeId): int
+    {
+        if (! $this->isMultiSampleType) {
+            return max(1, $this->numberOfSamples);
+        }
+
+        $max = collect($this->quoteLines)
+            ->filter(static fn (array $line): bool => (string) ($line['sample_type_id'] ?? '') === $typeId)
+            ->max(static fn (array $line): int => max(1, (int) ($line['quantity'] ?? 1)));
+
+        return max(1, (int) $max);
+    }
+
+    public function sampleRowCompletionPercent(string $typeId, int $rowIndex): int
+    {
+        $fieldNames = $this->rowFieldNamesForType($typeId);
+        if ($fieldNames === []) {
+            return 0;
+        }
+
+        $values = is_array($this->sectionRowFieldValuesByType[$typeId][$rowIndex] ?? null)
+            ? $this->sectionRowFieldValuesByType[$typeId][$rowIndex]
+            : [];
+
+        $filled = 0;
+        foreach ($fieldNames as $name) {
+            if ($this->wizardFieldHasValue($values[$name] ?? null)) {
+                $filled++;
+            }
+        }
+
+        return (int) round(($filled / count($fieldNames)) * 100);
+    }
+
+    public function cloneFirstSampleRowToOthers(string $typeId): void
+    {
+        $typeId = trim($typeId);
+        if ($typeId === '') {
+            return;
+        }
+
+        $rowCount = $this->physicalSampleCountForType($typeId);
+        if ($rowCount <= 1) {
+            return;
+        }
+
+        $source = is_array($this->sectionRowFieldValuesByType[$typeId][0] ?? null)
+            ? $this->sectionRowFieldValuesByType[$typeId][0]
+            : [];
+
+        if ($source === []) {
+            return;
+        }
+
+        for ($rowIndex = 1; $rowIndex < $rowCount; $rowIndex++) {
+            $this->sectionRowFieldValuesByType[$typeId][$rowIndex] = $this->deepCopyWizardRowValues($source);
+        }
+
+        $this->dispatch('ceq-sample-rows-cloned');
+    }
+
+    public function cloneFirstSampleRowToRow(string $typeId, int $targetRowIndex): void
+    {
+        $typeId = trim($typeId);
+        if ($typeId === '' || $targetRowIndex < 1) {
+            return;
+        }
+
+        $rowCount = $this->physicalSampleCountForType($typeId);
+        if ($targetRowIndex >= $rowCount) {
+            return;
+        }
+
+        $source = is_array($this->sectionRowFieldValuesByType[$typeId][0] ?? null)
+            ? $this->sectionRowFieldValuesByType[$typeId][0]
+            : [];
+
+        if ($source === []) {
+            return;
+        }
+
+        $this->sectionRowFieldValuesByType[$typeId][$targetRowIndex] = $this->deepCopyWizardRowValues($source);
+        $this->dispatch('ceq-sample-rows-cloned');
+    }
+
     public function finish()
     {
         $this->authorize('laboratory.components.quotation.add');
@@ -240,6 +344,7 @@ class CreateEnquiryFromQuotationWizard extends Component
         }
 
         try {
+            $this->syncOpenSampleRowEditorsBeforeSubmit();
             $quotation = QuotationHeader::query()->findOrFail($this->quotationId);
             $trfCount = count($this->trfGroups);
             $enquiry = app(EnquiryFromQuotationService::class)->createAndSend(
@@ -353,6 +458,7 @@ class CreateEnquiryFromQuotationWizard extends Component
         $this->enquiryNotes = '';
         $this->selectedSectionIdsByType = [];
         $this->sectionFieldValuesByType = [];
+        $this->sectionRowFieldValuesByType = [];
         $this->sendEmail = true;
         $this->sendPortal = false;
         $this->errorMessage = '';
@@ -368,6 +474,7 @@ class CreateEnquiryFromQuotationWizard extends Component
     {
         $selected = [];
         $values = [];
+        $rowValues = [];
 
         foreach ($this->trfGroups as $group) {
             $typeId = (string) ($group['sample_type_id'] ?? '');
@@ -383,29 +490,56 @@ class CreateEnquiryFromQuotationWizard extends Component
                 ->all();
 
             $typeValues = [];
+            $rowFieldDefaults = [];
             foreach ($group['sections'] ?? [] as $section) {
+                $isRowsSection = ($section['section_type'] ?? '') === 'rows_section';
                 foreach ($section['fields'] ?? [] as $field) {
                     $name = (string) ($field['name'] ?? '');
-                    if ($name === '' || array_key_exists($name, $typeValues)) {
+                    if ($name === '') {
                         continue;
                     }
-                    $elementType = (string) ($field['element_type'] ?? 'text');
-                    $hasOptions = is_array($field['options'] ?? null) && ($field['options'] ?? []) !== [];
-                    $typeValues[$name] = match (true) {
-                        $elementType === 'checkbox' && $hasOptions => [],
-                        $elementType === 'checkbox' => false,
-                        default => '',
-                    };
+
+                    if ($isRowsSection) {
+                        if (! array_key_exists($name, $rowFieldDefaults)) {
+                            $rowFieldDefaults[$name] = $this->defaultValueForWizardField($field);
+                        }
+
+                        continue;
+                    }
+
+                    if (array_key_exists($name, $typeValues)) {
+                        continue;
+                    }
+
+                    $typeValues[$name] = $this->defaultValueForWizardField($field);
                 }
             }
-            if ($this->sampleDescription !== '' && array_key_exists('sample_description', $typeValues)) {
-                $typeValues['sample_description'] = $this->sampleDescription;
+
+            if ($this->sampleDescription !== '' && array_key_exists('sample_description', $rowFieldDefaults)) {
+                $rowFieldDefaults['sample_description'] = $this->sampleDescription;
             }
+
             $values[$typeId] = $typeValues;
+            $rowValues[$typeId] = $rowFieldDefaults;
         }
 
         $this->selectedSectionIdsByType = $selected;
         $this->sectionFieldValuesByType = $values;
+        $this->sectionRowFieldValuesByType = [];
+
+        foreach ($this->trfGroups as $group) {
+            $typeId = trim((string) ($group['sample_type_id'] ?? ''));
+            if ($typeId === '') {
+                continue;
+            }
+
+            $defaults = $rowValues[$typeId] ?? [];
+            $this->sectionRowFieldValuesByType[$typeId] = [];
+            if ($defaults !== []) {
+                $this->sectionRowFieldValuesByType[$typeId]['__defaults'] = $defaults;
+            }
+            $this->ensureRowFieldBucketsForType($typeId);
+        }
     }
 
     private function applyDeliveryDefaultsForChannel(): void
@@ -426,8 +560,31 @@ class CreateEnquiryFromQuotationWizard extends Component
         $typeId = $this->currentSampleTypeId();
         $rules = [];
         $messages = [];
+        $rowCount = $this->physicalSampleCountForType($typeId);
 
         foreach ($this->currentSelectedSections as $section) {
+            $isRowsSection = ($section['section_type'] ?? '') === 'rows_section';
+
+            if ($isRowsSection) {
+                for ($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++) {
+                    foreach ($section['fields'] ?? [] as $field) {
+                        if (! ($field['is_required'] ?? false)) {
+                            continue;
+                        }
+                        $name = (string) ($field['name'] ?? '');
+                        if ($name === '' || $name === 'sample_quantity_unit') {
+                            continue;
+                        }
+                        $key = 'sectionRowFieldValuesByType.'.$typeId.'.'.$rowIndex.'.'.$name;
+                        $rules[$key] = ['required'];
+                        $messages[$key.'.required'] = 'Sample '.($rowIndex + 1).': '
+                            .($field['label'] ?? $name).' is required.';
+                    }
+                }
+
+                continue;
+            }
+
             foreach ($section['fields'] ?? [] as $field) {
                 if (! ($field['is_required'] ?? false)) {
                     continue;
@@ -448,7 +605,7 @@ class CreateEnquiryFromQuotationWizard extends Component
     }
 
     /**
-     * @return array<string, array<string, mixed>>
+     * @return array<string, array<int|string, mixed>>
      */
     private function valuesForSelectedSectionsByType(): array
     {
@@ -461,70 +618,259 @@ class CreateEnquiryFromQuotationWizard extends Component
             }
 
             $selected = array_flip($this->selectedSectionIdsByType[$typeId] ?? []);
-            $allowed = [];
+            $allowedFlat = [];
+            $allowedRow = [];
             foreach ($group['sections'] ?? [] as $section) {
                 if (! isset($selected[(string) ($section['id'] ?? '')])) {
                     continue;
                 }
+
+                $isRowsSection = ($section['section_type'] ?? '') === 'rows_section';
+
                 foreach ($section['fields'] ?? [] as $field) {
                     $name = (string) ($field['name'] ?? '');
-                    if ($name !== '') {
-                        $allowed[$name] = true;
+                    if ($name === '') {
+                        continue;
+                    }
+
+                    if ($isRowsSection) {
+                        $allowedRow[$name] = true;
+                    } else {
+                        $allowedFlat[$name] = true;
                     }
                 }
             }
 
             $typePayload = [];
             foreach ($this->sectionFieldValuesByType[$typeId] ?? [] as $name => $value) {
-                if (! isset($allowed[$name])) {
+                if (! isset($allowedFlat[$name])) {
                     continue;
                 }
-                if (is_bool($value)) {
-                    $typePayload[$name] = $value ? '1' : '0';
+                $normalized = $this->normalizeWizardFieldValueForExport($value);
+                if ($normalized !== null) {
+                    $typePayload[$name] = $normalized;
+                }
+            }
 
-                    continue;
-                }
-                if (is_array($value)) {
-                    $selected = [];
-                    $isAssocMap = $value !== [] && array_keys($value) !== range(0, count($value) - 1);
-                    if ($isAssocMap) {
-                        foreach ($value as $option => $checked) {
-                            if ($checked === true || $checked === 1 || $checked === '1' || $checked === 'true') {
-                                $token = trim((string) $option);
-                                if ($token !== '') {
-                                    $selected[] = $token;
-                                }
-                            }
-                        }
-                    } else {
-                        foreach ($value as $item) {
-                            $token = trim((string) $item);
-                            if ($token !== '') {
-                                $selected[] = $token;
-                            }
-                        }
-                    }
-                    if ($selected === []) {
+            $rowCount = $this->physicalSampleCountForType($typeId);
+            $rowsPayload = [];
+            for ($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++) {
+                $rowValues = $this->sectionRowFieldValuesByType[$typeId][$rowIndex] ?? [];
+                $rowPayload = [];
+                foreach ($rowValues as $name => $value) {
+                    if ($name === '__defaults' || ! isset($allowedRow[$name])) {
                         continue;
                     }
-                    $typePayload[$name] = implode(',', $selected);
+                    $normalized = $this->normalizeWizardFieldValueForExport($value);
+                    if ($normalized !== null) {
+                        $rowPayload[$name] = $normalized;
+                    }
+                }
 
-                    continue;
+                if ($this->sampleDescription !== '' && ! isset($rowPayload['sample_description']) && isset($allowedRow['sample_description'])) {
+                    $rowPayload['sample_description'] = $this->sampleDescription;
                 }
-                $trimmed = is_string($value) ? trim($value) : $value;
-                if ($trimmed === '' || $trimmed === null) {
-                    continue;
+
+                if ($rowPayload !== []) {
+                    $rowsPayload[$rowIndex] = $rowPayload;
                 }
-                $typePayload[$name] = $trimmed;
             }
 
-            if ($this->sampleDescription !== '' && ! isset($typePayload['sample_description'])) {
-                $typePayload['sample_description'] = $this->sampleDescription;
+            if ($rowsPayload !== []) {
+                $payload[$typeId] = $rowsPayload;
+            } elseif ($typePayload !== []) {
+                $payload[$typeId] = $typePayload;
             }
-
-            $payload[$typeId] = $typePayload;
         }
 
         return $payload;
+    }
+
+    private function ensureRowFieldBucketsForType(string $typeId): void
+    {
+        $typeId = trim($typeId);
+        if ($typeId === '') {
+            return;
+        }
+
+        $defaults = is_array($this->sectionRowFieldValuesByType[$typeId]['__defaults'] ?? null)
+            ? $this->sectionRowFieldValuesByType[$typeId]['__defaults']
+            : $this->rowFieldDefaultsForType($typeId);
+
+        $rowCount = $this->physicalSampleCountForType($typeId);
+        $existing = $this->sectionRowFieldValuesByType[$typeId] ?? [];
+        $rows = [];
+
+        for ($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++) {
+            $previous = is_array($existing[$rowIndex] ?? null) ? $existing[$rowIndex] : [];
+            $rows[$rowIndex] = array_merge($defaults, $previous);
+        }
+
+        if ($defaults !== []) {
+            $rows['__defaults'] = $defaults;
+        }
+
+        $this->sectionRowFieldValuesByType[$typeId] = $rows;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rowFieldDefaultsForType(string $typeId): array
+    {
+        foreach ($this->trfGroups as $group) {
+            if ((string) ($group['sample_type_id'] ?? '') !== $typeId) {
+                continue;
+            }
+
+            $defaults = [];
+            foreach ($group['sections'] ?? [] as $section) {
+                if (($section['section_type'] ?? '') !== 'rows_section') {
+                    continue;
+                }
+
+                foreach ($section['fields'] ?? [] as $field) {
+                    $name = (string) ($field['name'] ?? '');
+                    if ($name === '' || array_key_exists($name, $defaults)) {
+                        continue;
+                    }
+                    $defaults[$name] = $this->defaultValueForWizardField($field);
+                }
+            }
+
+            if ($this->sampleDescription !== '' && array_key_exists('sample_description', $defaults)) {
+                $defaults['sample_description'] = $this->sampleDescription;
+            }
+
+            return $defaults;
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $field
+     */
+    private function defaultValueForWizardField(array $field): mixed
+    {
+        $elementType = (string) ($field['element_type'] ?? 'text');
+        $hasOptions = is_array($field['options'] ?? null) && ($field['options'] ?? []) !== [];
+
+        return match (true) {
+            $elementType === 'checkbox' && $hasOptions => [],
+            $elementType === 'checkbox' => false,
+            default => '',
+        };
+    }
+
+    private function normalizeWizardFieldValueForExport(mixed $value): mixed
+    {
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if (is_array($value)) {
+            $selected = [];
+            $isAssocMap = $value !== [] && array_keys($value) !== range(0, count($value) - 1);
+            if ($isAssocMap) {
+                foreach ($value as $option => $checked) {
+                    if ($checked === true || $checked === 1 || $checked === '1' || $checked === 'true') {
+                        $token = trim((string) $option);
+                        if ($token !== '') {
+                            $selected[] = $token;
+                        }
+                    }
+                }
+            } else {
+                foreach ($value as $item) {
+                    $token = trim((string) $item);
+                    if ($token !== '') {
+                        $selected[] = $token;
+                    }
+                }
+            }
+
+            return $selected === [] ? null : implode(',', $selected);
+        }
+
+        $trimmed = is_string($value) ? trim($value) : $value;
+
+        return ($trimmed === '' || $trimmed === null) ? null : $trimmed;
+    }
+
+    private function rowFieldNamesForType(string $typeId): array
+    {
+        foreach ($this->trfGroups as $group) {
+            if ((string) ($group['sample_type_id'] ?? '') !== $typeId) {
+                continue;
+            }
+
+            $names = [];
+            foreach ($group['sections'] ?? [] as $section) {
+                if (($section['section_type'] ?? '') !== 'rows_section') {
+                    continue;
+                }
+
+                foreach ($section['fields'] ?? [] as $field) {
+                    $name = (string) ($field['name'] ?? '');
+                    if ($name === '' || $name === 'sample_quantity_unit') {
+                        continue;
+                    }
+                    $names[] = $name;
+                }
+            }
+
+            return array_values(array_unique($names));
+        }
+
+        return [];
+    }
+
+    private function syncOpenSampleRowEditorsBeforeSubmit(): void
+    {
+        $this->dispatch('ceq-sync-tinymce');
+    }
+
+    private function wizardFieldHasValue(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_array($value)) {
+            if ($value === []) {
+                return false;
+            }
+
+            $isAssocMap = array_keys($value) !== range(0, count($value) - 1);
+            if ($isAssocMap) {
+                foreach ($value as $checked) {
+                    if ($checked === true || $checked === 1 || $checked === '1' || $checked === 'true') {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+
+        if (is_string($value)) {
+            return trim(strip_tags($value)) !== '';
+        }
+
+        return $value !== null && $value !== '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $source
+     * @return array<string, mixed>
+     */
+    private function deepCopyWizardRowValues(array $source): array
+    {
+        $encoded = json_encode($source);
+
+        return is_string($encoded) ? (json_decode($encoded, true) ?? []) : [];
     }
 }

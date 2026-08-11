@@ -2,14 +2,19 @@
 
 namespace App\Services\Commercial;
 
+use App\Models\EnquiryQuotation;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
+use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormSection;
-use App\QuotationDetailAnalysisSplit;
 use App\QuotationHeader;
+use App\ReportingUnit;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
+use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -30,6 +35,11 @@ final class EnquiryFromQuotationService
         'client details',
         'customer information',
         'client information',
+    ];
+
+    /** @var list<string> */
+    private const WIZARD_EXCLUDED_FIELD_NAMES = [
+        'number_of_samples',
     ];
 
     /** @var list<string> */
@@ -56,6 +66,7 @@ final class EnquiryFromQuotationService
         private readonly PortalEnquiryFormInstanceSyncService $formInstanceSync,
         private readonly EnquiryReceptionReadinessService $receptionReadinessService,
         private readonly CommercialEnquiryFieldMapper $fieldMapper,
+        private readonly EnquiryQuotationService $enquiryQuotationService,
     ) {}
 
     /**
@@ -138,9 +149,11 @@ final class EnquiryFromQuotationService
                 $enquiry->save();
             }
 
-            $ownedQuotation = $this->cloneQuotationForEnquiry($source, $enquiry);
-            $enquiry->current_quotation_header_id = $ownedQuotation->id;
-            $enquiry->save();
+            $trfSectionFieldValues = $this->normalizeTrfSectionFieldValues($intake);
+            if ($trfSectionFieldValues !== []) {
+                $enquiry->trf_section_field_values = $trfSectionFieldValues;
+                $enquiry->save();
+            }
 
             $configs = $this->buildSampleConfigs($lines, $numberOfSamples);
             $sampleDescription = $this->nullableString($intake['sample_description'] ?? null)
@@ -158,30 +171,91 @@ final class EnquiryFromQuotationService
             $enquiry->save();
             $this->sampleLineSync->syncFromSampleConfigs($enquiry, $configs);
 
+            $this->enquiryQuotationService->linkEnquiryToQuotation(
+                $enquiry->fresh() ?? $enquiry,
+                $source,
+                EnquiryQuotation::LINK_SOURCE_BILLING_WIZARD,
+            );
+            $enquiry->current_quotation_header_id = $source->id;
+            $enquiry->save();
+
             $this->quotationService->seedEnquirySubcontractFlagsFromQuotation(
                 $enquiry->fresh() ?? $enquiry,
-                $ownedQuotation->fresh(['details']) ?? $ownedQuotation,
+                $source->fresh(['details']) ?? $source,
             );
 
             $this->formInstanceSync->syncAllSampleTypesFromEnquiry($enquiry->fresh([
                 'customer',
                 'requestedAnalyses',
-            ]), submit: false);
+            ]), submit: true);
+
+            $this->attachTestRequestFormPdfs($enquiry->fresh() ?? $enquiry);
 
             $enquiry = $enquiry->fresh([
                 'currentQuotation.details',
                 'submissionFormInstance',
                 'requestedAnalyses',
                 'contact',
+                'enquiryQuotations',
             ]) ?? $enquiry;
 
             return $this->applyCreationIntent(
                 $enquiry,
-                $enquiry->currentQuotation ?? $ownedQuotation,
+                $enquiry->currentQuotation ?? $source,
                 $intent,
                 $intake,
             );
         }, attempts: 3);
+    }
+
+    /**
+     * Re-apply wizard TRF row fields stored on the enquiry onto sample configs,
+     * sample lines, and linked TRF instance values.
+     */
+    public function refreshSupplementalFieldsOnEnquiry(
+        SampleSubmissionRequest $enquiry,
+        bool $resyncTrf = true,
+    ): SampleSubmissionRequest {
+        $configs = is_array($enquiry->enquiry_sample_configuration)
+            ? $enquiry->enquiry_sample_configuration
+            : [];
+
+        if ($configs === []) {
+            return $enquiry;
+        }
+
+        $storedByType = is_array($enquiry->trf_section_field_values)
+            ? $enquiry->trf_section_field_values
+            : [];
+
+        if ($storedByType === []) {
+            return $enquiry;
+        }
+
+        $sectionValues = $this->mergeSectionFieldValuesFromStored($storedByType);
+        $configs = $this->applySupplementalRowFieldsToConfigs($configs, $sectionValues, [
+            'section_field_values_by_type' => $storedByType,
+        ]);
+
+        $enquiry->enquiry_sample_configuration = $configs;
+        $enquiry->save();
+        $this->sampleLineSync->syncFromSampleConfigs($enquiry, $configs);
+
+        if ($resyncTrf && $enquiry->submission_form_instance_id) {
+            $instance = \App\Models\SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
+            $submit = $instance !== null
+                && in_array(strtolower((string) $instance->status), ['submitted'], true);
+
+            $this->formInstanceSync->syncAllSampleTypesFromEnquiry(
+                $enquiry->fresh(['customer', 'requestedAnalyses']) ?? $enquiry,
+                submit: $submit,
+            );
+        }
+
+        return $enquiry->fresh([
+            'submissionFormInstance',
+            'requestedAnalyses',
+        ]) ?? $enquiry;
     }
 
     /**
@@ -230,7 +304,7 @@ final class EnquiryFromQuotationService
             $enquiry = $enquiry->fresh(['currentQuotation', 'contact', 'customer', 'submissionFormInstance']) ?? $enquiry;
             $header = $enquiry->currentQuotation ?? $header;
 
-            if ($header !== null && $header->sent_to_customer_at !== null) {
+            if ($header !== null && $this->quotationService->quotationWasSentToCustomer($enquiry)) {
                 return $this->quotationService
                     ->ensureEnquiryReflectsSentQuotation($enquiry, $header)
                     ->load(['currentQuotation.details', 'submissionFormInstance', 'requestedAnalyses', 'contact']);
@@ -363,9 +437,12 @@ final class EnquiryFromQuotationService
             ->whereIn('id', $typeIds->all())
             ->pluck('name', 'id');
 
+        $crmCustomerId = trim((string) ($quotation->crm_customer_id ?? ''));
+        $crmCustomerId = $crmCustomerId !== '' ? $crmCustomerId : null;
+
         $groups = [];
         foreach ($typeIds as $sampleTypeId) {
-            $form = $this->formInstanceSync->resolveSubmissionFormForSampleType($sampleTypeId);
+            $form = $this->formInstanceSync->resolveSubmissionFormForSampleType($sampleTypeId, $crmCustomerId);
             $sections = $form !== null ? $this->fillableSectionsForForm($form) : [];
 
             $groups[] = [
@@ -433,6 +510,60 @@ final class EnquiryFromQuotationService
     }
 
     /**
+     * @param  array<string, mixed>  $values
+     */
+    public static function isRowIndexedTrfSectionValues(array $values): bool
+    {
+        if ($values === [] || ! isset($values[0]) || ! is_array($values[0])) {
+            return false;
+        }
+
+        $rowFieldNames = [
+            'sample_description',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'location',
+            'sampling_point',
+            'production_date',
+            'expiration_date',
+            'batch_number',
+            'test_category',
+            'test_requirements',
+            'parameter_category',
+            'field_ph',
+            'field_appearance',
+            'field_residual_chlorine',
+            'field_odor',
+            'field_sample_temp',
+            'sample_condition',
+            'state_of_sample',
+        ];
+
+        foreach ($rowFieldNames as $name) {
+            if (array_key_exists($name, $values[0])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string|int, mixed>  $typeValues
+     * @return array<string, mixed>
+     */
+    public static function resolveTrfSectionRowFields(array $typeValues, int $rowIndex): array
+    {
+        if (self::isRowIndexedTrfSectionValues($typeValues)) {
+            $row = $typeValues[$rowIndex] ?? $typeValues[0] ?? [];
+
+            return is_array($row) ? $row : [];
+        }
+
+        return $typeValues;
+    }
+
+    /**
      * @param  array<string, mixed>  $intake
      * @return array<string, mixed>
      */
@@ -450,11 +581,136 @@ final class EnquiryFromQuotationService
             if (! is_array($values)) {
                 continue;
             }
+
+            if (self::isRowIndexedTrfSectionValues($values)) {
+                $firstRow = $values[0] ?? [];
+                if (is_array($firstRow)) {
+                    foreach ($firstRow as $key => $value) {
+                        if ($value === null || $value === '') {
+                            continue;
+                        }
+                        $merged[$key] = $value;
+                    }
+                }
+
+                continue;
+            }
+
             foreach ($values as $key => $value) {
                 if ($value === null || $value === '') {
                     continue;
                 }
                 $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @param  array<string, mixed>  $intake
+     * @return array<string, array<string, mixed>>
+     */
+    private function normalizeTrfSectionFieldValues(array $intake): array
+    {
+        $byType = is_array($intake['section_field_values_by_type'] ?? null)
+            ? $intake['section_field_values_by_type']
+            : [];
+
+        $normalized = [];
+
+        foreach ($byType as $sampleTypeId => $values) {
+            $sampleTypeId = trim((string) $sampleTypeId);
+            if ($sampleTypeId === '' || ! is_array($values)) {
+                continue;
+            }
+
+            if (self::isRowIndexedTrfSectionValues($values)) {
+                $rows = [];
+                foreach ($values as $rowIndex => $row) {
+                    if (! is_int($rowIndex) && ! (is_string($rowIndex) && ctype_digit($rowIndex))) {
+                        continue;
+                    }
+                    if (! is_array($row)) {
+                        continue;
+                    }
+
+                    $normalizedRow = [];
+                    foreach ($row as $key => $value) {
+                        $key = trim((string) $key);
+                        if ($key === '') {
+                            continue;
+                        }
+                        if ($value === null || $value === '' || $value === []) {
+                            continue;
+                        }
+                        $normalizedRow[$key] = $value;
+                    }
+
+                    if ($normalizedRow !== []) {
+                        $rows[] = $normalizedRow;
+                    }
+                }
+
+                if ($rows !== []) {
+                    $normalized[$sampleTypeId] = $rows;
+                }
+
+                continue;
+            }
+
+            $row = [];
+            foreach ($values as $key => $value) {
+                $key = trim((string) $key);
+                if ($key === '') {
+                    continue;
+                }
+                if ($value === null || $value === '' || $value === []) {
+                    continue;
+                }
+                $row[$key] = $value;
+            }
+
+            if ($row !== []) {
+                $normalized[$sampleTypeId] = $row;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $byType
+     * @return array<string, mixed>
+     */
+    private function mergeSectionFieldValuesFromStored(array $byType): array
+    {
+        $merged = [];
+
+        foreach ($byType as $values) {
+            if (! is_array($values)) {
+                continue;
+            }
+
+            if (self::isRowIndexedTrfSectionValues($values)) {
+                $firstRow = $values[0] ?? [];
+                if (is_array($firstRow)) {
+                    foreach ($firstRow as $key => $value) {
+                        if ($value === null || $value === '' || $value === []) {
+                            continue;
+                        }
+                        $merged[(string) $key] = $value;
+                    }
+                }
+
+                continue;
+            }
+
+            foreach ($values as $key => $value) {
+                if ($value === null || $value === '' || $value === []) {
+                    continue;
+                }
+                $merged[(string) $key] = $value;
             }
         }
 
@@ -541,11 +797,21 @@ final class EnquiryFromQuotationService
     }
 
     /**
-     * @return list<array{name: string, label: string, element_type: string, is_required: bool, options: list<array{value: string, label: string}>}>
+     * @return list<array{
+     *     name: string,
+     *     label: string,
+     *     element_type: string,
+     *     is_required: bool,
+     *     options: list<array{value: string, label: string}>,
+     *     hint?: string,
+     *     render_paired?: bool,
+     *     unit_options?: list<array{value: string, label: string}>
+     * }>
      */
     private function wizardFieldsForSection(SubmissionFormSection $section): array
     {
         $fields = [];
+        $reportingUnitOptions = null;
 
         foreach ($section->elementHolders as $holder) {
             foreach ($holder->elements as $element) {
@@ -559,7 +825,7 @@ final class EnquiryFromQuotationService
                 }
 
                 $name = trim((string) ($element->name ?? ''));
-                if ($name === '') {
+                if ($name === '' || in_array($name, self::WIZARD_EXCLUDED_FIELD_NAMES, true)) {
                     continue;
                 }
 
@@ -579,13 +845,32 @@ final class EnquiryFromQuotationService
                     ];
                 }
 
-                $fields[] = [
+                $field = [
                     'name' => $name,
                     'label' => (string) ($element->label ?? $name),
                     'element_type' => $type,
                     'is_required' => (bool) ($element->is_required ?? false),
                     'options' => $options,
                 ];
+
+                if ($name === 'sample_description') {
+                    $field['element_type'] = 'rich_text';
+                }
+
+                if ($name === 'sample_quantity') {
+                    $field['element_type'] = 'number';
+                    $reportingUnitOptions ??= $this->reportingUnitOptions();
+                    $field['unit_options'] = $reportingUnitOptions;
+                }
+
+                if ($name === 'sample_quantity_unit') {
+                    $reportingUnitOptions ??= $this->reportingUnitOptions();
+                    $field['element_type'] = 'select';
+                    $field['options'] = $reportingUnitOptions;
+                    $field['render_paired'] = true;
+                }
+
+                $fields[] = $field;
             }
         }
 
@@ -593,18 +878,41 @@ final class EnquiryFromQuotationService
     }
 
     /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function reportingUnitOptions(): array
+    {
+        return ReportingUnit::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get(['name'])
+            ->map(static fn (ReportingUnit $unit): array => [
+                'value' => (string) $unit->name,
+                'label' => (string) $unit->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<string, mixed>  $intake
      */
     private function applyCreationIntent(
         SampleSubmissionRequest $enquiry,
-        QuotationHeader $ownedQuotation,
+        QuotationHeader $quotation,
         string $intent,
         array $intake,
     ): SampleSubmissionRequest {
         if ($intent === self::INTENT_ALREADY_SENT) {
             $sentAt = now();
-            $ownedQuotation->sent_to_customer_at = $sentAt;
-            $ownedQuotation->save();
+            $this->enquiryQuotationService->recordSentToCustomer(
+                $enquiry,
+                $quotation,
+                sentViaPortal: true,
+                sentViaEmail: false,
+                sentAt: $sentAt,
+                linkSource: EnquiryQuotation::LINK_SOURCE_BILLING_WIZARD,
+            );
 
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
             $enquiry->quotation_first_sent_to_customer_at = $sentAt;
@@ -615,18 +923,34 @@ final class EnquiryFromQuotationService
                 'submissionFormInstance',
                 'requestedAnalyses',
                 'contact',
+                'enquiryQuotations',
             ]) ?? $enquiry;
         }
 
         if ($intent === self::INTENT_ACCEPTED) {
-            $sentAt = $ownedQuotation->sent_to_customer_at ?? now();
-            $ownedQuotation->sent_to_customer_at = $sentAt;
-            $ownedQuotation->is_approved = 1;
-            $ownedQuotation->is_complete = 1;
-            $ownedQuotation->save();
+            $sentAt = now();
+            $this->enquiryQuotationService->recordSentToCustomer(
+                $enquiry,
+                $quotation,
+                sentViaPortal: true,
+                sentViaEmail: false,
+                sentAt: $sentAt,
+                linkSource: EnquiryQuotation::LINK_SOURCE_BILLING_WIZARD,
+            );
+            $this->enquiryQuotationService->recordAcceptance(
+                $enquiry,
+                $quotation,
+                [
+                    'channel' => QuotationHeader::ACCEPTANCE_CHANNEL_WALK_IN,
+                ],
+                acceptedAt: $sentAt,
+                linkSource: EnquiryQuotation::LINK_SOURCE_BILLING_WIZARD,
+            );
 
             $enquiry->quotation_first_sent_to_customer_at = $enquiry->quotation_first_sent_to_customer_at ?? $sentAt;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED;
+            $enquiry->accepted_quotation_header_id = (string) $quotation->id;
+            $enquiry->quotation_accepted_at = $sentAt;
             $enquiry->save();
 
             $poNumber = $this->nullableString($intake['client_po_number'] ?? null)
@@ -634,67 +958,15 @@ final class EnquiryFromQuotationService
 
             return $this->receptionReadinessService->markReadyForReception(
                 $enquiry->fresh() ?? $enquiry,
-                (string) $ownedQuotation->id,
+                (string) $quotation->id,
                 [
                     'client_po_number' => $poNumber,
                     'po_skipped' => filter_var($intake['po_skipped'] ?? ($poNumber === null), FILTER_VALIDATE_BOOLEAN),
                 ],
-            )->load(['currentQuotation.details', 'submissionFormInstance', 'requestedAnalyses', 'contact']);
+            )->load(['currentQuotation.details', 'submissionFormInstance', 'requestedAnalyses', 'contact', 'enquiryQuotations']);
         }
 
         return $enquiry;
-    }
-
-    private function cloneQuotationForEnquiry(
-        QuotationHeader $source,
-        SampleSubmissionRequest $enquiry,
-    ): QuotationHeader {
-        $clone = $source->replicate([
-            'quote_number',
-            'laboratory_ref',
-            'sample_submission_request_id',
-            'source_quotation_header_id',
-            'revision_of_quotation_header_id',
-            'sent_to_customer_at',
-            'upload_url',
-            'customer_acceptance_signature',
-            'customer_acceptance_signer_name',
-            'customer_acceptance_signed_at',
-            'customer_acceptance_contact_id',
-            'customer_acceptance_channel',
-            'approval_requested_at',
-            'approval_requested_by',
-            'approval_decision_at',
-            'approval_comments',
-        ]);
-
-        $clone->quote_number = $this->ownedQuotationNumber($source);
-        $clone->laboratory_ref = $clone->quote_number;
-        $clone->sample_submission_request_id = $enquiry->id;
-        $clone->source_quotation_header_id = $source->id;
-        $clone->from_enquiry = true;
-        $clone->status = QuotationApprovalService::HEADER_STATUS_COMPLETE;
-        $clone->is_draft = 0;
-        $clone->is_complete = 1;
-        $clone->is_approved = 1;
-        $clone->save();
-
-        foreach ($source->details as $detail) {
-            $clonedDetail = $detail->replicate(['quotation_header_id']);
-            $clonedDetail->quotation_header_id = $clone->id;
-            $clonedDetail->save();
-
-            QuotationDetailAnalysisSplit::query()
-                ->where('quotation_detail_id', $detail->id)
-                ->each(function (QuotationDetailAnalysisSplit $split) use ($clonedDetail): void {
-                    QuotationDetailAnalysisSplit::query()->create([
-                        'quotation_detail_id' => $clonedDetail->id,
-                        'analysis_type_id' => $split->analysis_type_id,
-                    ]);
-                });
-        }
-
-        return $clone->fresh(['details']) ?? $clone;
     }
 
     /**
@@ -801,15 +1073,6 @@ final class EnquiryFromQuotationService
         return $configs;
     }
 
-    private function ownedQuotationNumber(QuotationHeader $source): string
-    {
-        $date = $source->quote_date
-            ? Carbon::parse($source->quote_date)
-            : now();
-
-        return AmSpecQuotationNumberGenerator::generate($date);
-    }
-
     private function nullableString(mixed $value): ?string
     {
         $value = trim((string) ($value ?? ''));
@@ -833,6 +1096,7 @@ final class EnquiryFromQuotationService
             : [];
 
         $rowKeys = [
+            'sample_description',
             'sample_quantity',
             'sample_quantity_unit',
             'location',
@@ -852,11 +1116,17 @@ final class EnquiryFromQuotationService
             'state_of_sample',
         ];
 
+        $typeRowCounters = [];
+
         foreach ($configs as $index => $config) {
             $typeId = trim((string) ($config['sample_type_id'] ?? ''));
-            $typed = ($typeId !== '' && is_array($byType[$typeId] ?? null))
+            $rowWithinType = $typeRowCounters[$typeId] ?? 0;
+            $typeRowCounters[$typeId] = $rowWithinType + 1;
+
+            $typedRaw = ($typeId !== '' && is_array($byType[$typeId] ?? null))
                 ? $byType[$typeId]
                 : [];
+            $typed = self::resolveTrfSectionRowFields($typedRaw, $rowWithinType);
             $merged = array_merge($sectionValues, $typed);
 
             foreach ($rowKeys as $key) {
@@ -905,5 +1175,42 @@ final class EnquiryFromQuotationService
         }
 
         return $this->nullableString($value);
+    }
+
+    private function attachTestRequestFormPdfs(SampleSubmissionRequest $enquiry): void
+    {
+        $instances = SubmissionFormInstance::query()
+            ->where('portal_request_id', (string) $enquiry->id)
+            ->get();
+
+        if ($instances->isEmpty() && $enquiry->submission_form_instance_id) {
+            $primary = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
+            if ($primary !== null) {
+                $instances = collect([$primary]);
+            }
+        }
+
+        if ($instances->isEmpty()) {
+            return;
+        }
+
+        $uploaderId = Auth::id() !== null ? (string) Auth::id() : null;
+        $attachmentService = app(SubmissionFormInstanceDocumentAttachmentService::class);
+
+        foreach ($instances as $instance) {
+            try {
+                $attachmentService->attachTestRequestForm(
+                    $instance->fresh(['values.element', 'submissionForm', 'crmCustomer']),
+                    $uploaderId,
+                    regenerate: true,
+                );
+            } catch (Throwable $exception) {
+                Log::warning('Failed to attach test request form PDF after enquiry-from-quotation create.', [
+                    'enquiry_id' => $enquiry->id,
+                    'instance_id' => $instance->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
     }
 }

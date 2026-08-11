@@ -242,7 +242,7 @@
                                                             wire:key="existing-quote-option-{{ $option['id'] }}"
                                                             wire:click.stop="selectExistingQuotation('{{ $option['id'] }}')"
                                                         >
-                                                            {{ $option['quote_number'] !== '' ? $option['quote_number'] : $option['label'] }}
+                                                            {{ $option['label'] }}
                                                         </div>
                                                     @empty
                                                         <div class="tag-dropdown-item text-muted">
@@ -282,6 +282,9 @@
                                     <div class="d-flex flex-wrap align-items-center acc-pricing-toolbar-actions" style="gap: 8px;">
                                         @if($quoteNumber !== '')
                                             <span class="badge badge-light border">Quote {{ $quoteNumber }}</span>
+                                        @endif
+                                        @if($hint = $this->newerRevisionAvailableLabel())
+                                            <span class="text-muted small">{{ $hint }} available</span>
                                         @endif
                                         @if($quotationSent)
                                             <span class="badge badge-success">Quotation Sent</span>

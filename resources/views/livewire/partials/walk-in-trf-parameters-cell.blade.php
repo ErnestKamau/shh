@@ -48,7 +48,7 @@
         <div class="rft-param-picker__chips" aria-live="polite">
             {{-- Loading belongs in the open panel only; the closed trigger must keep chips/placeholder. --}}
             <template x-if="selected.length === 0">
-                <span class="text-muted small" x-text="options.length ? 'Choose parameters…' : 'Select analysis type first'"></span>
+                <span class="text-muted small" x-text="options.length ? 'Choose parameters…' : 'Select analysis first'"></span>
             </template>
             <span class="d-inline-flex flex-wrap">
                 <template x-for="chip in visibleChips" :key="chip">
@@ -105,7 +105,7 @@
             </template>
         </div>
         <template x-if="!isLoading && !options.length">
-            <p class="small text-muted mb-0 mt-2">Choose an analysis type on this sample to load parameters.</p>
+            <p class="small text-muted mb-0 mt-2">Choose analysis on this sample to load parameters.</p>
         </template>
         <template x-if="!isLoading && options.length && filtered.length === 0">
             <p class="small text-muted mb-0 mt-2">No parameters match your search.</p>

@@ -38,7 +38,7 @@ class SamplePoint extends Model implements Auditable
             return (string) $name;
         }
 
-        return 'Sample point #'.$this->id;
+        return 'Sampling location #'.$this->id;
     }
 
     public function unit(): BelongsTo
@@ -64,5 +64,10 @@ class SamplePoint extends Model implements Auditable
     public function crmSamplePoint(): BelongsTo
     {
         return $this->belongsTo(MasterSamplePoint::class, 'crm_sample_point_id');
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(CustomerContact::class, 'contact_id');
     }
 }

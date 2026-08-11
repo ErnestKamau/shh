@@ -1,6 +1,6 @@
 @php
     $grid = $collectionGrid ?? [];
-    $foodColspan = 18;
+    $foodColspan = 19;
     $typeKeys = ['Raw', 'Cooked', 'Ready To Eat'];
     $conditionKeys = ['Acceptable', 'Chilled', 'Frozen', 'Ambient'];
 @endphp
@@ -9,6 +9,7 @@
         <col class="trf-col-serial">
         <col class="trf-col-sample-no">
         <col class="trf-col-desc">
+        <col class="trf-col-location">
         <col class="trf-col-location">
         <col class="trf-col-qty">
         <col class="trf-col-tick">
@@ -25,12 +26,12 @@
         <col class="trf-col-params">
         <col class="trf-col-state">
     </colgroup>
-    @include('workflow.forms.test-request.partials.customer-detail-rows', ['customerCols' => 14, 'jobCols' => 4])
+    @include('workflow.forms.test-request.partials.customer-detail-rows', ['customerCols' => 15, 'jobCols' => 4])
     <tr class="trf-banner-row">
         <td colspan="{{ $foodColspan }}">SAMPLE COLLECTION DATA</td>
     </tr>
     @include('workflow.forms.test-request.partials.collection-grid-section', [
-        'detailsColspan' => 2,
+        'detailsColspan' => 3,
         'apparatusColspan' => 4,
         'methodColspan' => 6,
         'reasonColspan' => 3,
@@ -40,7 +41,8 @@
         <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['S.', 'No.']])</th>
         <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'NO.']])</th>
         <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'DESCRIPTION']])</th>
-        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLING', 'POINT/', 'LOCATION']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLING', 'LOCATION']])</th>
+        <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLING', 'POINT']])</th>
         <th rowspan="2" class="trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['QTY.']])</th>
         <th colspan="3" class="trf-tick-col-header">SAMPLE TYPE</th>
         <th colspan="5" class="trf-tick-col-header">SAMPLE CONDITION</th>
@@ -72,6 +74,7 @@
             <td class="trf-center">{{ $row['serial'] ?? '' }}</td>
             <td>{{ $row['sample_no'] ?? '' }}</td>
             <td class="trf-text-cell">{!! $row['sample_description'] ?? '' !!}</td>
+            <td class="trf-text-cell">{!! $row['sampling_location'] ?? '' !!}</td>
             <td class="trf-text-cell">{!! $row['sampling_point'] ?? '' !!}</td>
             <td class="trf-center">{{ $row['qty'] ?? '' }}</td>
             @foreach($typeKeys as $key)

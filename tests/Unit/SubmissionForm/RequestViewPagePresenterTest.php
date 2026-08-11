@@ -419,6 +419,37 @@ class RequestViewPagePresenterTest extends TestCase
         $this->assertNotEmpty($sample['parameter_groups']);
     }
 
+    public function test_request_info_card_prefers_linked_enquiry_physical_sample_count(): void
+    {
+        [$form, $instance] = $this->createBareFormAndInstance();
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+            'source_channel' => 'walk_in',
+            'request_number' => 100,
+            'number_of_samples' => 4,
+            'enquiry_sample_configuration' => array_fill(0, 4, ['parameter_keys' => ['el-1']]),
+            'sample_lines' => array_fill(0, 4, ['sample_type_id' => 'st-1']),
+        ]);
+
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $form,
+            commercialEnquiry: $enquiry,
+        );
+
+        $card = $presenter->requestInfoCard(['sections' => []], [
+            ['row_index' => 0, 'sample_type_name' => 'Water'],
+        ]);
+
+        $numberField = collect($card['fields'])->firstWhere('name', 'number_of_samples');
+
+        $this->assertNotNull($numberField);
+        $this->assertSame('4', $numberField['value']);
+    }
+
     /**
      * @param  array{primary: ?array<string, mixed>, secondary: list<array<string, mixed>>, danger: ?array<string, mixed>}  $actions
      * @return list<string>

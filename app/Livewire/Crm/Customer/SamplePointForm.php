@@ -4,8 +4,8 @@ namespace App\Livewire\Crm\Customer;
 
 use App\Models\CRM\SamplePoint;
 use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\CustomerContact;
 use App\Livewire\Crm\BaseCrmComponent;
-use Livewire\Attributes\On;
 use Illuminate\Validation\Rule;
 
 class SamplePointForm extends BaseCrmComponent
@@ -15,13 +15,17 @@ class SamplePointForm extends BaseCrmComponent
     public $name = '';
     public $description = '';
     public $unitId = '';
+    public $contactId = '';
     public $active = true;
     public $longitude = '';
     public $latitude = '';
     public $unitSearch = '';
     public $showUnitDropdown = false;
+    public $contactSearch = '';
+    public $showContactDropdown = false;
 
     public $units = [];
+    public $contacts = [];
 
     public function getSelectedUnitProperty()
     {
@@ -42,6 +46,29 @@ class SamplePointForm extends BaseCrmComponent
             ->values();
     }
 
+    public function getSelectedContactProperty()
+    {
+        return collect($this->contacts)->firstWhere('id', (string) $this->contactId);
+    }
+
+    public function getFilteredContactsProperty()
+    {
+        $search = trim(strtolower($this->contactSearch));
+
+        return collect($this->contacts)
+            ->when($search !== '', function ($contacts) use ($search) {
+                return $contacts->filter(function ($contact) use ($search) {
+                    $label = strtolower($this->formatContactLabel($contact));
+
+                    return str_contains($label, $search)
+                        || str_contains(strtolower((string) ($contact->email ?? '')), $search)
+                        || str_contains(strtolower((string) ($contact->telephone ?? '')), $search);
+                });
+            })
+            ->take(50)
+            ->values();
+    }
+
     public function selectUnit($unitId)
     {
         $this->unitId = (string) $unitId;
@@ -55,6 +82,19 @@ class SamplePointForm extends BaseCrmComponent
         $this->unitSearch = '';
     }
 
+    public function selectContact($contactId)
+    {
+        $this->contactId = (string) $contactId;
+        $this->contactSearch = '';
+        $this->showContactDropdown = false;
+    }
+
+    public function clearContact()
+    {
+        $this->contactId = '';
+        $this->contactSearch = '';
+    }
+
     public function mount($customerId, $pointId = null)
     {
         $this->initialize();
@@ -62,6 +102,12 @@ class SamplePointForm extends BaseCrmComponent
 
         // Load units for this customer
         $this->units = CRMCompanyUnit::where('crm_customer_id', $customerId)->orderBy('name')->get();
+        $this->contacts = CustomerContact::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
 
         if ($pointId) {
             $this->pointId = $pointId;
@@ -70,6 +116,7 @@ class SamplePointForm extends BaseCrmComponent
                 $this->name = $point->name;
                 $this->description = $point->description;
                 $this->unitId = $point->crm_company_unit_id;
+                $this->contactId = (string) ($point->contact_id ?? '');
                 $this->active = (bool) $point->active;
 
                 // Parse GPS
@@ -78,6 +125,19 @@ class SamplePointForm extends BaseCrmComponent
                     if (count($gpsParts) >= 2) {
                         $this->longitude = $gpsParts[0];
                         $this->latitude = $gpsParts[1];
+                    }
+                }
+
+                if ($this->contactId !== '' && ! collect($this->contacts)->contains('id', $this->contactId)) {
+                    $inactiveContact = CustomerContact::query()
+                        ->where('crm_customer_id', $customerId)
+                        ->where('id', $this->contactId)
+                        ->first();
+
+                    if ($inactiveContact) {
+                        $this->contacts = collect($this->contacts)
+                            ->push($inactiveContact)
+                            ->values();
                     }
                 }
             }
@@ -95,10 +155,25 @@ class SamplePointForm extends BaseCrmComponent
                     $query->where('crm_customer_id', $this->customerId);
                 }),
             ],
+            'contactId' => [
+                'nullable',
+                Rule::exists('crm_customer_contacts', 'id')->where(function ($query) {
+                    $query->where('crm_customer_id', $this->customerId);
+                }),
+            ],
             'active' => 'boolean',
             'longitude' => 'nullable|numeric',
             'latitude' => 'nullable|numeric',
         ];
+    }
+
+    public function formatContactLabel($contact): string
+    {
+        return trim(implode(' ', array_filter([
+            $contact->first_name ?? null,
+            $contact->middle_name ?? null,
+            $contact->last_name ?? null,
+        ])));
     }
 
     public function save()
@@ -117,7 +192,7 @@ class SamplePointForm extends BaseCrmComponent
                 ->first();
 
             if (!$point) {
-                $this->showError('Sample point not found for this customer.');
+                $this->showError('Sampling location not found for this customer.');
                 return;
             }
         } else {
@@ -134,6 +209,10 @@ class SamplePointForm extends BaseCrmComponent
         $point->crm_area_id = null;
         $point->crm_sample_point_id = null;
         $point->active = $this->active ? 1 : 0;
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('sample_points', 'contact_id')) {
+            $point->contact_id = $this->contactId !== '' ? $this->contactId : null;
+        }
 
         if ($this->longitude || $this->latitude) {
             $point->gps = $this->longitude . ',' . $this->latitude;

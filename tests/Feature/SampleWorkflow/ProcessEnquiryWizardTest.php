@@ -7,6 +7,7 @@ use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
 use App\Models\SampleSubmissionRequest;
+use App\QuotationDetails;
 use App\QuotationHeader;
 use App\Services\Commercial\CommercialEnquiryConfigSyncService;
 use App\Services\Commercial\QuotationFromEnquiryService;
@@ -480,5 +481,79 @@ class ProcessEnquiryWizardTest extends TestCase
             ->call('selectExistingQuotation', (string) $existingHeader->id)
             ->assertSet('quotationSent', false)
             ->assertSet('quotationApprovedReadyToSend', true);
+    }
+
+    public function test_open_wizard_for_enquiry_created_from_quotation_uses_existing_mode(): void
+    {
+        $customerId = (string) Str::uuid();
+        $quotation = QuotationHeader::query()->create([
+            'crm_customer_id' => $customerId,
+            'quote_date' => now()->toDateString(),
+            'expiring_date' => now()->addMonth()->toDateString(),
+            'status' => 'Quote Complete',
+            'is_complete' => 1,
+            'is_approved' => 1,
+            'upload_url' => 'quotations/test-quote.pdf',
+        ]);
+
+        QuotationDetails::query()->create([
+            'quotation_header_id' => $quotation->id,
+            'item_name' => 'Salmonella',
+            'quantity' => 2,
+            'unit_price' => 100,
+            'tax' => 0,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND,
+            'source_channel' => 'walk_in',
+            'created_from_quotation_header_id' => $quotation->id,
+            'current_quotation_header_id' => $quotation->id,
+            'pricing_source' => 'existing_quotation',
+        ]);
+
+        Livewire::test(ProcessEnquiryWizard::class)
+            ->call('openWizard', (string) $enquiry->id)
+            ->assertSet('quotationMode', 'use_existing')
+            ->assertSet('selectedExistingQuotationId', (string) $quotation->id)
+            ->assertSet('pdfGenerated', true)
+            ->assertSet('quotationBuilt', true);
+    }
+
+    public function test_view_quotation_for_enquiry_from_quotation_opens_existing_pdf_without_regeneration(): void
+    {
+        $customerId = (string) Str::uuid();
+        $quotation = QuotationHeader::query()->create([
+            'crm_customer_id' => $customerId,
+            'quote_date' => now()->toDateString(),
+            'expiring_date' => now()->addMonth()->toDateString(),
+            'status' => 'Quote Complete',
+            'is_complete' => 1,
+            'is_approved' => 1,
+            'upload_url' => 'quotations/test-quote.pdf',
+        ]);
+
+        QuotationDetails::query()->create([
+            'quotation_header_id' => $quotation->id,
+            'item_name' => 'Salmonella',
+            'quantity' => 2,
+            'unit_price' => 100,
+            'tax' => 0,
+        ]);
+
+        $enquiry = SampleSubmissionRequest::query()->create([
+            'crm_customer_id' => $customerId,
+            'status' => SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND,
+            'source_channel' => 'walk_in',
+            'created_from_quotation_header_id' => $quotation->id,
+            'current_quotation_header_id' => $quotation->id,
+            'pricing_source' => 'existing_quotation',
+        ]);
+
+        Livewire::test(ProcessEnquiryWizard::class)
+            ->call('openWizard', (string) $enquiry->id)
+            ->call('viewQuotation')
+            ->assertDispatched('open-quotation-preview');
     }
 }

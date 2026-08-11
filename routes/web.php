@@ -1904,6 +1904,8 @@ Route::post('send-back-to-lab-for-amendment', 'SampleWorkFlowController@sendBack
 Route::post('resubmit-amendment-for-verification', 'SampleWorkFlowController@resubmitAmendmentForVerification')->name('resubmitAmendmentForVerification')->middleware('can:laboratory.components.verification-approvals.edit');
 
 Route::get('/sample-condition-index', 'SampleConditionController@index')->name('sample_condition_index')->middleware('can:laboratory.components.sample-types.view');
+Route::get('/type-of-analysis-index', 'TypeOfAnalysisController@index')->name('type_of_analysis_index')->middleware('can:laboratory.components.sample-types.view');
+Route::get('/parameter-groups-index', 'ParameterGroupController@index')->name('parameter_groups_index')->middleware('can:laboratory.components.sample-types.view');
 Route::get('/sample-products/index', 'CRM\CompanyProductController@index')->name('sample-product-index')->middleware('can:crm.products.view');
 
 Route::get('/sample-type-category/index', 'SampleTypeCategoryController@index')->name('sample-type-category-index')->middleware('can:laboratory.components.sample-types.view');

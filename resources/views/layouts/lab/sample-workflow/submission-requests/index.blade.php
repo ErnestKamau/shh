@@ -66,7 +66,7 @@
 								});
 							@endphp
 							@if($reviewableRequest && $reviewableRequest->currentQuotation)
-								<a class="dropdown-item" href="{{ route('add-qoute-details-view', ['id' => $reviewableRequest->currentQuotation->id, 'stage' => $reviewableRequest->currentQuotation->status]) }}">
+								<a class="dropdown-item" href="{{ route('add-qoute-details-view', ['id' => $reviewableRequest->currentQuotation->id]) }}">
 									<i class="mdi mdi-file-document-edit-outline mr-2"></i> Review Quotation
 								</a>
 							@endif
@@ -229,7 +229,7 @@
 											:class="{ 'show': actionsOpen }"
 											@click="if ($event.target.closest('.dropdown-item, a')) { actionsOpen = false; }">
 											@if(($req->currentQuotation?->status ?? '') === 'Quotation Under Review')
-												<a class="dropdown-item" href="{{ route('add-qoute-details-view', ['id' => $req->currentQuotation->id, 'stage' => $req->currentQuotation->status]) }}">
+												<a class="dropdown-item" href="{{ route('add-qoute-details-view', ['id' => $req->currentQuotation->id]) }}">
 													<i class="mdi mdi-file-document-edit-outline mr-2"></i> Review Quotation
 												</a>
 											@endif

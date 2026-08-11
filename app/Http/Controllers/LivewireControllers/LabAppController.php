@@ -29,7 +29,7 @@ class LabAppController extends Controller
     {
         return view('livewire.layout.lab-app', [
             'componentType' => 'sample-types',
-            'pageTitle' => 'Sample Types Management'
+            'pageTitle' => 'Matrix Category Management'
         ]);
     }
 
@@ -110,7 +110,7 @@ class LabAppController extends Controller
 
         return view('livewire.layout.lab-app', [
             'componentType' => 'analysis-types',
-            'pageTitle' => 'Analysis Types - ' . $sampleType->name,
+            'pageTitle' => 'Matrix Sub Categories - ' . $sampleType->name,
             'sampleType' => $sampleType
         ]);
     }

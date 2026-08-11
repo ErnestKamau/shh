@@ -69,6 +69,7 @@
                 <th>{{ __('crm.name') }}</th>
                 <th>{{ __('crm.description') }}</th>
                 <th>{{ trim($customer->unit_configurable_name) != "" ? $customer->unit_configurable_name : __('crm.unit') }}</th>
+                <th>Contact Details</th>
                 <th>{{ __('crm.status') }}</th>
                 <th style="min-width: 100px;">{{ __('crm.actions') }}</th>
             </tr>
@@ -79,6 +80,16 @@
                             <td>{{ $point->name }}</td>
                             <td>{{ $point->description ?: '-' }}</td>
                             <td>{{ $point->crm_unit_name ?? ($point->unit->name ?? '-') }}</td>
+                            <td>
+                                @if($point->contact)
+                                    <div>{{ trim(implode(' ', array_filter([$point->contact->first_name, $point->contact->middle_name, $point->contact->last_name]))) ?: '-' }}</div>
+                                    @if($point->contact->email)
+                                        <small class="text-muted">{{ $point->contact->email }}</small>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td>
                                 @if($point->active == '1')
                                     <span class="crm-badge crm-badge-success">{{ ucfirst(__('crm.active')) }}</span>
@@ -97,7 +108,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <x-crm.empty-state
                                     icon="mdi-map-marker-outline"
                                     :message="__('crm.no_sampling_locations_for_client')"

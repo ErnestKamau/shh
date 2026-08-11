@@ -158,10 +158,10 @@ class SampleTypeManager extends Component
     ];
 
     protected $messages = [
-        'sampleTypeForm.name.required' => 'Sample type name is required.',
-        'sampleTypeForm.code.required' => 'Sample type code is required.',
-        'sampleTypeForm.code.unique' => 'This sample type code already exists.',
-        'analysisTypeForm.name.required' => 'Analysis type name is required.',
+        'sampleTypeForm.name.required' => 'Matrix name is required.',
+        'sampleTypeForm.code.required' => 'Matrix code is required.',
+        'sampleTypeForm.code.unique' => 'This matrix code already exists.',
+        'analysisTypeForm.name.required' => 'Matrix sub category name is required.',
         'analysisTypeForm.lab_id.required' => 'Lab selection is required.',
         'elementForm.analyte_id.required' => 'Analyte selection is required.',
     ];
@@ -290,7 +290,7 @@ class SampleTypeManager extends Component
                 $sampleType->analysis_types()->update(['has_no_result' => $this->sampleTypeForm['is_results_attachable']]);
 
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
-                $this->message = 'Sample type updated successfully!';
+                $this->message = 'Matrix updated successfully!';
             } else {
                 $payload = [
                     'name' => $this->sampleTypeForm['name'],
@@ -312,7 +312,7 @@ class SampleTypeManager extends Component
 
                 $sampleType = SampleType::create($payload);
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
-                $this->message = 'Sample type created successfully!';
+                $this->message = 'Matrix created successfully!';
             }
 
             DB::commit();
@@ -388,7 +388,7 @@ class SampleTypeManager extends Component
             $sampleType->delete();
 
             DB::commit();
-            $this->message = 'Sample type deleted successfully!';
+            $this->message = 'Matrix deleted successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
@@ -424,7 +424,7 @@ class SampleTypeManager extends Component
             }
 
             DB::commit();
-            $this->message = 'Sample type cloned successfully!';
+            $this->message = 'Matrix cloned successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
@@ -533,7 +533,7 @@ class SampleTypeManager extends Component
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                 ]);
-                $this->message = 'Analysis type updated successfully!';
+                $this->message = 'Matrix sub category updated successfully!';
             } else {
                 AnalysisType::create([
                     'name' => $this->analysisTypeForm['name'],
@@ -545,7 +545,7 @@ class SampleTypeManager extends Component
                     'active' => $this->analysisTypeForm['active'],
                     'company_id' => getUserCompany(),
                 ]);
-                $this->message = 'Analysis type created successfully!';
+                $this->message = 'Matrix sub category created successfully!';
             }
 
             DB::commit();
@@ -571,7 +571,7 @@ class SampleTypeManager extends Component
 
             DB::commit();
             $this->loadAnalysisTypes();
-            $this->message = 'Analysis type deleted successfully!';
+            $this->message = 'Matrix sub category deleted successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

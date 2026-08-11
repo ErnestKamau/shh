@@ -938,7 +938,7 @@ class ReceiveSampleRequest extends Component
 
     /**
      * Rebuild parameter options for the row after analysis types change,
-     * keeping any already-selected parameters that remain valid.
+     * auto-selecting every test available under the selected analysis.
      */
     private function refreshWalkInParametersForAnalysisChange(?int $rowIndex): void
     {
@@ -948,11 +948,9 @@ class ReceiveSampleRequest extends Component
             ->values()
             ->all();
 
+        $selected = $options;
+
         if ($rowIndex !== null) {
-            $previous = $this->normalizeWalkInParameterSelection(
-                $this->formData['parameters'][$rowIndex] ?? []
-            );
-            $selected = array_values(array_intersect($previous, $options));
             $this->formData['parameters'][$rowIndex] = $selected;
 
             $this->dispatch(
@@ -965,15 +963,14 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $previous = $this->normalizeWalkInParameterSelection(
-            $this->formData['parameters'] ?? ($this->formData['parameter'] ?? [])
-        );
-        $selected = array_values(array_intersect($previous, $options));
-
         foreach (['parameter', 'parameters'] as $paramKey) {
             if (array_key_exists($paramKey, $this->formData)) {
                 $this->formData[$paramKey] = $selected;
             }
+        }
+
+        if (! array_key_exists('parameters', $this->formData) && ! array_key_exists('parameter', $this->formData)) {
+            $this->formData['parameters'] = $selected;
         }
 
         $this->dispatch(
@@ -982,29 +979,6 @@ class ReceiveSampleRequest extends Component
             options: $options,
             selected: $selected,
         );
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function normalizeWalkInParameterSelection(mixed $value): array
-    {
-        if (is_array($value) && $value !== [] && is_array(reset($value))) {
-            return [];
-        }
-
-        if (is_array($value)) {
-            return array_values(array_filter(array_map(
-                static fn ($item): string => is_scalar($item) ? (string) $item : '',
-                $value
-            ), static fn (string $name): bool => $name !== ''));
-        }
-
-        if ($value === null || $value === '') {
-            return [];
-        }
-
-        return [(string) $value];
     }
 
     private function walkInUsesIndexedSampleRows(): bool
@@ -1228,7 +1202,8 @@ class ReceiveSampleRequest extends Component
     {
         return match ($fieldName) {
             'sample_description' => 'walk-in-trf-col-desc',
-            'sampling_point', 'location' => 'walk-in-trf-col-location',
+            'sampling_point', 'sampling_location', 'location' => 'walk-in-trf-col-location',
+            'sampling_point_manual', 'manual_sampling_point' => 'walk-in-trf-col-default',
             'analysis_type_id' => 'walk-in-trf-col-analysis-type',
             'parameters' => 'walk-in-trf-col-parameters',
             'state_of_sample', 'test_category', 'test_requirements' => 'walk-in-trf-col-radio',
@@ -1243,7 +1218,8 @@ class ReceiveSampleRequest extends Component
      *
      * Row 1: Qty/Unit | Sample temp | State of sample
      * Row 2: Batch | Production date | Expiration date
-     * Row 3: Sampling point | Test category | Sample/Analysis type
+     * Row 3: Sampling Location | Sampling Point | Test category
+     * Row 4: Location (water) / Sample type / Analysis type when present
      * Then: Parameters (full), Sample description (full)
      *
      * @param  list<array{type: string, label: string, class: string, element: SubmissionFormElement, field?: array<string, mixed>}>  $tableColumns
@@ -1375,18 +1351,19 @@ class ReceiveSampleRequest extends Component
                 $take($findByNames(['expiration_date'])),
             ],
             [
-                $take($findByNames(['sampling_point', 'location', 'sampling_location'])),
+                $take($findByNames(['sampling_point', 'sampling_location'])),
+                $take($findByNames(['sampling_point_manual', 'manual_sampling_point'])),
                 $take($findByNames(['test_category', 'test_requirements'])),
-                $sampleTypeColumn ?? $analysisTypeColumn,
             ],
         ];
 
-        if ($sampleTypeColumn !== null && $analysisTypeColumn !== null) {
-            $gridRows[] = [
-                $analysisTypeColumn,
-                null,
-                null,
-            ];
+        $typeRow = [
+            $take($findByNames(['location'])),
+            $sampleTypeColumn,
+            $analysisTypeColumn,
+        ];
+        if (array_filter($typeRow, static fn ($column) => $column !== null) !== []) {
+            $gridRows[] = $typeRow;
         }
 
         $parametersColumn = $take($findByNames(['parameters', 'parameter']));

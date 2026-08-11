@@ -248,15 +248,7 @@ class RequestViewPagePresenter
             $sampleType = $names[0] ?? null;
         }
 
-        $numberOfSamples = $this->firstFilledAlias($indexed, 'number_of_samples');
-        if ($numberOfSamples === null) {
-            $count = count($sampleLines);
-            if ($count === 0 && $this->commercialEnquiry?->number_of_samples) {
-                $numberOfSamples = (string) $this->commercialEnquiry->number_of_samples;
-            } elseif ($count > 0) {
-                $numberOfSamples = (string) $count;
-            }
-        }
+        $numberOfSamples = $this->resolvePhysicalSampleCount($indexed, $sampleLines);
 
         $receivedBy = $this->firstFilledAlias($indexed, 'received_by')
             ?? $this->nonEmptyString($this->commercialEnquiry?->received_by_full_name ?? null);
@@ -517,9 +509,13 @@ class RequestViewPagePresenter
      */
     private function testCategoryLabel(array $line): string
     {
-        return SubmissionFormSchemaHelper::testCategoryLabel(
-            ($line['parameter_category'] ?? null) ?: ($line['attributes']['test_category'] ?? ''),
-        );
+        $raw = ($line['parameter_category'] ?? null)
+            ?: ($line['test_requirements'] ?? null)
+            ?: ($line['test_category'] ?? null)
+            ?: ($line['attributes']['test_category'] ?? null)
+            ?: ($line['attributes']['test_requirements'] ?? null);
+
+        return SubmissionFormSchemaHelper::testCategoryLabel($raw);
     }
 
     /**
@@ -873,6 +869,63 @@ class RequestViewPagePresenter
         }
 
         return $existing;
+    }
+
+    /**
+     * @param  array<string, array{label: string, value: string, name: ?string, element_type: string, icon: string}>  $indexed
+     * @param  list<array<string, mixed>>  $sampleLines
+     */
+    private function resolvePhysicalSampleCount(array $indexed, array $sampleLines): ?string
+    {
+        $lineCount = count($sampleLines);
+        $enquiryCount = $this->commercialEnquiryPhysicalSampleCount();
+        $headerCount = $this->parsePositiveInt($this->firstFilledAlias($indexed, 'number_of_samples'));
+
+        $resolved = max(
+            $lineCount,
+            $enquiryCount ?? 0,
+            $headerCount ?? 0,
+        );
+
+        if ($resolved <= 0) {
+            return null;
+        }
+
+        return (string) $resolved;
+    }
+
+    private function commercialEnquiryPhysicalSampleCount(): ?int
+    {
+        if ($this->commercialEnquiry === null) {
+            return null;
+        }
+
+        $configCount = count(
+            is_array($this->commercialEnquiry->enquiry_sample_configuration)
+                ? $this->commercialEnquiry->enquiry_sample_configuration
+                : [],
+        );
+        $lineCount = count(
+            is_array($this->commercialEnquiry->sample_lines)
+                ? $this->commercialEnquiry->sample_lines
+                : [],
+        );
+        $stored = (int) ($this->commercialEnquiry->number_of_samples ?? 0);
+
+        $count = max($stored, $configCount, $lineCount);
+
+        return $count > 0 ? $count : null;
+    }
+
+    private function parsePositiveInt(?string $value): ?int
+    {
+        if ($value === null || ! is_numeric($value)) {
+            return null;
+        }
+
+        $parsed = (int) $value;
+
+        return $parsed > 0 ? $parsed : null;
     }
 
     /**
