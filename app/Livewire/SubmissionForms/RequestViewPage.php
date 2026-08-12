@@ -235,12 +235,19 @@ class RequestViewPage extends Component
         }
 
         $enquiry = $this->commercialEnquiry->loadMissing(['customer', 'contact']);
+        $customerId = trim((string) ($enquiry->crm_customer_id ?? ''));
+        if ($customerId === '') {
+            session()->flash('request_view_message', 'This enquiry has no CRM customer linked. Link a customer before recording quotation acceptance.');
+
+            return;
+        }
+
         $this->quotationAcceptancePoOnly = false;
         $this->quotationAcceptanceContactId = $enquiry->crm_customer_contact_id
             ? (string) $enquiry->crm_customer_contact_id
             : null;
         $this->quotationAcceptanceContactOptions = app(\App\Services\Sampleworkflow\CustomerContactVerificationService::class)
-            ->activeContactsForCustomer((string) $enquiry->crm_customer_id);
+            ->activeContactsForCustomer($customerId);
         $this->hydrateQuotationAcceptancePoRules($enquiry);
         $this->applyQuotationAcceptanceContact($this->quotationAcceptanceContactId);
         $this->showQuotationAcceptanceModal = true;
@@ -672,9 +679,8 @@ class RequestViewPage extends Component
             return;
         }
 
-        $excludeId = auth()->id() !== null ? (string) auth()->id() : null;
         $this->labManagerOptions = app(QuotationApprovalService::class)
-            ->eligibleLabManagers($excludeId)
+            ->eligibleLabManagers()
             ->map(fn ($user): array => [
                 'id' => (string) $user->id,
                 'name' => (string) $user->name,

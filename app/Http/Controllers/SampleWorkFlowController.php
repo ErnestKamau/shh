@@ -335,8 +335,12 @@ class SampleWorkFlowController extends Controller
         return redirect()->back()->with('success', 'Lab booking date moved to the new date successfully.');
     }
 
-    public function getSubmissionRequestCustomerContacts(int $customer): \Illuminate\Http\JsonResponse
+    public function getSubmissionRequestCustomerContacts(string $customer): \Illuminate\Http\JsonResponse
     {
+        if (trim($customer) === '') {
+            return response()->json([]);
+        }
+
         $contacts = \App\Models\CRM\CustomerContact::query()
             ->where('crm_customer_id', $customer)
             ->where('active', 1)

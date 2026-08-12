@@ -51,11 +51,6 @@ final class QuotationApprovalService
         }
 
         $manager = $this->resolveLabManager($labManagerId);
-        if ((string) $manager->id === (string) $actor->id) {
-            throw ValidationException::withMessages([
-                'labManagerId' => 'You cannot assign yourself as the quotation approver.',
-            ]);
-        }
 
         if ($header->details()->count() < 1) {
             throw new RuntimeException('Add at least one quotation line before sending for approval.');
@@ -149,11 +144,6 @@ final class QuotationApprovalService
         }
 
         $manager = $this->resolveLabManager($labManagerId);
-        if ((string) $manager->id === (string) $actor->id) {
-            throw ValidationException::withMessages([
-                'labManagerId' => 'You cannot assign yourself as the quotation approver.',
-            ]);
-        }
 
         if ((string) $header->approved_by === (string) $manager->id) {
             throw ValidationException::withMessages([
