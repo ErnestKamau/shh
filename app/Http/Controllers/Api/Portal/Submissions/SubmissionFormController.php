@@ -62,7 +62,7 @@ class SubmissionFormController extends Controller
     {
         $customerId = $this->access->customerIdFromRequest($request);
         $form = $this->access->findPortalForm($submissionForm, $customerId);
-        $form->loadMissing(['sampleTypes']);
+        $form->loadMissing(['sampleTypes', 'sampleTypeCategories']);
 
         $response = [
             'data' => $this->schemaBuilder->buildTemplateWithAttachments($form),
@@ -78,6 +78,10 @@ class SubmissionFormController extends Controller
                 'sample_types' => $this->sampleTypeResolver->mapForApi($form),
                 'sample_types_tied' => $tied,
                 'sample_type_options' => $this->sampleTypeResolver->selectableOptionsForApi($form),
+                'sample_type_categories' => $form->sampleTypeCategories->map(fn ($cat): array => [
+                    'id' => (int) $cat->id,
+                    'name' => (string) $cat->sample_type_category,
+                ])->values()->all(),
             ];
         }
 
@@ -123,9 +127,38 @@ class SubmissionFormController extends Controller
     {
         $customerId = $this->access->customerIdFromRequest($request);
         $sampleTypeId = (string) $request->query('sample_type_id', '');
+        $categoryId = (string) $request->query('sample_type_category_id', '');
+
+        // Prefer category-based lookup when supplied.
+        if ($categoryId !== '' && is_numeric($categoryId)) {
+            $form = $this->access->testRequestFormForSampleTypeCategory((int) $categoryId, $customerId);
+
+            if ($form === null) {
+                return response()->json(['message' => 'No test request form found for this sample type category.'], 404);
+            }
+
+            $form->loadMissing(['sampleTypeCategories', 'sampleTypes']);
+
+            return response()->json([
+                'data' => array_merge(
+                    $this->schemaBuilder->buildFormMeta($form),
+                    [
+                        'sample_type_categories' => $form->sampleTypeCategories->map(fn ($cat): array => [
+                            'id' => (int) $cat->id,
+                            'name' => (string) $cat->sample_type_category,
+                        ])->values()->all(),
+                        'sample_types' => $this->sampleTypeResolver->mapForApi($form),
+                    ],
+                ),
+                'meta' => [
+                    'sample_type_category_id' => (int) $categoryId,
+                    'crm_customer_id' => $customerId,
+                ],
+            ]);
+        }
 
         if ($sampleTypeId === '') {
-            return response()->json(['message' => 'sample_type_id is required.'], 422);
+            return response()->json(['message' => 'sample_type_id or sample_type_category_id is required.'], 422);
         }
 
         $forms = $this->formsMatchingSampleType($customerId, $sampleTypeId);
@@ -142,11 +175,16 @@ class SubmissionFormController extends Controller
         }
 
         $form = $forms->first();
+        $form->loadMissing(['sampleTypeCategories']);
 
         return response()->json([
             'data' => array_merge(
                 $this->schemaBuilder->buildFormMeta($form),
                 [
+                    'sample_type_categories' => $form->sampleTypeCategories->map(fn ($cat): array => [
+                        'id' => (int) $cat->id,
+                        'name' => (string) $cat->sample_type_category,
+                    ])->values()->all(),
                     'sample_types' => $this->sampleTypeResolver->mapForApi($form),
                 ],
             ),
@@ -162,7 +200,7 @@ class SubmissionFormController extends Controller
         $customerId = $this->access->customerIdFromRequest($request);
 
         $forms = $this->access->testRequestTemplatesQuery($customerId)
-            ->with(['sampleTypes:id,name,code'])
+            ->with(['sampleTypes:id,name,code', 'sampleTypeCategories:id,sample_type_category'])
             ->withCount('sections')
             ->get()
             ->map(fn ($form): array => array_merge(
@@ -170,6 +208,10 @@ class SubmissionFormController extends Controller
                 [
                     'section_count' => $form->sections_count,
                     'sample_types' => $this->sampleTypeResolver->mapForApi($form),
+                    'sample_type_categories' => $form->sampleTypeCategories->map(fn ($cat): array => [
+                        'id' => (int) $cat->id,
+                        'name' => (string) $cat->sample_type_category,
+                    ])->values()->all(),
                 ],
             ));
 
@@ -229,7 +271,7 @@ class SubmissionFormController extends Controller
     private function formsMatchingSampleType(?string $customerId, string $sampleTypeId): Collection
     {
         return $this->access->testRequestTemplatesQuery($customerId)
-            ->with(['sampleTypes:id,name,code'])
+            ->with(['sampleTypes:id,name,code', 'sampleTypeCategories:id,sample_type_category'])
             ->get()
             ->filter(function ($form) use ($sampleTypeId): bool {
                 return $this->sampleTypeResolver->resolveForForm($form)

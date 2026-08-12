@@ -41,7 +41,7 @@ class TestRequestFormPdfService
 
     public function resolvePublicUrl(SubmissionFormInstance $instance): string
     {
-        return '/storage/'.$this->resolveStoragePath($instance);
+        return route('test-request-form.pdf', $instance->id);
     }
 
     public function defaultOrientationForVariant(string $variant): string

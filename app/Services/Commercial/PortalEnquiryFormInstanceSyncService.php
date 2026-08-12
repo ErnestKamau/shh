@@ -135,10 +135,17 @@ final class PortalEnquiryFormInstanceSyncService
             $instance = $this->resolveOrCreateInstanceForForm($enquiry, $form, $submit);
             $elementMap = $this->buildElementMap($form);
 
+            // Walk-in TRFs already hold rich sample metadata. Process Enquiry / quotation
+            // sync used to wipe those values and rewrite from thinner sample_lines.
+            $preserved = $this->snapshotInstanceValues($instance);
+            $sampleLines = $this->mergePreservedRowFieldsIntoLines($sampleLines, $preserved);
+
             $instance->values()->delete();
 
             $this->syncHeaderValues($instance, $elementMap, $enquiry);
+            $this->restorePreservedScalarValues($instance, $elementMap, $preserved);
             $this->syncSampleLineValuesFromLines($instance, $elementMap, $sampleLines);
+            $this->restorePreservedUnmappedValues($instance, $elementMap, $preserved);
             $this->updateInstanceMetadata($instance, $enquiry, $form, $submit);
 
             if ($setAsPrimary && $enquiry->submission_form_instance_id !== $instance->id) {
@@ -194,16 +201,20 @@ final class PortalEnquiryFormInstanceSyncService
             ->first();
 
         if ($linked !== null) {
-            return $linked;
+            return $this->ensureInstanceLinkedToEnquiry($linked, $enquiry);
         }
 
-        // Legacy: primary instance without form match yet.
+        // Prefer the walk-in / primary TRF already linked on the enquiry — even when
+        // portal_request_id was never stamped during commercial sync.
         if ($enquiry->submission_form_instance_id) {
             $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
             if ($existing !== null
                 && (string) $existing->submission_form_id === (string) $form->id
-                && trim((string) ($existing->portal_request_id ?? '')) === (string) $enquiry->id) {
-                return $existing;
+            ) {
+                $portalId = trim((string) ($existing->portal_request_id ?? ''));
+                if ($portalId === '' || $portalId === (string) $enquiry->id) {
+                    return $this->ensureInstanceLinkedToEnquiry($existing, $enquiry);
+                }
             }
         }
 
@@ -217,6 +228,227 @@ final class PortalEnquiryFormInstanceSyncService
             'title' => $this->instanceTitle($enquiry, $form),
             'priority' => $this->instancePriority($enquiry),
         ]);
+    }
+
+    private function ensureInstanceLinkedToEnquiry(
+        SubmissionFormInstance $instance,
+        SampleSubmissionRequest $enquiry,
+    ): SubmissionFormInstance {
+        $dirty = false;
+
+        if (trim((string) ($instance->portal_request_id ?? '')) !== (string) $enquiry->id) {
+            $instance->portal_request_id = (string) $enquiry->id;
+            $dirty = true;
+        }
+
+        if ($instance->target_record_type !== self::TARGET_RECORD_TYPE) {
+            $instance->target_record_type = self::TARGET_RECORD_TYPE;
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $instance->save();
+        }
+
+        return $instance;
+    }
+
+    /**
+     * @return array{
+     *     scalars: array<string, string>,
+     *     rows: array<int, array<string, string>>
+     * }
+     */
+    private function snapshotInstanceValues(SubmissionFormInstance $instance): array
+    {
+        $instance->loadMissing(['values.element']);
+
+        $scalars = [];
+        $rows = [];
+
+        foreach ($instance->values as $value) {
+            $name = trim((string) ($value->element?->name ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $raw = trim((string) ($value->value ?? ''));
+            if ($raw === '' || strcasecmp($raw, 'null') === 0) {
+                continue;
+            }
+
+            if ($value->array_index === null) {
+                $scalars[$name] = $raw;
+
+                continue;
+            }
+
+            $rowIndex = (int) $value->array_index;
+            $rows[$rowIndex][$name] = $raw;
+        }
+
+        ksort($rows);
+
+        return [
+            'scalars' => $scalars,
+            'rows' => $rows,
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @param  array{scalars: array<string, string>, rows: array<int, array<string, string>>}  $preserved
+     * @return list<array<string, mixed>>
+     */
+    private function mergePreservedRowFieldsIntoLines(array $lines, array $preserved): array
+    {
+        $rowKeys = [
+            'sample_description',
+            'sample_id',
+            'customer_sample_id',
+            'sample_type_id',
+            'analysis_type_id',
+            'parameters',
+            'parameter_category',
+            'sampling_point',
+            'sampling_point_manual',
+            'location',
+            'sampling_location',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'production_date',
+            'expiration_date',
+            'batch_number',
+            'test_category',
+            'test_requirements',
+            'sample_condition',
+            'state_of_sample',
+            'number_of_samples',
+        ];
+
+        foreach ($lines as $index => &$line) {
+            $rowIndex = (int) ($line['row_index'] ?? $index);
+            $source = $preserved['rows'][$rowIndex] ?? [];
+            if ($source === []) {
+                continue;
+            }
+
+            foreach ($rowKeys as $key) {
+                $existing = trim((string) ($line[$key] ?? ''));
+                if ($existing !== '') {
+                    continue;
+                }
+
+                $candidate = trim((string) ($source[$key] ?? ''));
+                if ($candidate === '') {
+                    continue;
+                }
+
+                if ($key === 'parameters') {
+                    $line['analysis_element_ids'] = array_values(array_filter(array_map(
+                        static fn (string $token): string => trim($token),
+                        explode(',', $candidate),
+                    )));
+
+                    continue;
+                }
+
+                if ($key === 'sample_id') {
+                    $line['customer_sample_id'] = $candidate;
+
+                    continue;
+                }
+
+                $line[$key] = $candidate;
+            }
+        }
+        unset($line);
+
+        return $lines;
+    }
+
+    /**
+     * @param  array<string, array{id: string, is_row: bool}>  $elementMap
+     * @param  array{scalars: array<string, string>, rows: array<int, array<string, string>>}  $preserved
+     */
+    private function restorePreservedScalarValues(
+        SubmissionFormInstance $instance,
+        array $elementMap,
+        array $preserved,
+    ): void {
+        foreach ($preserved['scalars'] as $name => $value) {
+            if (! isset($elementMap[$name]) || ($elementMap[$name]['is_row'] ?? false)) {
+                continue;
+            }
+
+            $alreadyStored = $instance->values()
+                ->where('submission_form_element_id', $elementMap[$name]['id'])
+                ->whereNull('array_index')
+                ->exists();
+
+            if ($alreadyStored) {
+                continue;
+            }
+
+            $this->storeValue($instance, $elementMap, $name, $value);
+        }
+    }
+
+    /**
+     * Keep row fields captured on the TRF that enquiry sync does not own
+     * (e.g. sampling_point_manual) so Process Enquiry cannot drop them.
+     *
+     * @param  array<string, array{id: string, is_row: bool}>  $elementMap
+     * @param  array{scalars: array<string, string>, rows: array<int, array<string, string>>}  $preserved
+     */
+    private function restorePreservedUnmappedValues(
+        SubmissionFormInstance $instance,
+        array $elementMap,
+        array $preserved,
+    ): void {
+        $ownedRowFields = [
+            'sample_description',
+            'sample_id',
+            'sample_type_id',
+            'analysis_type_id',
+            'parameters',
+            'parameter_category',
+            'sampling_point',
+            'location',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'production_date',
+            'expiration_date',
+            'batch_number',
+            'test_category',
+            'test_requirements',
+            'sample_condition',
+            'state_of_sample',
+            'number_of_samples',
+        ];
+
+        foreach ($preserved['rows'] as $rowIndex => $fields) {
+            foreach ($fields as $name => $value) {
+                if (in_array($name, $ownedRowFields, true)) {
+                    continue;
+                }
+
+                if (! isset($elementMap[$name])) {
+                    continue;
+                }
+
+                $alreadyStored = $instance->values()
+                    ->where('submission_form_element_id', $elementMap[$name]['id'])
+                    ->where('array_index', (int) $rowIndex)
+                    ->exists();
+
+                if ($alreadyStored) {
+                    continue;
+                }
+
+                $this->storeValue($instance, $elementMap, $name, $value, (int) $rowIndex);
+            }
+        }
     }
 
     /**
@@ -362,7 +594,9 @@ final class PortalEnquiryFormInstanceSyncService
             );
             $this->storeValue($instance, $elementMap, 'parameter_category', $line['parameter_category'] ?? null, $rowIndex);
             $this->storeValue($instance, $elementMap, 'sampling_point', $line['sampling_point'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'sampling_point_manual', $line['sampling_point_manual'] ?? null, $rowIndex);
             $this->storeValue($instance, $elementMap, 'location', $line['location'] ?? null, $rowIndex);
+            $this->storeValue($instance, $elementMap, 'sampling_location', $line['sampling_location'] ?? null, $rowIndex);
             $this->storeValue($instance, $elementMap, 'sample_quantity', $line['sample_quantity'] ?? null, $rowIndex);
             $this->storeValue($instance, $elementMap, 'sample_quantity_unit', $line['sample_quantity_unit'] ?? null, $rowIndex);
             $this->storeValue($instance, $elementMap, 'production_date', $this->formatDate($line['production_date'] ?? null), $rowIndex);

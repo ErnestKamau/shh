@@ -121,7 +121,7 @@
             'compact' => false,
         ])
         @if($this->parametersForRow($rowIndex)->isEmpty())
-            <small class="text-muted d-block mt-1">Select an analysis type to load parameters.</small>
+            <small class="text-muted d-block mt-1">Select an analysis type to load tests.</small>
         @endif
         @break
     @case('client_contact_select')
@@ -204,7 +204,7 @@
                 'compact' => false,
             ])
             @if($this->parametersForRow($rowIndex)->isEmpty())
-                <small class="text-muted d-block mt-1">Select an analysis type to load parameters.</small>
+                <small class="text-muted d-block mt-1">Select an analysis type to load tests.</small>
             @endif
         @elseif($type === 'rich_text')
             @include('livewire.partials.submission-rich-text-editor', [

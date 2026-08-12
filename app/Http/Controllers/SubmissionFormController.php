@@ -50,6 +50,7 @@ class SubmissionFormController extends Controller
             ->get(['id', 'name']);
         $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
         $sampleTypes = \App\SampleType::where('active', true)->orderBy('name')->get(['id', 'name']);
+        $sampleTypeCategories = \App\SampleTypeCategory::where('active', true)->orderBy('sample_type_category')->get(['id', 'sample_type_category']);
 
         $fromRft = $request->query('from') === 'rft' || $request->boolean('trf');
         $trfDefaults = $fromRft ? [
@@ -75,6 +76,7 @@ class SubmissionFormController extends Controller
             'templateForms',
             'customers',
             'sampleTypes',
+            'sampleTypeCategories',
             'fromRft',
             'trfDefaults'
         ));
@@ -121,6 +123,8 @@ class SubmissionFormController extends Controller
             'form_type' => ['required', 'string', Rule::in(['template', 'attachment'])],
             'template_form_ids' => ['nullable', 'array'],
             'template_form_ids.*' => ['uuid', 'exists:submission_forms,id'],
+            'sample_type_category_ids' => ['nullable', 'array'],
+            'sample_type_category_ids.*' => ['integer', 'exists:sample_type_categories,id'],
         ]);
 
         $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
@@ -162,6 +166,15 @@ class SubmissionFormController extends Controller
         } else {
             Log::warning('Skipping submission form sample type sync because pivot table is missing.', [
                 'table' => 'submission_form_sample_types',
+                'submission_form_id' => $form->id,
+            ]);
+        }
+
+        if ($this->submissionFormSampleTypeCategoriesPivotExists()) {
+            $form->sampleTypeCategories()->sync($request->input('sample_type_category_ids', []));
+        } else {
+            Log::warning('Skipping submission form sample type category sync because pivot table is missing.', [
+                'table' => 'submission_form_sample_type_categories',
                 'submission_form_id' => $form->id,
             ]);
         }
@@ -238,8 +251,10 @@ class SubmissionFormController extends Controller
             ->get(['id', 'name']);
         $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
         $sampleTypes = \App\SampleType::where('active', true)->orderBy('name')->get(['id', 'name']);
+        $sampleTypeCategories = \App\SampleTypeCategory::where('active', true)->orderBy('sample_type_category')->get(['id', 'sample_type_category']);
         $customersPivotExists = $this->submissionFormCustomersPivotExists();
         $sampleTypesPivotExists = $this->submissionFormSampleTypesPivotExists();
+        $sampleTypeCategoriesPivotExists = $this->submissionFormSampleTypeCategoriesPivotExists();
 
         $relationsToLoad = ['sampleAnalysisStages'];
 
@@ -249,6 +264,10 @@ class SubmissionFormController extends Controller
 
         if ($sampleTypesPivotExists) {
             $relationsToLoad[] = 'sampleTypes';
+        }
+
+        if ($sampleTypeCategoriesPivotExists) {
+            $relationsToLoad[] = 'sampleTypeCategories';
         }
 
         if ($submissionForm->form_type === 'attachment' && Schema::hasTable('submission_form_template_links')) {
@@ -265,7 +284,11 @@ class SubmissionFormController extends Controller
             $submissionForm->setRelation('sampleTypes', collect());
         }
 
-        return view('submission-forms.edit', compact('submissionForm', 'labSections', 'availablePages', 'templateFormTypes', 'templateForms', 'customers', 'sampleTypes'));
+        if (! $sampleTypeCategoriesPivotExists) {
+            $submissionForm->setRelation('sampleTypeCategories', collect());
+        }
+
+        return view('submission-forms.edit', compact('submissionForm', 'labSections', 'availablePages', 'templateFormTypes', 'templateForms', 'customers', 'sampleTypes', 'sampleTypeCategories'));
     }
 
     /**
@@ -316,6 +339,8 @@ class SubmissionFormController extends Controller
             'form_type' => ['required', 'string', Rule::in(['template', 'attachment'])],
             'template_form_ids' => ['nullable', 'array'],
             'template_form_ids.*' => ['uuid', 'exists:submission_forms,id'],
+            'sample_type_category_ids' => ['nullable', 'array'],
+            'sample_type_category_ids.*' => ['integer', 'exists:sample_type_categories,id'],
         ]);
 
         $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
@@ -352,6 +377,15 @@ class SubmissionFormController extends Controller
         } else {
             Log::warning('Skipping submission form sample type sync because pivot table is missing.', [
                 'table' => 'submission_form_sample_types',
+                'submission_form_id' => $submissionForm->id,
+            ]);
+        }
+
+        if ($this->submissionFormSampleTypeCategoriesPivotExists()) {
+            $submissionForm->sampleTypeCategories()->sync($request->input('sample_type_category_ids', []));
+        } else {
+            Log::warning('Skipping submission form sample type category sync because pivot table is missing.', [
+                'table' => 'submission_form_sample_type_categories',
                 'submission_form_id' => $submissionForm->id,
             ]);
         }
@@ -610,6 +644,11 @@ class SubmissionFormController extends Controller
     private function submissionFormSampleTypesPivotExists(): bool
     {
         return Schema::hasTable('submission_form_sample_types');
+    }
+
+    private function submissionFormSampleTypeCategoriesPivotExists(): bool
+    {
+        return Schema::hasTable('submission_form_sample_type_categories');
     }
 
     /**

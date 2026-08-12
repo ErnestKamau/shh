@@ -1815,36 +1815,252 @@
             },
         }));
 
-        Alpine.data('rftParamPickerUi', (config = {}) => ({
+        Alpine.data('rftParamPickerUi', (config = {}) => {
+            const nestCache = { key: '', groupsRef: null, value: null };
+            const toTest = (raw) => {
+                if (raw && typeof raw === 'object') {
+                    return {
+                        id: String(raw.id ?? ''),
+                        name: String(raw.name ?? raw.id ?? ''),
+                    };
+                }
+
+                const value = String(raw ?? '');
+                return { id: value, name: value };
+            };
+            const normalizeOptions = (list) => (Array.isArray(list) ? list.map(toTest).filter((item) => item.id !== '') : []);
+            const normalizeGroups = (list) => (Array.isArray(list) ? list.map((group) => ({
+                ...group,
+                tests: normalizeOptions(group?.tests),
+            })) : []);
+
+            return {
             open: false,
             openUp: false,
             search: '',
             syncing: false,
             dirty: false,
+            analysisLoading: false,
             rowIndex: config.rowIndex ?? 0,
             flat: !!config.flat,
-            options: Array.isArray(config.options) ? config.options.slice() : [],
-            selected: Array.isArray(config.selected) ? config.selected.slice() : [],
+            useModal: config.useModal !== false,
+            options: normalizeOptions(config.options),
+            selected: Array.isArray(config.selected) ? config.selected.map(String) : [],
+            groups: normalizeGroups(config.groups),
+            expanded: {},
             hydrating: false,
             init() {
-                this.hydrateFromWire();
+                // Keep server-rendered selection; only soft-sync from Livewire when available.
+                this.applySelectedFromWire();
             },
-            get filtered() {
-                const query = String(this.search || '').trim().toLowerCase();
-                if (!query) {
-                    return this.options;
+            setSelected(next) {
+                this.selected = Array.isArray(next) ? next.map(String) : [];
+            },
+            normalizeSelectedTokens(tokens) {
+                const list = Array.isArray(tokens) ? tokens.map(String) : [];
+                if (!list.length) {
+                    return [];
                 }
 
-                return this.options.filter((name) => String(name).toLowerCase().includes(query));
+                const knownIds = {};
+                const idsByName = {};
+                const register = (test) => {
+                    const id = String(test?.id ?? '');
+                    const name = String(test?.name ?? '').trim().toLowerCase();
+                    if (!id) {
+                        return;
+                    }
+                    knownIds[id] = true;
+                    if (name) {
+                        if (!idsByName[name]) {
+                            idsByName[name] = [];
+                        }
+                        idsByName[name].push(id);
+                    }
+                };
+
+                (this.options || []).forEach(register);
+                (this.groups || []).forEach((group) => {
+                    (group.tests || []).forEach(register);
+                });
+
+                const out = [];
+                const seen = {};
+                list.forEach((token) => {
+                    const value = String(token).trim();
+                    if (!value) {
+                        return;
+                    }
+                    if (knownIds[value]) {
+                        if (!seen[value]) {
+                            seen[value] = true;
+                            out.push(value);
+                        }
+                        return;
+                    }
+                    (idsByName[value.toLowerCase()] || []).forEach((id) => {
+                        if (!seen[id]) {
+                            seen[id] = true;
+                            out.push(id);
+                        }
+                    });
+                });
+
+                return out;
+            },
+            optionLabelMap() {
+                const map = {};
+                (this.options || []).forEach((option) => {
+                    map[String(option.id)] = String(option.name || option.id);
+                });
+                (this.groups || []).forEach((group) => {
+                    (group.tests || []).forEach((test) => {
+                        map[String(test.id)] = String(test.name || test.id);
+                    });
+                });
+                return map;
+            },
+            get nestedFilteredGroups() {
+                const query = String(this.search || '').trim().toLowerCase();
+                const key = `${query}::${this.groups.length}`;
+                if (
+                    nestCache.value
+                    && nestCache.key === key
+                    && nestCache.groupsRef === this.groups
+                ) {
+                    return nestCache.value;
+                }
+
+                const nested = [];
+                const map = {};
+                const groups = Array.isArray(this.groups) ? this.groups : [];
+
+                groups.forEach((group) => {
+                    const tests = normalizeOptions(group.tests);
+                    const filteredTests = query
+                        ? tests.filter((test) => String(test.name).toLowerCase().includes(query))
+                        : tests;
+
+                    if (!filteredTests.length && query) {
+                        return;
+                    }
+
+                    const sampleType = String(group.sample_type || 'Sample type');
+                    if (!map[sampleType]) {
+                        map[sampleType] = {
+                            sample_type: sampleType,
+                            groups: [],
+                        };
+                        nested.push(map[sampleType]);
+                    }
+
+                    map[sampleType].groups.push({
+                        analysis_type_id: group.analysis_type_id,
+                        analysis_type: group.analysis_type,
+                        sample_type: sampleType,
+                        tests,
+                        filteredTests,
+                    });
+                });
+
+                nestCache.value = nested;
+                nestCache.key = key;
+                nestCache.groupsRef = this.groups;
+
+                return nested;
+            },
+            groupKey(group) {
+                return String(group?.analysis_type_id || group?.analysis_type || 'group');
+            },
+            isGroupExpanded(group) {
+                return this.expanded[this.groupKey(group)] !== false;
+            },
+            toggleGroupExpanded(group) {
+                const key = this.groupKey(group);
+                this.expanded[key] = !this.isGroupExpanded(group);
+            },
+            groupTests(group) {
+                const list = Array.isArray(group?.filteredTests)
+                    ? group.filteredTests
+                    : (Array.isArray(group?.tests) ? group.tests : []);
+
+                return normalizeOptions(list);
+            },
+            groupSelectedCount(group) {
+                return this.groupTests(group).reduce(
+                    (count, test) => count + (this.isSelected(test.id) ? 1 : 0),
+                    0
+                );
+            },
+            groupSelectionState(group) {
+                const tests = this.groupTests(group);
+                if (!tests.length) {
+                    return 'none';
+                }
+                const count = this.groupSelectedCount(group);
+                if (count === 0) {
+                    return 'none';
+                }
+                if (count === tests.length) {
+                    return 'all';
+                }
+
+                return 'partial';
+            },
+            toggleGroupCheckbox(group) {
+                const tests = this.groupTests(group);
+                if (!tests.length) {
+                    return;
+                }
+
+                if (this.groupSelectionState(group) === 'all') {
+                    const remove = Object.create(null);
+                    tests.forEach((test) => {
+                        remove[String(test.id)] = true;
+                    });
+                    this.setSelected(this.selected.filter((id) => !remove[id]));
+                } else {
+                    const merge = Object.create(null);
+                    this.selected.forEach((id) => {
+                        merge[String(id)] = true;
+                    });
+                    tests.forEach((test) => {
+                        merge[String(test.id)] = true;
+                    });
+                    this.setSelected(Object.keys(merge));
+                }
+                this.markDirty();
+            },
+            get isLoading() {
+                return this.analysisLoading || this.hydrating;
             },
             get visibleChips() {
-                return this.selected.slice(0, 8);
+                const labels = this.optionLabelMap();
+                return this.selected.slice(0, 8).map((id) => ({
+                    id: String(id),
+                    name: labels[String(id)] || String(id),
+                }));
             },
             get hiddenCount() {
                 return Math.max(0, this.selected.length - 8);
             },
-            isSelected(name) {
-                return this.selected.includes(name);
+            isSelected(id) {
+                return this.selected.includes(String(id));
+            },
+            setAnalysisLoading(payload) {
+                const detail = Array.isArray(payload) ? (payload[0] || {}) : (payload || {});
+                const wireKey = String(detail.wireKey || '');
+                const rowMatch = wireKey.match(/\.(\d+)$/);
+                const targetRowIndex = rowMatch ? Number(rowMatch[1]) : -1;
+
+                if (targetRowIndex !== Number(this.rowIndex)) {
+                    return;
+                }
+
+                this.analysisLoading = detail.loading === true && this.open;
+                if (!detail.loading && this.open) {
+                    this.$nextTick(() => this.hydrateFromWire(true));
+                }
             },
             toggleOpen() {
                 if (this.open) {
@@ -1852,7 +2068,11 @@
                     return;
                 }
                 this.open = true;
-                this.hydrateFromWire();
+                if (!this.analysisLoading && this.groups.length === 0) {
+                    this.hydrateFromWire(true);
+                } else {
+                    this.applySelectedFromWire();
+                }
                 this.$nextTick(() => this.decideDirection());
             },
             closePanel() {
@@ -1867,27 +2087,41 @@
             markDirty() {
                 this.dirty = true;
             },
-            toggle(name) {
-                if (this.isSelected(name)) {
-                    this.selected = this.selected.filter((item) => item !== name);
+            toggle(id) {
+                const value = String(id);
+                if (this.isSelected(value)) {
+                    this.setSelected(this.selected.filter((item) => item !== value));
                 } else {
-                    this.selected = this.selected.concat([name]);
+                    this.setSelected(this.selected.concat([value]));
                 }
                 this.markDirty();
             },
-            removeChip(name) {
-                this.selected = this.selected.filter((item) => item !== name);
+            removeChip(id) {
+                const value = String(id);
+                this.setSelected(this.selected.filter((item) => item !== value));
                 this.markDirty();
                 if (!this.open) {
                     this.flushIfDirty();
                 }
             },
             selectAll() {
-                this.selected = this.options.slice();
+                this.setSelected(this.options.map((option) => String(option.id)));
+                this.markDirty();
+            },
+            selectGroup(group) {
+                const tests = this.groupTests(group);
+                const merge = Object.create(null);
+                this.selected.forEach((id) => {
+                    merge[String(id)] = true;
+                });
+                tests.forEach((test) => {
+                    merge[String(test.id)] = true;
+                });
+                this.setSelected(Object.keys(merge));
                 this.markDirty();
             },
             clearAll() {
-                this.selected = [];
+                this.setSelected([]);
                 this.search = '';
                 this.markDirty();
             },
@@ -1912,17 +2146,21 @@
                     ? this.$wire.get('formData.parameters')
                     : this.$wire.get(`formData.parameters.${this.rowIndex}`);
                 if (Array.isArray(raw) && raw.length && typeof raw[0] === 'object' && raw[0] !== null) {
-                    this.selected = [];
+                    this.setSelected([]);
                 } else if (Array.isArray(raw)) {
-                    this.selected = raw.map((value) => String(value));
+                    this.setSelected(this.normalizeSelectedTokens(raw.map((value) => String(value))));
                 } else if (raw !== null && raw !== undefined && raw !== '') {
-                    this.selected = [String(raw)];
+                    this.setSelected(this.normalizeSelectedTokens([String(raw)]));
                 } else {
-                    this.selected = [];
+                    this.setSelected([]);
                 }
             },
-            async hydrateFromWire() {
+            async hydrateFromWire(force = false) {
                 if (!this.$wire || this.hydrating || this.syncing || this.dirty) {
+                    return;
+                }
+                if (!force && this.groups.length > 0) {
+                    this.applySelectedFromWire();
                     return;
                 }
 
@@ -1935,10 +2173,15 @@
                         return;
                     }
                     if (state && Array.isArray(state.options)) {
-                        this.options = state.options.map((value) => String(value));
+                        this.options = normalizeOptions(state.options);
+                    }
+                    if (state && Array.isArray(state.groups)) {
+                        this.groups = normalizeGroups(state.groups);
+                        nestCache.value = null;
+                        nestCache.groupsRef = null;
                     }
                     if (state && Array.isArray(state.selected)) {
-                        this.selected = state.selected.map((value) => String(value));
+                        this.setSelected(state.selected.map((value) => String(value)));
                     }
                 } catch (error) {
                     this.applySelectedFromWire();
@@ -1946,7 +2189,8 @@
                     this.hydrating = false;
                 }
             },
-        }));
+            };
+        });
 
         Alpine.data('rftIdLabelMultiPicker', (config = {}) => ({
             open: false,

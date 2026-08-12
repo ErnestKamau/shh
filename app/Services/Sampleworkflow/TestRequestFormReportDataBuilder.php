@@ -514,8 +514,8 @@ class TestRequestFormReportDataBuilder
                 $sampleCondition = self::normalizeSingleSelect($row['sample_condition'] ?? '', self::FOOD_OPTIONS['sample_condition']);
                 $normalized[] = [
                     'serial' => $index + 1,
-                    'sample_no' => (string) ($row['sample_no'] ?? ''),
-                    'sample_description' => (string) ($row['sample_description'] ?? ''),
+                    'sample_no' => (string) ($row['sample_no'] ?? $row['lims_sample_no'] ?? ''),
+                    'sample_description' => $this->plainTextField($row['sample_description'] ?? ''),
                     'sampling_location' => $this->resolveSamplePointLabel((string) ($row['sampling_point'] ?? $row['sampling_location'] ?? '')),
                     'sampling_point' => trim((string) ($row['sampling_point_manual'] ?? $row['manual_sampling_point'] ?? '')),
                     'qty' => $this->formatRowQuantity($row),
@@ -541,8 +541,8 @@ class TestRequestFormReportDataBuilder
             ));
             $normalized[] = [
                 'serial' => $index + 1,
-                'sample_no' => (string) ($row['sample_no'] ?? ''),
-                'sample_description' => (string) ($row['sample_description'] ?? ''),
+                'sample_no' => (string) ($row['sample_no'] ?? $row['lims_sample_no'] ?? ''),
+                'sample_description' => $this->plainTextField($row['sample_description'] ?? ''),
                 'location' => $samplingLocationLabel,
                 'sampling_location' => $samplingLocationLabel,
                 'qty' => $this->formatRowQuantity($row),
@@ -1027,6 +1027,19 @@ class TestRequestFormReportDataBuilder
         $legacy = trim((string) ($row['qty'] ?? ''));
 
         return $legacy !== '' ? $legacy : '';
+    }
+
+    private function plainTextField(mixed $value): string
+    {
+        $string = trim((string) $value);
+        if ($string === '') {
+            return '';
+        }
+
+        $decoded = html_entity_decode($string, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = trim(strip_tags($decoded));
+
+        return trim(preg_replace('/\s+/u', ' ', $plain) ?? $plain);
     }
 
     private function resolveVariant(?\App\SampleType $sampleType, ?string $documentCode): string

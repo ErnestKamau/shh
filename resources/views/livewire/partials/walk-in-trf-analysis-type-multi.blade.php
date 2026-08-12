@@ -8,7 +8,18 @@
     }
     $selectedIds = array_values(array_filter(array_map('strval', $selectedRaw)));
     $analysisOptions = $this->analysisTypesForRow($rowIndex)
-        ->map(fn ($at) => ['id' => (string) $at->id, 'label' => (string) $at->name])
+        ->map(function ($at) {
+            $sampleTypeName = trim((string) (optional($at->sample_type)->name ?? ''));
+            $label = (string) $at->name;
+            if ($sampleTypeName !== '') {
+                $label .= ' ('.$sampleTypeName.')';
+            }
+
+            return [
+                'id' => (string) $at->id,
+                'label' => $label,
+            ];
+        })
         ->values()
         ->all();
 @endphp
@@ -19,7 +30,7 @@
     'syncMethod' => 'setWalkInAnalysisTypes',
     'options' => $analysisOptions,
     'selected' => $selectedIds,
-    'placeholder' => 'Choose analysis…',
-    'emptyHint' => 'Select sample type(s) first.',
-    'searchPlaceholder' => 'Search analysis...',
+    'placeholder' => 'Choose analysis type(s)…',
+    'emptyHint' => 'Select sample type first.',
+    'searchPlaceholder' => 'Search analysis types…',
 ])

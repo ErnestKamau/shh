@@ -51,7 +51,7 @@
                                         <a href="{{ $cAttachment->file_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mr-1">
                                             View
                                         </a>
-                                        <a href="{{ $cAttachment->file_url }}" download class="btn btn-sm btn-outline-secondary">
+                                        <a href="{{ $cAttachment->file_download_url }}" class="btn btn-sm btn-outline-secondary">
                                             Download
                                         </a>
                                     @endif

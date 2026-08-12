@@ -48,8 +48,17 @@ class SampleType extends Model implements Auditable
   public function sample_analysis_stage(){
     return $this->hasMany('App\SampleToSampleAnalysisStage');
   }
-  public function category(){
-    return SampleTypeCategory::find($this->sample_type_category)->sample_type_category ?? '';
+  public function sampleTypeCategory()
+  {
+      return $this->belongsTo(SampleTypeCategory::class, 'sample_type_category');
+  }
+
+  /**
+   * Legacy helper: category name string (not an Eloquent relation).
+   */
+  public function category(): string
+  {
+      return (string) ($this->sampleTypeCategory?->sample_type_category ?? '');
   }
 
   public function ratingHeader(){

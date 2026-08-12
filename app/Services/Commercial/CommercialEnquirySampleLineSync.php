@@ -127,6 +127,7 @@ final class CommercialEnquirySampleLineSync
      */
     public function syncFromSampleConfigs(SampleSubmissionRequest $enquiry, array $sampleConfigs): void
     {
+        $previousLines = is_array($enquiry->sample_lines) ? array_values($enquiry->sample_lines) : [];
         $lines = [];
 
         foreach (array_values($sampleConfigs) as $index => $config) {
@@ -143,38 +144,97 @@ final class CommercialEnquirySampleLineSync
                 ?? $config['test_requirements']
                 ?? null;
 
+            $previous = is_array($previousLines[$index] ?? null) ? $previousLines[$index] : [];
+
             $lines[] = [
                 // One TRF/enquiry line per physical sample — always use sequential index.
                 'row_index' => $index,
-                'sample_description' => $config['sample_description'] ?? null,
-                'sample_type_id' => $config['sample_type_id'] ?? null,
-                'analysis_type_id' => $config['analysis_type_id'] ?? null,
-                'analysis_element_id' => $parameterKeys[0] ?? null,
+                'sample_description' => $this->firstFilled(
+                    $config['sample_description'] ?? null,
+                    $previous['sample_description'] ?? null,
+                ),
+                'sample_type_id' => $config['sample_type_id'] ?? $previous['sample_type_id'] ?? null,
+                'analysis_type_id' => $config['analysis_type_id'] ?? $previous['analysis_type_id'] ?? null,
+                'analysis_element_id' => $parameterKeys[0] ?? ($previous['analysis_element_id'] ?? null),
                 'parameter_label' => 'Parameter',
                 'number_of_samples' => 1,
-                'customer_sample_id' => $customerSampleId !== '' ? $customerSampleId : null,
-                'sample_condition_id' => $config['sample_condition_id'] ?? null,
-                'sample_quantity' => $config['sample_quantity'] ?? null,
-                'sample_quantity_unit' => $config['sample_quantity_unit'] ?? null,
-                'location' => $config['location'] ?? null,
-                'sampling_point' => $config['sampling_point'] ?? null,
-                'production_date' => $config['production_date'] ?? null,
-                'expiration_date' => $config['expiration_date'] ?? null,
-                'batch_number' => $config['batch_number'] ?? null,
-                'test_category' => $config['test_category'] ?? $config['test_requirements'] ?? null,
-                'test_requirements' => $config['test_requirements'] ?? null,
-                'parameter_category' => $testCategory,
-                'sample_condition' => $config['sample_condition'] ?? null,
-                'state_of_sample' => $config['state_of_sample'] ?? null,
+                'customer_sample_id' => $customerSampleId !== ''
+                    ? $customerSampleId
+                    : ($previous['sample_id'] ?? $previous['customer_sample_id'] ?? null),
+                'sample_condition_id' => $config['sample_condition_id'] ?? $previous['sample_condition_id'] ?? null,
+                'sample_quantity' => $this->firstFilled(
+                    $config['sample_quantity'] ?? null,
+                    $previous['sample_quantity'] ?? null,
+                ),
+                'sample_quantity_unit' => $this->firstFilled(
+                    $config['sample_quantity_unit'] ?? null,
+                    $previous['sample_quantity_unit'] ?? null,
+                ),
+                'location' => $this->firstFilled(
+                    $config['location'] ?? null,
+                    $previous['location'] ?? null,
+                ),
+                'sampling_point' => $this->firstFilled(
+                    $config['sampling_point'] ?? null,
+                    $previous['sampling_point'] ?? null,
+                ),
+                'production_date' => $this->firstFilled(
+                    $config['production_date'] ?? null,
+                    $previous['production_date'] ?? null,
+                ),
+                'expiration_date' => $this->firstFilled(
+                    $config['expiration_date'] ?? null,
+                    $previous['expiration_date'] ?? null,
+                ),
+                'batch_number' => $this->firstFilled(
+                    $config['batch_number'] ?? null,
+                    $previous['batch_number'] ?? null,
+                ),
+                'test_category' => $this->firstFilled(
+                    $config['test_category'] ?? $config['test_requirements'] ?? null,
+                    $previous['test_category'] ?? null,
+                ),
+                'test_requirements' => $this->firstFilled(
+                    $config['test_requirements'] ?? null,
+                    $previous['test_requirements'] ?? null,
+                ),
+                'parameter_category' => $this->firstFilled(
+                    $testCategory,
+                    $previous['parameter_category'] ?? null,
+                ),
+                'sample_condition' => $this->firstFilled(
+                    $config['sample_condition'] ?? null,
+                    $previous['sample_condition'] ?? null,
+                ),
+                'state_of_sample' => $this->firstFilled(
+                    $config['state_of_sample'] ?? null,
+                    $previous['state_of_sample'] ?? null,
+                ),
                 'attributes' => $parameterKeys !== []
                     ? ['analysis_element_ids' => $parameterKeys]
-                    : [],
+                    : (is_array($previous['attributes'] ?? null) ? $previous['attributes'] : []),
             ];
         }
 
         $this->syncSampleLines($enquiry, $lines);
         $this->syncRequestedAnalyses($enquiry, $lines);
         $enquiry->save();
+    }
+
+    private function firstFilled(mixed ...$candidates): ?string
+    {
+        foreach ($candidates as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            $value = trim((string) $candidate);
+            if ($value !== '' && strcasecmp($value, 'null') !== 0) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

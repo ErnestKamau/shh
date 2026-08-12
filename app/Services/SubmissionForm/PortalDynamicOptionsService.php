@@ -160,18 +160,30 @@ class PortalDynamicOptionsService
      */
     private function sampleTypeSelect(Request $request): array
     {
-        $query = SampleType::query()->orderBy('name');
+        $query = SampleType::query()->where('active', true)->orderBy('name');
+
+        $categoryId = $request->input('sample_type_category_id');
+        if ($categoryId !== null && $categoryId !== '') {
+            $query->where('sample_type_category', $categoryId);
+        }
 
         if ($request->filled('submission_form_id')) {
             $form = SubmissionForm::query()
-                ->with('sampleAnalysisStages')
+                ->with(['sampleAnalysisStages', 'sampleTypeCategories'])
                 ->find($request->input('submission_form_id'));
 
-            if ($form && $form->sampleAnalysisStages->isNotEmpty()) {
-                $stageIds = $form->sampleAnalysisStages->pluck('id')->all();
-                $query->whereHas('sampleAnalysisStages', function ($q) use ($stageIds): void {
-                    $q->whereIn('sample_analysis_stages.id', $stageIds);
-                });
+            if ($form) {
+                if ($form->sampleTypeCategories->isNotEmpty() && ($categoryId === null || $categoryId === '')) {
+                    $categoryIds = $form->sampleTypeCategories->pluck('id')->all();
+                    $query->whereIn('sample_type_category', $categoryIds);
+                }
+
+                if ($form->sampleAnalysisStages->isNotEmpty()) {
+                    $stageIds = $form->sampleAnalysisStages->pluck('id')->all();
+                    $query->whereHas('sampleAnalysisStages', function ($q) use ($stageIds): void {
+                        $q->whereIn('sample_analysis_stages.id', $stageIds);
+                    });
+                }
             }
         }
 
