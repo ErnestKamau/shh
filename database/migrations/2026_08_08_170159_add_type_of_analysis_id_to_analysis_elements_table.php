@@ -25,16 +25,6 @@ return new class extends Migration
                 ->on('types_of_analysis')
                 ->nullOnDelete();
         });
-
-        if (\App\TypeOfAnalysis::query()->count() === 0) {
-            foreach (\App\TypeOfAnalysis::defaultNames() as $index => $name) {
-                \App\TypeOfAnalysis::query()->create([
-                    'name' => $name,
-                    'sort_order' => $index + 1,
-                    'active' => true,
-                ]);
-            }
-        }
     }
 
     public function down(): void
