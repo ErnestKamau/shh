@@ -278,7 +278,7 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
             'condition' => 'Good',
             'active' => 1,
             'is_disposal' => false,
-            'picture' => '/images/default-equipment.png',
+            'picture' => \App\Models\Equipments\Equipment::defaultPicturePath(),
             'company_id' => $companyId,
         ]);
 

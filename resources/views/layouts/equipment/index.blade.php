@@ -106,7 +106,15 @@
 										</div>
 									</div>
 								</td>
-								<td><img src="{{ $item->picture }}" style="width: 125px" /></td>
+								<td>
+                                    @if($item->hasValidPicture())
+                                        <img src="{{ $item->pictureUrl() }}" style="width: 125px" alt="{{ $item->name }}" />
+                                    @else
+                                        <div class="d-flex align-items-center justify-content-center bg-light text-muted" style="width: 125px; height: 80px;" title="{{ $item->name }}">
+                                            <i class="mdi mdi-tools" style="font-size: 32px;"></i>
+                                        </div>
+                                    @endif
+                                </td>
 								<td nowrap><a href="{{ route('view-equipment', ['equipmentId'=>$item->id]) }}">{{ $item->name }}</a> </td>
 								<td>{{ $item->equipment_number }}</td>
 								<td>{{ $item->make }}</td>
@@ -203,7 +211,15 @@
 										<a class="btn btn-outline-primary btn-sm" href="{{ route('revert-equipment', ['id'=>$item->id]) }}" data-toggle="tooltip" title="Edit">
 										<i class="mdi mdi-pencil"></i></a>
 								</td>
-								<td><img src="{{ $item->picture }}" style="width: 125px" /></td>
+								<td>
+                                    @if($item->hasValidPicture())
+                                        <img src="{{ $item->pictureUrl() }}" style="width: 125px" alt="{{ $item->name }}" />
+                                    @else
+                                        <div class="d-flex align-items-center justify-content-center bg-light text-muted" style="width: 125px; height: 80px;" title="{{ $item->name }}">
+                                            <i class="mdi mdi-tools" style="font-size: 32px;"></i>
+                                        </div>
+                                    @endif
+                                </td>
 								<td nowrap><a href="{{ route('view-equipment', ['equipmentId'=>$item->id]) }}">{{ $item->name }}</a> </td>
 								<td>{{ $item->equipment_number }}</td>
 								<td>{{$item->serial_number}}</td>

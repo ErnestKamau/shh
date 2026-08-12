@@ -94,6 +94,47 @@ class Equipment extends Model implements Auditable
 		'purchase_price' => 'decimal:2',
 	];
 
+	public static function defaultPicturePath(): string
+	{
+		return '/images/lab-item.png';
+	}
+
+	public static function isValidPicturePath(?string $value): bool
+	{
+		$value = trim((string) ($value ?? ''));
+
+		if ($value === '') {
+			return false;
+		}
+
+		if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+			return true;
+		}
+
+		if (str_starts_with($value, '/storage/') || str_starts_with($value, '/images/')) {
+			return file_exists(public_path($value));
+		}
+
+		return (bool) preg_match('/\.(jpe?g|png|gif|webp|svg)$/i', $value);
+	}
+
+	public static function sanitizePictureValue(?string $value): string
+	{
+		return self::isValidPicturePath($value)
+			? trim((string) $value)
+			: self::defaultPicturePath();
+	}
+
+	public function hasValidPicture(): bool
+	{
+		return self::isValidPicturePath($this->picture);
+	}
+
+	public function pictureUrl(): string
+	{
+		return self::sanitizePictureValue($this->picture);
+	}
+
 	/**
 	 * First configured value type, used as the primary daily-log definition.
 	 *

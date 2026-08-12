@@ -59,7 +59,13 @@ $items = array(
 			<div class="card">
 				<div class="card-body">
 					<div class="p-3 center text-center align-content-center">
-						<img src="{{ $equipment->picture }}" style="max-width: 80%">
+						@if($equipment->hasValidPicture())
+							<img src="{{ $equipment->pictureUrl() }}" style="max-width: 80%" alt="{{ $equipment->name }}">
+						@else
+							<div class="d-flex align-items-center justify-content-center bg-light text-muted mx-auto" style="width: 120px; height: 120px; border-radius: 8px;">
+								<i class="mdi mdi-tools" style="font-size: 48px;"></i>
+							</div>
+						@endif
 					</div>
 					<h5 class="p-3 text-bold text-lg text-center bg-light-gray border-bottom">
 						{{ $equipment->equipment_number }}

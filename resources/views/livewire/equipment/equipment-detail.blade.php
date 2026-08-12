@@ -45,8 +45,8 @@
                 <!-- Card Header with Gradient -->
                 <div class="card-header text-white text-center py-4 eq-side-header">
                     <div class="equipment-image-wrapper mb-3">
-                        @if($equipment->picture && $equipment->picture != '/images/placeholder.png' && file_exists(public_path($equipment->picture)))
-                            <img src="{{ $equipment->picture }}" 
+                        @if($equipment->hasValidPicture())
+                            <img src="{{ $equipment->pictureUrl() }}" 
                                  style="max-width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 4px solid rgba(255,255,255,0.3); box-shadow: 0 8px 20px rgba(0,0,0,0.2);" 
                                  alt="{{ $equipment->name }}">
                         @else
