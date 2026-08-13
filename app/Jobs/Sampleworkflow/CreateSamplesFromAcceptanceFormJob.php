@@ -546,6 +546,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     if (! empty($plan['photo_path'])) {
                         $detailAttributes['photo_url'] = $plan['photo_path'];
                     }
+                    $detailAttributes['include_photo_in_report'] = ! empty($plan['include_photo_in_report']);
                     if (! empty($plan['sample_marking'])) {
                         $detailAttributes['comments'] = $plan['sample_marking'];
                     }

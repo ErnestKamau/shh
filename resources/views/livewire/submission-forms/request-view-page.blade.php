@@ -206,11 +206,9 @@
                 <div class="modal-body">
                     <p class="mb-3 text-muted">Choose which label to generate. Each option opens in a new tab.</p>
                     <div class="list-group">
-                        <a href="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'collection']) }}"
-                            target="_blank"
-                            rel="noopener"
-                            class="list-group-item list-group-item-action"
-                            data-dismiss="modal">
+                        <button type="button"
+                            class="list-group-item list-group-item-action js-open-sample-label text-left"
+                            data-label-url="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'collection']) }}">
                             <div class="d-flex align-items-center">
                                 <i class="mdi mdi-tag-outline mr-2 text-primary" aria-hidden="true"></i>
                                 <div>
@@ -218,12 +216,10 @@
                                     <small class="text-muted">Collection details with TRF barcode</small>
                                 </div>
                             </div>
-                        </a>
-                        <a href="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'registration']) }}"
-                            target="_blank"
-                            rel="noopener"
-                            class="list-group-item list-group-item-action"
-                            data-dismiss="modal">
+                        </button>
+                        <button type="button"
+                            class="list-group-item list-group-item-action js-open-sample-label text-left"
+                            data-label-url="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'registration']) }}">
                             <div class="d-flex align-items-center">
                                 <i class="mdi mdi-barcode mr-2 text-primary" aria-hidden="true"></i>
                                 <div>
@@ -231,7 +227,7 @@
                                     <small class="text-muted">Job / sample registration label for scanning</small>
                                 </div>
                             </div>
-                        </a>
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -380,6 +376,41 @@
 
 @script
 <script>
+    if (!window.__printSampleLabelsBound) {
+        window.__printSampleLabelsBound = true;
+
+        window.closePrintSampleLabelsModal = function () {
+            const modal = document.getElementById('print-sample-labels-modal');
+            if (!modal) {
+                return;
+            }
+
+            if (typeof window.jQuery === 'function' && typeof window.jQuery.fn.modal === 'function') {
+                window.jQuery(modal).modal('hide');
+                return;
+            }
+
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+        };
+
+        document.addEventListener('click', function (event) {
+            const labelOption = event.target.closest('#print-sample-labels-modal .js-open-sample-label');
+            if (!labelOption) {
+                return;
+            }
+
+            event.preventDefault();
+            const url = labelOption.getAttribute('data-label-url');
+            if (url) {
+                window.open(url, '_blank');
+            }
+            window.closePrintSampleLabelsModal();
+        });
+    }
+
     $wire.on('open-test-request-pdf', ({ url }) => {
         if (url) {
             window.open(url, '_blank');

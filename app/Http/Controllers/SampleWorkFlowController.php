@@ -6437,6 +6437,20 @@ class SampleWorkFlowController extends Controller
                     // Persist report URLs only — workflow stage must change via manual move.
                     $batch->save();
 
+                    try {
+                        app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
+                            ->attachTestReport(
+                                $batch,
+                                $batch->batch_report_online_url,
+                                auth()->id() ? (string) auth()->id() : null,
+                            );
+                    } catch (\Throwable $attachmentError) {
+                        \Log::warning('Failed to attach delivered Test Report to batch attachments', [
+                            'batch_id' => $batch->id,
+                            'error' => $attachmentError->getMessage(),
+                        ]);
+                    }
+
                     // Push a CustomerNotification (surfaces in portal notifications bell).
                     \App\Models\CRM\CustomerNotification::create([
                         'customer_id'              => $customerId,
@@ -6808,6 +6822,20 @@ class SampleWorkFlowController extends Controller
                     $batch->in_ammendment_proccess = 0;
                 }
                 $batch->save();
+
+                try {
+                    app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
+                        ->attachTestReport(
+                            $batch,
+                            $batch->batch_report_online_url,
+                            auth()->id() ? (string) auth()->id() : null,
+                        );
+                } catch (\Throwable $attachmentError) {
+                    \Log::warning('Failed to attach generated Test Report to batch attachments', [
+                        'batch_id' => $batch->id,
+                        'error' => $attachmentError->getMessage(),
+                    ]);
+                }
             }
 
             return $pdf->stream($filename, [

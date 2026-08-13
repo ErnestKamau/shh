@@ -14,6 +14,7 @@ use App\Lab;
 use App\Analyte;
 use App\AnalysisMethod;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Livewire\Concerns\HandlesLabTaxonomyBulkImport;
 use App\Models\Equipments\Equipment;
 use App\User;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ use Illuminate\Validation\Rule;
 class SampleTypeManager extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use HandlesLabTaxonomyBulkImport;
     use WithPagination, WithFileUploads;
 
     protected $paginationTheme = 'bootstrap';
@@ -1048,6 +1050,16 @@ class SampleTypeManager extends Component
             $this->message = 'Error: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    protected function labTaxonomyBulkImportFormType(): string
+    {
+        return 'sample_type';
+    }
+
+    protected function labTaxonomyBulkImportEntityLabel(): string
+    {
+        return 'Sample Type';
     }
 
     public function render()

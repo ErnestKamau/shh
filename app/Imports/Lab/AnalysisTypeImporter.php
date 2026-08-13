@@ -11,11 +11,21 @@ use App\Services\Lab\MethodConfigurationResolver;
 
 class AnalysisTypeImporter extends BaseImporter
 {
-    public function __construct(?\App\Models\BulkImportBatch $batch = null, ?string $selectedZoneId = null)
-    {
+    protected ?SampleType $defaultSampleType = null;
+
+    public function __construct(
+        ?\App\Models\BulkImportBatch $batch = null,
+        ?string $selectedZoneId = null,
+        ?string $defaultSampleTypeId = null,
+    ) {
         parent::__construct($batch, $selectedZoneId);
 
         app(MethodConfigurationResolver::class)->ensurePointerConfigurations();
+
+        $defaultSampleTypeId = trim((string) $defaultSampleTypeId);
+        if ($defaultSampleTypeId !== '') {
+            $this->defaultSampleType = SampleType::query()->find($defaultSampleTypeId);
+        }
     }
 
     /**
@@ -225,6 +235,15 @@ class AnalysisTypeImporter extends BaseImporter
         if (! $hasExplicitAnalysisTypeCode && ! $hasExplicitAnalysisTypeName && $analysisTypeCombined !== '') {
             $analysisTypeName = $analysisTypeCombined;
             $analysisTypeCode = '';
+        }
+
+        if (
+            $this->defaultSampleType !== null
+            && $sampleTypeCode === ''
+            && $sampleTypeName === ''
+        ) {
+            $sampleTypeCode = trim((string) ($this->defaultSampleType->code ?? ''));
+            $sampleTypeName = trim((string) ($this->defaultSampleType->name ?? ''));
         }
 
         return [$sampleTypeCode, $sampleTypeName, $analysisTypeCode, $analysisTypeName, $labCode];

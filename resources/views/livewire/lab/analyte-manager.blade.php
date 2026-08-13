@@ -12,9 +12,14 @@
                             </h2>
                             <p class="text-muted mb-0">Manage analytes, methods, and equipment</p>
                         </div>
-                        <button wire:click="showCreateModal" class="btn btn-outline-primary px-3" style="border-radius: 8px;">
-                            <i class="mdi mdi-plus"></i> Add Analyte
-                        </button>
+                        <div class="d-flex align-items-center" style="gap: .5rem;">
+                            <button type="button" wire:click="openBulkImportModal" class="btn btn-outline-secondary px-3" style="border-radius: 8px;">
+                                <i class="mdi mdi-file-excel"></i> Import
+                            </button>
+                            <button wire:click="showCreateModal" class="btn btn-outline-primary px-3" style="border-radius: 8px;">
+                                <i class="mdi mdi-plus"></i> Add Analyte
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -23,7 +28,14 @@
 
     <!-- Message Alert -->
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        @php
+            $analyteAlertClass = match ($messageType) {
+                'success' => 'success',
+                'warning' => 'warning',
+                default => 'danger',
+            };
+        @endphp
+        <div class="alert alert-{{ $analyteAlertClass }} alert-dismissible fade show" role="alert">
             {{ $message }}
             <button type="button" class="btn-close" wire:click="dismissMessage"></button>
         </div>
@@ -709,4 +721,6 @@
         overflow: visible;
     }
     </style>
+
+    @include('livewire.partials.lab-taxonomy-bulk-import-modal', ['entityLabel' => 'Analyte'])
 </div>

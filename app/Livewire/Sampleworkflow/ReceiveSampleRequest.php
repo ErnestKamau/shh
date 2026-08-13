@@ -345,8 +345,8 @@ class ReceiveSampleRequest extends Component
     /**
      * TRF cards for the Request For Testing page (UI only).
      *
-     * Walk-in RFT prefers one card per category-bound TRF (Food / Water / Swab),
-     * not one card per sample type. Planner mode still lists by sample type.
+     * Walk-in RFT shows category-bound TRFs first, then sample-type-linked TRFs,
+     * then completely unlinked templates. Planner mode still lists by sample type.
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
@@ -402,7 +402,6 @@ class ReceiveSampleRequest extends Component
                     $q->where('document_code', 'like', 'TRF%')
                         ->orWhereRaw('lower(name) like ?', ['%test request form%']);
                 })
-                ->whereDoesntHave('sampleTypes')
                 ->whereHas('sampleTypeCategories')
                 ->when(
                     ! $this->showHiddenRftForms,
@@ -450,6 +449,64 @@ class ReceiveSampleRequest extends Component
                 ->values();
         }
 
+        // Direct sample-type links (legacy pivot) — one card per TRF.
+        $sampleTypeLinkedCards = SubmissionForm::query()
+            ->where('is_active', true)
+            ->where('is_published', true)
+            ->where('form_type', 'template')
+            ->where(function ($query): void {
+                $query->where('document_code', 'like', 'TRF%')
+                    ->orWhereRaw('lower(name) like ?', ['%test request form%']);
+            })
+            ->whereHas('sampleTypes')
+            ->when(
+                ! $this->showHiddenRftForms,
+                fn ($query) => $query->where(function ($hiddenQuery): void {
+                    $hiddenQuery->where('is_hidden_from_rft', false)->orWhereNull('is_hidden_from_rft');
+                }),
+            )
+            ->with(['sampleTypes'])
+            ->orderBy('name')
+            ->get()
+            ->reject(fn (SubmissionForm $form): bool => isset($linkedFormIds[(string) $form->id]))
+            ->map(function (SubmissionForm $form) use (&$linkedFormIds): array {
+                $form->loadMissing(['sections.elementHolders.elements']);
+                $linkedFormIds[(string) $form->id] = true;
+
+                $linkedTypes = $form->sampleTypes
+                    ->sortBy('name')
+                    ->values();
+                $typeLabel = $linkedTypes
+                    ->pluck('name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->implode(', ');
+                $singleTypeId = $linkedTypes->count() === 1
+                    ? (string) $linkedTypes->first()->id
+                    : null;
+
+                return [
+                    'submission_form_id' => (string) $form->id,
+                    'sample_type_id' => $singleTypeId,
+                    'requires_inline_sample_type' => $singleTypeId === null,
+                    'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
+                    'name' => (string) $form->name,
+                    'sample_type_name' => $typeLabel !== '' ? $typeLabel : 'Select in form',
+                    'document_code' => $form->document_code,
+                    'sections_count' => $this->wizardStepCountForForm($form),
+                    'description' => filled($form->description)
+                        ? (string) $form->description
+                        : 'Capture a test request for '.($typeLabel !== '' ? $typeLabel : $form->name).'.',
+                    'icon' => 'mdi-clipboard-edit-outline',
+                    'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
+                    'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
+                    'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
+                    'start_action' => $singleTypeId !== null ? 'sampleType' : 'form',
+                ];
+            })
+            ->values();
+
         $unlinkedCards = SubmissionForm::query()
             ->where('is_active', true)
             ->where('is_published', true)
@@ -496,7 +553,10 @@ class ReceiveSampleRequest extends Component
             })
             ->values();
 
-        return $categoryBoundCards->concat($unlinkedCards)->values();
+        return $categoryBoundCards
+            ->concat($sampleTypeLinkedCards)
+            ->concat($unlinkedCards)
+            ->values();
     }
 
     private function shouldIncludeFormOnRft(SubmissionForm $form): bool

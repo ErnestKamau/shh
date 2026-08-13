@@ -23,6 +23,8 @@ class BatchWorkflowDocumentAttachmentService
 
     public const SAMPLE_PHOTO_TYPE = 'Sample Photo';
 
+    public const TEST_REPORT_TITLE = 'Test Report';
+
     public function attachForAcceptedBatch(SampleHeader $batch, ?string $userId = null): void
     {
         try {
@@ -119,6 +121,57 @@ class BatchWorkflowDocumentAttachmentService
             app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId(TestRequestFormPdfService::ATTACHMENT_TITLE),
             $userId
         );
+    }
+
+    /**
+     * Upsert the generated Test Request Report PDF onto the batch Attachments tab.
+     */
+    public function attachTestReport(
+        SampleHeader $batch,
+        ?string $reportUrl = null,
+        ?string $userId = null,
+    ): ?string {
+        $attachmentUrl = $this->resolveTestReportPublicUrl($batch, $reportUrl);
+        if ($attachmentUrl === null) {
+            return null;
+        }
+
+        return $this->upsertBatchAttachment(
+            $batch,
+            self::TEST_REPORT_TITLE,
+            $attachmentUrl,
+            app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId(self::TEST_REPORT_TITLE),
+            $userId,
+            true,
+        );
+    }
+
+    public function resolveTestReportPublicUrl(SampleHeader $batch, ?string $reportUrl = null): ?string
+    {
+        $candidate = trim((string) ($reportUrl ?: ''));
+        if ($candidate === '') {
+            $candidate = trim((string) ($batch->batch_report_online_url ?? ''));
+        }
+        if ($candidate === '') {
+            $relative = trim((string) ($batch->batch_report_url ?? ''));
+            if ($relative !== '') {
+                $candidate = str_starts_with($relative, '/storage')
+                    ? $relative
+                    : '/storage'.(str_starts_with($relative, '/') ? $relative : '/'.$relative);
+            }
+        }
+
+        if ($candidate === '') {
+            return null;
+        }
+
+        if (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://')) {
+            $path = parse_url($candidate, PHP_URL_PATH);
+
+            return is_string($path) && $path !== '' ? $path : $candidate;
+        }
+
+        return $candidate;
     }
 
     public function resolveQuotationForBatch(SampleHeader $batch): ?QuotationHeader
@@ -230,6 +283,7 @@ class BatchWorkflowDocumentAttachmentService
         string $attachmentUrl,
         ?string $attachmentTypeId,
         ?string $userId,
+        bool $showOnCoa = false,
     ): string {
         $attachment = BatchAttachment::query()
             ->where('batch_id', $batch->id)
@@ -243,7 +297,9 @@ class BatchWorkflowDocumentAttachmentService
             $attachment->uploaded_by = $this->resolveUploaderId($batch, $userId);
             $attachment->title = $title;
             $attachment->is_internal = 0;
-            $attachment->show_on_coa = 0;
+            $attachment->show_on_coa = $showOnCoa ? 1 : 0;
+        } elseif ($showOnCoa) {
+            $attachment->show_on_coa = 1;
         }
 
         $attachment->attachment_type = $attachmentTypeId;

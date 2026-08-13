@@ -63,6 +63,7 @@ class AcceptanceFormSampleConfigService
             'sample_marking' => '',
             'disposal_date' => '',
             'photo_path' => '',
+            'include_photo_in_report' => false,
         ];
     }
 
@@ -693,6 +694,10 @@ class AcceptanceFormSampleConfigService
                     $config[$field] = $receptionDetails[$field];
                 }
             }
+
+            if (! empty($receptionDetails['include_photo_in_report'])) {
+                $config['include_photo_in_report'] = true;
+            }
         }
         unset($config);
 
@@ -1277,6 +1282,7 @@ class AcceptanceFormSampleConfigService
                     'sample_marking' => $normalizedInstances[$i]['sample_marking'] ?? '',
                     'disposal_date' => $normalizedInstances[$i]['disposal_date'] ?? '',
                     'photo_path' => $normalizedInstances[$i]['photo_path'] ?? '',
+                    'include_photo_in_report' => (bool) ($normalizedInstances[$i]['include_photo_in_report'] ?? false),
                 ]);
                 unset($split['instances']);
                 $flat[] = $split;
@@ -2103,7 +2109,7 @@ class AcceptanceFormSampleConfigService
 
     /**
      * @param  list<array<string, mixed>>  $instances
-     * @return list<array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string}>
+     * @return list<array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string, include_photo_in_report: bool}>
      */
     public function syncInstances(array $instances, int $numberOfSamples): array
     {
@@ -2116,6 +2122,7 @@ class AcceptanceFormSampleConfigService
                 'sample_marking' => trim((string) ($instances[$i]['sample_marking'] ?? '')),
                 'disposal_date' => trim((string) ($instances[$i]['disposal_date'] ?? '')),
                 'photo_path' => trim((string) ($instances[$i]['photo_path'] ?? '')),
+                'include_photo_in_report' => $this->boolFromMixed($instances[$i]['include_photo_in_report'] ?? false),
             ];
         }
 
@@ -2562,6 +2569,7 @@ class AcceptanceFormSampleConfigService
                 'sample_marking' => $details['sample_marking'],
                 'disposal_date' => $details['disposal_date'],
                 'photo_path' => $details['photo_path'],
+                'include_photo_in_report' => $details['include_photo_in_report'],
             ];
         })->values()->all();
     }
@@ -2587,7 +2595,8 @@ class AcceptanceFormSampleConfigService
      *     customer_sample_id: ?string,
      *     sample_marking: ?string,
      *     disposal_date: ?string,
-     *     photo_path: ?string
+     *     photo_path: ?string,
+     *     include_photo_in_report: bool
      * }>
      */
     public function buildDetailPlansFromConfigs(array $configs): array
@@ -2656,6 +2665,7 @@ class AcceptanceFormSampleConfigService
                 'photo_path' => $details['photo_path'] !== ''
                     ? $details['photo_path']
                     : null,
+                'include_photo_in_report' => $details['include_photo_in_report'],
                 'sample_code_prefix' => $config['sample_code_prefix'] ?? null,
             ];
         }
@@ -2967,6 +2977,7 @@ class AcceptanceFormSampleConfigService
                     'sample_marking' => $normalizedInstances[$i]['sample_marking'] ?? '',
                     'disposal_date' => $normalizedInstances[$i]['disposal_date'] ?? '',
                     'photo_path' => $normalizedInstances[$i]['photo_path'] ?? '',
+                    'include_photo_in_report' => (bool) ($normalizedInstances[$i]['include_photo_in_report'] ?? false),
                 ]);
                 unset($split['instances']);
                 $configs[] = $split;
@@ -3048,7 +3059,7 @@ class AcceptanceFormSampleConfigService
 
     /**
      * @param  array<string, mixed>  $config
-     * @return array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string}
+     * @return array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string, include_photo_in_report: bool}
      */
     public function sampleDetailsFromConfig(array $config): array
     {
@@ -3057,6 +3068,7 @@ class AcceptanceFormSampleConfigService
             'sample_marking' => trim((string) ($config['sample_marking'] ?? '')),
             'disposal_date' => trim((string) ($config['disposal_date'] ?? '')),
             'photo_path' => trim((string) ($config['photo_path'] ?? '')),
+            'include_photo_in_report' => $this->boolFromMixed($config['include_photo_in_report'] ?? false),
         ];
 
         $instances = is_array($config['instances'] ?? null) ? $config['instances'] : [];
@@ -3075,12 +3087,18 @@ class AcceptanceFormSampleConfigService
             }
         }
 
+        if (! $details['include_photo_in_report']) {
+            $details['include_photo_in_report'] = $this->boolFromMixed(
+                $instances[0]['include_photo_in_report'] ?? false
+            );
+        }
+
         return $details;
     }
 
     /**
      * @param  array<string, mixed>  $config
-     * @param  array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string}  $details
+     * @param  array{customer_sample_id: string, sample_marking: string, disposal_date: string, photo_path: string, include_photo_in_report?: bool}  $details
      * @return array<string, mixed>
      */
     private function mergeSampleDetailsIntoConfig(array $config, array $details): array
@@ -3089,8 +3107,24 @@ class AcceptanceFormSampleConfigService
         $config['sample_marking'] = $details['sample_marking'];
         $config['disposal_date'] = $details['disposal_date'];
         $config['photo_path'] = $details['photo_path'];
+        $config['include_photo_in_report'] = $this->boolFromMixed($details['include_photo_in_report'] ?? false);
         unset($config['instances']);
 
         return $config;
+    }
+
+    private function boolFromMixed(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (int) $value === 1;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 }

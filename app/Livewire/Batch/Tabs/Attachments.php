@@ -43,6 +43,7 @@ class Attachments extends Component
         $this->batch = $batch;
         $this->syncMissingWorkflowDocuments();
         $this->syncSamplePhotoAttachments();
+        $this->syncTestReportAttachment();
     }
 
     private function syncMissingWorkflowDocuments(): void
@@ -84,6 +85,33 @@ class Attachments extends Component
 
         app(BatchWorkflowDocumentAttachmentService::class)
             ->attachSamplePhotos($this->batch, $details, Auth::id() ? (string) Auth::id() : null);
+    }
+
+    private function syncTestReportAttachment(): void
+    {
+        $hasReport = filled($this->batch->batch_report_url) || filled($this->batch->batch_report_online_url);
+        if (! $hasReport) {
+            return;
+        }
+
+        $exists = BatchAttachment::query()
+            ->where('batch_id', $this->batch->id)
+            ->where('title', BatchWorkflowDocumentAttachmentService::TEST_REPORT_TITLE)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        try {
+            app(BatchWorkflowDocumentAttachmentService::class)
+                ->attachTestReport($this->batch, null, Auth::id() ? (string) Auth::id() : null);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to sync Test Report attachment on Attachments tab', [
+                'batch_id' => $this->batch->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function updatingSearch(): void
@@ -531,7 +559,7 @@ class Attachments extends Component
 
     public function getReportAttachmentsProperty()
     {
-        $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02', 'DCEA 009'];
+        $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02', 'DCEA 009', 'Test Report'];
         $reports = $this->attachments->filter(function ($a) use ($reportTitles) {
             if ($a->show_on_coa) {
                 return true;

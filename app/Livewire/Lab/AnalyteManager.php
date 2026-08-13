@@ -7,17 +7,21 @@ use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\CapturedResult;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Livewire\Concerns\HandlesLabTaxonomyBulkImport;
 use App\Models\Equipments\Equipment;
 use App\ReportingUnit;
 use App\Result;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class AnalyteManager extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use HandlesLabTaxonomyBulkImport;
+    use WithFileUploads;
     use WithPagination;
 
     // Pagination
@@ -562,6 +566,16 @@ class AnalyteManager extends Component
         return $this->reportingUnitOptionsQuery($this->reportingUnitSearch)
             ->limit($this->searchResultLimit)
             ->get();
+    }
+
+    protected function labTaxonomyBulkImportFormType(): string
+    {
+        return 'analyte';
+    }
+
+    protected function labTaxonomyBulkImportEntityLabel(): string
+    {
+        return 'Analyte';
     }
 
     public function render()

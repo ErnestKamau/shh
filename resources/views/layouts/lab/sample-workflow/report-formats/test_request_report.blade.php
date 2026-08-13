@@ -838,6 +838,10 @@
                 'sampleIndex' => $loop->index,
             ])
 
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-sample-photo', [
+                'sampleIndex' => $loop->index,
+            ])
+
             <table class="results-table">
                 <thead>
                     <tr>

@@ -558,6 +558,15 @@
                                                                 <small class="text-muted d-block mt-1">Photo attached</small>
                                                             @endif
                                                             @error('instancePhotoUploads.'.$photoKey)<div class="text-danger small">{{ $message }}</div>@enderror
+                                                            <label class="d-flex align-items-center mb-0 mt-2 small">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="mr-2"
+                                                                    wire:model.live="sampleConfigs.{{ $configIndex }}.include_photo_in_report"
+                                                                    value="1"
+                                                                >
+                                                                Include in Test Report
+                                                            </label>
                                                         </div>
                                                         @endif
                                                     </div>

@@ -104,12 +104,27 @@ class TestRequestReportPdfService
 
         $pdf->save($absoluteDir.'/'.$filename);
 
-        return [
+        $result = [
             'relative_path' => $relativePath,
             'online_url' => url('/storage'.$relativePath),
             'filename' => $filename,
             'language' => $language,
         ];
+
+        try {
+            app(BatchWorkflowDocumentAttachmentService::class)->attachTestReport(
+                $batch,
+                $result['online_url'],
+                auth()->id() ? (string) auth()->id() : null,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to attach generated Test Report to batch attachments', [
+                'batch_id' => $batch->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
     }
 
     /**

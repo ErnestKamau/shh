@@ -4,12 +4,14 @@ namespace App\Livewire\Analysis;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\WithFileUploads;
 use App\AnalysisType;
 use App\AnalysisElements;
 use App\Lab;
 use App\Analyte;
 use App\AnalysisMethod;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Livewire\Concerns\HandlesLabTaxonomyBulkImport;
 use App\Models\Equipments\Equipment;
 use App\Standards;
 use App\User;
@@ -22,6 +24,8 @@ use Illuminate\Validation\Rule;
 class AnalysisTypeManager extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use HandlesLabTaxonomyBulkImport;
+    use WithFileUploads;
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
@@ -971,6 +975,23 @@ class AnalysisTypeManager extends Component
         }
 
         return \App\Models\Procedures\ProcedureWorksheet::find($this->analysisTypeForm['procedure_worksheet_id']);
+    }
+
+    protected function labTaxonomyBulkImportFormType(): string
+    {
+        return 'analysis_type';
+    }
+
+    protected function labTaxonomyBulkImportEntityLabel(): string
+    {
+        return 'Analysis Type';
+    }
+
+    protected function labTaxonomyBulkImportDefaultSampleTypeId(): ?string
+    {
+        $sampleTypeId = trim((string) ($this->sampleTypeId ?? ''));
+
+        return $sampleTypeId !== '' ? $sampleTypeId : null;
     }
 
     public function render()

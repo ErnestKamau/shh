@@ -34,6 +34,7 @@ class SampleDetails extends Model implements Auditable
         'sample_condition_id' => 'string',
         'sample_point_id' => 'string',
         'reporting_unit_id' => 'string',
+        'include_photo_in_report' => 'boolean',
     ];
 
 	use \OwenIt\Auditing\Auditable;
