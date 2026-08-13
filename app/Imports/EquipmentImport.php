@@ -291,7 +291,7 @@ class EquipmentImport extends BaseImporter
             'active' => true,
             'company_id' => $this->batch->company_id,
             'is_disposal' => 0,
-            'picture' => '/images/default-equipment.png',
+            'picture' => $this->resolvePicture($row),
             'asset_location_id' => $assetLocationId,
 
             // New fields
@@ -415,6 +415,13 @@ class EquipmentImport extends BaseImporter
     protected function departmentKeys(): array
     {
         return ['assigned_department', 'assigneddepartment', 'department', 'unit', 'section'];
+    }
+
+    protected function resolvePicture(array $row): string
+    {
+        $raw = $this->fuzzyGet($row, ['photo', 'picture', 'image', 'image_url', 'photo_url']);
+
+        return Equipment::sanitizePictureValue(is_scalar($raw) ? (string) $raw : null);
     }
 
     /**

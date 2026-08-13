@@ -99,7 +99,7 @@ class CRMCustomerImporter extends BaseImporter
             'postal_address' => $row['physical_address'] ?? null,
             'email' => $row['email'] ?? ($customerCode.'@example.com'),
             'telephone1' => $row['phone1'] ?? '0000000000',
-            'telephone2' => ! empty($row['phone2']) ? $row['phone2'] : null,
+            'telephone2' => ! empty($row['phone2']) ? $row['phone2'] : '',
             'country_id' => $country?->id,
             'vat_no' => $row['vat_no'] ?? null,
             'credit_days' => $row['credit_days'] ?? 0,
@@ -139,9 +139,23 @@ class CRMCustomerImporter extends BaseImporter
 
     protected function getCurrencyId(string $code): ?string
     {
-        // This would fetch from currencies table, returning ID or null
-        // Placeholder - adjust based on your currency model
-        return null;
+        $code = trim(strtoupper($code));
+        if ($code === '') {
+            return null;
+        }
+
+        $currency = \App\Models\Currency::query()
+            ->where('code', $code)
+            ->first();
+
+        if (! $currency) {
+            $currency = \App\Models\Currency::query()
+                ->where('active', true)
+                ->first()
+                ?? \App\Models\Currency::query()->first();
+        }
+
+        return $currency?->id;
     }
 
     protected function resolveCustomerCode(array $row): string

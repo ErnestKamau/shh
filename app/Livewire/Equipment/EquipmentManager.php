@@ -350,7 +350,7 @@ class EquipmentManager extends Component
             } else {
                 // Set default picture if no photo uploaded
                 if (!$this->photo) {
-                    $data['picture'] = '/images/default-equipment.png';
+                    $data['picture'] = Equipment::defaultPicturePath();
                 }
                 $equipment = Equipment::create($data);
                 $this->persistDepreciationConfig($equipment, true);

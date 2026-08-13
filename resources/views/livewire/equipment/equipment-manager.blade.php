@@ -166,7 +166,13 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <img src="{{ $item->picture }}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;" alt="{{ $item->name }}">
+                                                @if($item->hasValidPicture())
+                                                    <img src="{{ $item->pictureUrl() }}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;" alt="{{ $item->name }}">
+                                                @else
+                                                    <div class="d-flex align-items-center justify-content-center bg-light text-muted" style="width: 80px; height: 80px; border-radius: 8px;" title="{{ $item->name }}">
+                                                        <i class="mdi mdi-tools" style="font-size: 28px;"></i>
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td>
                                                 <a href="{{ route('view-equipment', ['equipmentId' => $item->id]) }}">

@@ -252,7 +252,7 @@ class EquipmentImporter extends BaseImporter
             'comment' => $commentString,
             'active' => true,
             'is_disposal' => false,
-            'picture' => '/images/default-equipment.png',
+            'picture' => $this->resolvePicture($row),
             'company_id' => $this->batch->company_id,
 
             // New fields
@@ -278,6 +278,15 @@ class EquipmentImporter extends BaseImporter
             $labId = $transformedData['_resolved_lab_id'] ?? null;
             $calDate = $transformedData['_calibration_date'] ?? null;
             unset($transformedData['_resolved_lab_id'], $transformedData['_calibration_date']);
+
+            $existing = Equipment::query()
+                ->where('equipment_number', $transformedData['equipment_number'])
+                ->where('company_id', $this->batch->company_id)
+                ->first();
+
+            if ($existing !== null && Equipment::isValidPicturePath($existing->picture)) {
+                unset($transformedData['picture']);
+            }
 
             $equipment = Equipment::updateOrCreate(
                 ['equipment_number' => $transformedData['equipment_number'], 'company_id' => $this->batch->company_id],
@@ -473,6 +482,13 @@ class EquipmentImporter extends BaseImporter
         }
 
         return $fallback;
+    }
+
+    protected function resolvePicture(array $row): string
+    {
+        $raw = $this->fuzzyGet($row, ['photo', 'picture', 'image', 'image_url', 'photo_url']);
+
+        return Equipment::sanitizePictureValue(is_scalar($raw) ? (string) $raw : null);
     }
 
     protected function normalizeOperationalStatus(?string $status): string

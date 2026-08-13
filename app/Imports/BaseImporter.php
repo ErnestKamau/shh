@@ -974,7 +974,7 @@ abstract class BaseImporter implements
                 'condition' => 'Good',
                 'active' => true,
                 'is_disposal' => false,
-                'picture' => '/images/default-equipment.png',
+                'picture' => \App\Models\Equipments\Equipment::defaultPicturePath(),
                 'company_id' => $companyId,
             ]);
 
