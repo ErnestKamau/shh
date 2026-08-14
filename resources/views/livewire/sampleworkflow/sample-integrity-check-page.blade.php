@@ -162,7 +162,7 @@
                                     </div>
                                     <div class="integrity-bulk-group integrity-bulk-lab-sections-group">
                                         <span class="integrity-bulk-group-label">Lab sections</span>
-                                        <div wire:ignore class="integrity-bulk-select-wrap">
+                                        <div wire:ignore class="integrity-bulk-select-wrap is-empty">
                                             <select
                                                 class="form-control form-control-sm integrity-bulk-section-select"
                                                 multiple
@@ -596,9 +596,9 @@
 
                 if (!$select.hasClass('select2-hidden-accessible')) {
                     $select.select2({
-                        width: '280px',
+                        width: '100%',
                         placeholder: $select.data('placeholder') || 'Set lab section(s)…',
-                        allowClear: true,
+                        allowClear: false,
                         closeOnSelect: false,
                         dropdownParent: window.jQuery('.integrity-bulk-bar').first().length
                             ? window.jQuery('.integrity-bulk-bar').first()
@@ -606,30 +606,44 @@
                     });
                 }
 
+                const $wrap = $select.closest('.integrity-bulk-select-wrap');
+                const syncBulkSelectLayout = () => {
+                    const hasValues = ($select.val() || []).length > 0;
+                    $wrap.toggleClass('has-values', hasValues);
+                    $wrap.toggleClass('is-empty', !hasValues);
+                    const $field = $select.next('.select2-container').find('.select2-search__field');
+                    $field.css({
+                        width: hasValues ? '0.75em' : '100%',
+                        textAlign: hasValues ? 'left' : 'center',
+                        margin: 0,
+                        height: hasValues ? '22px' : '24px',
+                        lineHeight: hasValues ? '22px' : '24px',
+                    });
+                    if (!hasValues) {
+                        $field.attr('placeholder', $select.data('placeholder') || 'Set lab section(s)…');
+                    } else {
+                        $field.attr('placeholder', '');
+                    }
+                };
+
                 const select2 = $select.data('select2');
                 if (select2?.selection?.resizeSearch) {
                     select2.selection.resizeSearch = function () {
-                        this.$search.css('width', '100%');
+                        const hasValues = ($select.val() || []).length > 0;
+                        this.$search.css('width', hasValues ? '0.75em' : '100%');
                     };
                     select2.selection.resizeSearch();
                 }
 
-                const $field = $select.next('.select2-container').find('.select2-search__field');
-                $field.css({
-                    width: '100%',
-                    textAlign: 'center',
-                    margin: 0,
-                    height: '32px',
-                    lineHeight: '32px',
-                });
-                $field.attr('placeholder', $select.data('placeholder') || 'Set lab section(s)…');
+                syncBulkSelectLayout();
 
                 $select
                     .off('change.integrityBulkSections select2:close.integrityBulkSections')
                     .on('change.integrityBulkSections', function () {
-                        // Values are applied when the dropdown closes.
+                        syncBulkSelectLayout();
                     })
                     .on('select2:close.integrityBulkSections', function () {
+                        syncBulkSelectLayout();
                         const wire = getWire();
                         const values = $select.val() || [];
                         if (!wire || values.length === 0) {

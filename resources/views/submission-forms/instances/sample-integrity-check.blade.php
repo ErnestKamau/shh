@@ -166,6 +166,10 @@
             align-items: center;
         }
 
+        .request-view-page .sample-integrity-check-page .integrity-bulk-lab-sections-group.integrity-bulk-group {
+            flex-wrap: nowrap;
+        }
+
         .request-view-page .sample-integrity-check-page .integrity-bulk-group-label {
             font-size: 0.68rem;
             font-weight: 700;
