@@ -711,7 +711,7 @@ class SubmissionFormInstanceController extends Controller
     ): void {
         $customer = CRMCustomer::query()
             ->where('id', $customerId)
-            ->first(['id', 'name', 'physical_address', 'postal_address', 'telephone1', 'telephone2']);
+            ->first(['id', 'name', 'physical_address', 'postal_address', 'telephone1', 'telephone2', 'email']);
 
         if ($customer === null) {
             return;
@@ -729,20 +729,20 @@ class SubmissionFormInstanceController extends Controller
         }
 
         if ($contactId === null || $contactId === '') {
-            $contactId = CustomerContact::query()
-                ->where('crm_customer_id', $customerId)
-                ->orderBy('first_name')
-                ->value('id');
+            $customer->loadMissing('mainContact');
+            $contactId = $customer->mainContact?->id
+                ?? CustomerContact::query()
+                    ->where('crm_customer_id', $customerId)
+                    ->where('active', 1)
+                    ->orderBy('first_name')
+                    ->value('id');
         }
 
-        $defaults = [
-            'customer_name' => (string) ($customer->name ?? ''),
-            'customer_address' => (string) ($customer->physical_address ?: $customer->postal_address ?: ''),
-            'customer_phone' => (string) ($customer->telephone1 ?? ''),
-            'mobile_number' => (string) ($customer->telephone2 ?: $customer->telephone1 ?: ''),
-            'contact_person' => $contactId !== null && $contactId !== '' ? (string) $contactId : null,
-            'crm_contact_id' => $contactId !== null && $contactId !== '' ? (string) $contactId : null,
-        ];
+        $prefillService = app(\App\Services\CRM\CustomerContactPrefillService::class);
+        $contact = $contactId !== null && $contactId !== ''
+            ? CustomerContact::query()->find($contactId)
+            : null;
+        $defaults = $prefillService->buildTrfPrefillMap($customer, $contact);
 
         $form->loadMissing('sections.elementHolders.elements');
         $elementsByName = $form->sections

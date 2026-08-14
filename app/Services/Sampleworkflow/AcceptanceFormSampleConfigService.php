@@ -2162,14 +2162,18 @@ class AcceptanceFormSampleConfigService
     /**
      * Validate reception-specific fields for Analysis Acceptance step 1.
      *
-     * When `$requireParameterAssignments` is false (Receive Samples handoff), only the
-     * visible reception fields such as main standard are required.
+     * When `$requireParameterAssignments` is false (Receive Samples handoff), parameter
+     * assignments are optional. When `$requireMainStandard` is false, specification is optional.
      *
      * @param  list<array<string, mixed>>  $configs
      *
      * @throws ValidationException
      */
-    public function validateReceptionConfigs(array $configs, bool $requireParameterAssignments = true): void
+    public function validateReceptionConfigs(
+        array $configs,
+        bool $requireParameterAssignments = true,
+        bool $requireMainStandard = true,
+    ): void
     {
         if ($configs === []) {
             throw ValidationException::withMessages([
@@ -2183,8 +2187,8 @@ class AcceptanceFormSampleConfigService
             $row = $index + 1;
             $config = $this->syncParameterLabSections($config);
 
-            if (empty($config['main_standard_id'])) {
-                $errors["sampleConfigs.{$index}.main_standard_id"] = "Row {$row}: main standard is required.";
+            if ($requireMainStandard && empty($config['main_standard_id'])) {
+                $errors["sampleConfigs.{$index}.main_standard_id"] = "Row {$row}: specification is required.";
             }
 
             if (! $requireParameterAssignments) {

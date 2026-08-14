@@ -38,8 +38,8 @@
           <th>Code</th>
           <th nowrap>Analyte</th>
           <th>Standard</th>
-          <th>Standard Value</th>
-          <th>Standard Value Type</th>
+          <th>Specification Value</th>
+          <th>Specification Value Type</th>
           <th>Low</th>
           <th>High</th>
           <th>Value</th>
@@ -175,9 +175,9 @@
                     </div>
                     @else
                     <div class="form-group" id="standard-values-{{$analyte->id}}">
-                      <label class="control-label">Standard Values <span class="text-danger">*</span></label>
+                      <label class="control-label">Specification Values <span class="text-danger">*</span></label>
                       <select name="standard_value" class="form-control select-standard-value" id="standard-selected-{{$analyte->id}}" data-analyte='{{ json_encode($analyte) }}' placeholder="Employee...">
-                        <option value="">Select Standard Value</option>
+                        <option value="">Select Specification Value</option>
                         @foreach($standard_values as $value)
                         <option value="{{$value->code}}" {{$analyte->standard_value_id == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
                         @endforeach
@@ -342,7 +342,7 @@
         <div class="form-check">
           <input class="form-check-input" type="checkbox" class="form-control" name="main_standard" value="1" />
           <label class="form-check-label">
-            Main Standard
+            Main Specification
           </label>
         </div>
       </div>

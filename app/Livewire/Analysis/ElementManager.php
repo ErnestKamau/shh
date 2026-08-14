@@ -328,7 +328,7 @@ class ElementManager extends Component
             if ($importer->importedRows === 0) {
                 $detail = $importer->errors !== []
                     ? implode(' ', array_slice($importer->errors, 0, 3))
-                    : 'No valid parameter rows were found in the file. Check required columns (parameter, method) and optional columns (lab_section, operator, tat, equipment).';
+                    : 'No valid parameter rows were found in the file. Check required columns (parameter, method) and optional columns (lab_section, operator, tat, equipment, lod, loq).';
                 $this->message = 'Import finished but no parameters were saved. '.$detail;
                 $this->messageType = 'danger';
 

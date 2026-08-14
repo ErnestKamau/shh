@@ -210,7 +210,7 @@ class BulkImportService
                 'sample_type' => 'App\Imports\Lab\SampleTypeImporter',
                 'analysis_type' => 'App\Imports\Lab\AnalysisTypeImporter',
                 'analysis_elements' => 'App\Imports\Lab\AnalysisElementsImporter',
-                'standard' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
+                'standard' => 'App\Imports\Lab\StandardImporter',
                 'sample_condition' => 'App\Imports\Lab\SampleConditionImporter',
                 'lab_hierarchy' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
                 'amspec_parameters' => 'App\Imports\Lab\AmspecParametersImporter',

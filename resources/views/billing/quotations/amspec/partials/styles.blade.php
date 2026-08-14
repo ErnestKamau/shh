@@ -335,6 +335,28 @@
         line-height: 1.15;
     }
 
+    .amspec-th-sub-sm {
+        font-size: 6pt;
+        font-weight: 500;
+    }
+
+    .amspec-customer-name {
+        font-family: var(--amspec-font-heading);
+        font-weight: 700;
+        font-size: 11pt;
+        color: var(--amspec-text);
+    }
+
+    .amspec-customer-address {
+        font-weight: 700;
+    }
+
+    .amspec-header-customer,
+    .amspec-header-company {
+        font-family: var(--amspec-font-body);
+        font-size: 10pt;
+    }
+
     .amspec-test-table .amspec-num-cell {
         padding-left: 3px !important;
         padding-right: 3px !important;

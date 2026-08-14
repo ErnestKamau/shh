@@ -231,9 +231,9 @@ final class SamplingScheduleTrfSync
         }
 
         if ($schedule->client) {
-            $schedule->client->loadMissing('contacts');
+            $schedule->client->loadMissing(['contacts', 'mainContact']);
 
-            return $schedule->client->contacts->first();
+            return $schedule->client->mainContact ?? $schedule->client->contacts->first();
         }
 
         return null;

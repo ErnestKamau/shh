@@ -384,19 +384,20 @@ class TestRequestFormReportDataBuilder
     {
         $crm = $submission?->crmCustomer;
         $resolvedContact = $this->resolveContactFromFormValue($formData['contact_person'] ?? null, $crm);
-        $fallbackContact = $resolvedContact ?? ($crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null);
+        $crm?->loadMissing(['mainContact', 'contacts']);
+        $fallbackContact = $resolvedContact ?? $crm?->mainContact ?? ($crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null);
 
-        $customerEmail = (string) ($formData['customer_email'] ?? $crm?->email ?? '');
+        $customerEmail = (string) ($formData['customer_email'] ?? $resolvedContact?->email ?? $fallbackContact?->email ?? $crm?->email ?? '');
 
         return [
             'job_number' => $this->resolveJobNumber($formData, $submission),
             'customer_name' => (string) ($formData['customer_name'] ?? $formData['client_name'] ?? $crm?->name ?? ''),
             'customer_address' => (string) ($formData['customer_address'] ?? $formData['address'] ?? $crm?->physical_address ?? $crm?->postal_address ?? ''),
-            'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
+            'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $resolvedContact?->telephone ?? $fallbackContact?->telephone ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
             'contact_person' => $this->formatContactName($resolvedContact) !== ''
                 ? $this->formatContactName($resolvedContact)
                 : $this->resolveContactPersonLabel((string) ($formData['contact_person'] ?? ''), $fallbackContact),
-            'mobile_number' => (string) ($formData['mobile_number'] ?? $resolvedContact?->mobile ?? $resolvedContact?->telephone ?? $fallbackContact?->mobile ?? $crm?->cell_phone ?? ''),
+            'mobile_number' => (string) ($formData['mobile_number'] ?? $resolvedContact?->mobile ?? $resolvedContact?->telephone ?? $fallbackContact?->mobile ?? $fallbackContact?->telephone ?? $crm?->telephone2 ?? $crm?->telephone1 ?? ''),
             'customer_tax_id' => '',
             'customer_email' => $customerEmail,
             'has_customer_extras' => $this->hasAnyFilledValues([$customerEmail]),

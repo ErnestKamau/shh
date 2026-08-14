@@ -158,7 +158,7 @@
                                     <th>{{ $compactTable ? 'Condition' : 'Condition of sample' }}</th>
                                 @endif
                                 @if($showMainStandard)
-                                    <th>{{ $compactTable ? 'Specification' : 'Main standard' }}</th>
+                                    <th>{{ $compactTable ? 'Specification' : 'Specification' }}</th>
                                 @endif
                                 @if($showSecondaryStandard)
                                     <th>Secondary standard</th>

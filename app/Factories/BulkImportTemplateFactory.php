@@ -18,7 +18,7 @@ class BulkImportTemplateFactory
                 'sample_type' => 'App\Exports\Templates\Lab\SampleTypeTemplateExporter',
                 'analysis_type' => 'App\Exports\Templates\Lab\AnalysisTypeTemplateExporter',
                 'analysis_elements' => 'App\Exports\Templates\Lab\AnalysisElementsTemplateExporter',
-                'standard' => 'App\Exports\Templates\Lab\UnifiedLabHierarchyTemplateExporter',
+                'standard' => 'App\Exports\Templates\Lab\StandardTemplateExporter',
                 'sample_condition' => 'App\Exports\Templates\Lab\SampleConditionTemplateExporter',
                 'lab_hierarchy' => 'App\Exports\Templates\Lab\UnifiedLabHierarchyTemplateExporter',
                 'amspec_parameters' => 'App\Exports\Templates\Lab\AmspecParametersTemplateExporter',
@@ -181,9 +181,9 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'analysis_elements' => [
-                    'headers' => ['analysis_type_code*', 'analyte_code*', 'lab_section_code*', 'equipment_code', 'equipment', 'lod', 'hod', 'level', 'method_sequence_name', 'procedure_worksheet_name'],
+                    'headers' => ['analysis_type_code*', 'analyte_code*', 'lab_section_code*', 'equipment_code', 'equipment', 'lod', 'loq', 'level', 'method_sequence_name', 'procedure_worksheet_name'],
                     'examples' => [
-                        ['AT-001', 'ANALYTE-001', 'LS-001', 'EQ-001', 'ICP-OES Analyzer', '0.01', '100', 'high', '', ''],
+                        ['AT-001', 'ANALYTE-001', 'LS-001', 'EQ-001', 'ICP-OES Analyzer', '0.01', '0.05', 'high', '', ''],
                     ],
                     'rules' => [
                         'analysis_type_code' => 'required|string|max:100',
@@ -192,6 +192,7 @@ class BulkImportTemplateFactory
                         'equipment_code' => 'nullable|string|max:100',
                         'equipment' => 'nullable|string|max:255',
                         'lod' => 'nullable|numeric|min:0',
+                        'loq' => 'nullable|numeric|min:0',
                         'hod' => 'nullable|numeric|min:0',
                         'level' => 'nullable|string|max:50',
                         'method_sequence_name' => 'nullable|string|max:255',
@@ -202,7 +203,7 @@ class BulkImportTemplateFactory
                     'headers' => [
                         'sample_type_code*', 'sample_type_name*', 'is_results_attachable', 'disposal_count',
                         'analysis_type_code*', 'analysis_type_name*', 'lab_code*', 'has_no_result', 'reporting_time',
-                        'lab_section_code*', 'equipment_code', 'equipment', 'lod', 'hod', 'level', 'method_sequence_name', 'procedure_worksheet_name',
+                        'lab_section_code*', 'equipment_code', 'equipment', 'lod', 'loq', 'level', 'method_sequence_name', 'procedure_worksheet_name',
                         'analyte_code*', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
                         'standard_code', 'standard_name', 'is_qc_standard', 'qc_type',
                         'standard_value_code', 'standard_value_name', 'standard_value_type',
@@ -212,7 +213,7 @@ class BulkImportTemplateFactory
                         [
                             'ST-WATER', 'Water Material', '1', '30',
                             'AT-POTABLE', 'Potable Water Analysis', 'LAB-01', '0', '2',
-                            'LS-PHYSCHEM', 'EQ-PH01', 'pH Meter', '0.01', '14.0', 'high', 'SEQ-PH', 'PROC-PH',
+                            'LS-PHYSCHEM', 'EQ-PH01', 'pH Meter', '0.01', '0.05', 'high', 'SEQ-PH', 'PROC-PH',
                             'AN-PH', 'pH Level', '2', 'pH', 'units', '0', '0',
                             'STD-TBS-WATER', 'TBS Potable Water Standard', '0', 'chemical',
                             'VAL-PH', 'pH Limit', 'range', '6.5', '8.5', '', ''
@@ -232,6 +233,7 @@ class BulkImportTemplateFactory
                         'equipment_code' => 'nullable|string|max:100',
                         'equipment' => 'nullable|string|max:255',
                         'lod' => 'nullable|numeric|min:0',
+                        'loq' => 'nullable|numeric|min:0',
                         'hod' => 'nullable|numeric|min:0',
                         'level' => 'nullable|string|max:50',
                         'method_sequence_name' => 'nullable|string|max:255',

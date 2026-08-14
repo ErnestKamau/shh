@@ -15,6 +15,7 @@ use App\Analyte;
 use App\AnalysisMethod;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\Equipments\Equipment;
+use App\Services\BulkImportService;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -24,6 +25,10 @@ class SampleTypeManager extends Component
 {
     use AppliesCaseInsensitiveSearch;
     use WithPagination, WithFileUploads;
+
+    public bool $showBulkUploadModal = false;
+
+    public $bulkFile = null;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -1086,5 +1091,59 @@ class SampleTypeManager extends Component
         
         // Re-index array
         $this->sampleTypeForm['sample_analysis_stage_ids'] = array_values($this->sampleTypeForm['sample_analysis_stage_ids']);
+    }
+
+    public function openBulkUploadModal(): void
+    {
+        $this->showBulkUploadModal = true;
+        $this->bulkFile = null;
+    }
+
+    public function closeBulkUploadModal(): void
+    {
+        $this->showBulkUploadModal = false;
+        $this->bulkFile = null;
+    }
+
+    public function downloadTemplate()
+    {
+        return app(BulkImportService::class)->generateTemplate('lab', 'sample_type');
+    }
+
+    public function processBulkUpload(): void
+    {
+        $this->validate([
+            'bulkFile' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            $service = app(BulkImportService::class);
+            $batch = $service->createBatch('lab', 'sample_type');
+            $result = $service->processImport($batch, $this->bulkFile);
+
+            $this->closeBulkUploadModal();
+
+            if (($result['success'] ?? false) === true) {
+                $summary = $result['summary'] ?? [];
+                $imported = (int) ($summary['imported_rows'] ?? 0);
+                $errors = (int) ($summary['error_rows'] ?? 0);
+
+                if ($errors > 0) {
+                    $this->message = "{$imported} sample type(s) imported. {$errors} row(s) failed.";
+                    $this->messageType = 'warning';
+                } else {
+                    $this->message = "{$imported} sample type(s) imported successfully.";
+                    $this->messageType = 'success';
+                }
+            } else {
+                $this->message = (string) ($result['message'] ?? 'Import failed.');
+                $this->messageType = 'danger';
+            }
+
+            $this->resetPage();
+        } catch (\Throwable $e) {
+            $this->message = 'Import failed: '.$e->getMessage();
+            $this->messageType = 'danger';
+        }
     }
 }

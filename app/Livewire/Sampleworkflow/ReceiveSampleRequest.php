@@ -13,6 +13,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormSection;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\CRM\CRMCustomerService;
+use App\Services\CRM\CustomerContactPrefillService;
 use App\Services\Planner\SamplingScheduleCollectionProgress;
 use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\Sampleworkflow\ReceivingLabMetadataService;
@@ -426,7 +427,7 @@ class ReceiveSampleRequest extends Component
                         ->values()
                         ->implode(', ');
 
-                    $cardTitle = $categoryNames !== '' ? $categoryNames : (string) $form->name;
+                    $cardTitle = (string) $form->name;
 
                     return [
                         'submission_form_id' => (string) $form->id,
@@ -1932,12 +1933,20 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        if (array_key_exists('customer_email', $this->formData)) {
-            $this->formData['customer_email'] = (string) ($contact->email ?? $this->formData['customer_email'] ?? '');
+        $customer = CRMCustomer::query()->find($this->selectedCrmCustomerId ?? $contact->crm_customer_id);
+        if ($customer === null) {
+            return;
         }
 
-        if (array_key_exists('email', $this->formData) && empty($this->formData['email'])) {
-            $this->formData['email'] = (string) ($contact->email ?? '');
+        $communicationFields = app(CustomerContactPrefillService::class)
+            ->buildContactCommunicationFields($contact, $customer);
+
+        foreach ($communicationFields as $key => $fieldValue) {
+            if (! array_key_exists($key, $this->formData)) {
+                continue;
+            }
+
+            $this->formData[$key] = $fieldValue;
         }
 
         $this->applyCustomerRepresentativeFromContact($contact);
@@ -3434,50 +3443,10 @@ class ReceiveSampleRequest extends Component
     private function applyCustomerPrefillFromCrm(CRMCustomer $customer, bool $onlyEmpty = false): void
     {
         $this->selectedCrmCustomerId = (string) $customer->id;
-        $customer->loadMissing('contacts');
-        $contact = $customer->contacts->first();
 
-        $contactName = '';
-        $contactId = '';
-        if ($contact) {
-            $contactName = trim(implode(' ', array_filter([
-                (string) ($contact->first_name ?? ''),
-                (string) ($contact->middle_name ?? ''),
-                (string) ($contact->last_name ?? ''),
-            ])));
-            $contactId = (string) $contact->id;
-        }
-
-        $canonicalName = trim((string) ($customer->name ?? ''));
-        $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
-        $telFax = (string) ($customer->telephone1 ?? $customer->telephone2 ?? '');
-        $mobile = (string) ($customer->telephone2 ?? $customer->telephone1 ?? '');
-        $email = (string) ($customer->email ?? '');
-
-        $prefill = [
-            'customer_name' => $canonicalName,
-            'customer_address' => $address,
-            'customer_phone' => $telFax,
-            'mobile_number' => $mobile,
-            'contact_person' => $contactId !== '' ? $contactId : $contactName,
-            'customer_email' => $email,
-            'sampling_location' => '',
-            'client_name' => $canonicalName,
-            'customer' => $canonicalName,
-            'client' => $canonicalName,
-            'address' => $address,
-            'physical_address' => (string) ($customer->physical_address ?? ''),
-            'postal_address' => (string) ($customer->postal_address ?? ''),
-            'phone' => $telFax,
-            'telephone' => $telFax,
-            'phone_number' => $telFax,
-            'telephone_number' => $telFax,
-            'tel_fax_no' => $telFax,
-            'email' => $email,
-            'email_address' => $email,
-            'contact' => $contactName,
-            'contact_name' => $contactName,
-        ];
+        $prefillService = app(CustomerContactPrefillService::class);
+        $contact = $prefillService->resolveDefaultContact($customer);
+        $prefill = $prefillService->buildTrfPrefillMap($customer, $contact);
 
         foreach ($prefill as $key => $value) {
             if (! array_key_exists($key, $this->formData)) {

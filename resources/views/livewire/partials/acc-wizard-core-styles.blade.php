@@ -599,13 +599,13 @@
     }
 
     .acc-sample-config-table--acceptance .acc-col-main-standard {
-        width: 34%;
-        min-width: 180px;
+        width: 16%;
+        min-width: 110px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-lab {
-        width: 12%;
-        min-width: 80px;
+        width: 22%;
+        min-width: 130px;
     }
 
     .acc-sample-config-table--acceptance .acc-col-assigned-user {

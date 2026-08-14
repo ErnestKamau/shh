@@ -85,6 +85,13 @@ class CRMCustomer extends Model implements Auditable
   public function contacts(){
     return $this->hasMany('App\Models\CRM\CustomerContact', 'crm_customer_id')->where('active',1);
   }
+
+  public function mainContact(): \Illuminate\Database\Eloquent\Relations\HasOne
+  {
+      return $this->hasOne(\App\Models\CRM\CustomerContact::class, 'crm_customer_id')
+          ->where('active', 1)
+          ->where('is_main_customer_contact', true);
+  }
   public function quotes(){
     return $this->hasMany('App\QuotationHeader','crm_customer_id');
   }

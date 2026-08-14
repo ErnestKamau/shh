@@ -24,6 +24,7 @@ class CustomerContact extends Model implements Auditable
         'email' => \App\Casts\SafeEncrypted::class,
         'telephone' => \App\Casts\SafeEncrypted::class,
         'mobile' => \App\Casts\SafeEncrypted::class,
+        'is_main_customer_contact' => 'boolean',
     ];
 
     /**

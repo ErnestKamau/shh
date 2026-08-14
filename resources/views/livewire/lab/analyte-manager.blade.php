@@ -12,9 +12,14 @@
                             </h2>
                             <p class="text-muted mb-0">Manage analytes, methods, and equipment</p>
                         </div>
-                        <button wire:click="showCreateModal" class="btn btn-outline-primary px-3" style="border-radius: 8px;">
-                            <i class="mdi mdi-plus"></i> Add Analyte
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button wire:click="openBulkUploadModal" class="btn btn-outline-success px-3" style="border-radius: 8px;">
+                                <i class="mdi mdi-upload"></i> Bulk Import
+                            </button>
+                            <button wire:click="showCreateModal" class="btn btn-outline-primary px-3" style="border-radius: 8px;">
+                                <i class="mdi mdi-plus"></i> Add Analyte
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -709,4 +714,37 @@
         overflow: visible;
     }
     </style>
+
+    @if($showBulkUploadModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;" wire:key="analyte-bulk-upload-modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius: 12px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="mdi mdi-upload"></i> Bulk Import Analytes</h5>
+                        <button type="button" class="btn-close" wire:click="closeBulkUploadModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Download the template, fill in analyte rows, then upload the file here.</p>
+                        <button type="button" wire:click="downloadTemplate" class="btn btn-outline-primary btn-sm mb-3">
+                            <i class="mdi mdi-download"></i> Download Template
+                        </button>
+                        <form wire:submit.prevent="processBulkUpload">
+                            <div class="form-group">
+                                <label class="form-label">Upload file</label>
+                                <input type="file" wire:model="bulkFile" class="form-control" accept=".xlsx,.xls,.csv">
+                                @error('bulkFile') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeBulkUploadModal">Cancel</button>
+                        <button type="button" class="btn btn-success" wire:click="processBulkUpload" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="processBulkUpload"><i class="mdi mdi-upload"></i> Import</span>
+                            <span wire:loading wire:target="processBulkUpload"><i class="mdi mdi-loading mdi-spin"></i> Importing...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

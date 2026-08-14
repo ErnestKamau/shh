@@ -3,16 +3,19 @@
 namespace App\Livewire\Standards;
 
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use App\Standards;
 use App\StandardValue;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Services\BulkImportService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StandardsPage extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use WithFileUploads;
     use WithPagination;
 
     // Tab Management
@@ -58,6 +61,10 @@ class StandardsPage extends Component
     public $messageType = '';
     public $perPage = 25;
     public $perPageOptions = [25, 50, 75, 100];
+
+    public bool $showBulkUploadModal = false;
+
+    public $bulkFile = null;
 
     protected $rules = [
         'standardForm.name' => 'required|string|max:255',
@@ -357,6 +364,60 @@ class StandardsPage extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    public function openBulkUploadModal(): void
+    {
+        $this->showBulkUploadModal = true;
+        $this->bulkFile = null;
+    }
+
+    public function closeBulkUploadModal(): void
+    {
+        $this->showBulkUploadModal = false;
+        $this->bulkFile = null;
+    }
+
+    public function downloadTemplate()
+    {
+        return app(BulkImportService::class)->generateTemplate('lab', 'standard');
+    }
+
+    public function processBulkUpload(): void
+    {
+        $this->validate([
+            'bulkFile' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            $service = app(BulkImportService::class);
+            $batch = $service->createBatch('lab', 'standard');
+            $result = $service->processImport($batch, $this->bulkFile);
+
+            $this->closeBulkUploadModal();
+
+            if (($result['success'] ?? false) === true) {
+                $summary = $result['summary'] ?? [];
+                $imported = (int) ($summary['imported_rows'] ?? 0);
+                $errors = (int) ($summary['error_rows'] ?? 0);
+
+                if ($errors > 0) {
+                    $this->message = "{$imported} specification row(s) imported. {$errors} row(s) failed.";
+                    $this->messageType = 'warning';
+                } else {
+                    $this->message = "{$imported} specification row(s) imported successfully.";
+                    $this->messageType = 'success';
+                }
+            } else {
+                $this->message = (string) ($result['message'] ?? 'Import failed.');
+                $this->messageType = 'danger';
+            }
+
+            $this->resetPage();
+        } catch (\Throwable $e) {
+            $this->message = 'Import failed: '.$e->getMessage();
+            $this->messageType = 'danger';
+        }
     }
 
     public function render()
