@@ -148,10 +148,10 @@
             flex-wrap: nowrap;
             gap: 0.65rem;
             align-items: center;
-            flex: 0 0 auto;
+            flex: 1 1 auto;
             margin-left: 2.5rem;
-            width: max-content;
-            max-width: min(360px, 100%);
+            min-width: 0;
+            max-width: 560px;
         }
 
         .request-view-page .sample-integrity-check-page .integrity-bulk-toolbar-spacer {
@@ -194,9 +194,10 @@
         }
 
         .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap {
-            width: 280px;
-            min-width: 280px;
-            max-width: 100%;
+            flex: 1 1 280px;
+            width: 100%;
+            min-width: 220px;
+            max-width: 480px;
         }
 
         .request-view-page .sample-integrity-check-page .integrity-bulk-analyst-sections {
@@ -258,6 +259,8 @@
         .request-view-page .sample-integrity-check-page .integrity-bulk-analyst-group-label {
             font-size: 0.72rem;
             font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
             color: #64748b;
         }
 
@@ -277,12 +280,42 @@
         .request-view-page .sample-integrity-check-page .integrity-chip {
             display: inline-flex;
             align-items: center;
+            gap: 0.25rem;
             padding: 0.1rem 0.45rem;
             border-radius: 999px;
             background: var(--ls-color-primary-soft, #fce7f3);
             color: var(--ls-color-primary, #9f1239);
             font-size: 0.72rem;
             font-weight: 600;
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-chip--section {
+            padding-right: 0.2rem;
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-chip-remove {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: inherit;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-chip-remove:hover {
+            background: rgba(159, 18, 57, 0.16);
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-chip-remove .mdi {
+            font-size: 0.7rem;
+            line-height: 1;
         }
 
         .request-view-page .sample-integrity-check-page .integrity-test-table tbody tr.is-incomplete td {
@@ -372,7 +405,7 @@
 
         /* Bulk lab-section Select2 — must come after row-editor rules above */
         .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container {
-            width: 280px !important;
+            width: 100% !important;
             max-width: 100%;
         }
 
@@ -381,59 +414,99 @@
             align-items: center !important;
             min-height: 34px !important;
             height: auto !important;
-            padding: 0 24px 0 8px !important;
+            padding: 4px 8px !important;
+            overflow: hidden;
         }
 
-        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container--default .select2-selection--multiple .select2-selection__rendered li {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-selection__clear {
+            display: none !important;
         }
 
         .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-selection__rendered {
             display: flex !important;
             flex-wrap: wrap;
             align-items: center !important;
-            align-content: center;
+            gap: 4px;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            min-height: 34px;
+            min-height: 24px;
             line-height: 1.2;
+            list-style: none;
         }
 
-        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-search--inline {
-            float: none !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            align-self: center !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            min-height: 34px;
-            height: 34px;
-            width: auto;
-            flex: 1 1 auto;
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap.is-empty .select2-container .select2-selection__rendered {
+            justify-content: center;
         }
 
-        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-search--inline .select2-search__field {
-            margin: 0 !important;
-            padding: 0 2px !important;
-            height: 34px !important;
-            min-height: 34px !important;
-            line-height: 34px !important;
-            font-size: 0.8125rem;
-            width: 100% !important;
-        }
-
-        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-selection__placeholder {
-            line-height: 34px !important;
-            margin: 0 !important;
-            padding: 0 2px !important;
-            color: #94a3b8;
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap.has-values .select2-container .select2-selection__rendered {
+            justify-content: flex-start;
         }
 
         .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-selection__choice {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
+            display: inline-flex !important;
+            align-items: center;
+            float: none !important;
+            margin: 0 !important;
+            padding: 2px 8px 2px 4px !important;
+            max-width: 100%;
+            line-height: 1.2;
+            font-size: 0.72rem;
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap.is-empty .select2-container .select2-search--inline {
+            float: none !important;
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap.has-values .select2-container .select2-search--inline {
+            float: none !important;
+            display: inline-flex !important;
+            width: 0.75em !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: 0 0 auto;
+        }
+
+        .request-view-page.lab-surface-theme .sample-integrity-check-page .integrity-bulk-select-wrap.is-empty .select2-container .select2-search--inline .select2-search__field,
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap.is-empty .select2-container .select2-search--inline .select2-search__field {
+            display: block !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 24px !important;
+            min-height: 24px !important;
+            line-height: 24px !important;
+            font-size: 0.8125rem !important;
+            text-align: center !important;
+        }
+
+        .request-view-page.lab-surface-theme .sample-integrity-check-page .integrity-bulk-select-wrap.has-values .select2-container .select2-search--inline .select2-search__field,
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap.has-values .select2-container .select2-search--inline .select2-search__field {
+            width: 0.75em !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 22px !important;
+            min-height: 22px !important;
+            line-height: 22px !important;
+            text-align: left !important;
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-search--inline .select2-search__field::placeholder {
+            text-align: center;
+            color: #94a3b8;
+            opacity: 1;
+        }
+
+        .request-view-page .sample-integrity-check-page .integrity-bulk-select-wrap .select2-container .select2-selection__placeholder {
+            display: none !important;
         }
 
         @media (max-width: 991.98px) {

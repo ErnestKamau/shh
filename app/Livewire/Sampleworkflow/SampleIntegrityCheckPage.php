@@ -257,6 +257,40 @@ class SampleIntegrityCheckPage extends Component
         $this->persistAssignments(reload: false);
     }
 
+    public function removeLabSectionChip(string $rowKey, string $sectionId): void
+    {
+        $sectionId = trim($sectionId);
+        if ($sectionId === '') {
+            return;
+        }
+
+        if ($this->selectedRowKeys !== []) {
+            $this->removeBulkLabSections([$sectionId], silent: false);
+
+            return;
+        }
+
+        $remaining = [];
+        foreach ($this->testRows as $index => $row) {
+            if ((string) ($row['row_key'] ?? '') !== $rowKey) {
+                continue;
+            }
+
+            $existing = app(AcceptanceFormSampleConfigService::class)->normalizeLabSectionIds(
+                is_array($row['lab_section_ids'] ?? null) ? $row['lab_section_ids'] : []
+            );
+            $remaining = array_values(array_filter(
+                $existing,
+                static fn (string $id): bool => $id !== $sectionId
+            ));
+            $this->applyLabSectionsToIndex($index, $remaining);
+            break;
+        }
+
+        $this->persistAssignments(reload: false);
+        $this->syncBulkAnalystSectionsFromSelection();
+    }
+
     public function toggleRowAnalyst(string $rowKey, string $labSectionId, string $userId): void
     {
         foreach ($this->testRows as $index => $row) {
@@ -327,6 +361,67 @@ class SampleIntegrityCheckPage extends Component
         if (! $silent && $updated > 0) {
             $this->setFlashMessage($updated.' test(s) updated with lab section(s).', 'success');
         }
+    }
+
+    public function removeBulkLabSections(array $labSectionIds = [], bool $silent = false): void
+    {
+        if ($this->selectedRowKeys === []) {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $ids = $configService->normalizeLabSectionIds(
+            $labSectionIds !== [] ? $labSectionIds : $this->bulkLabSectionIds
+        );
+
+        if ($ids === []) {
+            if (! $silent) {
+                $this->setFlashMessage('Select at least one lab section to remove.', 'warning');
+            }
+
+            return;
+        }
+
+        $removeFlip = array_flip($ids);
+        $selected = array_flip($this->selectedRowKeys);
+        $updated = 0;
+
+        foreach ($this->testRows as $index => $row) {
+            $rowKey = (string) ($row['row_key'] ?? '');
+            if (! isset($selected[$rowKey])) {
+                continue;
+            }
+
+            $existing = $configService->normalizeLabSectionIds(
+                is_array($row['lab_section_ids'] ?? null) ? $row['lab_section_ids'] : []
+            );
+            $remaining = array_values(array_filter(
+                $existing,
+                static fn (string $sectionId): bool => ! isset($removeFlip[$sectionId])
+            ));
+
+            if ($remaining === $existing) {
+                continue;
+            }
+
+            $this->applyLabSectionsToIndex($index, $remaining);
+            $updated++;
+        }
+
+        $this->persistAssignments(reload: ! $silent);
+        $this->syncBulkAnalystSectionsFromSelection();
+
+        if ($silent) {
+            return;
+        }
+
+        if ($updated > 0) {
+            $this->setFlashMessage($updated.' test(s) updated — lab section(s) removed.', 'success');
+
+            return;
+        }
+
+        $this->setFlashMessage('None of the selected tests had those lab section(s).', 'warning');
     }
 
     public function toggleBulkSubcontractedOnSelected(): void

@@ -199,6 +199,13 @@
                                                 <div class="dropdown-menu dropdown-menu-right">
                                                     <button
                                                         type="button"
+                                                        class="dropdown-item integrity-bulk-remove-sections"
+                                                    >
+                                                        <i class="mdi mdi-minus-circle-outline mr-2"></i>
+                                                        Remove lab section(s) from selected
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         class="dropdown-item"
                                                         wire:click="copyAssignmentsFromFirstSelected"
                                                         @disabled($selectedCount < 2)
@@ -231,9 +238,7 @@
                                                 ));
                                             @endphp
                                             <div class="integrity-bulk-analyst-group" wire:key="bulk-analyst-group-{{ $sectionId }}">
-                                                @if(count($bulkSectionOptions) > 1)
-                                                    <span class="integrity-bulk-analyst-group-label">{{ $section['name'] }}</span>
-                                                @endif
+                                                <span class="integrity-bulk-analyst-group-label">{{ $section['name'] }}</span>
                                                 <div class="integrity-bulk-analyst-picks">
                                                     @forelse($sectionAnalysts as $analyst)
                                                         @php
@@ -321,7 +326,18 @@
                                                 @else
                                                     <div class="integrity-chip-wrap">
                                                         @foreach($selectedSections as $sectionId)
-                                                            <span class="integrity-chip">{{ $sectionNames[$sectionId] ?? 'Section' }}</span>
+                                                            <span class="integrity-chip integrity-chip--section">
+                                                                {{ $sectionNames[$sectionId] ?? 'Section' }}
+                                                                <button
+                                                                    type="button"
+                                                                    class="integrity-chip-remove"
+                                                                    title="Remove {{ $sectionNames[$sectionId] ?? 'section' }} from selected tests"
+                                                                    aria-label="Remove {{ $sectionNames[$sectionId] ?? 'section' }} from selected tests"
+                                                                    wire:click.stop="removeLabSectionChip('{{ $rowKey }}', '{{ $sectionId }}')"
+                                                                >
+                                                                    <i class="mdi mdi-close" aria-hidden="true"></i>
+                                                                </button>
+                                                            </span>
                                                         @endforeach
                                                     </div>
                                                 @endif
@@ -590,6 +606,24 @@
                     });
                 }
 
+                const select2 = $select.data('select2');
+                if (select2?.selection?.resizeSearch) {
+                    select2.selection.resizeSearch = function () {
+                        this.$search.css('width', '100%');
+                    };
+                    select2.selection.resizeSearch();
+                }
+
+                const $field = $select.next('.select2-container').find('.select2-search__field');
+                $field.css({
+                    width: '100%',
+                    textAlign: 'center',
+                    margin: 0,
+                    height: '32px',
+                    lineHeight: '32px',
+                });
+                $field.attr('placeholder', $select.data('placeholder') || 'Set lab section(s)…');
+
                 $select
                     .off('change.integrityBulkSections select2:close.integrityBulkSections')
                     .on('change.integrityBulkSections', function () {
@@ -655,6 +689,26 @@
                 });
 
                 setTimeout(initSelects, 50);
+
+                window.jQuery(document).on('click.integrityBulkRemove', '.integrity-bulk-remove-sections', function () {
+                    const $select = window.jQuery('.integrity-bulk-section-select');
+                    const values = $select.val() || [];
+                    const wire = getWire();
+
+                    if (!wire) {
+                        return;
+                    }
+
+                    if (values.length === 0) {
+                        wire.call('removeBulkLabSections', [], false);
+
+                        return;
+                    }
+
+                    wire.call('removeBulkLabSections', values, false).then(() => {
+                        $select.val(null).trigger('change');
+                    });
+                });
 
                 Livewire.hook('commit', ({ succeed }) => {
                     preservedScrollY = window.scrollY;

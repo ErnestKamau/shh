@@ -291,6 +291,7 @@ trait BuildsSubmissionFormTrfSections
                 'element_type' => $payload['element_type'],
                 'sort_order' => $payload['sort_order'],
                 'is_required' => $payload['is_required'],
+                'is_hidden' => false,
             ];
             if (array_key_exists('options', $payload)) {
                 $safeUpdate['options'] = $payload['options'];

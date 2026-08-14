@@ -58,8 +58,10 @@ final class SubmissionFormInstanceSampleRowUpdateService
 
         return $elements
             ->filter(function (SubmissionFormElement $element) use ($elements): bool {
+                $name = (string) ($element->name ?? '');
+
                 if ((bool) ($element->is_hidden ?? false)) {
-                    return false;
+                    return in_array($name, ['test_requirements', 'test_category'], true);
                 }
 
                 if (SubmissionFormSchemaHelper::shouldExcludeFromSampleRowEditor($element)) {
@@ -269,6 +271,24 @@ final class SubmissionFormInstanceSampleRowUpdateService
             $elementByName = $this->rowElements($form)->keyBy(
                 fn (SubmissionFormElement $element): string => (string) $element->name,
             );
+
+            $missingNames = array_values(array_diff(
+                array_map(static fn ($name): string => trim((string) $name), array_keys($fields)),
+                $elementByName->keys()->all(),
+            ));
+
+            if ($missingNames !== []) {
+                $extra = SubmissionFormElement::query()
+                    ->whereHas('holder.section', function ($query) use ($form): void {
+                        $query->where('submission_form_id', $form->id);
+                    })
+                    ->whereIn('name', $missingNames)
+                    ->get();
+
+                foreach ($extra as $element) {
+                    $elementByName->put((string) $element->name, $element);
+                }
+            }
 
             foreach ($fields as $name => $value) {
                 $name = trim((string) $name);

@@ -1048,50 +1048,61 @@ class RequestViewPage extends Component
             return;
         }
 
-        $service = app(SubmissionFormInstanceSampleRowUpdateService::class);
-        $this->editingRowIndex = $rowIndex;
-        $this->editingRowFieldDefinitions = $this->prepareSampleRowEditDefinitions(
-            $service->rowFieldDefinitions($this->submissionForm),
-        );
-        $this->editingRowFields = $service->rowValues($this->instance, $rowIndex);
-        $this->editingRowCollectionSamplingLocation = $service->collectionSamplingLocationLabel($this->instance);
+        try {
+            $service = app(SubmissionFormInstanceSampleRowUpdateService::class);
+            $this->editingRowIndex = $rowIndex;
+            $this->editingRowFieldDefinitions = $this->prepareSampleRowEditDefinitions(
+                $service->rowFieldDefinitions($this->submissionForm),
+            );
+            $this->editingRowFields = $service->rowValues($this->instance, $rowIndex);
+            $this->editingRowCollectionSamplingLocation = $service->collectionSamplingLocationLabel($this->instance);
 
-        foreach ($this->editingRowFieldDefinitions as $field) {
-            $name = (string) ($field['name'] ?? '');
-            $type = (string) ($field['element_type'] ?? '');
+            foreach ($this->editingRowFieldDefinitions as $field) {
+                $name = (string) ($field['name'] ?? '');
+                $type = (string) ($field['element_type'] ?? '');
 
-            if ($name === '') {
-                continue;
-            }
+                if ($name === '') {
+                    continue;
+                }
 
-            if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
-                $this->editingRowFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
-                    $this->editingRowFields[$name] ?? null,
-                );
+                if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
+                    $this->editingRowFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
+                        $this->editingRowFields[$name] ?? null,
+                    );
 
-                $this->ensureCheckboxOptionKeys($name, $field['options'] ?? []);
-            }
+                    $this->ensureCheckboxOptionKeys($name, $field['options'] ?? []);
+                }
 
-            if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
-                || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
-                $this->editingRowFields[$name] = $this->normalizeRowSelectValues($this->editingRowFields[$name] ?? null);
-            }
+                if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
+                    || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
+                    $this->editingRowFields[$name] = $this->normalizeRowSelectValues($this->editingRowFields[$name] ?? null);
+                }
 
-            if ($type === 'analysis_elements_select' || $name === 'parameters') {
-                $current = $this->editingRowFields[$name] ?? '';
-                if (is_string($current) && str_contains($current, ',')) {
-                    $this->editingRowFields[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
-                } elseif (is_string($current) && $current !== '') {
-                    $this->editingRowFields[$name] = [$current];
-                } elseif (! is_array($current)) {
-                    $this->editingRowFields[$name] = [];
+                if ($type === 'analysis_elements_select' || $name === 'parameters') {
+                    $current = $this->editingRowFields[$name] ?? '';
+                    if (is_string($current) && str_contains($current, ',')) {
+                        $this->editingRowFields[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
+                    } elseif (is_string($current) && $current !== '') {
+                        $this->editingRowFields[$name] = [$current];
+                    } elseif (! is_array($current)) {
+                        $this->editingRowFields[$name] = [];
+                    }
                 }
             }
-        }
 
-        $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
-        $this->showSampleRowEditModal = true;
-        $this->dispatch('sample-row-edit-modal-opened');
+            $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
+            $this->showSampleRowEditModal = true;
+            $this->dispatch('sample-row-edit-modal-opened');
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->closeSampleRowEditor();
+            session()->flash(
+                'request_view_message',
+                app()->isProduction()
+                    ? 'Unable to open the sample editor. Please contact support if this continues.'
+                    : 'Unable to open the sample editor: '.$exception->getMessage(),
+            );
+        }
     }
 
     public function closeSampleRowEditor(): void
@@ -1274,9 +1285,14 @@ class RequestViewPage extends Component
                 'client_id' => $customerId !== '' ? $customerId : null,
                 'sample_type_id' => $sampleTypeId !== '' ? $sampleTypeId : null,
                 'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
+                'submission_form_id' => $this->submissionForm->id,
             ], $extra));
 
-            $payload = $optionsService->resolve($request, $customerId !== '' ? $customerId : null);
+            try {
+                $payload = $optionsService->resolve($request, $customerId !== '' ? $customerId : null);
+            } catch (\Illuminate\Validation\ValidationException) {
+                return [];
+            }
 
             return is_array($payload['options'] ?? null) ? $payload['options'] : [];
         };
@@ -1295,7 +1311,7 @@ class RequestViewPage extends Component
             'parameters' => $this->mergeSelectedSelectOptions(
                 $resolve('analysis_elements_select'),
                 $this->normalizeRowSelectValues($rowFields['parameters'] ?? null),
-                fn (string $id): ?string => \App\AnalysisElements::query()->whereKey($id)->value('name'),
+                fn (string $id): ?string => app(\App\Services\Lab\AnalysisReferenceLabelResolver::class)->resolveToken($id),
             ),
             'sampling_point' => $resolve('sample_point_select'),
         ];
@@ -1340,6 +1356,8 @@ class RequestViewPage extends Component
      */
     private function mergeSelectedSelectOptions(array $options, array $selectedIds, callable $labelResolver): array
     {
+        $options = array_values(array_filter($options, is_array(...)));
+
         if ($selectedIds === []) {
             return $options;
         }

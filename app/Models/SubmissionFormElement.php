@@ -167,6 +167,10 @@ class SubmissionFormElement extends Model implements Auditable
             return [];
         }
 
+        if (! is_array($this->options)) {
+            return [];
+        }
+
         $options = [];
         foreach ($this->options as $option) {
             if (is_array($option) && isset($option['value'], $option['label'])) {
