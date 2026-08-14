@@ -22,6 +22,11 @@
         })
         ->values()
         ->all();
+    $sampleTypeIdsForRow = array_values(array_filter(array_map('strval', (array) (
+        data_get($this->formData ?? [], 'sample_type_id.'.($rowIndex ?? 0))
+        ?? data_get($this->formData ?? [], 'sample_type.'.($rowIndex ?? 0))
+        ?? []
+    ))));
 @endphp
 
 @include('livewire.partials.walk-in-trf-id-label-multi', [
@@ -30,6 +35,7 @@
     'syncMethod' => 'setWalkInAnalysisTypes',
     'options' => $analysisOptions,
     'selected' => $selectedIds,
+    'remountWhen' => md5(json_encode($sampleTypeIdsForRow)),
     'placeholder' => 'Choose analysis type(s)…',
     'emptyHint' => 'Select sample type first.',
     'searchPlaceholder' => 'Search analysis types…',

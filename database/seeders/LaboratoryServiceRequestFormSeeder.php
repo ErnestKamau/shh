@@ -82,8 +82,8 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             $stages = \App\SampleAnalysisStage::pluck('id')->toArray();
             $form->sampleAnalysisStages()->sync($stages);
             
-            $sampleTypes = \App\SampleType::pluck('id')->toArray();
-            $form->sampleTypes()->sync($sampleTypes);
+            $categoryIds = \App\SampleTypeCategory::pluck('id')->toArray();
+            $form->sampleTypeCategories()->sync($categoryIds);
         } catch (\Exception $e) {
             $this->command->warn('Could not sync stages/types: ' . $e->getMessage());
         }

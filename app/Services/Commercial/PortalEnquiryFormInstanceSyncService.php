@@ -31,8 +31,7 @@ final class PortalEnquiryFormInstanceSyncService
     }
 
     /**
-     * Create/update one draft TRF instance per distinct sample type on the enquiry.
-     * Primary enquiry.submission_form_instance_id points at the first instance.
+     * Create/update a single TRF instance for the enquiry (all sample lines as rows).
      *
      * @return list<SubmissionFormInstance>
      */
@@ -48,75 +47,14 @@ final class PortalEnquiryFormInstanceSyncService
         $lines = $this->assignSequentialRowIndices($lines);
         $lines = $this->applyWizardValuesToSampleLines($enquiry, $lines);
 
-        $grouped = collect($lines)->groupBy(
-            static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')),
-        );
-
-        if ($grouped->isEmpty() || ($grouped->count() === 1 && $grouped->keys()->first() === '')) {
-            $form = $this->resolveSubmissionFormForEnquiry($enquiry);
-            if ($form === null) {
-                return [];
-            }
-
-            $instance = $this->syncInstanceForForm($enquiry, $form, $lines, $submit, setAsPrimary: true);
-
-            return $instance !== null ? [$instance] : [];
+        $form = $this->resolveSubmissionFormForEnquiryLines($lines, $enquiry);
+        if ($form === null) {
+            return [];
         }
 
-        $instances = [];
-        $formBuckets = [];
+        $instance = $this->syncInstanceForForm($enquiry, $form, $lines, $submit, setAsPrimary: true);
 
-        foreach ($grouped as $sampleTypeId => $typeLines) {
-            $sampleTypeId = trim((string) $sampleTypeId);
-            if ($sampleTypeId === '') {
-                continue;
-            }
-
-            $crmCustomerId = trim((string) ($enquiry->crm_customer_id ?? ''));
-            $form = $this->resolveSubmissionFormForSampleType(
-                $sampleTypeId,
-                $crmCustomerId !== '' ? $crmCustomerId : null,
-            );
-            if ($form === null) {
-                continue;
-            }
-
-            $formId = (string) $form->id;
-            if (! isset($formBuckets[$formId])) {
-                $formBuckets[$formId] = [
-                    'form' => $form,
-                    'lines' => [],
-                ];
-            }
-
-            foreach ($typeLines->values()->all() as $line) {
-                $formBuckets[$formId]['lines'][] = $line;
-            }
-        }
-
-        $index = 0;
-        foreach ($formBuckets as $bucket) {
-            /** @var SubmissionForm $form */
-            $form = $bucket['form'];
-            $typeLineList = array_values($bucket['lines']);
-            foreach ($typeLineList as $row => $line) {
-                $typeLineList[$row]['row_index'] = $row;
-            }
-
-            $instance = $this->syncInstanceForForm(
-                $enquiry,
-                $form,
-                $typeLineList,
-                $submit,
-                setAsPrimary: $index === 0,
-            );
-            if ($instance !== null) {
-                $instances[] = $instance;
-                $index++;
-            }
-        }
-
-        return $instances;
+        return $instance !== null ? [$instance] : [];
     }
 
     /**
@@ -133,6 +71,8 @@ final class PortalEnquiryFormInstanceSyncService
             $enquiry->refresh();
 
             $instance = $this->resolveOrCreateInstanceForForm($enquiry, $form, $submit);
+            $instance->loadMissing('submissionForm');
+            $form = $instance->submissionForm ?? $form;
             $elementMap = $this->buildElementMap($form);
 
             // Walk-in TRFs already hold rich sample metadata. Process Enquiry / quotation
@@ -159,15 +99,58 @@ final class PortalEnquiryFormInstanceSyncService
 
     public function resolveSubmissionFormForEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionForm
     {
-        $sampleTypeId = trim((string) ($enquiry->sample_type_id ?? $enquiry->batch_sample_type_id ?? ''));
-        $crmCustomerId = trim((string) ($enquiry->crm_customer_id ?? ''));
+        $lines = $this->normalizeSampleLines($enquiry->sample_lines ?? null);
+        if ($lines === []) {
+            $lines = [$this->flatLineFromEnquiry($enquiry)];
+        }
 
-        return $this->resolveSubmissionFormForSampleType(
-            $sampleTypeId !== '' ? $sampleTypeId : null,
-            $crmCustomerId !== '' ? $crmCustomerId : null,
-        );
+        return $this->resolveSubmissionFormForEnquiryLines($lines, $enquiry);
     }
 
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     */
+    public function resolveSubmissionFormForEnquiryLines(
+        array $lines,
+        ?SampleSubmissionRequest $enquiry = null,
+        ?string $crmCustomerId = null,
+    ): ?SubmissionForm {
+        if ($enquiry !== null) {
+            $chosenForm = $this->resolveChosenSubmissionFormFromEnquiry($enquiry);
+            if ($chosenForm !== null) {
+                return $chosenForm;
+            }
+        }
+
+        $crmCustomerId = trim((string) ($crmCustomerId ?? $enquiry?->crm_customer_id ?? ''));
+        $crmCustomerId = $crmCustomerId !== '' ? $crmCustomerId : null;
+
+        $categoryIds = $this->portalAccess->categoryIdsFromSampleLines($lines);
+        if ($categoryIds !== []) {
+            $form = $this->portalAccess->testRequestFormForCategoryIds($categoryIds, $crmCustomerId);
+            if ($form !== null) {
+                return $form;
+            }
+        }
+
+        $sampleTypeId = trim((string) ($enquiry?->sample_type_id ?? $enquiry?->batch_sample_type_id ?? ''));
+        if ($sampleTypeId === '' && $lines !== []) {
+            $sampleTypeId = trim((string) ($lines[0]['sample_type_id'] ?? ''));
+        }
+
+        if ($sampleTypeId !== '') {
+            $form = $this->portalAccess->testRequestFormForSampleType($sampleTypeId, $crmCustomerId);
+            if ($form !== null) {
+                return $form;
+            }
+        }
+
+        return $this->resolveLegacyLaboratoryServiceRequestForm();
+    }
+
+    /**
+     * @deprecated Use resolveSubmissionFormForEnquiryLines() — resolves via sample type category only.
+     */
     public function resolveSubmissionFormForSampleType(?string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
     {
         $sampleTypeId = trim((string) ($sampleTypeId ?? ''));
@@ -190,6 +173,36 @@ final class PortalEnquiryFormInstanceSyncService
             ->first();
     }
 
+    /**
+     * When an enquiry already has a linked TRF instance (walk-in, portal, etc.),
+     * keep that instance's submission form — do not re-resolve from sample line categories.
+     */
+    private function resolveChosenSubmissionFormFromEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionForm
+    {
+        $enquiry->loadMissing('submissionFormInstance.submissionForm');
+
+        $instance = $enquiry->submissionFormInstance;
+
+        if ($instance === null && filled($enquiry->submission_form_instance_id)) {
+            $instance = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
+        }
+
+        if ($instance === null) {
+            $instance = SubmissionFormInstance::query()
+                ->where('portal_request_id', (string) $enquiry->id)
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        if ($instance === null) {
+            return null;
+        }
+
+        $instance->loadMissing('submissionForm');
+
+        return $instance->submissionForm;
+    }
+
     private function resolveOrCreateInstanceForForm(
         SampleSubmissionRequest $enquiry,
         SubmissionForm $form,
@@ -197,20 +210,16 @@ final class PortalEnquiryFormInstanceSyncService
     ): SubmissionFormInstance {
         $linked = SubmissionFormInstance::query()
             ->where('portal_request_id', (string) $enquiry->id)
-            ->where('submission_form_id', $form->id)
+            ->orderByDesc('created_at')
             ->first();
 
         if ($linked !== null) {
             return $this->ensureInstanceLinkedToEnquiry($linked, $enquiry);
         }
 
-        // Prefer the walk-in / primary TRF already linked on the enquiry — even when
-        // portal_request_id was never stamped during commercial sync.
         if ($enquiry->submission_form_instance_id) {
             $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
-            if ($existing !== null
-                && (string) $existing->submission_form_id === (string) $form->id
-            ) {
+            if ($existing !== null) {
                 $portalId = trim((string) ($existing->portal_request_id ?? ''));
                 if ($portalId === '' || $portalId === (string) $enquiry->id) {
                     return $this->ensureInstanceLinkedToEnquiry($existing, $enquiry);
@@ -644,6 +653,10 @@ final class PortalEnquiryFormInstanceSyncService
             return $lines;
         }
 
+        $unifiedBucket = is_array($byType[EnquiryFromQuotationService::UNIFIED_TRF_FIELD_KEY] ?? null)
+            ? $byType[EnquiryFromQuotationService::UNIFIED_TRF_FIELD_KEY]
+            : null;
+
         $keys = [
             'sample_description',
             'sample_quantity',
@@ -667,19 +680,23 @@ final class PortalEnquiryFormInstanceSyncService
 
         $typeRowCounters = [];
 
-        foreach ($lines as &$line) {
-            $typeId = trim((string) ($line['sample_type_id'] ?? ''));
-            if ($typeId === '' || ! is_array($byType[$typeId] ?? null)) {
-                continue;
+        foreach ($lines as $rowIndex => &$line) {
+            if ($unifiedBucket !== null) {
+                $source = EnquiryFromQuotationService::resolveTrfSectionRowFields($unifiedBucket, $rowIndex);
+            } else {
+                $typeId = trim((string) ($line['sample_type_id'] ?? ''));
+                if ($typeId === '' || ! is_array($byType[$typeId] ?? null)) {
+                    continue;
+                }
+
+                $rowWithinType = $typeRowCounters[$typeId] ?? 0;
+                $typeRowCounters[$typeId] = $rowWithinType + 1;
+
+                $source = EnquiryFromQuotationService::resolveTrfSectionRowFields(
+                    $byType[$typeId],
+                    $rowWithinType,
+                );
             }
-
-            $rowWithinType = $typeRowCounters[$typeId] ?? 0;
-            $typeRowCounters[$typeId] = $rowWithinType + 1;
-
-            $source = \App\Services\Commercial\EnquiryFromQuotationService::resolveTrfSectionRowFields(
-                $byType[$typeId],
-                $rowWithinType,
-            );
 
             foreach ($keys as $key) {
                 $existing = trim((string) ($line[$key] ?? ''));

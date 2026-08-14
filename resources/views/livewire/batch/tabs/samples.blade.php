@@ -965,7 +965,7 @@
                                     @if($uncertaintyRequired)
                                     <th style="min-width: 80px;">M.U.</th>
                                     @endif
-                                    <th style="min-width: 110px;">Specification</th>
+                                    <th style="min-width: 110px;">Spec limit</th>
                                     <th style="min-width: 180px;">Remark</th>
                                     <th style="min-width: 100px;">Unit</th>
                                     <th style="min-width: 120px;">Operator</th>

@@ -49,14 +49,13 @@ class SubmissionFormController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
         $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
-        $sampleTypes = \App\SampleType::where('active', true)->orderBy('name')->get(['id', 'name']);
         $sampleTypeCategories = \App\SampleTypeCategory::where('active', true)->orderBy('sample_type_category')->get(['id', 'sample_type_category']);
 
         $fromRft = $request->query('from') === 'rft' || $request->boolean('trf');
         $trfDefaults = $fromRft ? [
             'name' => 'Test Request Form',
             'document_code' => 'TRF-',
-            'description' => 'Test request form template linked to one or more sample types.',
+            'description' => 'Test request form template linked to sample type categories.',
             'naming_convention_prefix' => 'TRF',
             'naming_convention_format' => '{prefix}-{year}-{sequence}',
             'is_customer_portal_form' => true,
@@ -75,7 +74,6 @@ class SubmissionFormController extends Controller
             'templateFormTypes',
             'templateForms',
             'customers',
-            'sampleTypes',
             'sampleTypeCategories',
             'fromRft',
             'trfDefaults'
@@ -161,15 +159,6 @@ class SubmissionFormController extends Controller
             ]);
         }
 
-        if ($this->submissionFormSampleTypesPivotExists()) {
-            $form->sampleTypes()->sync($request->input('sample_type_ids', []));
-        } else {
-            Log::warning('Skipping submission form sample type sync because pivot table is missing.', [
-                'table' => 'submission_form_sample_types',
-                'submission_form_id' => $form->id,
-            ]);
-        }
-
         if ($this->submissionFormSampleTypeCategoriesPivotExists()) {
             $form->sampleTypeCategories()->sync($request->input('sample_type_category_ids', []));
         } else {
@@ -250,20 +239,14 @@ class SubmissionFormController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
         $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
-        $sampleTypes = \App\SampleType::where('active', true)->orderBy('name')->get(['id', 'name']);
         $sampleTypeCategories = \App\SampleTypeCategory::where('active', true)->orderBy('sample_type_category')->get(['id', 'sample_type_category']);
         $customersPivotExists = $this->submissionFormCustomersPivotExists();
-        $sampleTypesPivotExists = $this->submissionFormSampleTypesPivotExists();
         $sampleTypeCategoriesPivotExists = $this->submissionFormSampleTypeCategoriesPivotExists();
 
         $relationsToLoad = ['sampleAnalysisStages'];
 
         if ($customersPivotExists) {
             $relationsToLoad[] = 'customers';
-        }
-
-        if ($sampleTypesPivotExists) {
-            $relationsToLoad[] = 'sampleTypes';
         }
 
         if ($sampleTypeCategoriesPivotExists) {
@@ -280,15 +263,11 @@ class SubmissionFormController extends Controller
             $submissionForm->setRelation('customers', collect());
         }
 
-        if (! $sampleTypesPivotExists) {
-            $submissionForm->setRelation('sampleTypes', collect());
-        }
-
         if (! $sampleTypeCategoriesPivotExists) {
             $submissionForm->setRelation('sampleTypeCategories', collect());
         }
 
-        return view('submission-forms.edit', compact('submissionForm', 'labSections', 'availablePages', 'templateFormTypes', 'templateForms', 'customers', 'sampleTypes', 'sampleTypeCategories'));
+        return view('submission-forms.edit', compact('submissionForm', 'labSections', 'availablePages', 'templateFormTypes', 'templateForms', 'customers', 'sampleTypeCategories'));
     }
 
     /**
@@ -368,15 +347,6 @@ class SubmissionFormController extends Controller
         } else {
             Log::warning('Skipping submission form customer sync because pivot table is missing.', [
                 'table' => 'submission_form_customers',
-                'submission_form_id' => $submissionForm->id,
-            ]);
-        }
-
-        if ($this->submissionFormSampleTypesPivotExists()) {
-            $submissionForm->sampleTypes()->sync($request->input('sample_type_ids', []));
-        } else {
-            Log::warning('Skipping submission form sample type sync because pivot table is missing.', [
-                'table' => 'submission_form_sample_types',
                 'submission_form_id' => $submissionForm->id,
             ]);
         }
@@ -639,11 +609,6 @@ class SubmissionFormController extends Controller
     private function submissionFormCustomersPivotExists(): bool
     {
         return Schema::hasTable('submission_form_customers');
-    }
-
-    private function submissionFormSampleTypesPivotExists(): bool
-    {
-        return Schema::hasTable('submission_form_sample_types');
     }
 
     private function submissionFormSampleTypeCategoriesPivotExists(): bool
@@ -959,10 +924,16 @@ class SubmissionFormController extends Controller
 
             case 'client_contact_select':
                 if ($clientId) {
-                    $contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $clientId)
+                    $contactsQuery = \App\Models\CRM\CustomerContact::where('crm_customer_id', $clientId)
                         ->where('active', 1)
-                        ->orderBy('first_name')
-                        ->get();
+                        ->orderBy('first_name');
+
+                    $contacts = $contactsQuery->get();
+                    if ($clientUnitId) {
+                        $contacts = $contacts->filter(
+                            fn (\App\Models\CRM\CustomerContact $contact): bool => $contact->isLinkedToCompanyUnit((string) $clientUnitId)
+                        );
+                    }
 
                     foreach ($contacts as $contact) {
                         $fullName = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);

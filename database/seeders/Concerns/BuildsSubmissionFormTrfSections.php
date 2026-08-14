@@ -107,9 +107,14 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Field data - Residual chlorine', 'field_residual_chlorine', 7],
             ['text', 'Field data - Odor', 'field_odor', 8],
             ['text', 'Field data - Sample temp (°C)', 'field_sample_temp', 9],
-            ['sample_type_select', 'Sample type', 'sample_type_id', 10, null, true],
-            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 11, null, true],
-            ['analysis_elements_select', 'Tests', 'parameters', 12],
+            ['checkbox', 'Test requirements', 'test_requirements', 10, [
+                ['value' => 'microbiology', 'label' => 'Microbiology'],
+                ['value' => 'legionella', 'label' => 'Legionella'],
+                ['value' => 'chemistry', 'label' => 'Chemical Analysis'],
+            ]],
+            ['sample_type_select', 'Sample type', 'sample_type_id', 11, null, true],
+            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 12, null, true],
+            ['analysis_elements_select', 'Tests', 'parameters', 13],
         ];
     }
 
@@ -120,31 +125,30 @@ trait BuildsSubmissionFormTrfSections
     {
         return [
             ['textarea', 'Sample description', 'sample_description', 1],
-            ['customer_sample_point_select', 'Sampling Location', 'sampling_point', 2],
-            ['text', 'Sampling Point', 'sampling_point_manual', 3],
-            ['number', 'Qty', 'sample_quantity', 4],
-            ['text', 'Unit', 'sample_quantity_unit', 5],
-            ['sample_type_select', 'Sample type', 'sample_type_id', 6, null, true],
-            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 7, null, true],
-            ['analysis_elements_select', 'Tests', 'parameters', 8],
-            ['text', 'Field data - Appearance', 'field_appearance', 9],
-            ['text', 'Field data - Color', 'field_color', 10],
-            ['text', 'Field data - Odor', 'field_odor', 11],
-            ['text', 'Field data - pH', 'field_ph', 12],
-            ['text', 'Field data - Temperature (°C)', 'field_sample_temp', 13],
-            ['text', 'Field data - Free chlorine', 'field_free_chlorine', 14],
-            ['select', 'Sample condition', 'sample_condition', 15, [
+            ['text', 'Sampling Point', 'sampling_point_manual', 2],
+            ['number', 'Qty', 'sample_quantity', 3],
+            ['text', 'Unit', 'sample_quantity_unit', 4],
+            ['sample_type_select', 'Sample type', 'sample_type_id', 5, null, true],
+            ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 6, null, true],
+            ['analysis_elements_select', 'Tests', 'parameters', 7],
+            ['text', 'Field data - Appearance', 'field_appearance', 8],
+            ['text', 'Field data - Color', 'field_color', 9],
+            ['text', 'Field data - Odor', 'field_odor', 10],
+            ['text', 'Field data - pH', 'field_ph', 11],
+            ['text', 'Field data - Temperature (°C)', 'field_sample_temp', 12],
+            ['text', 'Field data - Free chlorine', 'field_free_chlorine', 13],
+            ['select', 'Sample condition', 'sample_condition', 14, [
                 ['value' => 'acceptable', 'label' => 'Acceptable'],
                 ['value' => 'chilled', 'label' => 'Chilled'],
                 ['value' => 'frozen', 'label' => 'Frozen'],
                 ['value' => 'ambient', 'label' => 'Ambient'],
             ]],
-            ['select', 'State of sample', 'state_of_sample', 16, [
+            ['select', 'State of sample', 'state_of_sample', 15, [
                 ['value' => 'L', 'label' => 'L - Liquid'],
                 ['value' => 'SS', 'label' => 'SS - Semi solid'],
                 ['value' => 'S', 'label' => 'S - Solid'],
             ]],
-            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 17],
+            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 16],
         ];
     }
 
@@ -252,6 +256,7 @@ trait BuildsSubmissionFormTrfSections
             'is_required' => (bool) ($field[5] ?? false),
             'sort_order' => $field[3],
             'is_readonly' => (bool) ($field[6] ?? false),
+            'is_hidden' => false,
         ];
 
         if ($field[0] === 'analysis_type_select') {
@@ -280,13 +285,17 @@ trait BuildsSubmissionFormTrfSections
 
         if ($hasValues) {
             // Keep historic values, but allow safe control upgrades (e.g. select → CRM dropdown)
-            // and label/order sync from the canonical TRF field definitions.
-            $element->update([
+            // and label/order/options sync from the canonical TRF field definitions.
+            $safeUpdate = [
                 'label' => $payload['label'],
                 'element_type' => $payload['element_type'],
                 'sort_order' => $payload['sort_order'],
                 'is_required' => $payload['is_required'],
-            ]);
+            ];
+            if (array_key_exists('options', $payload)) {
+                $safeUpdate['options'] = $payload['options'];
+            }
+            $element->update($safeUpdate);
         } else {
             $element->update($payload);
         }
@@ -641,9 +650,8 @@ trait BuildsSubmissionFormTrfSections
             }
 
             $form->sampleTypeCategories()->sync($ids);
-            $form->sampleTypes()->sync([]);
 
-            $this->command?->info('Linked categories ['.implode(', ', $categoryNames).'] to '.$form->name.' (cleared sample-type pivot).');
+            $this->command?->info('Linked categories ['.implode(', ', $categoryNames).'] to '.$form->name.'.');
         } catch (\Exception $e) {
             $this->command?->warn('Could not sync sample type categories: '.$e->getMessage());
         }
@@ -662,27 +670,28 @@ trait BuildsSubmissionFormTrfSections
                 ->values()
                 ->all();
 
-            $ids = SampleType::query()
+            $categoryIds = SampleType::query()
                 ->where(function ($query) use ($normalizedCodes): void {
                     foreach ($normalizedCodes as $code) {
                         $query->orWhereRaw('LOWER(TRIM(code)) = ?', [$code]);
                     }
                 })
-                ->pluck('id')
+                ->whereNotNull('sample_type_category')
+                ->pluck('sample_type_category')
                 ->unique()
                 ->values()
                 ->all();
 
-            if ($ids === []) {
-                $this->command?->warn('No sample types matched for '.$form->name.' (codes: '.implode(', ', $codes).').');
+            if ($categoryIds === []) {
+                $this->command?->warn('No categories matched for '.$form->name.' (codes: '.implode(', ', $codes).').');
 
                 return;
             }
 
-            $form->sampleTypes()->sync($ids);
-            $this->command?->info('Linked '.count($ids).' sample type(s) to '.$form->name.'.');
+            $form->sampleTypeCategories()->syncWithoutDetaching($categoryIds);
+            $this->command?->info('Linked '.count($categoryIds).' category(ies) to '.$form->name.'.');
         } catch (\Exception $e) {
-            $this->command?->warn('Could not sync sample types: '.$e->getMessage());
+            $this->command?->warn('Could not sync categories from sample type codes: '.$e->getMessage());
         }
     }
 
@@ -699,48 +708,48 @@ trait BuildsSubmissionFormTrfSections
                 ->values()
                 ->all();
 
-            $ids = SampleType::query()
+            $categoryIds = SampleType::query()
                 ->where(function ($query) use ($normalizedNames): void {
                     foreach ($normalizedNames as $name) {
                         $query->orWhereRaw('LOWER(TRIM(name)) = ?', [$name]);
                     }
                 })
-                ->pluck('id')
+                ->whereNotNull('sample_type_category')
+                ->pluck('sample_type_category')
                 ->unique()
                 ->values()
                 ->all();
 
-            if ($ids === []) {
-                $this->command?->warn('No sample types matched for '.$form->name.' (names: '.implode(', ', $names).').');
+            if ($categoryIds === []) {
+                $this->command?->warn('No categories matched for '.$form->name.' (names: '.implode(', ', $names).').');
 
                 return;
             }
 
-            $form->sampleTypes()->sync($ids);
-            $this->command?->info('Linked '.count($ids).' sample type(s) by name to '.$form->name.'.');
+            $form->sampleTypeCategories()->syncWithoutDetaching($categoryIds);
+            $this->command?->info('Linked '.count($categoryIds).' category(ies) by name to '.$form->name.'.');
         } catch (\Exception $e) {
-            $this->command?->warn('Could not sync sample types by name: '.$e->getMessage());
+            $this->command?->warn('Could not sync categories from sample type names: '.$e->getMessage());
         }
     }
 
     protected function detachFoodAndFeedSampleTypes(SubmissionForm $form): void
     {
         try {
-            $ids = SampleType::query()
+            $categoryIds = SampleTypeCategory::query()
                 ->where(function ($query): void {
-                    $query->whereRaw("LOWER(TRIM(name)) IN ('food & feed', 'food and feed')")
-                        ->orWhereRaw("LOWER(TRIM(code)) IN ('food & feed', 'food and feed', 'food_and_feed', 'food and feed')");
+                    $query->whereRaw("LOWER(TRIM(sample_type_category)) IN ('food & feed', 'food and feed')");
                 })
                 ->pluck('id')
                 ->all();
 
-            if ($ids === []) {
+            if ($categoryIds === []) {
                 return;
             }
 
-            $form->sampleTypes()->detach($ids);
+            $form->sampleTypeCategories()->detach($categoryIds);
         } catch (\Exception $e) {
-            $this->command?->warn('Could not detach Food & Feed sample types: '.$e->getMessage());
+            $this->command?->warn('Could not detach Food & Feed categories: '.$e->getMessage());
         }
     }
 
@@ -758,17 +767,22 @@ trait BuildsSubmissionFormTrfSections
                 }
             });
 
-            $ids = $query->pluck('id')->unique()->values()->all();
-            if ($ids === []) {
-                $this->command?->warn('No sample types matched for '.$form->name.' (patterns: '.implode(', ', $namePatterns).').');
+            $categoryIds = $query->whereNotNull('sample_type_category')
+                ->pluck('sample_type_category')
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($categoryIds === []) {
+                $this->command?->warn('No categories matched for '.$form->name.' (patterns: '.implode(', ', $namePatterns).').');
 
                 return;
             }
 
-            $form->sampleTypes()->sync($ids);
-            $this->command?->info('Linked '.count($ids).' sample type(s) by pattern to '.$form->name.'.');
+            $form->sampleTypeCategories()->syncWithoutDetaching($categoryIds);
+            $this->command?->info('Linked '.count($categoryIds).' category(ies) by pattern to '.$form->name.'.');
         } catch (\Exception $e) {
-            $this->command?->warn('Could not sync sample types by pattern: '.$e->getMessage());
+            $this->command?->warn('Could not sync categories by pattern: '.$e->getMessage());
         }
     }
 
@@ -794,11 +808,12 @@ trait BuildsSubmissionFormTrfSections
         foreach ([
             ['text', 'Name', 'customer_name', 1, true],
             ['textarea', 'Address', 'customer_address', 2, true],
-            ['text', 'Tel / Fax no.', 'customer_phone', 3, false],
-            ['text', 'Mobile number', 'mobile_number', 4, false],
-            ['client_contact_select', 'Contact person', 'contact_person', 5, false],
-            ['text', 'Email', 'customer_email', 6, false],
-            ['text', 'CRM contact ID', 'crm_contact_id', 7, false],
+            ['client_unit_select', 'Company unit / Site name', 'company_unit_id', 3, false],
+            ['text', 'Tel / Fax no.', 'customer_phone', 4, false],
+            ['text', 'Mobile number', 'mobile_number', 5, false],
+            ['client_contact_select', 'Contact person', 'contact_person', 6, false],
+            ['text', 'Email', 'customer_email', 7, false],
+            ['text', 'CRM contact ID', 'crm_contact_id', 8, false],
         ] as [$type, $label, $name, $order, $readonly]) {
             $holder->elements()->create([
                 'element_type' => $type,
@@ -839,11 +854,12 @@ trait BuildsSubmissionFormTrfSections
         foreach ([
             ['text', 'Name', 'customer_name', 1, true],
             ['textarea', 'Address', 'customer_address', 2, true],
-            ['text', 'Tel / Fax no.', 'customer_phone', 3, false],
-            ['text', 'Mobile number', 'mobile_number', 4, false],
-            ['client_contact_select', 'Contact person', 'contact_person', 5, false],
-            ['text', 'Email', 'customer_email', 6, false],
-            ['text', 'CRM contact ID', 'crm_contact_id', 7, false],
+            ['client_unit_select', 'Company unit / Site name', 'company_unit_id', 3, false],
+            ['text', 'Tel / Fax no.', 'customer_phone', 4, false],
+            ['text', 'Mobile number', 'mobile_number', 5, false],
+            ['client_contact_select', 'Contact person', 'contact_person', 6, false],
+            ['text', 'Email', 'customer_email', 7, false],
+            ['text', 'CRM contact ID', 'crm_contact_id', 8, false],
         ] as [$type, $label, $name, $order, $readonly]) {
             $element = $holder->elements()->where('name', $name)->first();
 

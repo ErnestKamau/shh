@@ -74,42 +74,73 @@
                 x-cloak
             >
                     @foreach($cardLayout['grid_rows'] as $gridRow)
-                        <div class="row rft-sample-grid-row">
-                            @foreach($gridRow as $column)
-                                <div class="col-md-4 rft-sample-field">
-                                    @if($column === null)
-                                        <div class="rft-sample-field--empty"></div>
-                                    @else
-                                        @php
-                                            $element = $column['element'];
-                                            $field = $column['field'] ?? $fieldMapper->toField($element);
-                                            $fieldName = (string) ($field['name'] ?? $element->name ?? '');
-                                        @endphp
-                                        <label>
-                                            {{ $column['label'] ?? ($field['label'] ?? $fieldName) }}
-                                            @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
-                                        </label>
-                                        @if(($column['type'] ?? '') === 'qty_unit')
-                                            @include('livewire.partials.walk-in-trf-qty-unit-cell', [
-                                                'rowIndex' => $rowIndex,
-                                                'compact' => false,
-                                                'quantityField' => 'sample_quantity',
-                                                'unitField' => 'sample_quantity_unit',
-                                            ])
+                        @if(($gridRow['type'] ?? 'fields') === 'section')
+                            <div class="rft-sample-section-label">{{ $gridRow['label'] ?? '' }}</div>
+                        @elseif(($gridRow['type'] ?? 'fields') === 'divider')
+                            <div class="rft-sample-grid-row-divider" aria-hidden="true"></div>
+                        @else
+                            @php
+                                $gridColumns = $gridRow['columns'] ?? [];
+                                $gridCols = (int) ($gridRow['cols'] ?? 3);
+                                $gridRowClass = 'rft-sample-grid-row rft-sample-grid-row--cols-' . $gridCols;
+                                if (! empty($gridRow['compact'])) {
+                                    $gridRowClass .= ' rft-sample-grid-row--compact';
+                                }
+                                if (($gridRow['group'] ?? '') === 'field_data') {
+                                    $gridRowClass .= ' rft-sample-grid-row--field-data';
+                                }
+                            @endphp
+                            <div class="{{ $gridRowClass }}">
+                                @foreach($gridColumns as $column)
+                                    @php
+                                        $fieldColClass = match ($gridCols) {
+                                            2 => 'col-md-6',
+                                            default => 'col-md-4',
+                                        };
+                                        $fieldName = '';
+                                        if ($column !== null) {
+                                            $fieldName = (string) (($column['field']['name'] ?? '') !== ''
+                                                ? $column['field']['name']
+                                                : ($column['element']->name ?? ''));
+                                        }
+                                        $fieldModifiers = $fieldName === 'test_requirements'
+                                            ? ' rft-sample-field--test-requirements'
+                                            : '';
+                                    @endphp
+                                    <div class="{{ $fieldColClass }} rft-sample-field{{ $fieldModifiers }}">
+                                        @if($column === null)
+                                            <div class="rft-sample-field--empty"></div>
                                         @else
-                                            @include('livewire.sampleworkflow.test-request-field-render', [
-                                                'field' => $field,
-                                                'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
-                                                'fieldId' => $element->name.'_'.$rowIndex,
-                                                'rowIndex' => $rowIndex,
-                                                'compact' => false,
-                                                'hideLabel' => true,
-                                            ])
+                                            @php
+                                                $element = $column['element'];
+                                                $field = $column['field'] ?? $fieldMapper->toField($element);
+                                            @endphp
+                                            <label>
+                                                {{ $column['label'] ?? ($field['label'] ?? $fieldName) }}
+                                                @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
+                                            </label>
+                                            @if(($column['type'] ?? '') === 'qty_unit')
+                                                @include('livewire.partials.walk-in-trf-qty-unit-cell', [
+                                                    'rowIndex' => $rowIndex,
+                                                    'compact' => false,
+                                                    'quantityField' => 'sample_quantity',
+                                                    'unitField' => 'sample_quantity_unit',
+                                                ])
+                                            @else
+                                                @include('livewire.sampleworkflow.test-request-field-render', [
+                                                    'field' => $field,
+                                                    'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
+                                                    'fieldId' => $element->name.'_'.$rowIndex,
+                                                    'rowIndex' => $rowIndex,
+                                                    'compact' => false,
+                                                    'hideLabel' => true,
+                                                ])
+                                            @endif
                                         @endif
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     @endforeach
 
                     @if($cardLayout['extra_columns'] !== [])

@@ -33,10 +33,10 @@
 							<a class="crm-tab-link" id="Company-Units-tab" data-toggle="tab" href="#Company-Units" role="tab" aria-controls="Company-Units" aria-selected="false"><i class="mdi mdi-sitemap"></i> {{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : __('crm.company_units') }}</a>
 						</li>
 						<li class="crm-tab-item">
-							<a class="crm-tab-link" id="Sample-Points-tab" data-toggle="tab" href="#Sample-Points" role="tab" aria-controls="Sample-Points" aria-selected="false"><i class="mdi mdi-map-marker"></i> {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : __('crm.sample_points') }}</a>
+							<a class="crm-tab-link" id="Contacts-tab" data-toggle="tab" href="#Contacts" role="tab" aria-controls="Contacts" aria-selected="false"><i class="mdi mdi-account-box-outline"></i> {{ __('crm.contacts') }}</a>
 						</li>
 						<li class="crm-tab-item">
-							<a class="crm-tab-link" id="Contacts-tab" data-toggle="tab" href="#Contacts" role="tab" aria-controls="Contacts" aria-selected="false"><i class="mdi mdi-account-box-outline"></i> {{ __('crm.contacts') }}</a>
+							<a class="crm-tab-link" id="Sample-Points-tab" data-toggle="tab" href="#Sample-Points" role="tab" aria-controls="Sample-Points" aria-selected="false"><i class="mdi mdi-map-marker"></i> {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : __('crm.sample_points') }}</a>
 						</li>
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Orders-tab" data-toggle="tab" href="#Orders" role="tab" aria-controls="Orders" aria-selected="false"><i class="mdi mdi-eyedropper-plus"></i> {{ __('crm.orders') }}</a>

@@ -231,6 +231,10 @@ class CreateEnquiryFromQuotationWizard extends Component
 
     public function physicalSampleCountForType(string $typeId): int
     {
+        if ($typeId === EnquiryFromQuotationService::UNIFIED_TRF_FIELD_KEY || $typeId === '') {
+            return max(1, $this->numberOfSamples);
+        }
+
         if (! $this->isMultiSampleType) {
             return max(1, $this->numberOfSamples);
         }

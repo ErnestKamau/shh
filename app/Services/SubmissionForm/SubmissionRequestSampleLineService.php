@@ -8,6 +8,7 @@ use App\Models\CRM\SamplePoint;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
+use App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver;
 use App\SampleType;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
@@ -37,7 +38,7 @@ class SubmissionRequestSampleLineService
     {
         $instance->loadMissing([
             'submissionForm.sections.elementHolders.elements' => fn ($q) => $q->orderBy('sort_order'),
-            'submissionForm.sampleTypes',
+            'submissionForm.sampleTypeCategories',
             'values.element',
         ]);
 
@@ -313,6 +314,69 @@ class SubmissionRequestSampleLineService
     }
 
     /**
+     * Copy display-oriented row fields from indexed section values when sample_rows JSON
+     * omits them (common for checkbox groups like test_requirements).
+     *
+     * @param  array<string, mixed>  $line
+     * @param  array<string, mixed>  $sectionLine
+     */
+    private function mergeSectionDisplayFieldsIntoLine(array &$line, array $sectionLine): void
+    {
+        $scalarKeys = [
+            'sample_description',
+            'sample_quantity',
+            'sample_quantity_unit',
+            'sampling_point',
+            'field_sample_temp',
+            'sample_condition',
+            'state_of_sample',
+            'production_date',
+            'expiration_date',
+            'batch_number',
+            'parameter_category',
+            'test_category',
+        ];
+
+        foreach ($scalarKeys as $key) {
+            if (trim((string) ($line[$key] ?? '')) !== '') {
+                continue;
+            }
+
+            $candidate = $sectionLine[$key] ?? null;
+            if ($candidate === null || $candidate === '') {
+                continue;
+            }
+
+            $line[$key] = $candidate;
+        }
+
+        $sectionAttributes = is_array($sectionLine['attributes'] ?? null) ? $sectionLine['attributes'] : [];
+        $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+
+        if (! isset($line['attributes']['test_requirements']) && isset($sectionAttributes['test_requirements'])) {
+            $line['attributes']['test_requirements'] = $sectionAttributes['test_requirements'];
+        }
+
+        if (trim((string) ($line['parameter_category'] ?? '')) === '') {
+            $categoryTokens = SubmissionFormSchemaHelper::testCategoryTokens(
+                $line['parameter_category']
+                    ?? $line['test_category']
+                    ?? $line['attributes']['test_requirements']
+                    ?? $sectionLine['parameter_category']
+                    ?? $sectionLine['test_category']
+                    ?? $sectionAttributes['test_requirements']
+                    ?? null,
+            );
+
+            if ($categoryTokens !== []) {
+                $line['parameter_category'] = implode(',', $categoryTokens);
+            }
+        }
+
+        $this->finalizeSampleLineDerivedFields($line);
+    }
+
+    /**
      * TRF sample_rows snapshots can omit PARAMETERS selections that live on rows_section values.
      *
      * @param  list<array<string, mixed>>  $trfRowLines
@@ -353,18 +417,18 @@ class SubmissionRequestSampleLineService
                 if ($sectionParameterLabel !== '' && ! $this->isTestCategoryLabel($sectionParameterLabel)) {
                     $line['parameter_label'] = $sectionParameterLabel;
                 }
+            } else {
+                $line['analysis_element_id'] = $sectionLine['analysis_element_id'] ?? $sectionElementIds[0];
+                $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+                $line['attributes']['analysis_element_ids'] = array_values(array_map('strval', $sectionElementIds));
 
-                continue;
+                $sectionParameterLabel = trim((string) ($sectionLine['parameter_label'] ?? ''));
+                if ($sectionParameterLabel !== '') {
+                    $line['parameter_label'] = $sectionParameterLabel;
+                }
             }
 
-            $line['analysis_element_id'] = $sectionLine['analysis_element_id'] ?? $sectionElementIds[0];
-            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
-            $line['attributes']['analysis_element_ids'] = array_values(array_map('strval', $sectionElementIds));
-
-            $sectionParameterLabel = trim((string) ($sectionLine['parameter_label'] ?? ''));
-            if ($sectionParameterLabel !== '') {
-                $line['parameter_label'] = $sectionParameterLabel;
-            }
+            $this->mergeSectionDisplayFieldsIntoLine($line, $sectionLine);
         }
         unset($line);
 
@@ -659,6 +723,7 @@ class SubmissionRequestSampleLineService
             'production_date' => null,
             'expiration_date' => null,
             'batch_number' => null,
+            'field_sample_temp' => null,
             'picture_of_samples' => null,
             'attributes' => [],
         ];
@@ -761,6 +826,10 @@ class SubmissionRequestSampleLineService
                         $line['attributes'] = [];
                     }
                     $line['attributes']['test_requirements'] = $decoded;
+                    $categoryTokens = SubmissionFormSchemaHelper::testCategoryTokens($decoded);
+                    if ($categoryTokens !== []) {
+                        $line['parameter_category'] = implode(',', $categoryTokens);
+                    }
                 }
             } elseif ($name === 'sample_condition') {
                 $line['sample_condition'] = $display !== '' ? $display : $rawValue;
@@ -770,6 +839,10 @@ class SubmissionRequestSampleLineService
                 $line['attributes']['tests_requested'] = $display !== '' ? $display : $rawValue;
             } elseif ($name === 'state_of_sample') {
                 $line['state_of_sample'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'sampling_point_manual') {
+                $line['sampling_point'] = $this->resolveSamplingPointLabel($display !== '' ? $display : $rawValue);
+            } elseif (in_array($name, ['field_sample_temp', 'sample_temp', 'sample_temperature'], true)) {
+                $line['field_sample_temp'] = $display !== '' ? $display : $rawValue;
             } elseif (in_array($name, ['sampling_point', 'sampling_location'], true)
                 || in_array($type, ['sample_point_select', 'customer_sample_point_select'], true)) {
                 $line['sampling_point'] = $this->resolveSamplingPointLabel($display !== '' ? $display : $rawValue);
@@ -792,19 +865,7 @@ class SubmissionRequestSampleLineService
             }
         }
 
-        if (($line['attributes'] ?? null) === []) {
-            unset($line['attributes']);
-        }
-
-        try {
-            $prefixRow = array_merge(
-                is_array($line['attributes'] ?? null) ? $line['attributes'] : [],
-                ['test_category' => $line['parameter_category'] ?? null],
-            );
-            $line['sample_code_prefix'] = app(JobSampleNumberingService::class)->resolveCategoryPrefixFromRow($prefixRow);
-        } catch (\InvalidArgumentException) {
-            $line['sample_code_prefix'] = null;
-        }
+        $this->finalizeSampleLineDerivedFields($line);
 
         if (trim((string) ($line['parameter_label'] ?? '')) === '') {
             $tests = [];
@@ -1477,7 +1538,9 @@ class SubmissionRequestSampleLineService
             }
         }
 
-        $formTypeId = $instance->submissionForm->sampleTypes->first()?->id;
+        $formTypeId = $instance->submissionForm !== null
+            ? app(PortalTestRequestFormSampleTypeResolver::class)->resolveForForm($instance->submissionForm)->first()?->id
+            : null;
 
         return $formTypeId ? (string) $formTypeId : null;
     }
@@ -1545,7 +1608,12 @@ class SubmissionRequestSampleLineService
             'sample_condition' => $this->nullableString($row['sample_condition'] ?? null),
             'state_of_sample' => $this->nullableString($row['state_of_sample'] ?? null),
             'sampling_point' => $this->resolveSamplingPointLabel(
-                $this->nullableString($row['sampling_point'] ?? $row['sampling_location'] ?? null)
+                $this->nullableString(
+                    $row['sampling_point']
+                        ?? $row['sampling_point_manual']
+                        ?? $row['sampling_location']
+                        ?? null
+                )
             ),
             'location' => $this->resolveSamplingPointLabel(
                 $this->nullableString($row['location'] ?? null)
@@ -1553,9 +1621,17 @@ class SubmissionRequestSampleLineService
             'production_date' => $this->nullableString($row['production_date'] ?? null),
             'expiration_date' => $this->nullableString($row['expiration_date'] ?? null),
             'batch_number' => $this->nullableString($row['batch_number'] ?? null),
+            'field_sample_temp' => $this->nullableString(
+                $row['field_sample_temp'] ?? $row['sample_temp'] ?? $row['sample_temperature'] ?? null
+            ),
             'picture_of_samples' => null,
             'attributes' => [],
         ];
+
+        $manualSamplingPoint = $this->nullableString($row['sampling_point_manual'] ?? null);
+        if ($manualSamplingPoint !== null && ($line['sampling_point'] ?? null) === null) {
+            $line['sampling_point'] = $this->resolveSamplingPointLabel($manualSamplingPoint);
+        }
 
         if (count($rowSampleTypes['ids']) > 1) {
             $line['attributes']['sample_type_ids'] = $rowSampleTypes['ids'];
@@ -1626,6 +1702,20 @@ class SubmissionRequestSampleLineService
             $line['parameter_category'] = $category;
         }
 
+        if (isset($row['test_requirements'])) {
+            $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            if (is_array($row['test_requirements'])) {
+                $line['attributes']['test_requirements'] = $row['test_requirements'];
+            } else {
+                $tokens = SubmissionFormSchemaHelper::testCategoryTokens($row['test_requirements']);
+                $map = [];
+                foreach (['microbiology', 'legionella', 'chemistry'] as $key) {
+                    $map[$key] = in_array($key, $tokens, true);
+                }
+                $line['attributes']['test_requirements'] = $map;
+            }
+        }
+
         try {
             $line['sample_code_prefix'] = app(JobSampleNumberingService::class)->resolveCategoryPrefixFromRow($row);
         } catch (\InvalidArgumentException) {
@@ -1639,11 +1729,75 @@ class SubmissionRequestSampleLineService
             )));
         }
 
-        if ($line['attributes'] === []) {
+        $this->finalizeSampleLineDerivedFields($line);
+
+        return $line;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function finalizeSampleLineDerivedFields(array &$line): void
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+
+        if (($line['sampling_point'] ?? null) === null || trim((string) $line['sampling_point']) === '') {
+            $manualPoint = trim((string) ($attributes['sampling_point_manual'] ?? ''));
+            if ($manualPoint !== '') {
+                $line['sampling_point'] = $this->resolveSamplingPointLabel($manualPoint);
+            }
+        }
+
+        if (($line['field_sample_temp'] ?? null) === null || trim((string) $line['field_sample_temp']) === '') {
+            foreach (['field_sample_temp', 'sample_temp', 'sample_temperature'] as $tempKey) {
+                $tempValue = trim((string) ($attributes[$tempKey] ?? ''));
+                if ($tempValue !== '') {
+                    $line['field_sample_temp'] = $tempValue;
+                    break;
+                }
+            }
+        }
+
+        if (trim((string) ($line['parameter_category'] ?? '')) === '') {
+            $requirementSource = $line['test_requirements']
+                ?? $attributes['test_requirements']
+                ?? $attributes['test_category']
+                ?? $line['test_category']
+                ?? null;
+
+            $categoryTokens = SubmissionFormSchemaHelper::testCategoryTokens($requirementSource);
+            if ($categoryTokens !== []) {
+                $line['parameter_category'] = implode(',', $categoryTokens);
+            }
+        }
+
+        $categoryTokens = SubmissionFormSchemaHelper::testCategoryTokens(
+            $line['parameter_category']
+                ?? $line['test_requirements']
+                ?? $attributes['test_requirements']
+                ?? $line['test_category']
+                ?? $attributes['test_category']
+                ?? null,
+        );
+        if ($categoryTokens !== []) {
+            $line['parameter_category'] = implode(',', $categoryTokens);
+            $line['test_requirements'] = implode(',', $categoryTokens);
+            $line['test_category'] = implode(',', $categoryTokens);
+        }
+
+        if (($line['attributes'] ?? null) === []) {
             unset($line['attributes']);
         }
 
-        return $line;
+        try {
+            $prefixRow = array_merge(
+                is_array($line['attributes'] ?? null) ? $line['attributes'] : [],
+                ['test_category' => $line['parameter_category'] ?? null],
+            );
+            $line['sample_code_prefix'] = app(JobSampleNumberingService::class)->resolveCategoryPrefixFromRow($prefixRow);
+        } catch (\InvalidArgumentException) {
+            $line['sample_code_prefix'] = null;
+        }
     }
 
     /**

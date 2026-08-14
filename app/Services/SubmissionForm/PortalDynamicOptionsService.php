@@ -70,7 +70,7 @@ class PortalDynamicOptionsService
             'client_select' => $this->clientSelect($crmCustomerId, $search, $page, $perPage),
             'sample_type_select' => $this->sampleTypeSelect($request),
             'client_unit_select' => ['options' => $this->normalizeOptions($this->clientUnits($clientId))],
-            'client_contact_select' => ['options' => $this->normalizeOptions($this->clientContacts($clientId))],
+            'client_contact_select' => ['options' => $this->normalizeOptions($this->clientContacts($clientId, $clientUnitId))],
             'client_submission_officers_select' => ['options' => $this->submissionOfficers($clientId)],
             'store_select' => ['options' => $this->stores()],
             'store_slot_select' => ['options' => $this->storeSlots($storeId)],
@@ -217,21 +217,28 @@ class PortalDynamicOptionsService
     /**
      * @return list<array<string, mixed>>
      */
-    private function clientContacts(?string $clientId): array
+    private function clientContacts(?string $clientId, mixed $clientUnitId = null): array
     {
         if ($clientId === null) {
             return [];
         }
 
+        $unitId = trim((string) ($clientUnitId ?? ''));
+
         return CustomerContact::query()
             ->where('crm_customer_id', $clientId)
+            ->where('active', 1)
             ->orderBy('first_name')
             ->get()
+            ->when($unitId !== '', fn ($contacts) => $contacts->filter(
+                fn (CustomerContact $contact): bool => $contact->isLinkedToCompanyUnit($unitId)
+            ))
             ->map(function (CustomerContact $contact): array {
                 $name = trim($contact->first_name.' '.$contact->middle_name.' '.$contact->last_name);
 
                 return ['id' => $contact->id, 'text' => $name !== '' ? $name : $contact->email];
             })
+            ->values()
             ->all();
     }
 

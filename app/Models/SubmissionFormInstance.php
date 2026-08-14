@@ -245,8 +245,11 @@ class SubmissionFormInstance extends Model implements Auditable
         }
 
         if ($this->relationLoaded('submissionForm') && $this->submissionForm) {
-            if ($this->submissionForm->relationLoaded('sampleTypes')) {
-                return $this->submissionForm->sampleTypes->pluck('name')->filter()->values()->all();
+            $resolved = app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+                ->resolveForForm($this->submissionForm);
+
+            if ($resolved->isNotEmpty()) {
+                return $resolved->pluck('name')->filter()->values()->all();
             }
         }
         return [];

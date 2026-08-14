@@ -1,11 +1,9 @@
-{{-- Tests tab — samples configuration style, read-only --}}
+{{-- Tests tab — samples configuration style --}}
 <div class="rv-tests-tab"
      x-data="{
         paramsOpen: false,
-        descriptionOpen: false,
         modalTitle: '',
-        parameterGroups: [],
-        descriptionHtml: ''
+        parameterGroups: []
      }">
     <div class="workflow-board-panel-header rv-tests-tab-header">
         <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
@@ -32,56 +30,65 @@
                 <table class="table table-bordered table-sm workflow-table rv-tests-table mb-0">
                     <thead>
                         <tr>
-                            <th class="text-center" style="width: 56px;">Actions</th>
-                            <th>Sample type</th>
-                            <th>Analysis types</th>
-                            <th class="text-center" style="width: 72px;">Sample description</th>
-                            <th>Sample quantity</th>
-                            <th>Sampling point / location</th>
-                            <th>Test category</th>
-                            <th>Production date</th>
-                            <th>Expiry date</th>
-                            <th>Batch number</th>
-                            @foreach($testSamplesCard['extra_column_labels'] as $extraLabel)
-                                <th>{{ $extraLabel }}</th>
+                            @foreach($testSamplesCard['columns'] as $column)
+                                @php
+                                    $isActions = ($column['key'] ?? '') === 'actions';
+                                @endphp
+                                <th @class([
+                                    'text-center' => $isActions,
+                                ]) @if($isActions) style="width: 88px;" @endif>
+                                    {{ $column['label'] }}
+                                </th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($testSamplesCard['samples'] as $sample)
-                            <tr>
-                                <td class="text-center">
-                                    <button type="button"
-                                        class="btn btn-sm btn-icon btn-light text-info"
-                                        title="View parameters"
-                                        aria-label="View parameters for sample {{ $sample['number'] }}"
-                                        @click='modalTitle = @json("Parameters — sample ".$sample["number"]); parameterGroups = @json($sample["parameter_groups"]); descriptionHtml = ""; paramsOpen = true; descriptionOpen = false;'>
-                                        <i class="mdi mdi-eye" aria-hidden="true"></i>
-                                    </button>
-                                </td>
-                                <td>{{ $sample['sample_type'] }}</td>
-                                <td>{{ $sample['analysis_type'] }}</td>
-                                <td class="text-center">
-                                    @if($sample['has_description'])
-                                        <button type="button"
-                                            class="btn btn-sm btn-icon btn-light text-primary"
-                                            title="Click to show sample description"
-                                            aria-label="Click to show sample description"
-                                            @click='modalTitle = @json("Sample description — sample ".$sample["number"]); descriptionHtml = @json($sample["sample_description_html"]); parameterGroups = []; descriptionOpen = true; paramsOpen = false;'>
-                                            <i class="mdi mdi-text-box-outline" aria-hidden="true"></i>
-                                        </button>
+                            <tr wire:key="sample-row-{{ $sample['row_index'] ?? $sample['number'] }}">
+                                @foreach($testSamplesCard['columns'] as $column)
+                                    @php
+                                        $columnKey = $column['key'] ?? '';
+                                    @endphp
+                                    @if($columnKey === 'actions')
+                                        <td class="text-center">
+                                            <div class="d-inline-flex align-items-center" style="gap: 4px;">
+                                                <button type="button"
+                                                    class="btn btn-sm btn-icon btn-light text-info"
+                                                    title="View parameters"
+                                                    aria-label="View parameters for sample {{ $sample['number'] }}"
+                                                    @click='modalTitle = @json("Parameters — sample ".$sample["number"]); parameterGroups = @json($sample["parameter_groups"]); paramsOpen = true;'>
+                                                    <i class="mdi mdi-eye" aria-hidden="true"></i>
+                                                </button>
+                                                @if($canEditSampleRows ?? false)
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-icon btn-light text-primary"
+                                                        title="Edit sample row"
+                                                        aria-label="Edit sample row {{ $sample['number'] }}"
+                                                        wire:click="openSampleRowEditor({{ (int) ($sample['row_index'] ?? 0) }})">
+                                                        <i class="mdi mdi-pencil" aria-hidden="true"></i>
+                                                    </button>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    @elseif($columnKey === 'sample_description')
+                                        <td class="rv-sample-description-cell">
+                                            @if($sample['has_description'])
+                                                <div class="rv-sample-description-inline">{!! $sample['sample_description_html'] !!}</div>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+                                    @elseif($columnKey === 'test_requirements')
+                                        <td>{{ $sample['test_category'] }}</td>
+                                    @elseif(str_starts_with($columnKey, 'extra:'))
+                                        @php
+                                            $extraLabel = $column['label'] ?? '';
+                                            $extraValue = collect($sample['extra_columns'] ?? [])->firstWhere('label', $extraLabel)['value'] ?? '—';
+                                        @endphp
+                                        <td>{{ $extraValue }}</td>
                                     @else
-                                        <span class="text-muted">—</span>
+                                        <td>{{ $sample[$columnKey] ?? '—' }}</td>
                                     @endif
-                                </td>
-                                <td>{{ $sample['sample_quantity'] }}</td>
-                                <td>{{ $sample['sampling_point'] }}</td>
-                                <td>{{ $sample['test_category'] }}</td>
-                                <td>{{ $sample['production_date'] }}</td>
-                                <td>{{ $sample['expiry_date'] }}</td>
-                                <td>{{ $sample['batch_number'] }}</td>
-                                @foreach($sample['extra_columns'] as $extra)
-                                    <td>{{ $extra['value'] }}</td>
                                 @endforeach
                             </tr>
                         @endforeach
@@ -142,18 +149,5 @@
         </div>
     </div>
 
-    {{-- Sample description (rich text, read-only) --}}
-    <div class="rv-modal-backdrop" x-show="descriptionOpen" x-cloak @keydown.escape.window="descriptionOpen = false">
-        <div class="rv-modal rv-modal--wide" role="dialog" aria-modal="true" @click.away="descriptionOpen = false">
-            <div class="rv-modal-header">
-                <h4 class="rv-modal-title" x-text="modalTitle"></h4>
-                <button type="button" class="rv-modal-close" @click="descriptionOpen = false" aria-label="Close">
-                    <i class="mdi mdi-close" aria-hidden="true"></i>
-                </button>
-            </div>
-            <div class="rv-modal-body">
-                <div class="rv-richtext-readonly" x-html="descriptionHtml"></div>
-            </div>
-        </div>
-    </div>
+    @include('livewire.submission-forms.request-view.partials.sample-row-edit-modal')
 </div>

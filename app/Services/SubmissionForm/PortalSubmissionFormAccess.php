@@ -180,6 +180,82 @@ class PortalSubmissionFormAccess
         return $this->testRequestFormForSampleTypeCategory((int) $categoryId, $crmCustomerId);
     }
 
+    /**
+     * Resolve the TRF that covers all sample type categories present on the enquiry lines.
+     * Prefers forms linked to every required category; falls back to any category match.
+     *
+     * @param  list<int>  $categoryIds
+     */
+    public function testRequestFormForCategoryIds(array $categoryIds, ?string $crmCustomerId = null): ?SubmissionForm
+    {
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $categoryIds))));
+        if ($categoryIds === [] || ! Schema::hasTable('submission_form_sample_type_categories')) {
+            return null;
+        }
+
+        $candidates = $this->testRequestTemplatesQuery($crmCustomerId)
+            ->whereHas('sampleTypeCategories')
+            ->with('sampleTypeCategories')
+            ->get();
+
+        $best = null;
+        $bestScore = -1;
+
+        foreach ($candidates as $form) {
+            $linked = $form->sampleTypeCategories->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $coversAll = count(array_diff($categoryIds, $linked)) === 0;
+            if (! $coversAll) {
+                continue;
+            }
+
+            $score = count($linked);
+            if ($best === null || $score < $bestScore) {
+                $best = $form;
+                $bestScore = $score;
+            }
+        }
+
+        if ($best !== null) {
+            return $best;
+        }
+
+        return $this->testRequestTemplatesQuery($crmCustomerId)
+            ->whereHas('sampleTypeCategories', function (Builder $q) use ($categoryIds): void {
+                $q->whereIn('sample_type_categories.id', $categoryIds);
+            })
+            ->withCount('sampleTypeCategories')
+            ->orderBy('sample_type_categories_count')
+            ->first();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<int>
+     */
+    public function categoryIdsFromSampleLines(array $lines): array
+    {
+        $sampleTypeIds = collect($lines)
+            ->map(static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($sampleTypeIds === []) {
+            return [];
+        }
+
+        return SampleType::query()
+            ->whereIn('id', $sampleTypeIds)
+            ->whereNotNull('sample_type_category')
+            ->pluck('sample_type_category')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     private function findTestRequestFormForSampleType(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
     {
         $byDocumentCode = $this->findTestRequestFormBySampleTypeDocumentCode($sampleTypeId);
@@ -187,7 +263,6 @@ class PortalSubmissionFormAccess
             return $byDocumentCode;
         }
 
-        // Try lookup via the sample type's category pivot (preferred over direct sample-type pivot).
         if (Schema::hasTable('submission_form_sample_type_categories')) {
             $sampleType = SampleType::query()->find($sampleTypeId);
             if ($sampleType && filled($sampleType->sample_type_category)) {
@@ -201,35 +276,6 @@ class PortalSubmissionFormAccess
                     return $byCategoryPivot;
                 }
             }
-        }
-
-        $scopedToSampleType = fn (Builder $query) => $query->whereHas(
-            'sampleTypes',
-            fn (Builder $sampleTypeQuery) => $sampleTypeQuery->where('sample_types.id', $sampleTypeId)
-        );
-
-        $trfMatch = $this->testRequestTemplatesQuery($crmCustomerId)
-            ->where($scopedToSampleType)
-            ->first();
-
-        if ($trfMatch !== null) {
-            return $trfMatch;
-        }
-
-        $templateMatch = SubmissionForm::query()
-            ->where('is_active', true)
-            ->where('form_type', 'template')
-            ->where(function (Builder $builder): void {
-                $builder->where('document_code', 'like', 'TRF-%')
-                    ->orWhere('document_code', 'LSR-001')
-                    ->orWhereRaw('lower(name) like ?', ['%test request form%']);
-            })
-            ->where($scopedToSampleType)
-            ->orderByRaw("case when document_code like 'TRF-%' then 0 when document_code = 'LSR-001' then 1 else 2 end")
-            ->first();
-
-        if ($templateMatch !== null) {
-            return $templateMatch;
         }
 
         return null;

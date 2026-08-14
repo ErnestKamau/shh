@@ -63,6 +63,9 @@ class SampleIntegrityCheckPage extends Component
      */
     public array $bulkAnalystIdsBySection = [];
 
+    /** @var array<string, array{label: string, sample_details: string, details: list<array{label: string, value: string}>, tests: list<string>}> */
+    public array $sampleInfoByKey = [];
+
     public function mount(string $submissionFormId, string $instanceId): void
     {
         $this->submissionFormId = $submissionFormId;
@@ -102,47 +105,12 @@ class SampleIntegrityCheckPage extends Component
     public function updatedSelectedRowKeys(): void
     {
         $this->resetBulkAnalystState();
+        $this->syncBulkAnalystSectionsFromSelection();
     }
 
     public function updatedBulkAnalystLabSectionIds(): void
     {
-        $allowed = array_flip(array_map('strval', $this->bulkAnalystLabSectionIds));
-        $pruned = [];
-        foreach ($this->bulkAnalystIdsBySection as $sectionId => $analystIds) {
-            $sectionId = (string) $sectionId;
-            if (! isset($allowed[$sectionId])) {
-                continue;
-            }
-            $pruned[$sectionId] = array_values(array_map(
-                'strval',
-                is_array($analystIds) ? $analystIds : []
-            ));
-        }
-
-        $selectedRows = array_flip(array_map('strval', $this->selectedRowKeys));
-        foreach (array_keys($allowed) as $sectionId) {
-            if (array_key_exists($sectionId, $pruned)) {
-                continue;
-            }
-
-            $assigned = [];
-            foreach ($this->testRows as $row) {
-                if (! isset($selectedRows[(string) ($row['row_key'] ?? '')])) {
-                    continue;
-                }
-
-                $rowAssignments = is_array($row['analysts_by_lab_section'] ?? null)
-                    ? $row['analysts_by_lab_section']
-                    : [];
-                $assigned = [
-                    ...$assigned,
-                    ...(is_array($rowAssignments[$sectionId] ?? null) ? $rowAssignments[$sectionId] : []),
-                ];
-            }
-
-            $pruned[$sectionId] = array_values(array_unique(array_filter(array_map('strval', $assigned))));
-        }
-        $this->bulkAnalystIdsBySection = $pruned;
+        $this->hydrateBulkAnalystIdsFromSelection();
     }
 
     public function toggleBulkAnalyst(string $labSectionId, string $userId): void
@@ -171,6 +139,7 @@ class SampleIntegrityCheckPage extends Component
         }
 
         $this->bulkAnalystIdsBySection[$labSectionId] = array_values(array_unique($assigned));
+        $this->applyBulkAnalystsToSelection($labSectionId, silent: true);
     }
 
     public function updatedTestSearch(): void
@@ -251,10 +220,7 @@ class SampleIntegrityCheckPage extends Component
             return;
         }
 
-        $this->enquiry = app(SampleIntegrityCheckService::class)
-            ->persistIntegrityAssignments($this->enquiry, $this->testRows);
-
-        $this->reloadRows();
+        $this->persistAssignments();
         $this->setFlashMessage('Integrity assignments saved.', 'success');
     }
 
@@ -268,6 +234,8 @@ class SampleIntegrityCheckPage extends Component
             $this->testRows[$index]['subcontracted'] = ! (bool) ($row['subcontracted'] ?? false);
             break;
         }
+
+        $this->persistAssignments(reload: false);
     }
 
     /**
@@ -285,6 +253,8 @@ class SampleIntegrityCheckPage extends Component
             $this->applyLabSectionsToIndex($index, $ids);
             break;
         }
+
+        $this->persistAssignments(reload: false);
     }
 
     public function toggleRowAnalyst(string $rowKey, string $labSectionId, string $userId): void
@@ -312,9 +282,11 @@ class SampleIntegrityCheckPage extends Component
             $this->testRows[$index]['analysts_by_lab_section'] = $bySection;
             break;
         }
+
+        $this->persistAssignments(reload: false);
     }
 
-    public function applyBulkLabSections(array $labSectionIds = []): void
+    public function applyBulkLabSections(array $labSectionIds = [], bool $silent = false): void
     {
         if ($this->selectedRowKeys === []) {
             return;
@@ -326,7 +298,9 @@ class SampleIntegrityCheckPage extends Component
         );
 
         if ($ids === []) {
-            $this->setFlashMessage('Select at least one lab section to apply.', 'warning');
+            if (! $silent) {
+                $this->setFlashMessage('Select at least one lab section to apply.', 'warning');
+            }
 
             return;
         }
@@ -347,7 +321,21 @@ class SampleIntegrityCheckPage extends Component
             $updated++;
         }
 
-        $this->setFlashMessage($updated.' test(s) updated with lab section(s).', 'success');
+        $this->persistAssignments(reload: ! $silent);
+        $this->syncBulkAnalystSectionsFromSelection();
+
+        if (! $silent && $updated > 0) {
+            $this->setFlashMessage($updated.' test(s) updated with lab section(s).', 'success');
+        }
+    }
+
+    public function toggleBulkSubcontractedOnSelected(): void
+    {
+        if ($this->selectedRowKeys === []) {
+            return;
+        }
+
+        $this->applyBulkSubcontracted(! $this->bulkSubcontractAllSelected);
     }
 
     public function applyBulkSubcontracted(bool $subcontracted = true): void
@@ -369,9 +357,13 @@ class SampleIntegrityCheckPage extends Component
         }
 
         $this->clearRowSelection();
-        $this->setFlashMessage($subcontracted
-            ? $updated.' test(s) marked subcontracted.'
-            : $updated.' test(s) unmarked as subcontracted.', 'success');
+        $this->persistAssignments(reload: false);
+
+        if ($updated > 0) {
+            $this->setFlashMessage($subcontracted
+                ? $updated.' test(s) marked subcontracted.'
+                : $updated.' test(s) unmarked as subcontracted.', 'success');
+        }
     }
 
     /**
@@ -379,12 +371,28 @@ class SampleIntegrityCheckPage extends Component
      */
     public function applyBulkAnalysts(?array $analystIdsBySection = null): void
     {
+        $this->applyBulkAnalystsToSelection(null, $analystIdsBySection, silent: false);
+    }
+
+    /**
+     * @param  array<string, list<string>>|null  $analystIdsBySection
+     */
+    private function applyBulkAnalystsToSelection(
+        ?string $onlySectionId = null,
+        ?array $analystIdsBySection = null,
+        bool $silent = false,
+    ): void {
         if ($this->selectedRowKeys === []) {
             return;
         }
 
         $configService = app(AcceptanceFormSampleConfigService::class);
         $payload = is_array($analystIdsBySection) ? $analystIdsBySection : $this->bulkAnalystIdsBySection;
+
+        if ($onlySectionId !== null && $onlySectionId !== '') {
+            $sectionAnalystIds = is_array($payload[$onlySectionId] ?? null) ? $payload[$onlySectionId] : [];
+            $payload = [$onlySectionId => $sectionAnalystIds];
+        }
 
         $bySection = [];
         foreach ($payload as $sectionId => $analystIds) {
@@ -398,7 +406,7 @@ class SampleIntegrityCheckPage extends Component
                 array_map('strval', is_array($analystIds) ? $analystIds : []),
                 static fn (string $id): bool => $id !== ''
             )));
-            if ($ids === []) {
+            if ($ids === [] && $onlySectionId === null) {
                 continue;
             }
 
@@ -406,9 +414,21 @@ class SampleIntegrityCheckPage extends Component
         }
 
         if ($bySection === []) {
-            $this->setFlashMessage('Select at least one analyst for a lab section already on the selected test(s).', 'warning');
+            if ($silent && $onlySectionId !== null) {
+                $normalized = $configService->normalizeLabSectionIds([(string) $onlySectionId]);
+                $sectionId = $normalized[0] ?? '';
+                if ($sectionId !== '') {
+                    $bySection[$sectionId] = [];
+                }
+            }
 
-            return;
+            if ($bySection === []) {
+                if (! $silent) {
+                    $this->setFlashMessage('Select at least one analyst for a lab section already on the selected test(s).', 'warning');
+                }
+
+                return;
+            }
         }
 
         $selected = array_flip($this->selectedRowKeys);
@@ -444,12 +464,23 @@ class SampleIntegrityCheckPage extends Component
         }
 
         if ($updated === 0) {
-            $this->setFlashMessage('No selected tests include the chosen lab section(s). Assign sections first.', 'warning');
+            if ($silent) {
+                $this->persistAssignments(reload: false);
+            } else {
+                $this->setFlashMessage('No selected tests include the chosen lab section(s). Assign sections first.', 'warning');
+            }
 
             return;
         }
 
+            if ($silent) {
+                $this->persistAssignments(reload: false);
+
+                return;
+            }
+
         $this->clearRowSelection();
+        $this->persistAssignments();
         $this->setFlashMessage($updated.' test(s) updated with analyst(s).', 'success');
     }
 
@@ -503,6 +534,7 @@ class SampleIntegrityCheckPage extends Component
         }
 
         $this->clearRowSelection();
+        $this->persistAssignments(reload: false);
         $this->setFlashMessage("Copied assignments from the first selected test to {$updated} other test(s).", 'success');
     }
 
@@ -637,6 +669,59 @@ class SampleIntegrityCheckPage extends Component
         ]);
     }
 
+    public function getRegistrationLabelUrlProperty(): string
+    {
+        return route('submission-forms.instances.sample-collection-label', [
+            'instance' => $this->instance->id,
+            'type' => 'registration',
+        ]);
+    }
+
+    /**
+     * @return array{
+     *     label: string,
+     *     sample_details: string,
+     *     details: list<array{label: string, value: string}>,
+     *     tests: list<string>
+     * }
+     */
+    public function sampleInfoForKey(string $configKey): array
+    {
+        if ($configKey === '' || $this->enquiry === null) {
+            return [
+                'label' => 'Sample',
+                'sample_details' => '',
+                'details' => [],
+                'tests' => [],
+            ];
+        }
+
+        if (! isset($this->sampleInfoByKey[$configKey])) {
+            $this->sampleInfoByKey = app(SampleIntegrityCheckService::class)
+                ->sampleInfoByConfigKey($this->instance, $this->enquiry, $this->testRows);
+        }
+
+        return $this->sampleInfoByKey[$configKey] ?? [
+            'label' => 'Sample',
+            'sample_details' => '',
+            'details' => [],
+            'tests' => [],
+        ];
+    }
+
+    public function openSampleInfo(string $configKey, string $label): void
+    {
+        $info = $this->sampleInfoForKey($configKey);
+
+        $this->dispatch(
+            'integrity-sample-info-open',
+            title: $label.' — Test & sample information',
+            details: $info['sample_details'],
+            fields: $info['details'],
+            tests: $info['tests'],
+        );
+    }
+
     protected function setFlashMessage(string $message, string $type = 'info'): void
     {
         $this->flashMessage = $message;
@@ -768,6 +853,27 @@ class SampleIntegrityCheckPage extends Component
         }
 
         return false;
+    }
+
+    public function getBulkSubcontractAllSelectedProperty(): bool
+    {
+        if ($this->selectedRowKeys === []) {
+            return false;
+        }
+
+        $selected = array_flip($this->selectedRowKeys);
+        foreach ($this->testRows as $row) {
+            $rowKey = (string) ($row['row_key'] ?? '');
+            if (! isset($selected[$rowKey])) {
+                continue;
+            }
+
+            if (empty($row['subcontracted'])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function getRequestInfoCardProperty(): array
@@ -979,17 +1085,91 @@ class SampleIntegrityCheckPage extends Component
         $this->bulkAnalystIdsBySection = $pruned;
     }
 
+    private function syncBulkAnalystSectionsFromSelection(): void
+    {
+        $options = $this->bulkAnalystSectionOptions;
+        if ($options === []) {
+            return;
+        }
+
+        $this->bulkAnalystLabSectionIds = array_values(array_filter(array_map(
+            static fn (array $section): string => (string) ($section['id'] ?? ''),
+            $options
+        )));
+
+        $this->hydrateBulkAnalystIdsFromSelection();
+    }
+
+    private function hydrateBulkAnalystIdsFromSelection(): void
+    {
+        $allowed = array_flip(array_map('strval', $this->bulkAnalystLabSectionIds));
+        $pruned = [];
+        foreach ($this->bulkAnalystIdsBySection as $sectionId => $analystIds) {
+            $sectionId = (string) $sectionId;
+            if (! isset($allowed[$sectionId])) {
+                continue;
+            }
+            $pruned[$sectionId] = array_values(array_map(
+                'strval',
+                is_array($analystIds) ? $analystIds : []
+            ));
+        }
+
+        $selectedRows = array_flip(array_map('strval', $this->selectedRowKeys));
+        foreach (array_keys($allowed) as $sectionId) {
+            if (array_key_exists($sectionId, $pruned)) {
+                continue;
+            }
+
+            $assigned = [];
+            foreach ($this->testRows as $row) {
+                if (! isset($selectedRows[(string) ($row['row_key'] ?? '')])) {
+                    continue;
+                }
+
+                $rowAssignments = is_array($row['analysts_by_lab_section'] ?? null)
+                    ? $row['analysts_by_lab_section']
+                    : [];
+                $assigned = [
+                    ...$assigned,
+                    ...(is_array($rowAssignments[$sectionId] ?? null) ? $rowAssignments[$sectionId] : []),
+                ];
+            }
+
+            $pruned[$sectionId] = array_values(array_unique(array_filter(array_map('strval', $assigned))));
+        }
+        $this->bulkAnalystIdsBySection = $pruned;
+    }
+
+
+    private function persistAssignments(bool $reload = true): void
+    {
+        if ($this->enquiry === null) {
+            return;
+        }
+
+        $this->enquiry = app(SampleIntegrityCheckService::class)
+            ->persistIntegrityAssignments($this->enquiry, $this->testRows);
+
+        if ($reload) {
+            $this->reloadRows();
+        }
+    }
+
     private function reloadRows(): void
     {
         if ($this->enquiry === null) {
             $this->testRows = [];
             $this->selectedSampleKey = '';
+            $this->sampleInfoByKey = [];
 
             return;
         }
 
         $this->testRows = app(SampleIntegrityCheckService::class)
             ->buildTestRows($this->enquiry, $this->instance);
+
+        $this->sampleInfoByKey = [];
 
         $summaries = $this->sampleSummaries;
         $keys = array_column($summaries, 'key');

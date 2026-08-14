@@ -415,7 +415,7 @@ class JobSampleNumberingService
         try {
             app(TestRequestFormPdfService::class)->generateAndStore($instance->fresh([
                 'values.element',
-                'submissionForm.sampleTypes',
+                'submissionForm.sampleTypeCategories',
                 'batches.samples',
             ]) ?? $instance);
             app(SubmissionFormInstanceDocumentAttachmentService::class)

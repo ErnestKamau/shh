@@ -41,7 +41,7 @@ class ScheduleSamplingDetails extends Component
             'sample_type',
             'analysis_type',
             'submissionFormInstances.values.element',
-            'submissionFormInstances.submissionForm.sampleTypes',
+            'submissionFormInstances.submissionForm.sampleTypeCategories',
             'submissionFormInstances.submittedBy',
             'samplePlanHistories.changedByUser',
         ])->visibleTo()->findOrFail($this->scheduleId);
@@ -80,7 +80,7 @@ class ScheduleSamplingDetails extends Component
             'submissionFormInstances' => function ($query) {
                 $query->orderByDesc('submitted_at')->orderByDesc('created_at');
             },
-            'submissionFormInstances.submissionForm.sampleTypes',
+            'submissionFormInstances.submissionForm.sampleTypeCategories',
             'submissionFormInstances.submittedBy',
         ])->visibleTo()->find($this->viewingTrfScheduleId);
     }

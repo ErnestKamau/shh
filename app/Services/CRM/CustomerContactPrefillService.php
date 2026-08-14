@@ -73,6 +73,54 @@ class CustomerContactPrefillService
     }
 
     /**
+     * Customer-only TRF prefill (walk-in): name and address — no contact or communication fields.
+     *
+     * @return array<string, string>
+     */
+    public function buildWalkInCustomerPrefillMap(CRMCustomer $customer): array
+    {
+        $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
+        $canonicalName = trim((string) ($customer->name ?? ''));
+
+        return [
+            'customer_name' => $canonicalName,
+            'customer_address' => $address,
+            'client_name' => $canonicalName,
+            'customer' => $canonicalName,
+            'client' => $canonicalName,
+            'address' => $address,
+            'physical_address' => (string) ($customer->physical_address ?? ''),
+            'postal_address' => (string) ($customer->postal_address ?? ''),
+        ];
+    }
+
+    /**
+     * Communication fields from the selected contact only (no customer fallbacks).
+     *
+     * @return array<string, string>
+     */
+    public function buildSelectedContactCommunicationFields(CustomerContact $contact): array
+    {
+        $telFax = trim((string) ($contact->telephone ?? ''));
+        $mobile = trim((string) ($contact->mobile ?? ''));
+        $email = trim((string) ($contact->email ?? ''));
+
+        return [
+            'customer_phone' => $telFax,
+            'mobile_number' => $mobile,
+            'customer_email' => $email,
+            'phone' => $telFax,
+            'telephone' => $telFax,
+            'phone_number' => $telFax,
+            'telephone_number' => $telFax,
+            'tel_fax_no' => $telFax,
+            'email' => $email,
+            'email_address' => $email,
+            'crm_contact_id' => (string) $contact->id,
+        ];
+    }
+
+    /**
      * @return array<string, string>
      */
     public function buildTrfPrefillMap(CRMCustomer $customer, ?CustomerContact $contact = null): array

@@ -1,4 +1,13 @@
-<div class="sample-integrity-check-page">
+<div
+    class="sample-integrity-check-page"
+    x-data="{
+        sampleInfoOpen: false,
+        sampleInfoTitle: '',
+        sampleInfoDetails: '',
+        sampleInfoFields: [],
+        sampleInfoTests: []
+    }"
+>
     @if($flashMessage !== '')
         <div class="alert alert-info alert-dismissible fade show" role="alert">
             {{ $flashMessage }}
@@ -19,13 +28,9 @@
             <a href="{{ $this->collectionLabelUrl }}" target="_blank" class="btn btn-sm btn-outline-secondary">
                 <i class="mdi mdi-printer-outline"></i> Collection label
             </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="integrity-lab-sample-labels-btn">
+            <a href="{{ $this->registrationLabelUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
                 <i class="mdi mdi-barcode"></i> Lab sample labels
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="saveAssignments" wire:loading.attr="disabled">
-                <span wire:loading.remove wire:target="saveAssignments">Save assignments</span>
-                <span wire:loading wire:target="saveAssignments">Saving…</span>
-            </button>
+            </a>
             <button
                 type="button"
                 class="btn btn-sm btn-primary"
@@ -72,32 +77,40 @@
                         <div class="integrity-rail-title">Samples</div>
                         <div class="list-group list-group-flush integrity-sample-list">
                             @foreach($sampleSummaries as $sample)
-                                <button
-                                    type="button"
-                                    class="list-group-item list-group-item-action integrity-sample-item {{ $selectedSampleKey === $sample['key'] ? 'is-active' : '' }}"
-                                    wire:click="selectSample('{{ $sample['key'] }}')"
+                                <div
+                                    class="list-group-item integrity-sample-item {{ $selectedSampleKey === $sample['key'] ? 'is-active' : '' }}"
                                 >
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <span class="font-weight-bold">{{ $sample['label'] }}</span>
-                                        @if($sample['incomplete'] === 0)
-                                            <span class="badge badge-success">Done</span>
-                                        @else
-                                            <span class="badge badge-warning">{{ $sample['incomplete'] }} left</span>
-                                        @endif
+                                    <div class="d-flex align-items-start integrity-sample-item-row">
+                                        <button
+                                            type="button"
+                                            class="integrity-sample-select flex-grow-1 text-left"
+                                            wire:click="selectSample('{{ $sample['key'] }}')"
+                                        >
+                                            <div class="font-weight-bold">{{ $sample['label'] }}</div>
+                                            <div class="integrity-sample-meta">
+                                                {{ $sample['complete'] }}/{{ $sample['total'] }} assigned
+                                                @if($sample['subcontracted'] > 0)
+                                                    · {{ $sample['subcontracted'] }} subcontracted
+                                                @endif
+                                            </div>
+                                            <div class="integrity-progress">
+                                                <div
+                                                    class="integrity-progress-bar"
+                                                    style="width: {{ $sample['total'] > 0 ? round(($sample['complete'] / $sample['total']) * 100) : 0 }}%"
+                                                ></div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rv-icon-btn rv-icon-btn--solo integrity-sample-info-btn"
+                                            title="Click to view sample information"
+                                            aria-label="Click to view sample information for {{ $sample['label'] }}"
+                                            wire:click.stop="openSampleInfo('{{ $sample['key'] }}', @js($sample['label']))"
+                                        >
+                                            <i class="mdi mdi-information-outline" aria-hidden="true"></i>
+                                        </button>
                                     </div>
-                                    <div class="integrity-sample-meta">
-                                        {{ $sample['complete'] }}/{{ $sample['total'] }} assigned
-                                        @if($sample['subcontracted'] > 0)
-                                            · {{ $sample['subcontracted'] }} subcontracted
-                                        @endif
-                                    </div>
-                                    <div class="integrity-progress">
-                                        <div
-                                            class="integrity-progress-bar"
-                                            style="width: {{ $sample['total'] > 0 ? round(($sample['complete'] / $sample['total']) * 100) : 0 }}%"
-                                        ></div>
-                                    </div>
-                                </button>
+                                </div>
                             @endforeach
                         </div>
                     </aside>
@@ -129,65 +142,86 @@
                         </div>
 
                         @if($selectedCount > 0)
+                            @php
+                                $bulkSectionOptions = $this->bulkAnalystSectionOptions;
+                                $bulkSubcontractAll = $this->bulkSubcontractAllSelected;
+                            @endphp
                             <div class="integrity-bulk-bar" wire:key="integrity-bulk-bar-{{ $selectedCount }}">
-                                <div class="integrity-bulk-count">
-                                    <strong>{{ $selectedCount }}</strong> selected
-                                    <button type="button" class="btn btn-link btn-sm p-0 ml-2" wire:click="clearRowSelection">Clear</button>
-                                </div>
-                                <div class="integrity-bulk-actions">
-                                    <div wire:ignore class="integrity-bulk-select-wrap">
-                                        <select
-                                            class="form-control form-control-sm integrity-bulk-section-select"
-                                            multiple
-                                            data-placeholder="Set lab section(s)…"
+                                <div class="integrity-bulk-toolbar">
+                                    <div class="integrity-bulk-count">
+                                        <strong>{{ $selectedCount }}</strong> selected
+                                        <button
+                                            type="button"
+                                            class="rv-icon-btn rv-icon-btn--solo integrity-bulk-clear-btn"
+                                            title="Clear selection"
+                                            aria-label="Clear selection"
+                                            wire:click="clearRowSelection"
                                         >
-                                            @foreach($this->labSections as $section)
-                                                <option value="{{ $section['id'] }}">{{ $section['name'] }}</option>
-                                            @endforeach
-                                        </select>
+                                            <i class="mdi mdi-close" aria-hidden="true"></i>
+                                        </button>
                                     </div>
-                                    <button type="button" class="btn btn-sm btn-primary" id="integrity-bulk-apply-sections">
-                                        Apply sections
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="applyBulkSubcontracted(true)">
-                                        Mark subcontracted
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="applyBulkSubcontracted(false)">
-                                        Unmark subcontracted
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" wire:click="copyAssignmentsFromFirstSelected">
-                                        Copy from first selected
-                                    </button>
+                                    <div class="integrity-bulk-group integrity-bulk-lab-sections-group">
+                                        <span class="integrity-bulk-group-label">Lab sections</span>
+                                        <div wire:ignore class="integrity-bulk-select-wrap">
+                                            <select
+                                                class="form-control form-control-sm integrity-bulk-section-select"
+                                                multiple
+                                                data-placeholder="Set lab section(s)…"
+                                            >
+                                                @foreach($this->labSections as $section)
+                                                    <option value="{{ $section['id'] }}">{{ $section['name'] }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="integrity-bulk-toolbar-spacer" aria-hidden="true"></div>
+                                    <div class="integrity-bulk-group integrity-bulk-more-actions">
+                                            <button
+                                                type="button"
+                                                class="rv-icon-btn rv-icon-btn--solo {{ $bulkSubcontractAll ? 'is-active' : '' }}"
+                                                title="{{ $bulkSubcontractAll ? 'Unmark subcontract on selected' : 'Mark subcontract on selected' }}"
+                                                aria-label="{{ $bulkSubcontractAll ? 'Unmark subcontract on selected' : 'Mark subcontract on selected' }}"
+                                                wire:click="toggleBulkSubcontractedOnSelected"
+                                            >
+                                                <i class="mdi mdi-truck-delivery-outline" aria-hidden="true"></i>
+                                            </button>
+                                            <div class="dropdown integrity-bulk-overflow">
+                                                <button
+                                                    type="button"
+                                                    class="rv-icon-btn rv-icon-btn--solo dropdown-toggle"
+                                                    data-toggle="dropdown"
+                                                    aria-haspopup="true"
+                                                    aria-expanded="false"
+                                                    title="More bulk actions"
+                                                >
+                                                    <i class="mdi mdi-dots-vertical" aria-hidden="true"></i>
+                                                </button>
+                                                <div class="dropdown-menu dropdown-menu-right">
+                                                    <button
+                                                        type="button"
+                                                        class="dropdown-item"
+                                                        wire:click="copyAssignmentsFromFirstSelected"
+                                                        @disabled($selectedCount < 2)
+                                                    >
+                                                        <i class="mdi mdi-content-copy mr-2"></i>
+                                                        Copy from first selected
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                 </div>
                                 <div class="integrity-bulk-analyst-row">
-                                    <span class="integrity-bulk-analyst-label">Analysts</span>
-                                    @php
-                                        $bulkSectionOptions = $this->bulkAnalystSectionOptions;
-                                    @endphp
-                                    @if($bulkSectionOptions === [])
-                                        <span class="text-muted small">Assign lab section(s) on the selected test(s) first.</span>
-                                    @else
-                                        <div class="integrity-bulk-analyst-sections">
-                                            @foreach($bulkSectionOptions as $section)
-                                                @php
-                                                    $sectionId = (string) ($section['id'] ?? '');
-                                                    $sectionSelected = in_array($sectionId, $bulkAnalystLabSectionIds, true);
-                                                @endphp
-                                                <label class="badge badge-pill {{ $sectionSelected ? 'badge-primary' : 'badge-light' }} mb-0" style="cursor: pointer;">
-                                                    <input
-                                                        type="checkbox"
-                                                        class="d-none"
-                                                        value="{{ $sectionId }}"
-                                                        wire:model.live="bulkAnalystLabSectionIds"
-                                                    >
-                                                    {{ $section['name'] }}
-                                                </label>
-                                            @endforeach
-                                        </div>
-                                        @foreach($bulkAnalystLabSectionIds as $sectionId)
+                                    <div class="integrity-bulk-analyst-head">
+                                        <span class="integrity-bulk-analyst-label">Analysts</span>
+                                        @if($bulkSectionOptions === [])
+                                            <span class="text-muted small">Assign lab section(s) on the selected test(s) first.</span>
+                                        @endif
+                                    </div>
+                                    @if($bulkSectionOptions !== [])
+                                        <div class="integrity-bulk-analyst-columns">
+                                        @foreach($bulkSectionOptions as $section)
                                             @php
-                                                $sectionId = (string) $sectionId;
-                                                $sectionName = $sectionNames[$sectionId] ?? 'Lab section';
+                                                $sectionId = (string) ($section['id'] ?? '');
                                                 $sectionAnalysts = $this->analystsBySection[$sectionId] ?? [];
                                                 $picked = array_values(array_map(
                                                     'strval',
@@ -197,7 +231,9 @@
                                                 ));
                                             @endphp
                                             <div class="integrity-bulk-analyst-group" wire:key="bulk-analyst-group-{{ $sectionId }}">
-                                                <div class="integrity-bulk-analyst-group-label">{{ $sectionName }}</div>
+                                                @if(count($bulkSectionOptions) > 1)
+                                                    <span class="integrity-bulk-analyst-group-label">{{ $section['name'] }}</span>
+                                                @endif
                                                 <div class="integrity-bulk-analyst-picks">
                                                     @forelse($sectionAnalysts as $analyst)
                                                         @php
@@ -205,16 +241,14 @@
                                                             $isPicked = in_array($analystId, $picked, true);
                                                         @endphp
                                                         <label
-                                                            class="badge badge-pill {{ $isPicked ? 'badge-primary' : 'badge-light' }} mb-0"
+                                                            class="badge badge-pill mb-0"
+                                                            :class="picked ? 'badge-primary' : 'badge-light'"
+                                                            x-data="{ picked: @js($isPicked) }"
                                                             style="cursor: pointer;"
                                                             wire:key="bulk-analyst-{{ $sectionId }}-{{ $analystId }}-{{ $isPicked ? 'selected' : 'available' }}"
+                                                            wire:click.prevent.debounce.400ms="toggleBulkAnalyst('{{ $sectionId }}', '{{ $analystId }}')"
+                                                            @click="picked = !picked"
                                                         >
-                                                            <input
-                                                                type="checkbox"
-                                                                class="d-none"
-                                                                wire:click.prevent="toggleBulkAnalyst('{{ $sectionId }}', '{{ $analystId }}')"
-                                                                @checked($isPicked)
-                                                            >
                                                             {{ $analyst['name'] }}
                                                         </label>
                                                     @empty
@@ -223,15 +257,7 @@
                                                 </div>
                                             </div>
                                         @endforeach
-                                        @if($bulkAnalystLabSectionIds !== [])
-                                            <button
-                                                type="button"
-                                                class="btn btn-sm btn-primary"
-                                                wire:click="applyBulkAnalysts"
-                                            >
-                                                Apply analysts
-                                            </button>
-                                        @endif
+                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -326,10 +352,12 @@
                                             <td class="align-middle text-right">
                                                 <button
                                                     type="button"
-                                                    class="btn btn-sm {{ $isEditing ? 'btn-secondary' : 'btn-outline-primary' }}"
+                                                    class="rv-icon-btn rv-icon-btn--solo {{ $isEditing ? 'is-active' : '' }}"
+                                                    title="{{ $isEditing ? 'Close editor' : 'Edit assignment' }}"
+                                                    aria-label="{{ $isEditing ? 'Close editor' : 'Edit assignment' }}"
                                                     wire:click="startEditingRow('{{ $rowKey }}')"
                                                 >
-                                                    {{ $isEditing ? 'Close' : 'Edit' }}
+                                                    <i class="mdi {{ $isEditing ? 'mdi-close' : 'mdi-pencil-outline' }}" aria-hidden="true"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -446,114 +474,46 @@
         </div>
     @endif
 
-    @teleport('body')
-        <div id="print-sample-labels-modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore>
-            <div class="modal-dialog modal-dialog-centered" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-printer mr-1"></i> Print Labels
-                        </h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+    <div class="rv-modal-backdrop" x-show="sampleInfoOpen" x-cloak @keydown.escape.window="sampleInfoOpen = false">
+        <div class="rv-modal" role="dialog" aria-modal="true" @click.away="sampleInfoOpen = false">
+            <div class="rv-modal-header">
+                <h4 class="rv-modal-title" x-text="sampleInfoTitle"></h4>
+                <button type="button" class="rv-modal-close" @click="sampleInfoOpen = false" aria-label="Close">
+                    <i class="mdi mdi-close" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="rv-modal-body">
+                <dl class="rv-detail-grid mb-0">
+                    <div class="rv-detail-row">
+                        <dt>Sample Details</dt>
+                        <dd x-text="sampleInfoDetails !== '' ? sampleInfoDetails : '—'"></dd>
                     </div>
-                    <div class="modal-body">
-                        <p class="mb-3 text-muted">Choose which label to generate for the samples listed. Each option opens in a new tab.</p>
-                        <div class="list-group">
-                            <button type="button"
-                                class="list-group-item list-group-item-action js-open-sample-label text-left"
-                                data-label-url="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'collection']) }}">
-                                <div class="d-flex align-items-center">
-                                    <i class="mdi mdi-tag-outline mr-2 text-primary" aria-hidden="true"></i>
-                                    <div>
-                                        <strong class="d-block">Sample Collection Label</strong>
-                                        <small class="text-muted">Collection details with TRF barcode</small>
-                                    </div>
-                                </div>
-                            </button>
-                            <button type="button"
-                                class="list-group-item list-group-item-action js-open-sample-label text-left"
-                                data-label-url="{{ route('submission-forms.instances.sample-collection-label', ['instance' => $instance->id, 'type' => 'registration']) }}">
-                                <div class="d-flex align-items-center">
-                                    <i class="mdi mdi-barcode mr-2 text-primary" aria-hidden="true"></i>
-                                    <div>
-                                        <strong class="d-block">Registration Label with barcode</strong>
-                                        <small class="text-muted">Job / sample registration label for scanning</small>
-                                    </div>
-                                </div>
-                            </button>
+                    <template x-for="field in sampleInfoFields" :key="field.label">
+                        <div class="rv-detail-row">
+                            <dt x-text="field.label"></dt>
+                            <dd x-text="field.value"></dd>
+                        </div>
+                    </template>
+                </dl>
+                <template x-if="sampleInfoTests.length > 0">
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="rv-field-label mb-2">Tests</div>
+                        <div class="rv-test-codes">
+                            <template x-for="test in sampleInfoTests" :key="test">
+                                <span class="rv-test-code" x-text="test"></span>
+                            </template>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-                    </div>
-                </div>
+                </template>
+                <template x-if="sampleInfoDetails === '' && sampleInfoFields.length === 0 && sampleInfoTests.length === 0">
+                    <p class="rv-empty-copy mb-0 mt-3">No sample information was captured on the TRF.</p>
+                </template>
             </div>
         </div>
-    @endteleport
+    </div>
 
     <script>
         (function () {
-            if (!window.__printSampleLabelsBound) {
-                window.__printSampleLabelsBound = true;
-                window.__sampleIntegrityLabelsBound = true;
-
-                window.openPrintSampleLabelsModal = function () {
-                    const modal = document.getElementById('print-sample-labels-modal');
-                    if (!modal) {
-                        return;
-                    }
-
-                    if (typeof window.jQuery === 'function' && typeof window.jQuery.fn.modal === 'function') {
-                        window.jQuery(modal).modal('show');
-                        return;
-                    }
-
-                    modal.classList.add('show');
-                    modal.style.display = 'block';
-                    modal.removeAttribute('aria-hidden');
-                    document.body.classList.add('modal-open');
-                };
-
-                window.closePrintSampleLabelsModal = function () {
-                    const modal = document.getElementById('print-sample-labels-modal');
-                    if (!modal) {
-                        return;
-                    }
-
-                    if (typeof window.jQuery === 'function' && typeof window.jQuery.fn.modal === 'function') {
-                        window.jQuery(modal).modal('hide');
-                        return;
-                    }
-
-                    modal.classList.remove('show');
-                    modal.style.display = 'none';
-                    modal.setAttribute('aria-hidden', 'true');
-                    document.body.classList.remove('modal-open');
-                };
-
-                document.addEventListener('click', function (event) {
-                    const labelOption = event.target.closest('#print-sample-labels-modal .js-open-sample-label');
-                    if (labelOption) {
-                        event.preventDefault();
-                        const url = labelOption.getAttribute('data-label-url');
-                        if (url) {
-                            window.open(url, '_blank');
-                        }
-                        window.closePrintSampleLabelsModal();
-                        return;
-                    }
-
-                    const button = event.target.closest('#integrity-lab-sample-labels-btn');
-                    if (!button || button.disabled) {
-                        return;
-                    }
-                    event.preventDefault();
-                    window.openPrintSampleLabelsModal();
-                });
-            }
-
             if (window.__sampleIntegritySelect2Bound) {
                 return;
             }
@@ -571,6 +531,10 @@
             };
 
             const bindRowSelect = ($select) => {
+                if ($select.attr('data-integrity-bound') === '1') {
+                    return;
+                }
+
                 if (!$select.hasClass('select2-hidden-accessible')) {
                     $select.select2({
                         width: '100%',
@@ -604,17 +568,19 @@
                             delete pendingSectionSync[rowKey];
                         }
                     });
+
+                $select.attr('data-integrity-bound', '1');
             };
 
             const bindBulkSelect = () => {
                 const $select = window.jQuery('.integrity-bulk-section-select');
-                if (!$select.length) {
+                if (!$select.length || $select.attr('data-integrity-bound') === '1') {
                     return;
                 }
 
                 if (!$select.hasClass('select2-hidden-accessible')) {
                     $select.select2({
-                        width: '240px',
+                        width: '280px',
                         placeholder: $select.data('placeholder') || 'Set lab section(s)…',
                         allowClear: true,
                         closeOnSelect: false,
@@ -624,27 +590,22 @@
                     });
                 }
 
-                window.jQuery(document)
-                    .off('click.integrityBulk', '#integrity-bulk-apply-sections')
-                    .on('click.integrityBulk', '#integrity-bulk-apply-sections', function (event) {
-                        event.preventDefault();
+                $select
+                    .off('change.integrityBulkSections select2:close.integrityBulkSections')
+                    .on('change.integrityBulkSections', function () {
+                        // Values are applied when the dropdown closes.
+                    })
+                    .on('select2:close.integrityBulkSections', function () {
                         const wire = getWire();
-                        const $bulk = window.jQuery('.integrity-bulk-section-select');
-                        if (!wire || !$bulk.length) {
+                        const values = $select.val() || [];
+                        if (!wire || values.length === 0) {
                             return;
                         }
 
-                        const values = $bulk.val() || [];
-                        if ($bulk.hasClass('select2-hidden-accessible')) {
-                            try {
-                                $bulk.select2('close');
-                            } catch (e) {
-                                // ignore
-                            }
-                        }
-
-                        wire.call('applyBulkLabSections', values);
+                        wire.call('applyBulkLabSections', values, true);
                     });
+
+                $select.attr('data-integrity-bound', '1');
             };
 
             const initSelects = () => {
@@ -664,6 +625,23 @@
             };
 
             const boot = () => {
+                Livewire.on('integrity-sample-info-open', (event) => {
+                    const payload = event?.title !== undefined
+                        ? event
+                        : (Array.isArray(event) ? (event[0] ?? {}) : (event?.detail ?? {}));
+                    const root = document.querySelector('.sample-integrity-check-page');
+                    if (!root || !window.Alpine) {
+                        return;
+                    }
+
+                    const state = Alpine.$data(root);
+                    state.sampleInfoTitle = payload.title ?? '';
+                    state.sampleInfoDetails = payload.details ?? '';
+                    state.sampleInfoFields = payload.fields ?? [];
+                    state.sampleInfoTests = payload.tests ?? [];
+                    state.sampleInfoOpen = true;
+                });
+
                 Livewire.on('acceptance-form-completed', (event) => {
                     const payload = Array.isArray(event) ? (event[0] ?? {}) : (event ?? {});
                     const redirectUrl = payload.redirectUrl

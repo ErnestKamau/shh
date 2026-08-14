@@ -7,9 +7,9 @@ use Illuminate\Database\Migrations\Migration;
 return new class extends Migration
 {
     /**
-     * Patch Food, Swab, and Water TRFs:
+     * Patch Food, Swab, Water, and Waste Water TRFs:
      * - Thermometer ID as free-text field (not apparatus checkbox)
-     * - Remove Sampling Location (CRM select) from Test & sample information rows
+     * - Remove Sampling Location from Test & sample information rows (collection-only field)
      * - Keep Sampling Point free-text field on per-sample rows
      */
     public function up(): void
@@ -39,6 +39,7 @@ return new class extends Migration
                     'TRF-FOOD-019' => $this->foodTrfRowFields(),
                     'TRF-WATER-020' => $this->waterTrfRowFields(),
                     'TRF-SWAB-022' => $this->swabTrfRowFields(),
+                    'TRF-WASTE-036' => $this->wasteWaterTrfRowFields(),
                 ];
 
                 foreach ($rowPatches as $documentCode => $rowFields) {
@@ -50,6 +51,7 @@ return new class extends Migration
                     $this->patchSampleRowsSection($form, $rowFields);
                     $this->removeRowElementsByName($form, [
                         'sampling_point',
+                        'sampling_location',
                         'location',
                         'sampling_point_other',
                         'sampling_point_others',

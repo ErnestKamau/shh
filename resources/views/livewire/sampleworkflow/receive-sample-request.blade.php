@@ -934,6 +934,44 @@
         <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
     @endif
 
+    @if($showWalkInAddUnitModal)
+        <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="walk-in-add-unit-title">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h5 class="modal-title" id="walk-in-add-unit-title">Add company unit</h5>
+                        <button type="button" class="close" wire:click="closeWalkInAddUnitModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">The new unit will be saved in CRM and selected on this request.</p>
+                        <div class="form-group mb-0">
+                            <label class="small font-weight-bold">Unit / site name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" wire:model="walkInNewUnitName" placeholder="e.g. Discovery Gardens">
+                            @error('walkInNewUnitName') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-light" wire:click="closeWalkInAddUnitModal">Cancel</button>
+                        <button type="button"
+                            class="btn btn-sm btn-primary"
+                            wire:click="saveWalkInCompanyUnit"
+                            wire:loading.attr="disabled"
+                            wire:target="saveWalkInCompanyUnit">
+                            <span wire:loading.remove wire:target="saveWalkInCompanyUnit">Save unit</span>
+                            <span wire:loading wire:target="saveWalkInCompanyUnit">
+                                <span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+                                Saving…
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+    @endif
+
     @if($showWalkInAddContactModal)
         <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true">
             <div class="modal-dialog" role="document">
@@ -945,6 +983,16 @@
                         </button>
                     </div>
                     <div class="modal-body">
+                        <div class="form-group">
+                            <label class="small font-weight-bold">Company unit / Site name <span class="text-danger">*</span></label>
+                            <select class="form-control form-control-sm" wire:model="walkInNewContactUnitId">
+                                <option value="">Select unit...</option>
+                                @foreach($this->customerCompanyUnits as $unit)
+                                    <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('walkInNewContactUnitId') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                        </div>
                         <div class="form-group">
                             <label class="small font-weight-bold">Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm" wire:model="walkInNewContactName" placeholder="Contact name">

@@ -301,14 +301,20 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
         $instance = $this->resolveLinkedSubmissionFormInstance($form);
         if ($instance !== null) {
-            $instance->loadMissing(['values.element', 'submissionForm.sampleTypes', 'batches']);
+            $instance->loadMissing(['values.element', 'submissionForm.sampleTypeCategories', 'batches']);
 
             $fromBatch = trim((string) ($instance->batches->first()?->sample_type_id ?? ''));
             if ($fromBatch !== '') {
                 return $fromBatch;
             }
 
-            $fromFormTemplate = trim((string) ($instance->submissionForm?->sampleTypes?->first()?->id ?? ''));
+            $fromFormTemplate = trim((string) (
+                $instance->submissionForm !== null
+                    ? app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+                        ->resolveForForm($instance->submissionForm)
+                        ->first()?->id
+                    : ''
+            ));
             if ($fromFormTemplate !== '') {
                 return $fromFormTemplate;
             }

@@ -1172,9 +1172,7 @@ SQL);
         }
 
         if ($this->sampleTypeFilter) {
-            $query->whereHas('submissionForm.sampleTypes', function ($q) {
-                $q->where('sample_types.id', $this->sampleTypeFilter);
-            });
+            $this->applySubmissionFormSampleTypeFilter($query, (string) $this->sampleTypeFilter);
         }
 
         if ($this->receiptDateFrom) {
@@ -1332,9 +1330,7 @@ SQL);
         }
 
         if ($this->sampleTypeFilter) {
-            $query->whereHas('submissionForm.sampleTypes', function ($q) {
-                $q->where('sample_types.id', $this->sampleTypeFilter);
-            });
+            $this->applySubmissionFormSampleTypeFilter($query, (string) $this->sampleTypeFilter);
         }
 
         if ($this->receiptDateFrom) {
@@ -1370,6 +1366,27 @@ SQL);
         }
     }
 
+    private function applySubmissionFormSampleTypeFilter($query, string $sampleTypeId): void
+    {
+        $categoryId = SampleType::query()->whereKey($sampleTypeId)->value('sample_type_category');
+
+        $query->where(function ($builder) use ($sampleTypeId, $categoryId): void {
+            $builder->where('selected_sample_type_id', $sampleTypeId);
+
+            if ($categoryId !== null) {
+                $builder->orWhereHas('submissionForm.sampleTypeCategories', function ($categoryQuery) use ($categoryId): void {
+                    $categoryQuery->where('sample_type_categories.id', (int) $categoryId);
+                });
+            }
+
+            $builder->orWhereHas('values', function ($valueQuery) use ($sampleTypeId): void {
+                $valueQuery->whereHas('element', function ($elementQuery): void {
+                    $elementQuery->whereIn('name', ['sample_type_id', 'sample_type']);
+                })->where('value', 'like', '%'.$sampleTypeId.'%');
+            });
+        });
+    }
+
     public function isReceivingStage(): bool
     {
         return in_array($this->status, ['Samples En-Route', 'Samples Receiving', 'Samples Reception'], true);
@@ -1400,7 +1417,7 @@ SQL);
                 : 'submitted';
 
             $eagerLoads = [
-                'submissionForm.sampleTypes',
+                'submissionForm.sampleTypeCategories',
                 'submittedBy',
                 'batches.samples',
                 'crmCustomer',
@@ -1442,7 +1459,7 @@ SQL);
 
             $query = $this->requestReviewSubmissionFormsBaseQuery()
                 ->with([
-                    'submissionForm.sampleTypes',
+                    'submissionForm.sampleTypeCategories',
                     'submittedBy',
                     'batches.batch_attachments',
                     'crmCustomer',
@@ -1474,7 +1491,7 @@ SQL);
         }
 
         $query = SubmissionFormInstance::with([
-                'submissionForm.sampleTypes',
+                'submissionForm.sampleTypeCategories',
                 'submittedBy',
                 'batches',
                 'crmCustomer',
@@ -1567,9 +1584,7 @@ SQL);
         }
 
         if ($this->sampleTypeFilter) {
-            $query->whereHas('submissionForm.sampleTypes', function ($q) {
-                $q->where('sample_types.id', $this->sampleTypeFilter);
-            });
+            $this->applySubmissionFormSampleTypeFilter($query, (string) $this->sampleTypeFilter);
         }
 
         if ($this->receiptDateFrom) {

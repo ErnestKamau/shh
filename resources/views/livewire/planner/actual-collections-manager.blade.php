@@ -281,7 +281,7 @@
                                                             {{ $instance->submissionForm?->name ?? 'Request Form' }}
                                                         </div>
                                                         <small class="text-muted">
-                                                            {{ $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}
+                                                            {{ $instance->selectedSampleTypeName() ?? 'N/A' }}
                                                         </small>
                                                         @if($instance->form_number)
                                                             <small class="text-muted d-block">{{ $instance->form_number }}</small>

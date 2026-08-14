@@ -33,7 +33,7 @@ class ContactForm extends BaseCrmComponent
     public $receive_report = false;
     public $receive_feedback = false;
     public $is_main_customer_contact = false;
-    public $active = false;
+    public $active = true;
     public $units = [];
     public $unitSearch = '';
     public $showUnitDropdown = false;

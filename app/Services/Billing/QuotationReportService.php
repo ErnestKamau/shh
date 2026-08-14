@@ -711,10 +711,6 @@ class QuotationReportService
             $contact?->last_name ?? '',
         ])));
 
-        if (! empty($contact?->job_occupation)) {
-            $attention .= ' ('.$contact->job_occupation.')';
-        }
-
         $row = (object) array_merge($header->toArray(), [
             'customer_name' => $header->customer?->name,
             'postal_address' => $header->customer?->postal_address,

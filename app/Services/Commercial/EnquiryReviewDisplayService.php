@@ -104,7 +104,7 @@ final class EnquiryReviewDisplayService
     public function headerSampleTypeLabel(SampleSubmissionRequest $enquiry): string
     {
         $enquiry->loadMissing([
-            'submissionFormInstance.submissionForm.sampleTypes',
+            'submissionFormInstance.submissionForm.sampleTypeCategories',
         ]);
 
         // Cards carry their own sample types on unlinked TRFs, so the lines win over the header pick.
@@ -122,10 +122,15 @@ final class EnquiryReviewDisplayService
                 }
             }
 
-            foreach ($enquiry->submissionFormInstance->submissionForm?->sampleTypes ?? [] as $sampleType) {
-                $name = trim((string) ($sampleType->name ?? ''));
-                if ($name !== '') {
-                    return $name;
+            $form = $enquiry->submissionFormInstance->submissionForm;
+            if ($form !== null) {
+                $resolved = app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+                    ->resolveForForm($form);
+                if ($resolved->count() === 1) {
+                    $name = trim((string) ($resolved->first()?->name ?? ''));
+                    if ($name !== '') {
+                        return $name;
+                    }
                 }
             }
         }
@@ -200,7 +205,7 @@ final class EnquiryReviewDisplayService
     public function sampleRows(SampleSubmissionRequest $enquiry): array
     {
         $enquiry->loadMissing([
-            'submissionFormInstance.submissionForm.sampleTypes',
+            'submissionFormInstance.submissionForm.sampleTypeCategories',
             'requestedAnalyses',
         ]);
 
@@ -267,11 +272,11 @@ final class EnquiryReviewDisplayService
 
             if ($elementId !== '' && Str::isUuid($elementId)) {
                 $code = $this->resolveElementParameterCode($elementId);
-                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                if ($code !== '') {
                     $tests[] = ['label' => $code];
-
-                    continue;
                 }
+
+                continue;
             }
 
             $label = trim((string) ($analysis->analysis_label ?? ''));
@@ -279,15 +284,18 @@ final class EnquiryReviewDisplayService
                 continue;
             }
 
+            $analysisTypeId = (string) ($analysis->analysis_type_id ?? '');
+
             foreach ($this->referenceLabelResolver->extractTokens($label) as $token) {
+                if ($this->shouldSkipInferredAnalysisTokenForTestsRequested($token, $analysisTypeId)) {
+                    continue;
+                }
+
                 $code = Str::isUuid($token)
                     ? $this->resolveElementParameterCode($token)
-                    : $this->resolveParameterCodeFromToken(
-                        $token,
-                        (string) ($analysis->analysis_type_id ?? ''),
-                    );
+                    : $this->resolveParameterCodeFromToken($token, $analysisTypeId);
 
-                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                if ($code !== '') {
                     $tests[] = ['label' => $code];
                 }
             }
@@ -501,21 +509,31 @@ final class EnquiryReviewDisplayService
         $codes = [];
 
         foreach ($group as $line) {
-            $scopedAnalysisTypeId = $this->scopedAnalysisTypeIdForLine($line);
+            $elementIds = $this->extractElementIdsFromLine($line);
 
-            foreach ($this->extractElementIdsFromLine($line) as $elementId) {
+            foreach ($elementIds as $elementId) {
                 $code = $this->resolveElementParameterCode($elementId);
-                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                if ($code !== '') {
                     $codes[] = $code;
                 }
             }
 
-            foreach ($this->extractParameterTokensFromLine($line, $this->extractElementIdsFromLine($line) === []) as $token) {
+            if ($elementIds !== []) {
+                continue;
+            }
+
+            $scopedAnalysisTypeId = $this->scopedAnalysisTypeIdForLine($line);
+
+            foreach ($this->extractParameterTokensFromLine($line) as $token) {
+                if ($this->shouldSkipInferredTokenForTestsRequested($line, $token, $scopedAnalysisTypeId)) {
+                    continue;
+                }
+
                 $code = Str::isUuid($token)
                     ? $this->resolveElementParameterCode($token)
                     : $this->resolveParameterCodeFromToken($token, $scopedAnalysisTypeId);
 
-                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                if ($code !== '') {
                     $codes[] = $code;
                 }
             }
@@ -652,11 +670,11 @@ final class EnquiryReviewDisplayService
 
             if ($elementId !== '' && Str::isUuid($elementId)) {
                 $code = $this->resolveElementParameterCode($elementId);
-                if ($code !== '' && ! $this->isTestCategoryLabel($code)) {
+                if ($code !== '') {
                     $codes[] = $code;
-
-                    continue;
                 }
+
+                continue;
             }
 
             $label = trim((string) ($analysis->analysis_label ?? ''));
@@ -664,20 +682,22 @@ final class EnquiryReviewDisplayService
                 continue;
             }
 
+            $analysisTypeId = (string) ($analysis->analysis_type_id ?? '');
+
             foreach ($this->referenceLabelResolver->extractTokens($label) as $token) {
-                if (Str::isUuid($token)) {
-                    $code = $this->resolveElementParameterCode($token);
-                } else {
-                    $code = $this->resolveParameterCodeFromToken(
-                        $token,
-                        (string) ($analysis->analysis_type_id ?? ''),
-                    );
-                    if ($code === '') {
-                        $code = strtoupper($token);
-                    }
+                if ($this->shouldSkipInferredAnalysisTokenForTestsRequested($token, $analysisTypeId)) {
+                    continue;
                 }
 
-                if ($code !== '' && ! $this->isTestCategoryLabel($code) && ! Str::isUuid($code)) {
+                $code = Str::isUuid($token)
+                    ? $this->resolveElementParameterCode($token)
+                    : $this->resolveParameterCodeFromToken($token, $analysisTypeId);
+
+                if ($code === '' && ! Str::isUuid($token)) {
+                    $code = strtoupper($token);
+                }
+
+                if ($code !== '' && ! Str::isUuid($code)) {
                     $codes[] = $code;
                 }
             }
@@ -691,15 +711,105 @@ final class EnquiryReviewDisplayService
         ];
     }
 
-    private function isTestCategoryLabel(string $label): bool
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function shouldSkipInferredTokenForTestsRequested(
+        array $line,
+        string $token,
+        string $scopedAnalysisTypeId,
+    ): bool {
+        $token = trim($token);
+        if ($token === '') {
+            return true;
+        }
+
+        if (Str::isUuid($token) && AnalysisElements::query()->whereKey($token)->exists()) {
+            return false;
+        }
+
+        if ($this->resolveParameterCodeFromToken($token, $scopedAnalysisTypeId) !== '') {
+            return false;
+        }
+
+        if ($this->isCategorySlugToken($token) && $this->lineHasCategoryOnlySelection($line)) {
+            return true;
+        }
+
+        return $this->isCategorySlugToken($token);
+    }
+
+    private function shouldSkipInferredAnalysisTokenForTestsRequested(
+        string $token,
+        string $scopedAnalysisTypeId,
+    ): bool {
+        $token = trim($token);
+        if ($token === '') {
+            return true;
+        }
+
+        if (Str::isUuid($token) && AnalysisElements::query()->whereKey($token)->exists()) {
+            return false;
+        }
+
+        if ($this->resolveParameterCodeFromToken($token, $scopedAnalysisTypeId) !== '') {
+            return false;
+        }
+
+        return $this->isCategorySlugToken($token);
+    }
+
+    private function isCategorySlugToken(string $token): bool
     {
-        return in_array(strtolower(trim($label)), [
+        $normalized = strtolower(trim($token));
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        return in_array($normalized, [
             'microbiology',
+            'legionella',
             'chemistry',
             'chemical',
-            'chemical analysis',
-            'legionella',
+            'chemical_analysis',
+            'micro',
         ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function lineHasCategoryOnlySelection(array $line): bool
+    {
+        if ($this->extractElementIdsFromLine($line) !== []) {
+            return false;
+        }
+
+        return trim((string) ($this->lineTestCategoryRaw($line) ?? '')) !== '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function lineTestCategoryRaw(array $line): ?string
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+
+        foreach ([
+            $line['parameter_category'] ?? null,
+            $line['test_category'] ?? null,
+            $attributes['test_category'] ?? null,
+            $attributes['test_requirements'] ?? null,
+        ] as $value) {
+            if ($value === null || $value === '' || $value === []) {
+                continue;
+            }
+
+            return is_array($value) ? json_encode($value) : (string) $value;
+        }
+
+        return null;
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Services\Sampleworkflow;
 
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
+use App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -221,7 +222,7 @@ class TestRequestFormPdfService
         bool $forPdf = false,
         ?string $orientation = null,
     ): string {
-        $sampleType = $form->sampleTypes()->first();
+        $sampleType = app(PortalTestRequestFormSampleTypeResolver::class)->resolveForForm($form)->first();
         $viewData = $this->builder->buildFromDraft($formData, $sampleType, $submission, $forPdf);
         $viewData['orientation'] = $this->resolveOrientation(
             $orientation,

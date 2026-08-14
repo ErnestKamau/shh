@@ -325,6 +325,49 @@
     .trf-water-table col.trf-col-tick { width: 2.4%; }
     .trf-water-table col.trf-col-field { width: 5.5%; }
     .trf-water-table col.trf-col-test { width: 5%; }
+    body.trf-water .trf-page {
+        page-break-inside: avoid;
+        width: 100%;
+    }
+    body.trf-water .trf-water-table tr.trf-water-collection-block,
+    body.trf-water .trf-water-table tr.trf-banner-row {
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+    body.trf-water .trf-water-table .trf-collection-check-cell {
+        padding: 0 !important;
+        vertical-align: top;
+    }
+    body.trf-water .trf-water-table .trf-meta-cell {
+        padding: 5px 6px;
+        min-height: 0 !important;
+        vertical-align: top;
+        line-height: 1.2;
+    }
+    body.trf-water .trf-check-grid-bordered.trf-check-grid-compact td,
+    body.trf-water .trf-check-grid-bordered td {
+        min-height: 12px;
+        height: auto;
+        padding: 2px 3px;
+        font-size: 5.5pt;
+        line-height: 1.1;
+        vertical-align: top;
+    }
+    body.trf-water .trf-water-collection-block .trf-collection-check-cell .trf-check-grid-bordered.trf-check-grid-water-collection td {
+        min-height: 14px;
+        height: auto;
+        padding: 3px 4px;
+        font-size: 7.5pt;
+        line-height: 1.15;
+        vertical-align: top;
+    }
+    body.trf-water .trf-water-collection-block .trf-collection-check-cell .trf-check {
+        font-size: 9pt;
+    }
+    body.trf-water .trf-water-collection-block .trf-collection-check-cell .trf-check-on::before,
+    body.trf-water .trf-water-collection-block .trf-collection-check-cell .trf-check-off::before {
+        color: #000;
+    }
     .trf-customer-table .trf-banner-row td { border-right: 1px solid #000; }
     .trf-customer-field { vertical-align: middle; padding: 8px 10px; min-height: 32px; word-wrap: break-word; line-height: 1.2; }
     .trf-customer-field .trf-field-value { word-wrap: break-word; }

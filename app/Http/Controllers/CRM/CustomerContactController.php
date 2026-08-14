@@ -39,7 +39,7 @@ class CustomerContactController extends Controller
 		$contact->receive_invoice = $request->receive_invoice ?? 0;
 		$contact->receive_report = $request->receive_report ?? 0;
 		$contact->title_id = $request->title;
-		$contact->active = $request->active ?? 0;
+		$contact->active = $request->boolean('active', true) ? 1 : 0;
 		
 		if(isset($request->has_credential)){
 			$check_user = User::where('email',$request->email)->get();
@@ -173,7 +173,7 @@ class CustomerContactController extends Controller
 		$contact->receive_invoice = $request->receive_invoice ?? 0;
 		$contact->receive_report = 1;
 		$contact->title_id = $request->title;
-		$contact->active = $request->active ?? 0;
+		$contact->active = $request->boolean('active', true) ? 1 : 0;
 		$contact->save();
 		if(isset($request->not_ajax)){
 			return redirect()->back()->with('success','Customer contact added succesfully!');

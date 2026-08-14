@@ -393,7 +393,7 @@
                                 <tr>
                                     <td>
                                         <div class="font-weight-bold" style="font-size:13px;">{{ $instance->submissionForm?->name ?? 'Request Form' }}</div>
-                                        <small class="text-muted">{{ $instance->selectedSampleTypeName() ?? $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
+                                        <small class="text-muted">{{ $instance->selectedSampleTypeName() ?? 'N/A' }}</small>
                                     </td>
                                     <td><span class="badge badge-success">{{ ucfirst($instance->status) }}</span></td>
                                     <td class="text-muted small">{{ $instance->submitted_at?->format('d M Y H:i') ?? $instance->created_at?->format('d M Y H:i') }}</td>
@@ -512,7 +512,7 @@
                                 <tr>
                                     <td>
                                         <div class="font-weight-bold">{{ $instance->submissionForm?->name ?? 'Request Form' }}</div>
-                                        <small class="text-muted">{{ $instance->selectedSampleTypeName() ?? $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</small>
+                                        <small class="text-muted">{{ $instance->selectedSampleTypeName() ?? 'N/A' }}</small>
                                     </td>
                                     <td>{{ $instance->submittedBy?->name ?? 'N/A' }}</td>
                                     <td><span class="badge badge-success">{{ ucfirst($instance->status) }}</span></td>

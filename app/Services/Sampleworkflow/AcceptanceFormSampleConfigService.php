@@ -263,8 +263,13 @@ class AcceptanceFormSampleConfigService
         $defaultZoneId = $defaultZoneId ?? $this->resolveZoneIdFromInstance($instance);
         $allowsMultipleSampleTypes = false;
         if ($instance !== null) {
-            $instance->loadMissing('submissionForm.sampleTypes');
-            $allowsMultipleSampleTypes = $instance->submissionForm?->sampleTypes?->isEmpty() ?? false;
+            $instance->loadMissing('submissionForm.sampleTypeCategories');
+            $form = $instance->submissionForm;
+            if ($form !== null) {
+                $resolved = app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+                    ->resolveForForm($form);
+                $allowsMultipleSampleTypes = $resolved->count() !== 1;
+            }
         }
         $buckets = [];
 
@@ -1212,10 +1217,15 @@ class AcceptanceFormSampleConfigService
             }
         }
 
-        $enquiry->loadMissing('submissionFormInstance.submissionForm.sampleTypes');
-        $linked = $enquiry->submissionFormInstance?->submissionForm?->sampleTypes?->first();
-        if ($linked !== null && trim((string) $linked->name) !== '') {
-            return trim((string) $linked->name);
+        $enquiry->loadMissing('submissionFormInstance.submissionForm.sampleTypeCategories');
+        $form = $enquiry->submissionFormInstance?->submissionForm;
+        if ($form !== null) {
+            $resolved = app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+                ->resolveForForm($form);
+            $linked = $resolved->count() === 1 ? $resolved->first() : null;
+            if ($linked !== null && trim((string) $linked->name) !== '') {
+                return trim((string) $linked->name);
+            }
         }
 
         $formName = trim((string) ($enquiry->submissionFormInstance?->submissionForm?->name ?? ''));
