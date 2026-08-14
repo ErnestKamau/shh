@@ -42,19 +42,7 @@
         </td>
     </tr>
     <tr class="amspec-header-details">
-        <td class="amspec-header-company" width="58%" valign="top" style="width: 58%; vertical-align: top; padding: 0 12px 0 0; border: none; word-wrap: break-word;">
-            <div class="amspec-company-name">{{ $company->name ?? '' }}</div>
-            <div class="amspec-contact-line amspec-company-address">
-                @if(!empty($company->address)){{ $company->address }}<br>@endif
-                @if(!empty($company->location)){{ $company->location }}<br>@endif
-                @if(!empty($company->street)){{ $company->street }}@endif
-            </div>
-            <div class="amspec-contact-line amspec-header-contact-lines">
-                <div>Mobile: {{ $company->cell_phone ?? '' }}</div>
-                <div>Email: {{ $company->email ?? '' }}</div>
-            </div>
-        </td>
-        <td class="amspec-header-customer" width="42%" valign="top" align="right" style="width: 42%; vertical-align: top; text-align: right; padding: 0; border: none; word-wrap: break-word;">
+        <td class="amspec-header-customer" colspan="2" width="100%" valign="top" style="width: 100%; vertical-align: top; text-align: left; padding: 0; border: none; word-wrap: break-word;">
             @if($customerName !== '')
                 <div class="amspec-customer-name">{{ $customerName }}</div>
             @endif
