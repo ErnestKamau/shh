@@ -591,46 +591,6 @@
                                 style="background: #f8f9fa;" @endif>
                         </td>
                     </tr>
-                    @php
-                        $interpretationHeader = trim(strip_tags($sampleForm['header_body'] ?? ''));
-                        $interpretationMain = trim(strip_tags($sampleForm['main_body'] ?? ''));
-                        $interpretationNotes = trim(strip_tags($sampleForm['notes_body'] ?? ''));
-                        $hasInterpretations = $interpretationHeader !== '' || $interpretationMain !== '' || $interpretationNotes !== '';
-                    @endphp
-                    @if($hasInterpretations)
-                    <tr wire:key="sample-interpretations-{{ $index }}" class="sample-interpretations-row">
-                        <td colspan="12" class="bg-light border-top-0 pt-0">
-                            <div class="sample-interpretations-panel p-2">
-                                <div class="d-flex align-items-center mb-1">
-                                    <small class="font-weight-bold text-muted text-uppercase">
-                                        <i class="mdi mdi-comment-text-outline text-success"></i>
-                                        Comments &amp; Interpretations
-                                    </small>
-                                </div>
-                                <div class="row">
-                                    @if($interpretationHeader !== '')
-                                    <div class="col-md-4 mb-2 mb-md-0">
-                                        <div class="small font-weight-bold text-muted mb-1">Comments</div>
-                                        <div class="sample-interpretation-content">{!! str_ireplace('not conforming', 'non-conforming', $sampleForm['header_body']) !!}</div>
-                                    </div>
-                                    @endif
-                                    @if($interpretationMain !== '')
-                                    <div class="col-md-4 mb-2 mb-md-0">
-                                        <div class="small font-weight-bold text-muted mb-1">Recommendations / Interpretations</div>
-                                        <div class="sample-interpretation-content">{!! $sampleForm['main_body'] !!}</div>
-                                    </div>
-                                    @endif
-                                    @if($interpretationNotes !== '')
-                                    <div class="col-md-4">
-                                        <div class="small font-weight-bold text-muted mb-1">Notes</div>
-                                        <div class="sample-interpretation-content">{!! $sampleForm['notes_body'] !!}</div>
-                                    </div>
-                                    @endif
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    @endif
                     @empty
                     <tr>
                         <td colspan="12" class="text-center text-muted py-4">
@@ -1307,24 +1267,6 @@
             padding: 0.15rem 0.3rem;
             line-height: 1;
             border-radius: 50%;
-        }
-
-        .sample-interpretations-panel {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            background: #fff;
-        }
-
-        .sample-interpretation-content {
-            font-size: 0.8125rem;
-            color: #334155;
-            line-height: 1.4;
-            max-height: 120px;
-            overflow-y: auto;
-        }
-
-        .sample-interpretation-content p {
-            margin-bottom: 0.25rem;
         }
 
         .sample-parameters-modal__header {

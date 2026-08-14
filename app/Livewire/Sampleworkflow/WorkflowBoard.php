@@ -2495,13 +2495,20 @@ SQL);
             return;
         }
 
+        $customerId = trim((string) ($enquiry->crm_customer_id ?? ''));
+        if ($customerId === '') {
+            $this->workflowNotify('error', 'This enquiry has no CRM customer linked. Link a customer before recording quotation acceptance.');
+
+            return;
+        }
+
         $this->quotationAcceptancePoOnly = false;
         $this->quotationAcceptanceEnquiryId = $enquiryId;
         $this->quotationAcceptanceContactId = $enquiry->crm_customer_contact_id
             ? (string) $enquiry->crm_customer_contact_id
             : null;
         $this->quotationAcceptanceContactOptions = app(\App\Services\Sampleworkflow\CustomerContactVerificationService::class)
-            ->activeContactsForCustomer((string) $enquiry->crm_customer_id);
+            ->activeContactsForCustomer($customerId);
         $this->hydrateQuotationAcceptancePoRules($enquiry);
         $this->applyQuotationAcceptanceContact($this->quotationAcceptanceContactId);
         $this->showQuotationAcceptanceModal = true;

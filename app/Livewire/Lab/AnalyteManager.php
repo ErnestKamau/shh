@@ -7,10 +7,10 @@ use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\CapturedResult;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Livewire\Concerns\HandlesLabTaxonomyBulkImport;
 use App\Models\Equipments\Equipment;
 use App\ReportingUnit;
 use App\Result;
-use App\Services\BulkImportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -20,6 +20,7 @@ use Livewire\WithPagination;
 class AnalyteManager extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use HandlesLabTaxonomyBulkImport;
     use WithFileUploads;
     use WithPagination;
 
@@ -81,10 +82,6 @@ class AnalyteManager extends Component
     public $message = '';
 
     public $messageType = 'success';
-
-    public bool $showBulkUploadModal = false;
-
-    public $bulkFile = null;
 
     protected string $paginationTheme = 'bootstrap';
 
@@ -571,58 +568,14 @@ class AnalyteManager extends Component
             ->get();
     }
 
-    public function openBulkUploadModal(): void
+    protected function labTaxonomyBulkImportFormType(): string
     {
-        $this->showBulkUploadModal = true;
-        $this->bulkFile = null;
+        return 'analyte';
     }
 
-    public function closeBulkUploadModal(): void
+    protected function labTaxonomyBulkImportEntityLabel(): string
     {
-        $this->showBulkUploadModal = false;
-        $this->bulkFile = null;
-    }
-
-    public function downloadTemplate()
-    {
-        return app(BulkImportService::class)->generateTemplate('lab', 'analyte');
-    }
-
-    public function processBulkUpload(): void
-    {
-        $this->validate([
-            'bulkFile' => 'required|mimes:xlsx,xls,csv|max:5120',
-        ]);
-
-        try {
-            $service = app(BulkImportService::class);
-            $batch = $service->createBatch('lab', 'analyte');
-            $result = $service->processImport($batch, $this->bulkFile);
-
-            $this->closeBulkUploadModal();
-
-            if (($result['success'] ?? false) === true) {
-                $summary = $result['summary'] ?? [];
-                $imported = (int) ($summary['imported_rows'] ?? 0);
-                $errors = (int) ($summary['error_rows'] ?? 0);
-
-                if ($errors > 0) {
-                    $this->message = "{$imported} analyte(s) imported. {$errors} row(s) failed.";
-                    $this->messageType = 'warning';
-                } else {
-                    $this->message = "{$imported} analyte(s) imported successfully.";
-                    $this->messageType = 'success';
-                }
-            } else {
-                $this->message = (string) ($result['message'] ?? 'Import failed.');
-                $this->messageType = 'danger';
-            }
-
-            $this->resetPage();
-        } catch (\Throwable $e) {
-            $this->message = 'Import failed: '.$e->getMessage();
-            $this->messageType = 'danger';
-        }
+        return 'Analyte';
     }
 
     public function render()

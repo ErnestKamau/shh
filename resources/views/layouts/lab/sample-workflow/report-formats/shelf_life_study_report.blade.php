@@ -866,6 +866,10 @@
                 'sampleIndex' => $loop->index,
             ])
 
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-sample-photo', [
+                'sampleIndex' => $loop->index,
+            ])
+
             @php
                 $context = $sampleDetailContexts[$loop->index] ?? [];
                 $conditions = is_array($context['conditions'] ?? null)

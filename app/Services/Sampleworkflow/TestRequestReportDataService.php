@@ -280,7 +280,7 @@ class TestRequestReportDataService
      * @param  array<string, mixed>  $trfCollectionExtras
      * @param  array<string, string|null>  $shared
      * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
-     * @return list<array{rows: list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}}>, lab_section: string, conducted_by: string}>
+     * @return list<array{rows: list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}}>, lab_section: string, conducted_by: string, sample_photo_data_uri: string}>
      */
     private function buildSampleDetailContexts(
         SampleHeader $batch,
@@ -296,6 +296,10 @@ class TestRequestReportDataService
     ): array {
         $contexts = [];
         $usersById = $this->analystUsersById($capturedResults);
+        $sampleDetailsById = SampleDetails::query()
+            ->whereIn('id', $samples->pluck('id')->filter()->values()->all())
+            ->get(['id', 'photo_url', 'include_photo_in_report'])
+            ->keyBy(fn (SampleDetails $detail): string => (string) $detail->id);
 
         foreach ($samples->values() as $index => $sample) {
             $normalizedRow = $normalizedRows[$index] ?? [];
@@ -397,6 +401,15 @@ class TestRequestReportDataService
                 $additionalNotes = '';
             }
 
+            $samplePhotoDataUri = '';
+            $sampleDetail = $sampleDetailsById->get((string) $sample->id);
+            if ($sampleDetail !== null && (bool) ($sampleDetail->include_photo_in_report ?? false)) {
+                $photoPath = trim((string) ($sampleDetail->photo_url ?? ''));
+                if ($photoPath !== '') {
+                    $samplePhotoDataUri = $this->pathToDataUri($photoPath);
+                }
+            }
+
             $contexts[] = [
                 'rows' => [
                     [
@@ -450,6 +463,7 @@ class TestRequestReportDataService
                 ],
                 'lab_section' => $labSectionNames,
                 'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
+                'sample_photo_data_uri' => $samplePhotoDataUri,
             ];
         }
 

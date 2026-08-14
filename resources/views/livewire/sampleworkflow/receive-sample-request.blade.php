@@ -392,7 +392,7 @@
                         @if ($plannerMode)
                             No active sampling form templates are linked to sample types.
                         @else
-                            No active Test Request Form templates are linked to sample types.
+                            No active Test Request Form templates found. Link a TRF to sample types or categories, or add a new TRF.
                         @endif
                     </div>
                     @can('laboratory.components.rft form.add')

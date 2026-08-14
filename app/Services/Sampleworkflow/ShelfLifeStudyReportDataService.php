@@ -63,6 +63,7 @@ class ShelfLifeStudyReportDataService
                 ),
                 'lab_section' => (string) ($baseContexts[$index]['lab_section'] ?? ($batch->getLabSectionsNames() ?: 'Laboratory')),
                 'conducted_by' => (string) ($baseContexts[$index]['conducted_by'] ?? '-'),
+                'sample_photo_data_uri' => (string) ($baseContexts[$index]['sample_photo_data_uri'] ?? ''),
                 'conditions' => $conditionsBySampleDetailId[(string) $sample->id]
                     ?? $this->conditionPayload(null),
                 'sample_detail_id' => (string) $sample->id,

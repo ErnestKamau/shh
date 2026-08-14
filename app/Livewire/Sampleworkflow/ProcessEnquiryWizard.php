@@ -1674,9 +1674,8 @@ class ProcessEnquiryWizard extends Component
 
     private function refreshLabManagerOptions(): void
     {
-        $excludeId = auth()->id() !== null ? (string) auth()->id() : null;
         $this->labManagerOptions = app(QuotationApprovalService::class)
-            ->eligibleLabManagers($excludeId)
+            ->eligibleLabManagers()
             ->map(fn ($user): array => [
                 'id' => (string) $user->id,
                 'name' => (string) $user->name,

@@ -849,12 +849,25 @@ final class PortalEnquiryFormInstanceSyncService
 
         $meta = $elementMap[$name];
 
-        SubmissionFormInstanceValue::query()->create([
-            'submission_form_instance_id' => $instance->id,
-            'submission_form_element_id' => $meta['id'],
-            'array_index' => $meta['is_row'] ? ($arrayIndex ?? 0) : null,
-            'value' => $this->stringifyValue($value),
-        ]);
+        // Row-scoped elements must be written with an explicit row index. Header sync
+        // used to default missing indexes to 0, which collided with sample line row 0
+        // (unique on instance + element + array_index).
+        if ($meta['is_row'] && $arrayIndex === null) {
+            return;
+        }
+
+        $resolvedIndex = $meta['is_row'] ? $arrayIndex : null;
+
+        SubmissionFormInstanceValue::query()->updateOrCreate(
+            [
+                'submission_form_instance_id' => $instance->id,
+                'submission_form_element_id' => $meta['id'],
+                'array_index' => $resolvedIndex,
+            ],
+            [
+                'value' => $this->stringifyValue($value),
+            ],
+        );
     }
 
     private function stringifyValue(mixed $value): string

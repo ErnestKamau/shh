@@ -335,8 +335,12 @@ class SampleWorkFlowController extends Controller
         return redirect()->back()->with('success', 'Lab booking date moved to the new date successfully.');
     }
 
-    public function getSubmissionRequestCustomerContacts(int $customer): \Illuminate\Http\JsonResponse
+    public function getSubmissionRequestCustomerContacts(string $customer): \Illuminate\Http\JsonResponse
     {
+        if (trim($customer) === '') {
+            return response()->json([]);
+        }
+
         $contacts = \App\Models\CRM\CustomerContact::query()
             ->where('crm_customer_id', $customer)
             ->where('active', 1)
@@ -6433,6 +6437,20 @@ class SampleWorkFlowController extends Controller
                     // Persist report URLs only — workflow stage must change via manual move.
                     $batch->save();
 
+                    try {
+                        app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
+                            ->attachTestReport(
+                                $batch,
+                                $batch->batch_report_online_url,
+                                auth()->id() ? (string) auth()->id() : null,
+                            );
+                    } catch (\Throwable $attachmentError) {
+                        \Log::warning('Failed to attach delivered Test Report to batch attachments', [
+                            'batch_id' => $batch->id,
+                            'error' => $attachmentError->getMessage(),
+                        ]);
+                    }
+
                     // Push a CustomerNotification (surfaces in portal notifications bell).
                     \App\Models\CRM\CustomerNotification::create([
                         'customer_id'              => $customerId,
@@ -6804,6 +6822,20 @@ class SampleWorkFlowController extends Controller
                     $batch->in_ammendment_proccess = 0;
                 }
                 $batch->save();
+
+                try {
+                    app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
+                        ->attachTestReport(
+                            $batch,
+                            $batch->batch_report_online_url,
+                            auth()->id() ? (string) auth()->id() : null,
+                        );
+                } catch (\Throwable $attachmentError) {
+                    \Log::warning('Failed to attach generated Test Report to batch attachments', [
+                        'batch_id' => $batch->id,
+                        'error' => $attachmentError->getMessage(),
+                    ]);
+                }
             }
 
             return $pdf->stream($filename, [

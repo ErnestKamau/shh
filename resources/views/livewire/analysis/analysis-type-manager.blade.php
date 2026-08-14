@@ -12,9 +12,14 @@
                             </h2>
                             <p class="text-muted mb-0">Manage analysis types and their elements</p>
                         </div>
-                        <button wire:click="showCreateAnalysisTypeModal" class="btn btn-outline-primary analysis-add-btn">
-                            <i class="mdi mdi-plus"></i> Add Analysis Type
-                        </button>
+                        <div class="d-flex align-items-center" style="gap: .5rem;">
+                            <button type="button" wire:click="openBulkImportModal" class="btn btn-outline-secondary analysis-add-btn">
+                                <i class="mdi mdi-file-excel"></i> Import
+                            </button>
+                            <button wire:click="showCreateAnalysisTypeModal" class="btn btn-outline-primary analysis-add-btn">
+                                <i class="mdi mdi-plus"></i> Add Analysis Type
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -23,7 +28,14 @@
 
     <!-- Message Alert -->
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        @php
+            $analysisTypeAlertClass = match ($messageType) {
+                'success' => 'success',
+                'warning' => 'warning',
+                default => 'danger',
+            };
+        @endphp
+        <div class="alert alert-{{ $analysisTypeAlertClass }} alert-dismissible fade show" role="alert">
             {{ $message }}
             <button type="button" class="btn-close" wire:click="dismissMessage"></button>
         </div>
@@ -945,5 +957,7 @@
     
     /* Tag-select density from layouts.partials.tag-select-styles */
     </style>
+
+    @include('livewire.partials.lab-taxonomy-bulk-import-modal', ['entityLabel' => 'Analysis Type'])
     
 </div>

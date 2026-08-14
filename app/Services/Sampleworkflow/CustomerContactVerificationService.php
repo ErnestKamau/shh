@@ -20,6 +20,12 @@ class CustomerContactVerificationService
         string $password,
         ?string $acceptanceFormId = null
     ): array {
+        if (trim($crmCustomerId) === '' || trim($contactId) === '') {
+            throw ValidationException::withMessages([
+                'password' => ['Invalid contact or password.'],
+            ]);
+        }
+
         $contact = CustomerContact::query()
             ->where('id', $contactId)
             ->where('crm_customer_id', $crmCustomerId)
@@ -89,6 +95,10 @@ class CustomerContactVerificationService
      */
     private function contactsForCustomerQuery(string $crmCustomerId, bool $portalOnly): array
     {
+        if (trim($crmCustomerId) === '') {
+            return [];
+        }
+
         $query = CustomerContact::query()
             ->where('crm_customer_id', $crmCustomerId)
             ->where('active', 1)
