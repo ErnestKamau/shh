@@ -204,7 +204,7 @@ class StandardsPage extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
-                    'status' => $this->standardForm['status'],
+                    'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $standard->syncQcSchemes($schemeIds);
@@ -216,7 +216,7 @@ class StandardsPage extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
-                    'status' => $this->standardForm['status'],
+                    'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $standard->syncQcSchemes($schemeIds);
@@ -306,7 +306,7 @@ class StandardsPage extends Component
                 $standardValue->update([
                     'name' => $this->standardValueForm['name'],
                     'code' => $this->standardValueForm['code'],
-                    'status' => $this->standardValueForm['status'],
+                    'status' => $this->standardValueForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $this->message = 'Standard value updated successfully!';
@@ -314,7 +314,7 @@ class StandardsPage extends Component
                 StandardValue::create([
                     'name' => $this->standardValueForm['name'],
                     'code' => $this->standardValueForm['code'],
-                    'status' => $this->standardValueForm['status'],
+                    'status' => $this->standardValueForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $this->message = 'Standard value created successfully!';

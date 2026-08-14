@@ -1994,9 +1994,9 @@ class ProcessEnquiryWizard extends Component
         $matched = false;
 
         foreach ($this->sampleConfigs as $index => $config) {
-            $configSampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
-            $configAnalysisTypeIds = app(AcceptanceFormSampleConfigService::class)
-                ->analysisTypeIdsFromConfig($config);
+            $configService = app(AcceptanceFormSampleConfigService::class);
+            $configSampleTypeId = $configService->sampleTypeIdsFromConfig($config)[0] ?? '';
+            $configAnalysisTypeIds = $configService->analysisTypeIdsFromConfig($config);
 
             if (! in_array($analysisTypeId, $configAnalysisTypeIds, true)) {
                 continue;
@@ -2053,9 +2053,9 @@ class ProcessEnquiryWizard extends Component
         }
 
         foreach ($this->sampleConfigs as $index => $config) {
-            $configSampleTypeId = trim((string) ($config['sample_type_id'] ?? ''));
-            $configAnalysisTypeIds = app(AcceptanceFormSampleConfigService::class)
-                ->analysisTypeIdsFromConfig($config);
+            $configService = app(AcceptanceFormSampleConfigService::class);
+            $configSampleTypeId = $configService->sampleTypeIdsFromConfig($config)[0] ?? '';
+            $configAnalysisTypeIds = $configService->analysisTypeIdsFromConfig($config);
 
             if ($analysisTypeId !== '' && $configAnalysisTypeIds !== [] && ! in_array($analysisTypeId, $configAnalysisTypeIds, true)) {
                 continue;

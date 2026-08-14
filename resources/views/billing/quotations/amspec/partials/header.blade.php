@@ -13,7 +13,16 @@
     $hexHeight = $isPdf ? 59 : 55;
 
     $customerName = trim((string) ($reportHeader->customer_name ?? ''));
-    $customerAddress = trim((string) ($reportHeader->postal_address ?: $reportHeader->physical_address ?? ''));
+    $companyAddress = trim((string) ($reportHeader->physical_address ?? ''));
+    $cityCountry = trim((string) ($reportHeader->customer_city_country ?? ''));
+    if ($cityCountry === '') {
+        $cityCountry = trim(implode(', ', array_filter([
+            trim((string) ($reportHeader->customer_city ?? '')),
+            trim((string) ($reportHeader->customer_country ?? '')),
+        ])));
+    }
+    $customerTel = trim((string) ($reportHeader->customer_tel ?? ''));
+    $customerFax = trim((string) ($reportHeader->customer_fax ?? ''));
     $customerMobile = trim((string) ($reportHeader->customer_mobile ?? ''));
     $customerEmail = trim((string) ($reportHeader->customer_email ?? ''));
 @endphp
@@ -42,23 +51,24 @@
         </td>
     </tr>
     <tr class="amspec-header-details">
-        <td class="amspec-header-customer" colspan="2" width="100%" valign="top" style="width: 100%; vertical-align: top; text-align: left; padding: 0; border: none; word-wrap: break-word;">
+        <td class="amspec-header-company" width="58%" valign="top" style="width: 58%; vertical-align: top; padding: 0 12px 0 0; border: none; word-wrap: break-word;">
             @if($customerName !== '')
                 <div class="amspec-customer-name">{{ $customerName }}</div>
             @endif
-            @if($customerAddress !== '')
-                <div class="amspec-contact-line amspec-customer-address">{{ $customerAddress }}</div>
+            @if($companyAddress !== '')
+                <div class="amspec-contact-line amspec-customer-address">{{ $companyAddress }}</div>
             @endif
-            @if($customerMobile !== '' || $customerEmail !== '')
-                <div class="amspec-contact-line amspec-header-customer-contact">
-                    @if($customerMobile !== '')
-                        <div>Mobile: {{ $customerMobile }}</div>
-                    @endif
-                    @if($customerEmail !== '')
-                        <div>Email: {{ $customerEmail }}</div>
-                    @endif
-                </div>
+            @if($cityCountry !== '')
+                <div class="amspec-contact-line amspec-customer-address">{{ $cityCountry }}</div>
             @endif
+        </td>
+        <td class="amspec-header-customer" width="42%" valign="top" align="right" style="width: 42%; vertical-align: top; text-align: right; padding: 0; border: none; word-wrap: break-word;">
+            <div class="amspec-contact-line amspec-header-customer-contact">
+                <div>Tel: {{ $customerTel }}</div>
+                <div>Fax: {{ $customerFax }}</div>
+                <div>Mobile: {{ $customerMobile }}</div>
+                <div>Email: {{ $customerEmail }}</div>
+            </div>
         </td>
     </tr>
 </table>

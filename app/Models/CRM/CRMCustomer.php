@@ -44,6 +44,11 @@ class CRMCustomer extends Model implements Auditable
     return $this->belongsTo('App\Country');
 	}
 
+	public function city()
+	{
+		return $this->belongsTo(\App\City::class);
+	}
+
   public function logoUrl(): ?string
   {
       return $this->publicStorageUrl($this->logo);

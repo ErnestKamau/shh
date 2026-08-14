@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Concerns\DefaultsActiveOnCreate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -9,6 +10,7 @@ use App\SampleTypeCategory;
 
 class SampleType extends Model implements Auditable
 {
+    use DefaultsActiveOnCreate;
     use HasUuids;
 
     protected $keyType = 'string';

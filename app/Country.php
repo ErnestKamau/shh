@@ -4,6 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Country extends Model implements Auditable
@@ -23,4 +24,13 @@ class Country extends Model implements Auditable
     ];
 
 	use \OwenIt\Auditing\Auditable;
+
+    /**
+     * @return HasMany<City, $this>
+     */
+    public function cities(): HasMany
+    {
+        return $this->hasMany(City::class);
+    }
 }
+

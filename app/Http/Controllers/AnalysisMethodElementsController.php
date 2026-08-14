@@ -24,7 +24,7 @@ class AnalysisMethodElementsController extends Controller
     $element->analyte_id = $request->analyte_id;
     $element->quantity = $request->quantity;
     $element->company_id = getUserCompany();
-    $element->active = $request->active ?? 0;
+    $element->active = $request->boolean('active', true) ? 1 : 0;
 
     $element->save();
 

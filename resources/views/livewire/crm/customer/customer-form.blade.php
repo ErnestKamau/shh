@@ -128,6 +128,10 @@
                                     </div>
                                     @error('country_id') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
+                                <div class="form-group">
+                                    <label class="control-label">{{ __('crm.city') }}</label>
+                                    @include('livewire.crm.partials.city-dropdown', ['country_id' => $country_id])
+                                </div>
                                 <div class="row">
                                     <div class="col-sm-6">
                                         <div class="form-check">

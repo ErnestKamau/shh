@@ -342,12 +342,21 @@ class PortalDynamicOptionsService
      */
     private function analysisElements(mixed $analysisTypeId): array
     {
-        if ($analysisTypeId === null || $analysisTypeId === '') {
+        $ids = [];
+        if (is_array($analysisTypeId)) {
+            $ids = array_values(array_filter(array_map('strval', $analysisTypeId)));
+        } elseif (is_string($analysisTypeId) && str_contains($analysisTypeId, ',')) {
+            $ids = array_values(array_filter(array_map('trim', explode(',', $analysisTypeId))));
+        } elseif ($analysisTypeId !== null && $analysisTypeId !== '') {
+            $ids = [(string) $analysisTypeId];
+        }
+
+        if ($ids === []) {
             return [];
         }
 
         return AnalysisElements::query()
-            ->where('analysis_type_id', $analysisTypeId)
+            ->whereIn('analysis_type_id', $ids)
             ->where('active', true)
             ->with('analyte')
             ->get()

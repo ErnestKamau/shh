@@ -70,7 +70,7 @@ class AnalysisTypeController extends Controller
     $analysis_type->lab_id = $request->lab_id;
     $analysis_type->reporting_time = $request->reporting_time;
     $analysis_type->sample_type_id = $request->sample_type_id;
-    $analysis_type->active = $request->active ?? 0;
+    $analysis_type->active = $request->boolean('active', true) ? 1 : 0;
     $analysis_type->level = $this->getLastLevel($request->sample_type_id);
     $analysis_type->lab_section_id = $request->lab_section_id;
     $analysis_type->brand_id = $request->brand_id;

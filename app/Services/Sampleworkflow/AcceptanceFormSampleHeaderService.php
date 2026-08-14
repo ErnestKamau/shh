@@ -23,6 +23,7 @@ class AcceptanceFormSampleHeaderService
     public function __construct(
         private readonly AcceptanceFormBatchCodeService $batchCodeService,
         private readonly SampleReceiptNotificationService $receiptNotificationService,
+        private readonly AcceptanceFormSampleConfigService $sampleConfigService,
     ) {}
 
     /**
@@ -185,7 +186,7 @@ class AcceptanceFormSampleHeaderService
                 if (! is_array($config)) {
                     continue;
                 }
-                $candidate = trim((string) ($config['sample_type_id'] ?? ''));
+                $candidate = $this->sampleConfigService->normalizeIdList($config['sample_type_id'] ?? null)[0] ?? '';
                 if ($candidate !== '') {
                     $primarySampleTypeId = $candidate;
                     break;
@@ -485,7 +486,7 @@ class AcceptanceFormSampleHeaderService
                 $sectionIds[] = $configSectionId;
             }
 
-            $analysisTypeId = trim((string) ($config['analysis_type_id'] ?? ''));
+            $analysisTypeId = $this->sampleConfigService->normalizeIdList($config['analysis_type_id'] ?? null)[0] ?? '';
             if ($analysisTypeId !== '') {
                 $analysisTypeIds[] = $analysisTypeId;
             }

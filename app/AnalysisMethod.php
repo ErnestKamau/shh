@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Concerns\DefaultsActiveOnCreate;
 use App\Models\System\SystemConfiguration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -9,6 +10,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class AnalysisMethod extends Model implements Auditable
 {
+	use DefaultsActiveOnCreate;
 	use HasUuids;
 	use \OwenIt\Auditing\Auditable;
 

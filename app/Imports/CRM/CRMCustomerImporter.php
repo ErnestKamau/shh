@@ -71,6 +71,16 @@ class CRMCustomerImporter extends BaseImporter
                 $errors[] = "Country code '{$row['country_code']}' must be a 2-letter ISO code (e.g. BR, KE)";
             } elseif (! Country::query()->where('iso_code_2', $countryCode)->exists()) {
                 $errors[] = "Country code '{$countryCode}' does not exist";
+            } elseif (! empty($row['city'] ?? null)) {
+                $country = Country::query()->where('iso_code_2', $countryCode)->first();
+                $cityName = trim((string) $row['city']);
+                $cityExists = $country && \App\City::query()
+                    ->where('country_id', $country->id)
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($cityName)])
+                    ->exists();
+                if (! $cityExists) {
+                    $errors[] = "City '{$cityName}' does not exist for country '{$countryCode}'";
+                }
             }
         }
 
@@ -92,6 +102,15 @@ class CRMCustomerImporter extends BaseImporter
 
         $currencyCode = $row['currency_code'] ?? 'TZS';
 
+        $cityId = null;
+        $cityName = trim((string) ($row['city'] ?? ''));
+        if ($cityName !== '' && $country) {
+            $cityId = \App\City::query()
+                ->where('country_id', $country->id)
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($cityName)])
+                ->value('id');
+        }
+
         return [
             'name' => $row['name'] ?? ('Customer '.$customerCode),
             'code' => $customerCode,
@@ -101,6 +120,7 @@ class CRMCustomerImporter extends BaseImporter
             'telephone1' => $row['phone1'] ?? '0000000000',
             'telephone2' => ! empty($row['phone2']) ? $row['phone2'] : '',
             'country_id' => $country?->id,
+            'city_id' => $cityId,
             'vat_no' => $row['vat_no'] ?? null,
             'credit_days' => $row['credit_days'] ?? 0,
             'lpos_required' => $row['lpos_required'] ?? 0,

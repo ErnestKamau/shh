@@ -23,7 +23,7 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping
     {
         $query = CRMCustomer::query()
             ->where('company_id', $this->filters['company_id'])
-            ->with('country');
+            ->with(['country', 'city']);
 
         if (!empty($this->filters['search'])) {
             $search = $this->filters['search'];
@@ -68,6 +68,7 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping
             'Physical Address',
             'Postal Address',
             'Country',
+            'City',
             'Website',
             'Fax',
             'Status',
@@ -86,6 +87,7 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping
             $customer->physical_address,
             $customer->postal_address,
             $customer->country->name ?? 'N/A',
+            $customer->city->name ?? 'N/A',
             $customer->website,
             $customer->fax,
             $customer->active ? 'Active' : 'Inactive',

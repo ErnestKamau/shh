@@ -2,12 +2,14 @@
 
 namespace App;
 
+use App\Concerns\DefaultsActiveOnCreate;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class AnalysisType extends Model implements Auditable
 {
+  use DefaultsActiveOnCreate;
   use HasUuids;
   use \OwenIt\Auditing\Auditable;
 

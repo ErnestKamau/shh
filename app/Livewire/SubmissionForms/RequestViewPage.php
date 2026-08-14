@@ -1140,6 +1140,8 @@ class RequestViewPage extends Component
             options: $this->editingRowSelectOptions,
             cleared: $cleared,
         );
+
+        $this->skipRender();
     }
 
     public function saveSampleRow(): void
@@ -1276,15 +1278,15 @@ class RequestViewPage extends Component
     {
         $optionsService = app(PortalDynamicOptionsService::class);
         $customerId = trim((string) ($this->instance->crm_customer_id ?? ''));
-        $sampleTypeId = $this->primaryRowSelectToken($rowFields['sample_type_id'] ?? null);
-        $analysisTypeId = $this->primaryRowSelectToken($rowFields['analysis_type_id'] ?? null);
+        $sampleTypeIds = $this->normalizeRowSelectValues($rowFields['sample_type_id'] ?? null);
+        $analysisTypeIds = $this->normalizeRowSelectValues($rowFields['analysis_type_id'] ?? null);
 
-        $resolve = function (string $elementType, array $extra = []) use ($optionsService, $customerId, $sampleTypeId, $analysisTypeId): array {
+        $resolve = function (string $elementType, array $extra = []) use ($optionsService, $customerId, $sampleTypeIds, $analysisTypeIds): array {
             $request = HttpRequest::create('/', 'GET', array_merge([
                 'element_type' => $elementType,
                 'client_id' => $customerId !== '' ? $customerId : null,
-                'sample_type_id' => $sampleTypeId !== '' ? $sampleTypeId : null,
-                'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
+                'sample_type_id' => $sampleTypeIds !== [] ? $sampleTypeIds : null,
+                'analysis_type_id' => $analysisTypeIds !== [] ? $analysisTypeIds : null,
                 'submission_form_id' => $this->submissionForm->id,
             ], $extra));
 
@@ -1339,13 +1341,6 @@ class RequestViewPage extends Component
         }
 
         return [$string];
-    }
-
-    private function primaryRowSelectToken(mixed $value): string
-    {
-        $tokens = $this->normalizeRowSelectValues($value);
-
-        return $tokens[0] ?? '';
     }
 
     /**

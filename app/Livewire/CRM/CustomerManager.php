@@ -44,6 +44,7 @@ class CustomerManager extends Component
         'telephone1' => '',
         'telephone2' => '',
         'country_id' => null,
+        'city_id' => null,
         'active' => true,
         'account_status' => null,
         'credit_days' => null,
@@ -76,9 +77,12 @@ class CustomerManager extends Component
 
     // Dropdown State
     public $countrySearch = '';
+    public $citySearch = '';
     public $accountSearch = '';
     public $showCountryDropdown = false;
+    public $showCityDropdown = false;
     public $showAccountDropdown = false;
+    public $cities = [];
 
     // Search and Filter
     public $search = '';
@@ -128,6 +132,16 @@ class CustomerManager extends Component
             'customerForm.email' => 'required|email|max:255',
             'customerForm.telephone1' => 'required|string|max:50',
             'customerForm.country_id' => 'required|exists:countries,id',
+            'customerForm.city_id' => [
+                'nullable',
+                'string',
+                Rule::exists('cities', 'id')->where(function ($query) {
+                    $countryId = $this->customerForm['country_id'] ?? null;
+                    if ($countryId) {
+                        $query->where('country_id', $countryId);
+                    }
+                }),
+            ],
             'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
             'customerForm.credit_days' => $terms['billing_type'] === 'other'
                 ? 'required|integer|min:0|max:3650'
@@ -490,6 +504,7 @@ class CustomerManager extends Component
             'telephone1' => $customer->telephone1,
             'telephone2' => $customer->telephone2 ?? '',
             'country_id' => $customer->country_id,
+            'city_id' => $customer->city_id,
             'active' => $customer->active == 1,
             'account_status' => $customer->account_status,
             'credit_days' => $customer->credit_days,
@@ -526,6 +541,7 @@ class CustomerManager extends Component
         }
         
         $this->resetDropdownStates();
+        $this->loadCitiesForSelectedCountry();
         $this->editingCustomer = $customer;
         $this->showCustomerModal = true;
     }
@@ -603,6 +619,7 @@ class CustomerManager extends Component
             $customer->telephone1 = $this->customerForm['telephone1'];
             $customer->telephone2 = $this->customerForm['telephone2'];
             $customer->country_id = $this->customerForm['country_id'];
+            $customer->city_id = $this->customerForm['city_id'] ?: null;
             if ($this->editingCustomer) {
                 $customer->active = $this->customerForm['active'] ? 1 : 0;
             } else {
@@ -842,6 +859,7 @@ class CustomerManager extends Component
             'telephone1' => '',
             'telephone2' => '',
             'country_id' => null,
+            'city_id' => null,
             'active' => true,
             'account_status' => null,
             'credit_days' => null,
@@ -890,8 +908,80 @@ class CustomerManager extends Component
     public function selectCountry($countryId)
     {
         $this->customerForm['country_id'] = $countryId;
+        $this->customerForm['city_id'] = null;
+        $this->citySearch = '';
+        $this->showCityDropdown = false;
         $this->showCountryDropdown = false;
         $this->countrySearch = '';
+        $this->loadCitiesForSelectedCountry();
+    }
+
+    public function clearCountry(): void
+    {
+        $this->customerForm['country_id'] = null;
+        $this->customerForm['city_id'] = null;
+        $this->countrySearch = '';
+        $this->citySearch = '';
+        $this->showCountryDropdown = false;
+        $this->showCityDropdown = false;
+        $this->cities = [];
+    }
+
+    public function selectCity($cityId): void
+    {
+        $this->customerForm['city_id'] = $cityId ?: null;
+        $this->showCityDropdown = false;
+        $this->citySearch = '';
+    }
+
+    public function clearCity(): void
+    {
+        $this->customerForm['city_id'] = null;
+        $this->citySearch = '';
+        $this->showCityDropdown = false;
+    }
+
+    public function loadCitiesForSelectedCountry(): void
+    {
+        $countryId = $this->customerForm['country_id'] ?? null;
+        if (! $countryId) {
+            $this->cities = [];
+
+            return;
+        }
+
+        $this->cities = \App\City::query()
+            ->where('country_id', $countryId)
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'country_id']);
+    }
+
+    public function getSelectedCityNameProperty(): string
+    {
+        $cityId = $this->customerForm['city_id'] ?? null;
+        if (! $cityId) {
+            return '';
+        }
+
+        $city = collect($this->cities)->first(
+            fn ($c) => (string) data_get($c, 'id') === (string) $cityId
+        );
+
+        return (string) data_get($city, 'name', '');
+    }
+
+    public function getFilteredCitiesProperty()
+    {
+        $cities = collect($this->cities);
+        $search = trim(strtolower($this->citySearch));
+        if ($search === '') {
+            return $cities->values();
+        }
+
+        return $cities
+            ->filter(fn ($city) => str_contains(strtolower((string) data_get($city, 'name', '')), $search))
+            ->values();
     }
 
     public function selectAccount($accountId)
@@ -991,8 +1081,10 @@ class CustomerManager extends Component
     public function resetDropdownStates()
     {
         $this->countrySearch = '';
+        $this->citySearch = '';
         $this->accountSearch = '';
         $this->showCountryDropdown = false;
+        $this->showCityDropdown = false;
         $this->showAccountDropdown = false;
     }
 
@@ -1079,6 +1171,7 @@ class CustomerManager extends Component
             $newCustomer->telephone1 = $this->customerToClone->telephone1;
             $newCustomer->telephone2 = $this->customerToClone->telephone2;
             $newCustomer->country_id = $this->customerToClone->country_id;
+            $newCustomer->city_id = $this->customerToClone->city_id;
             $newCustomer->credit_days = $this->customerToClone->credit_days;
             $newCustomer->payment_terms_note = $this->customerToClone->payment_terms_note;
             $newCustomer->payment_method = $this->customerToClone->payment_method;

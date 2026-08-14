@@ -582,6 +582,7 @@
         preloadTinyMce();
 
         const modalDialog = () => document.querySelector('.rv-sample-row-edit-dialog');
+        let sampleRowModalPrepared = false;
         const setModalLoading = (loading) => {
             const dialog = modalDialog();
             if (!dialog) {
@@ -590,6 +591,13 @@
 
             dialog.classList.toggle('is-ready', !loading);
             dialog.setAttribute('aria-busy', loading ? 'true' : 'false');
+        };
+        const revealPreparedModal = () => {
+            if (!sampleRowModalPrepared || !modalDialog()) {
+                return;
+            }
+
+            setModalLoading(false);
         };
 
         const flushSampleRowRichText = () => {
@@ -793,6 +801,7 @@
         });
 
         const prepareSampleRowEditModal = () => {
+            sampleRowModalPrepared = false;
             setModalLoading(true);
 
             window.requestAnimationFrame(() => {
@@ -802,6 +811,7 @@
                     waitForRichTextEditor(),
                     new Promise((resolve) => setTimeout(resolve, 80)),
                 ]).then(() => {
+                    sampleRowModalPrepared = true;
                     setModalLoading(false);
                 });
             });
@@ -813,6 +823,7 @@
             });
 
             Livewire.on('sample-row-edit-modal-closed', () => {
+                sampleRowModalPrepared = false;
                 setModalLoading(true);
 
                 if (typeof tinymce !== 'undefined') {
@@ -839,7 +850,14 @@
 
             Livewire.on('sample-row-select-options-refreshed', (payload) => {
                 refreshSampleRowSelectOptions(payload);
+                revealPreparedModal();
             });
+
+            if (typeof Livewire.hook === 'function') {
+                Livewire.hook('commit', ({ succeed }) => {
+                    succeed(() => revealPreparedModal());
+                });
+            }
 
             document.addEventListener('click', (event) => {
                 const saveButton = event.target.closest('[data-sample-row-save]');

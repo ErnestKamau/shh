@@ -500,6 +500,11 @@ final class EnquiryReviewDisplayService
         return $tokens;
     }
 
+    private function firstNormalizedId(mixed $value): string
+    {
+        return $this->splitStoredTokens($value)[0] ?? '';
+    }
+
     /**
      * @param  list<array<string, mixed>>  $group
      * @return array{label: string, count: int}
@@ -580,13 +585,13 @@ final class EnquiryReviewDisplayService
      */
     private function scopedAnalysisTypeIdForLine(array $line): string
     {
-        $analysisTypeId = trim((string) ($line['analysis_type_id'] ?? ''));
+        $analysisTypeId = $this->firstNormalizedId($line['analysis_type_id'] ?? null);
         if ($analysisTypeId !== '' && Str::isUuid($analysisTypeId)) {
             return $analysisTypeId;
         }
 
         $foodLabel = trim((string) ($line['attributes']['food_sample_type'] ?? ''));
-        $sampleTypeId = trim((string) ($line['sample_type_id'] ?? ''));
+        $sampleTypeId = $this->firstNormalizedId($line['sample_type_id'] ?? null);
         if ($foodLabel === '' || $sampleTypeId === '' || ! Str::isUuid($sampleTypeId)) {
             return '';
         }
@@ -825,9 +830,9 @@ final class EnquiryReviewDisplayService
             return array_values(array_filter(array_map('strval', $fromAttributes)));
         }
 
-        $elementId = trim((string) ($line['analysis_element_id'] ?? ''));
-        if ($elementId !== '') {
-            return [$elementId];
+        $fromLine = $this->splitStoredTokens($line['analysis_element_id'] ?? null);
+        if ($fromLine !== []) {
+            return $fromLine;
         }
 
         $parameter = trim((string) ($line['parameter_label'] ?? ''));

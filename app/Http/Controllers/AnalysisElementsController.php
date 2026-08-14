@@ -49,7 +49,7 @@ class AnalysisElementsController extends Controller
     $element->level = $this->getLastLevel($request->analysis_type_id)+1;
     $element->non_detectable = $request->non_detectable ?? 0;
     $element->non_accredited = $request->non_accredited ?? 0;
-    $element->active = $request->active ?? 0;
+    $element->active = $request->boolean('active', true) ? 1 : 0;
     $element->company_id = $analyte->company_id;
     $element->analysis_type_id = $request->analysis_type_id;
     $element->reporting_time = $request->report_time;

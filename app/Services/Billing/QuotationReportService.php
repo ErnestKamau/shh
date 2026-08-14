@@ -690,7 +690,7 @@ class QuotationReportService
     {
         $this->ensureHeaderMetadata($header);
         $header->refresh();
-        $header->loadMissing(['customer', 'contact', 'currency', 'revisionOf', 'approvedByUser']);
+        $header->loadMissing(['customer.country', 'customer.city', 'contact', 'currency', 'revisionOf', 'approvedByUser']);
 
         $preparedBy = getUserById($header->prepared_by_id);
         // After lab-manager approval, the Authorized Signature block shows the approver.
@@ -711,11 +711,20 @@ class QuotationReportService
             $contact?->last_name ?? '',
         ])));
 
+        $customerCity = trim((string) ($header->customer?->city?->name ?? ''));
+        $customerCountry = trim((string) ($header->customer?->country?->name ?? ''));
+        $cityCountry = trim(implode(', ', array_filter([$customerCity, $customerCountry])));
+
         $row = (object) array_merge($header->toArray(), [
             'customer_name' => $header->customer?->name,
             'postal_address' => $header->customer?->postal_address,
             'physical_address' => $header->customer?->physical_address,
-            'customer_mobile' => trim((string) ($contact?->mobile ?? $contact?->telephone ?? $header->customer?->telephone1 ?? '')),
+            'customer_city' => $customerCity,
+            'customer_country' => $customerCountry,
+            'customer_city_country' => $cityCountry,
+            'customer_tel' => trim((string) ($contact?->telephone ?? $header->customer?->telephone1 ?? '')),
+            'customer_fax' => trim((string) ($header->customer?->fax ?? '')),
+            'customer_mobile' => trim((string) ($contact?->mobile ?? $header->customer?->telephone2 ?? '')),
             'customer_email' => trim((string) ($contact?->email ?? $header->customer?->email ?? '')),
             'prepared_by_name' => $signatory?->name,
             'prepared_by_position' => $position,

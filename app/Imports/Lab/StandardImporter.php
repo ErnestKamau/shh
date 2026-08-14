@@ -116,6 +116,7 @@ class StandardImporter extends BaseImporter
 
             $standardData['main_standard'] = (bool) ($standardData['main_standard'] ?? false);
             $standardData['is_qc_standard'] = (bool) ($standardData['is_qc_standard'] ?? false);
+            $standardData['status'] = (bool) ($standardData['status'] ?? true);
 
             $standard = Standards::updateOrCreate(
                 ['code' => (string) $standardData['code']],

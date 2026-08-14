@@ -54,7 +54,7 @@ class AnalysisMethodController extends Controller
     $analysis_type->code = $request->code;
     $analysis_type->description = $request->description;
     $analysis_type->company_id = getUserCompany();
-    $analysis_type->active = $request->active ?? 0;
+    $analysis_type->active = $request->boolean('active', true) ? 1 : 0;
     $analysis_type->method_type_id = $request->method_type_id;
     $analysis_type->save();
 

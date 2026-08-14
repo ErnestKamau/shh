@@ -59,10 +59,10 @@ class CRMCustomerService
             ->select([
                 'id', 'code', 'name', 'postal_address', 'physical_address',
                 'website', 'fax', 'vat_no', 'email', 'telephone1', 'telephone2',
-                'country_id', 'active',
+                'country_id', 'city_id', 'active',
             ])
             ->where('company_id', getUserCompany())
-            ->with(['country:id,name'])
+            ->with(['country:id,name', 'city:id,name,country_id'])
             ->orderBy('name');
 
         if ($statusFilter === 'active') {
@@ -83,6 +83,34 @@ class CRMCustomerService
     }
 
     /**
+     * Get countries list cached for 5 minutes to speed up modal load.
+     */
+    public function getCachedCountries(): Collection
+    {
+        return Cache::remember('crm_countries_list', 300, fn () => Country::orderBy('name')->get());
+    }
+
+    /**
+     * Get cities for a country (cached briefly).
+     */
+    public function getCachedCities(?string $countryId): Collection
+    {
+        if ($countryId === null || $countryId === '') {
+            return collect();
+        }
+
+        return Cache::remember(
+            'crm_cities_list_'.$countryId,
+            300,
+            fn () => \App\City::query()
+                ->where('country_id', $countryId)
+                ->where('status', 1)
+                ->orderBy('name')
+                ->get(['id', 'name', 'country_id'])
+        );
+    }
+
+    /**
      * Get countries and accounts for modal forms (lazy-loaded).
      *
      * @return array{countries: Collection, accounts: array|\Illuminate\Support\Collection}
@@ -96,14 +124,6 @@ class CRMCustomerService
             'countries' => $this->getCachedCountries(),
             'accounts' => $accounts,
         ];
-    }
-
-    /**
-     * Get countries list cached for 5 minutes to speed up modal load.
-     */
-    public function getCachedCountries(): Collection
-    {
-        return Cache::remember('crm_countries_list', 300, fn () => Country::orderBy('name')->get());
     }
 
     /**
@@ -135,6 +155,7 @@ class CRMCustomerService
         $customer->telephone2 = $data['phone2'] ?? '';
         $customer->credit_days = $data['credit_day'] ?? null;
         $customer->country_id = $data['country_id'] ?? null;
+        $customer->city_id = $data['city_id'] ?? null;
         $customer->active = $data['active'] ?? 0;
         $customer->account_status = $data['account_id'] ?? null;
         $customer->vat_no = $data['vat_no'] ?? '';
@@ -171,6 +192,7 @@ class CRMCustomerService
         $customer->telephone1 = $data['phone1'] ?? '';
         $customer->telephone2 = $data['phone2'] ?? '';
         $customer->country_id = $data['country_id'] ?? null;
+        $customer->city_id = $data['city_id'] ?? null;
         $customer->credit_days = $data['credit_day'] ?? null;
         $customer->active = $data['active'] ?? 0;
         $customer->account_status = $data['account_id'] ?? null;

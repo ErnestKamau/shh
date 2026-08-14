@@ -277,7 +277,7 @@ class MethodManager extends Component
                 'method_type_id' => $methodTypeId,
                 'reference_type_id' => $referenceTypeId,
                 'based_on_standard_id' => $this->methodForm['based_on_standard_id'] ?: null,
-                'active' => $this->methodForm['active'] ? 1 : 0,
+                'active' => ($this->methodForm['active'] ?? true) ? 1 : 0,
                 'is_ltm' => $flags['is_ltm'],
                 'is_sampling_method' => $flags['is_sampling_method'],
                 'company_id' => getUserCompany(),

@@ -76,7 +76,7 @@ class SampleTypeController extends Controller
     $sample_type->code = $request->code;
     $sample_type->description = $request->description;
     $sample_type->company_id = getUserCompany();
-    $sample_type->active = $request->active ?? 0;
+    $sample_type->active = $request->boolean('active', true) ? 1 : 0;
     $sample_type->sample_type_category = $request->category_id;
 
     $sample_type->save();

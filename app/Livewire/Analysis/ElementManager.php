@@ -477,6 +477,7 @@ class ElementManager extends Component
                 'procedure_worksheet_id' => $this->analysisType->procedure_worksheet_id ?? null,
                 'lab_section_id' => $labSectionId,
             ]);
+            $data['active'] = $data['active'] ?? true;
 
             if ($this->editingElement) {
                 $this->editingElement->update($data);

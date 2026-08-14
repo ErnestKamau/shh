@@ -9,6 +9,7 @@ use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\Services\Commercial\CommercialEnquirySyncService;
+use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -16,6 +17,7 @@ final class SubmissionFormInstanceSampleRowUpdateService
 {
     public function __construct(
         private readonly CommercialEnquirySyncService $enquirySyncService,
+        private readonly AcceptanceFormSampleConfigService $sampleConfigService,
     ) {}
 
     /**
@@ -443,6 +445,20 @@ final class SubmissionFormInstanceSampleRowUpdateService
             }
 
             $config[$configKey] = $fields[$fieldName];
+        }
+
+        if (array_key_exists('sample_type_id', $fields)) {
+            $config = $this->sampleConfigService->syncSampleTypeIdsOnConfig(
+                $config,
+                $this->sampleConfigService->normalizeIdList($fields['sample_type_id']),
+            );
+        }
+
+        if (array_key_exists('analysis_type_id', $fields)) {
+            $config = $this->sampleConfigService->syncAnalysisTypeIdsOnConfig(
+                $config,
+                $this->sampleConfigService->normalizeIdList($fields['analysis_type_id']),
+            );
         }
 
         if (array_key_exists('parameters', $fields) && is_array($fields['parameters'])) {

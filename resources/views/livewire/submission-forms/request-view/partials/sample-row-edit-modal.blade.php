@@ -9,7 +9,7 @@
         }
     @endphp
     <div class="rv-modal-backdrop rv-sample-row-edit-modal" wire:keydown.escape.window="closeSampleRowEditor">
-        <div class="rv-modal rv-modal--wide rv-sample-row-edit-dialog" role="dialog" aria-modal="true" aria-busy="true">
+        <div class="rv-modal rv-modal--wide rv-sample-row-edit-dialog" wire:ignore.self role="dialog" aria-modal="true" aria-busy="true">
             <div class="rv-sample-row-edit-loading" aria-hidden="true">
                 <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
                 <span class="small text-muted ml-2">Loading form…</span>

@@ -377,6 +377,44 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-city text-primary"></i> {{ __('crm.city') }}</label>
+                                        <div class="tag-select-container {{ empty($customerForm['country_id']) ? 'bg-light' : '' }}"
+                                            wire:click="@if(!empty($customerForm['country_id'])) $set('showCityDropdown', true) @endif"
+                                            wire:click.outside="$set('showCityDropdown', false)">
+                                            <div class="tag-select-input">
+                                                @if($this->selectedCityName)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedCityName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearCity"></i>
+                                                    </span>
+                                                @endif
+                                                <input
+                                                    type="text"
+                                                    wire:model.live.debounce.300ms="citySearch"
+                                                    class="tag-input"
+                                                    placeholder="{{ empty($customerForm['country_id']) ? __('crm.select_country_first') : ($this->selectedCityName ? '' : __('crm.search_cities')) }}"
+                                                    autocomplete="off"
+                                                    @disabled(empty($customerForm['country_id']))
+                                                >
+                                            </div>
+                                            @if($showCityDropdown && !empty($customerForm['country_id']) && $this->filteredCities->count() > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredCities as $city)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCity('{{ data_get($city, 'id') }}')">
+                                                            {{ data_get($city, 'name') }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('customerForm.city_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> {{ __('crm.account_settings') }} <span class="text-danger">*</span></label>
                                         <div class="tag-select-container"
                                             wire:click="$set('showAccountDropdown', true)"
