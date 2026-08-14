@@ -13,16 +13,27 @@ class SubmissionFormTrfRowsSectionPatchSeeder extends Seeder
     public function run(): void
     {
         $patches = [
-            'TRF-FOOD-019' => fn (SubmissionForm $form) => $this->patchSampleRowsSection($form, $this->foodTrfRowFields()),
-            'TRF-FOOD-FEED-021' => fn (SubmissionForm $form) => $this->patchSampleRowsSection($form, $this->foodTrfRowFields()),
+            'TRF-FOOD-019' => function (SubmissionForm $form): void {
+                $this->patchSampleRowsSection($form, $this->foodTrfRowFields());
+                $this->removeRowElementsByName($form, ['sampling_point']);
+            },
+            'TRF-FOOD-FEED-021' => function (SubmissionForm $form): void {
+                $this->patchSampleRowsSection($form, $this->foodTrfRowFields());
+                $this->removeRowElementsByName($form, ['sampling_point']);
+            },
             'TRF-WATER-020' => function (SubmissionForm $form): void {
                 $this->patchSampleRowsSection($form, $this->waterTrfRowFields());
                 $this->removeRowElementsByName($form, [
                     'location',
+                    'sampling_point',
                     'sampling_point_other',
                     'sampling_point_others',
                     'other_sampling_point',
                 ]);
+            },
+            'TRF-SWAB-022' => function (SubmissionForm $form): void {
+                $this->patchSampleRowsSection($form, $this->swabTrfRowFields());
+                $this->removeRowElementsByName($form, ['sampling_point']);
             },
             'TRF-WASTE-036' => fn (SubmissionForm $form) => $this->patchSampleRowsSection($form, $this->wasteWaterTrfRowFields()),
         ];

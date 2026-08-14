@@ -316,7 +316,7 @@
                     @elseif ($formTypeCards->isNotEmpty())
                     <div class="row rft-card-row">
                         @foreach ($formTypeCards as $card)
-                            <div class="col-lg-4 col-md-6 mb-3">
+                            <div class="col-lg-4 col-md-6 mb-3 d-flex">
                                 <div class="rft-form-type-card {{ ! empty($card['is_hidden_from_rft']) ? 'is-rft-hidden' : '' }} {{ filled($card['sample_type_id'] ?? null) && (string) $selectedSampleTypeId === (string) $card['sample_type_id'] ? 'is-filtered' : '' }}">
                                     @include('livewire.sampleworkflow.partials.rft-form-type-card-menu', [
                                         'card' => $card,

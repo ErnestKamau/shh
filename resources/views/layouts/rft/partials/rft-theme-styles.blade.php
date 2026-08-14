@@ -127,8 +127,15 @@
 		min-width: 0;
 	}
 
+	.lab-panel-theme .rft-card-row > [class*="col-"] {
+		display: flex;
+	}
+
 	.lab-panel-theme .rft-form-type-card {
 		position: relative;
+		display: flex;
+		flex-direction: column;
+		width: 100%;
 		background: #fff;
 		border: 1px solid var(--workflow-border);
 		border-radius: 10px;
@@ -299,6 +306,7 @@
 		align-items: center;
 		justify-content: flex-end;
 		gap: 8px;
+		margin-top: auto;
 		border-top: 1px solid #f1f5f9;
 		padding-top: 12px;
 	}
@@ -593,7 +601,14 @@
 	}
 
 	/* —— Form type cards —— */
+	.rft-theme .rft-card-row > [class*="col-"] {
+		display: flex;
+	}
+
 	.rft-theme .rft-form-type-card {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
 		border-radius: var(--rft-card-radius);
 		padding: 12px 14px;
 	}
@@ -615,6 +630,7 @@
 	}
 
 	.rft-theme .rft-form-type-card-actions {
+		margin-top: auto;
 		padding-top: 8px !important;
 	}
 

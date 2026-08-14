@@ -102,10 +102,10 @@ return [
                 ['value' => 'sterile_swab', 'label' => 'Sterile swab'],
                 ['value' => 'grabber', 'label' => 'Grabber'],
                 ['value' => 'others', 'label' => 'Others'],
-                ['value' => 'thermometer_ams_c_ins_116', 'label' => 'Thermometer ID AMS/C/INS/116'],
                 ['value' => 'air_sampler', 'label' => 'Air sampler'],
             ],
         ],
+        ['name' => 'thermometer_id', 'label' => 'Thermometer ID', 'type' => 'text', 'placeholder' => 'Enter thermometer ID'],
         [
             'name' => 'method_of_sampling',
             'label' => 'Method of sampling',

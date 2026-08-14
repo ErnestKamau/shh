@@ -335,6 +335,13 @@ class SubmissionRequestSampleLineService
                 continue;
             }
 
+            if (trim((string) ($sectionLine['sample_type_id'] ?? '')) !== '') {
+                $line['sample_type_id'] = $sectionLine['sample_type_id'];
+                $line['sample_type_name'] = trim((string) ($sectionLine['sample_type_name'] ?? '')) !== ''
+                    ? $sectionLine['sample_type_name']
+                    : $this->resolveSampleTypeName((string) $sectionLine['sample_type_id']);
+            }
+
             $sectionAttributes = is_array($sectionLine['attributes'] ?? null) ? $sectionLine['attributes'] : [];
             $sectionElementIds = $sectionAttributes['analysis_element_ids'] ?? [];
             if ($sectionElementIds === [] && ! empty($sectionLine['analysis_element_id'])) {
@@ -668,18 +675,34 @@ class SubmissionRequestSampleLineService
 
             $type = (string) $element->element_type;
             $name = Str::lower((string) $element->name);
+
+            if ($type === 'sample_type_select' || $name === 'sample_type_id') {
+                $this->applySampleType($line, $rawValue, $display);
+            }
+        }
+
+        foreach ($cells as $cell) {
+            $element = $cell['element'];
+            $rawValue = $this->normalizeCellText($cell['value']);
+            $display = $this->normalizeCellText($cell['display_value']);
+            $filePath = $cell['file_path'] ?? null;
+
+            if ($rawValue === '' && $display === '' && $filePath === null) {
+                continue;
+            }
+
+            $type = (string) $element->element_type;
+            $name = Str::lower((string) $element->name);
             $mapping = Str::lower((string) ($element->mapping_field ?? ''));
 
             $mapped = true;
 
-            if ($type === 'sample_type_select') {
-                $this->applySampleType($line, $rawValue, $display);
+            if ($type === 'sample_type_select' || $name === 'sample_type_id') {
+                continue;
             } elseif ($type === 'analysis_type_select') {
                 $this->applyAnalysisType($line, $rawValue, $display);
             } elseif ($type === 'analysis_elements_select') {
                 $this->applyAnalysisElement($line, $rawValue, $display);
-            } elseif ($name === 'sample_type_id') {
-                $this->applySampleType($line, $rawValue, $display);
             } elseif ($name === 'analysis_type_id') {
                 $this->applyAnalysisType($line, $rawValue, $display);
             } elseif ($name === 'sample_description') {
@@ -1019,10 +1042,10 @@ class SubmissionRequestSampleLineService
             return;
         }
 
-        $line['sample_type_id'] = $ids[0];
-        $line['sample_type_name'] = $names !== []
-            ? implode(', ', $names)
-            : $this->resolveSampleTypeName($ids[0]);
+        $primaryId = $ids[0];
+        $line['sample_type_id'] = $primaryId;
+        $line['sample_type_name'] = $this->resolveSampleTypeName($primaryId)
+            ?? ($names[0] ?? null);
 
         if (count($ids) > 1) {
             $line['attributes'] = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
@@ -1066,25 +1089,22 @@ class SubmissionRequestSampleLineService
             return;
         }
 
-        $ids = [];
-        $names = [];
-
-        foreach (AnalysisType::query()->whereKey($analysisTypeIds)->get() as $analysisType) {
-            $sampleTypeId = trim((string) ($analysisType->sample_type_id ?? ''));
-            if ($sampleTypeId === '' || in_array($sampleTypeId, $ids, true)) {
-                continue;
-            }
-
-            $name = $this->resolveSampleTypeName($sampleTypeId);
-            if ($name === null || $name === '') {
-                continue;
-            }
-
-            $ids[] = $sampleTypeId;
-            $names[] = $name;
+        $analysisType = AnalysisType::query()->whereKey($analysisTypeIds)->orderBy('id')->first();
+        if ($analysisType === null) {
+            return;
         }
 
-        $this->assignSampleTypes($line, $ids, $names);
+        $sampleTypeId = trim((string) ($analysisType->sample_type_id ?? ''));
+        if ($sampleTypeId === '') {
+            return;
+        }
+
+        $name = $this->resolveSampleTypeName($sampleTypeId);
+        if ($name === null || $name === '') {
+            return;
+        }
+
+        $this->assignSampleTypes($line, [$sampleTypeId], [$name]);
     }
 
     /**
@@ -1512,8 +1532,8 @@ class SubmissionRequestSampleLineService
             'sample_description' => $this->nullableString($row['sample_description'] ?? null),
             'parameter_category' => null,
             'sample_type_id' => $rowSampleTypes['ids'][0] ?? $defaultSampleTypeId,
-            'sample_type_name' => $rowSampleTypes['names'] !== []
-                ? implode(', ', $rowSampleTypes['names'])
+            'sample_type_name' => $rowSampleTypes['ids'] !== []
+                ? ($this->resolveSampleTypeName($rowSampleTypes['ids'][0]) ?? $rowSampleTypes['names'][0] ?? null)
                 : $defaultSampleTypeName,
             'analysis_type_id' => null,
             'analysis_type_name' => null,
@@ -1547,9 +1567,7 @@ class SubmissionRequestSampleLineService
             $foodSampleType = $this->firstFoodSampleTypeLabel($row['analysis_type_id'] ?? null);
         }
 
-        $rowSampleTypeName = $rowSampleTypes['names'] !== []
-            ? implode(', ', $rowSampleTypes['names'])
-            : $defaultSampleTypeName;
+        $rowSampleTypeName = $line['sample_type_name'] ?? $defaultSampleTypeName;
 
         $this->applyRowAnalysisSelection(
             $line,

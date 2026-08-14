@@ -65,8 +65,8 @@
                                     @if($sample['has_description'])
                                         <button type="button"
                                             class="btn btn-sm btn-icon btn-light text-primary"
-                                            title="View sample description"
-                                            aria-label="View sample description"
+                                            title="Click to show sample description"
+                                            aria-label="Click to show sample description"
                                             @click='modalTitle = @json("Sample description — sample ".$sample["number"]); descriptionHtml = @json($sample["sample_description_html"]); parameterGroups = []; descriptionOpen = true; paramsOpen = false;'>
                                             <i class="mdi mdi-text-box-outline" aria-hidden="true"></i>
                                         </button>
