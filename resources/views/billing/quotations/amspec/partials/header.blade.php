@@ -13,7 +13,7 @@
     $hexHeight = $isPdf ? 59 : 55;
 
     $customerName = trim((string) ($reportHeader->customer_name ?? ''));
-    $customerAddress = trim((string) ($reportHeader->physical_address ?? $reportHeader->postal_address ?? ''));
+    $customerAddress = trim((string) ($reportHeader->postal_address ?: $reportHeader->physical_address ?? ''));
     $customerMobile = trim((string) ($reportHeader->customer_mobile ?? ''));
     $customerEmail = trim((string) ($reportHeader->customer_email ?? ''));
 @endphp
