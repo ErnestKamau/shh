@@ -719,6 +719,8 @@ class QuotationReportService
             'customer_name' => $header->customer?->name,
             'postal_address' => $header->customer?->postal_address,
             'physical_address' => $header->customer?->physical_address,
+            'customer_mobile' => trim((string) ($contact?->mobile ?? $contact?->telephone ?? $header->customer?->telephone1 ?? '')),
+            'customer_email' => trim((string) ($contact?->email ?? $header->customer?->email ?? '')),
             'prepared_by_name' => $signatory?->name,
             'prepared_by_position' => $position,
             'prepared_by_email' => $signatory?->email,

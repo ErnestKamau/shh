@@ -153,9 +153,19 @@
         outline: none !important;
     }
 
+    .amspec-header-logos {
+        margin-top: -4px;
+    }
+
     .amspec-header-logos td {
         vertical-align: middle;
-        padding-bottom: 10px;
+        padding-bottom: 16px;
+    }
+
+    .amspec-header-logos .amspec-logo-wordmark,
+    .amspec-header-logos .amspec-hex-cluster {
+        margin-bottom: 0;
+        vertical-align: middle;
     }
 
     .amspec-header-logo-cell {
@@ -167,14 +177,16 @@
     .amspec-header-hex-cell {
         width: 42%;
         text-align: right;
-        vertical-align: top;
+        vertical-align: middle;
     }
 
     .amspec-header-hex-wrap {
         display: inline-block;
         line-height: 0;
-        min-height: 72px;
+        min-height: 0;
         text-align: right;
+        vertical-align: middle;
+        margin-top: -4px;
     }
 
     .amspec-header-details td {
@@ -186,6 +198,13 @@
         display: inline-block;
         text-align: left;
         min-width: 180px;
+    }
+
+    .amspec-header-customer-contact {
+        display: inline-block;
+        text-align: left;
+        min-width: 180px;
+        margin-top: 4px;
     }
 
     .amspec-brand-left {
@@ -205,8 +224,8 @@
     }
 
     .amspec-logo-wordmark {
-        max-height: 62px;
-        max-width: 240px;
+        max-height: 61px;
+        max-width: 239px;
         height: auto;
         width: auto;
         display: block;
@@ -221,8 +240,9 @@
     }
 
     .amspec-hex-cluster {
-        width: 100px;
-        max-width: 100px;
+        width: 101px;
+        max-width: 101px;
+        max-height: 55px;
         height: auto;
         display: inline-block;
         margin: 0;
