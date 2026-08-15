@@ -841,25 +841,77 @@
     @if($showParametersModal)
     <div class="modal fade show d-block sample-parameters-modal" tabindex="-1" role="dialog"
         style="background: rgba(15, 23, 42, 0.45);" wire:keydown.escape.window="cancelViewParameters">
-        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content sample-parameters-modal__content">
                 <div class="modal-header border-0 sample-parameters-modal__header">
-                    <div class="flex-grow-1 pr-3">
-                        <h5 class="modal-title mb-1">
-                            <i class="mdi mdi-flask-outline text-primary"></i>
-                            Parameters for sample
-                        </h5>
-                        <p class="text-muted small mb-0">
-                            <span class="badge badge-light border font-weight-normal">{{ format_sample_code($selectedSampleCode) }}</span>
-                            @if(!empty($sampleParameters))
-                                <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
+                    <div class="flex-grow-1 pr-2 min-w-0">
+                        <div class="d-flex align-items-start justify-content-between flex-wrap" style="gap: 0.75rem;">
+                            <div class="min-w-0">
+                                <h5 class="modal-title mb-1">
+                                    <i class="mdi mdi-flask-outline text-primary"></i>
+                                    Parameters for sample
+                                </h5>
+                                <p class="text-muted small mb-0">
+                                    <span class="badge badge-light border font-weight-normal">{{ format_sample_code($selectedSampleCode) }}</span>
+                                    @if(!empty($sampleParameters))
+                                        <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
+                                    @endif
+                                    @if(count($parameterModalSampleCodes) > 1)
+                                        <span class="ml-2 text-muted">
+                                            {{ $parameterModalSampleIndex + 1 }} of {{ count($parameterModalSampleCodes) }}
+                                        </span>
+                                    @endif
+                                </p>
+                            </div>
+                            @if(in_array((string) $batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection'], true))
+                                <div class="btn-group sample-parameters-modal__excel-actions flex-shrink-0">
+                                    <a href="{{ route('batch.request-test-results-excel', ['batch' => $batch->id]) }}"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       title="Download results Excel template">
+                                        <i class="mdi mdi-microsoft-excel"></i>
+                                        <span class="d-none d-md-inline ml-1">Excel</span>
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                            data-toggle="dropdown"
+                                            aria-haspopup="true"
+                                            aria-expanded="false"
+                                            title="Excel options">
+                                        <span class="sr-only">Excel options</span>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right shadow sample-parameters-modal__excel-menu"
+                                         onclick="event.stopPropagation()">
+                                        <a class="dropdown-item"
+                                           href="{{ route('batch.request-test-results-excel', ['batch' => $batch->id]) }}">
+                                            <i class="mdi mdi-download mr-2"></i> Download template
+                                        </a>
+                                        <div class="dropdown-divider"></div>
+                                        <div class="px-3 py-2">
+                                            <form method="POST"
+                                                  action="{{ route('batch.request-test-results-import', ['batch' => $batch->id]) }}"
+                                                  enctype="multipart/form-data"
+                                                  class="mb-0"
+                                                  id="sample-parameters-excel-import-form">
+                                                @csrf
+                                                <label class="small text-muted mb-1 d-block" for="sample-parameters-excel-import-file">
+                                                    Upload completed Excel
+                                                </label>
+                                                <input type="file"
+                                                       class="form-control-file form-control-sm mb-2"
+                                                       id="sample-parameters-excel-import-file"
+                                                       name="import_file"
+                                                       accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                                                       required
+                                                       onchange="if (this.files && this.files.length) { this.form.submit(); }">
+                                                <button type="submit" class="btn btn-sm btn-primary btn-block">
+                                                    <i class="mdi mdi-upload"></i> Import results
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
                             @endif
-                            @if(count($parameterModalSampleCodes) > 1)
-                                <span class="ml-2 text-muted">
-                                    {{ $parameterModalSampleIndex + 1 }} of {{ count($parameterModalSampleCodes) }}
-                                </span>
-                            @endif
-                        </p>
+                        </div>
                         @if(count($parameterModalSampleCodes) > 1)
                         <div class="d-flex align-items-center flex-wrap mt-2 sample-parameters-modal__nav" style="gap: 0.35rem;">
                             <button type="button"
@@ -892,7 +944,7 @@
                         </div>
                         @endif
                     </div>
-                    <button type="button" class="close" wire:click="cancelViewParameters" aria-label="Close">
+                    <button type="button" class="close sample-parameters-modal__close" wire:click="cancelViewParameters" aria-label="Close">
                         <span>&times;</span>
                     </button>
                 </div>
@@ -1214,7 +1266,7 @@
                 </div>
                 <div class="modal-footer border-0 sample-parameters-modal__footer">
                     <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
-                        <i class="mdi mdi-close"></i> Close
+                        Close
                     </button>
                     @if($this->hasEditableParameters && ! empty($sampleParameters))
                     <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
@@ -1234,16 +1286,19 @@
     </div>
 
     <style>
-        /* modal-xl caps at 800px below 1200px viewports; the parameters table needs the full screen. */
-        .sample-parameters-modal .modal-dialog.modal-xl {
-            max-width: min(96vw, 1500px);
+        .sample-parameters-modal .modal-dialog {
+            max-width: min(92vw, 1120px);
+            margin: 1.25rem auto;
         }
 
         .sample-parameters-modal__content {
             border: none;
-            border-radius: 16px;
-            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+            border-radius: 14px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
             overflow: hidden;
+            max-height: calc(100vh - 2.5rem);
+            display: flex;
+            flex-direction: column;
         }
 
         .sample-parameters-modal .sample-parameters-row--readonly td {
@@ -1270,26 +1325,47 @@
         }
 
         .sample-parameters-modal__header {
-            padding: 1.25rem 1.5rem 0.75rem;
-            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            padding: 1rem 1.25rem 0.85rem;
+            background: #fff;
+            border-bottom: 1px solid #eef2f7;
+            flex-shrink: 0;
+        }
+
+        .sample-parameters-modal__close {
+            margin: -0.15rem -0.25rem 0 0.5rem;
+            padding: 0.35rem 0.55rem;
+            line-height: 1;
+        }
+
+        .sample-parameters-modal__excel-actions .btn {
+            min-height: 34px;
+        }
+
+        .sample-parameters-modal__excel-menu {
+            min-width: 260px;
+            padding-bottom: 0.35rem;
+        }
+
+        .sample-parameters-modal__excel-menu .dropdown-item {
+            font-size: 0.875rem;
         }
 
         .sample-parameters-modal__body {
-            max-height: 70vh;
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
             overflow-y: auto;
-            /* Only the table wrap may scroll horizontally; otherwise the alerts
-               and table scroll together and content gets clipped at the modal edge. */
             overflow-x: hidden;
-            padding: 0 1.5rem 1rem;
+            padding: 0.85rem 1.25rem;
             background: #f8fafc;
         }
 
         .sample-parameters-modal__table-wrap {
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid #e2e8f0;
             background: #fff;
             overflow: auto;
-            max-height: 62vh;
+            max-height: min(52vh, 520px);
             max-width: 100%;
         }
 
@@ -1346,8 +1422,14 @@
         }
 
         .sample-parameters-modal__footer {
-            padding: 1rem 1.5rem 1.25rem;
+            padding: 0.85rem 1.25rem;
             background: #fff;
+            border-top: 1px solid #eef2f7;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
         }
 
         .sample-parameters-table .form-control-sm {

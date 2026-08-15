@@ -57,6 +57,12 @@ class SubmissionFormInstanceAttachment extends Model
             return route('test-request-form.pdf', $trfInstanceId);
         }
 
+        if ($integrityInstanceId = $this->resolveIntegrityWorksheetInstanceId()) {
+            return route('submission-forms.instances.integrity-worksheet-pdf', [
+                'instance' => $integrityInstanceId,
+            ]);
+        }
+
         if ($this->file_path) {
             return asset('storage/'.$this->file_path);
         }
@@ -68,6 +74,12 @@ class SubmissionFormInstanceAttachment extends Model
     {
         if ($trfInstanceId = $this->resolveTrfInstanceId()) {
             return route('test-request-form.download', $trfInstanceId);
+        }
+
+        if ($integrityInstanceId = $this->resolveIntegrityWorksheetInstanceId()) {
+            return route('submission-forms.instances.integrity-worksheet-pdf', [
+                'instance' => $integrityInstanceId,
+            ]);
         }
 
         return $this->file_url;
@@ -83,6 +95,24 @@ class SubmissionFormInstanceAttachment extends Model
         $heading = trim((string) ($this->attachment_heading ?? ''));
         if (
             $heading === \App\Services\Sampleworkflow\TestRequestFormPdfService::ATTACHMENT_TITLE
+            && filled($this->submission_form_instance_id)
+        ) {
+            return (string) $this->submission_form_instance_id;
+        }
+
+        return null;
+    }
+
+    private function resolveIntegrityWorksheetInstanceId(): ?string
+    {
+        $path = (string) ($this->file_path ?? '');
+        if (preg_match('#^request-test-worksheets/integrity-([0-9a-f-]+)\.pdf$#i', $path, $matches) === 1) {
+            return $matches[1];
+        }
+
+        $heading = trim((string) ($this->attachment_heading ?? ''));
+        if (
+            $heading === \App\Services\Sampleworkflow\RequestTestWorksheetPdfService::INTEGRITY_ATTACHMENT_TITLE
             && filled($this->submission_form_instance_id)
         ) {
             return (string) $this->submission_form_instance_id;

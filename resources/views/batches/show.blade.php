@@ -442,6 +442,13 @@
         </div>
     @endif
 
+    @if(session('warning'))
+        <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+            <i class="mdi mdi-alert"></i> {{ session('warning') }}
+            <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+        </div>
+    @endif
+
     @if(!$batch || !isset($batch->id))
         <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
             <i class="mdi mdi-alert-circle"></i> Batch not found. It may have been deleted.

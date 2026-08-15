@@ -1,13 +1,25 @@
 <div>
     <div class="workflow-board-panel">
-        <div class="workflow-board-panel-header">
-            <h5><i class="mdi mdi-sync-alert"></i> Raw results</h5>
-            <button type="button"
-                    class="btn btn-sm btn-outline-secondary btn-action-sm"
-                    data-toggle="modal"
-                    data-target="#process-results-modal">
-                <i class="mdi mdi-cog"></i> Process results
-            </button>
+        <div class="workflow-board-panel-header d-flex flex-wrap align-items-center justify-content-between">
+            <h5 class="mb-0"><i class="mdi mdi-sync-alert"></i> Raw results</h5>
+            <div class="d-flex flex-wrap align-items-center" style="gap: 6px;">
+                @if(in_array($batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection'], true))
+                    <a href="{{ route('batch.request-test-worksheet-pdf', ['batch' => $batch->id]) }}"
+                       class="btn btn-sm btn-outline-secondary btn-action-sm" target="_blank">
+                        <i class="mdi mdi-file-pdf-box"></i> Generate PDF
+                    </a>
+                    <a href="{{ route('batch.request-test-worksheet-print', ['batch' => $batch->id]) }}"
+                       class="btn btn-sm btn-outline-secondary btn-action-sm" target="_blank">
+                        <i class="mdi mdi-printer"></i> Print PDF
+                    </a>
+                @endif
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary btn-action-sm"
+                        data-toggle="modal"
+                        data-target="#process-results-modal">
+                    <i class="mdi mdi-cog"></i> Process results
+                </button>
+            </div>
         </div>
         <div class="workflow-board-panel-body flush-top p-0">
     <div class="table-responsive">

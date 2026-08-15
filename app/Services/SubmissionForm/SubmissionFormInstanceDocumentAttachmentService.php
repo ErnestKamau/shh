@@ -6,6 +6,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceAttachment;
 use App\QuotationHeader;
 use App\Services\Commercial\AmSpecQuotationPdfService;
+use App\Services\Sampleworkflow\RequestTestWorksheetPdfService;
 use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
@@ -16,6 +17,23 @@ use Illuminate\Support\Str;
 final class SubmissionFormInstanceDocumentAttachmentService
 {
     public const QUOTATION_TYPE = 'Quotation';
+
+    public function attachRequestTestWorksheet(
+        SubmissionFormInstance $instance,
+        string $storagePath,
+        string $displayFilename,
+        ?string $userId = null,
+    ): SubmissionFormInstanceAttachment {
+        return $this->upsert(
+            $instance,
+            RequestTestWorksheetPdfService::INTEGRITY_ATTACHMENT_TITLE,
+            'Report',
+            $storagePath,
+            $displayFilename,
+            'Sample integrity and acceptance check PDF generated from the current assignments.',
+            $userId,
+        );
+    }
 
     public function attachTestRequestForm(
         SubmissionFormInstance $instance,

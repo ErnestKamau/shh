@@ -15,17 +15,47 @@
                 Work sample by sample. Assign lab sections and analysts in bulk, then Accept to create the job and sample numbers.
             </p>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-            <a href="{{ $this->collectionLabelUrl }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                <i class="mdi mdi-printer-outline"></i> Collection label
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="integrity-lab-sample-labels-btn">
-                <i class="mdi mdi-barcode"></i> Lab sample labels
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="saveAssignments" wire:loading.attr="disabled">
-                <span wire:loading.remove wire:target="saveAssignments">Save assignments</span>
-                <span wire:loading wire:target="saveAssignments">Saving…</span>
-            </button>
+        <div class="d-flex flex-wrap align-items-center" style="gap: 0.5rem;">
+            <div class="btn-group">
+                <button type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    data-toggle="dropdown"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    id="integrity-actions-dropdown">
+                    <i class="mdi mdi-dots-horizontal"></i> Actions
+                </button>
+                <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="integrity-actions-dropdown" style="min-width: 220px;">
+                    <button type="button"
+                        class="dropdown-item"
+                        wire:click="generateWorksheetPdf"
+                        wire:loading.attr="disabled"
+                        wire:target="generateWorksheetPdf">
+                        <i class="mdi mdi-file-pdf-box mr-2"></i>
+                        <span wire:loading.remove wire:target="generateWorksheetPdf">Generate PDF</span>
+                        <span wire:loading wire:target="generateWorksheetPdf">Generating…</span>
+                    </button>
+                    <a href="{{ $this->collectionLabelUrl }}" target="_blank" class="dropdown-item">
+                        <i class="mdi mdi-printer-outline mr-2"></i> Collection label
+                    </a>
+                    <button type="button" class="dropdown-item" id="integrity-lab-sample-labels-btn">
+                        <i class="mdi mdi-barcode mr-2"></i> Lab sample labels
+                    </button>
+                    <div class="dropdown-divider"></div>
+                    <button type="button"
+                        class="dropdown-item"
+                        wire:click="saveAssignments"
+                        wire:loading.attr="disabled"
+                        wire:target="saveAssignments">
+                        <span wire:loading.remove wire:target="saveAssignments">
+                            <i class="mdi mdi-content-save-outline mr-2"></i> Save assignments
+                        </span>
+                        <span wire:loading wire:target="saveAssignments">
+                            <i class="mdi mdi-loading mdi-spin mr-2"></i> Saving…
+                        </span>
+                    </button>
+                </div>
+            </div>
             <button
                 type="button"
                 class="btn btn-sm btn-primary"
@@ -664,6 +694,14 @@
             };
 
             const boot = () => {
+                Livewire.on('open-integrity-worksheet-pdf', (event) => {
+                    const payload = Array.isArray(event) ? (event[0] ?? {}) : (event ?? {});
+                    const url = payload.url ?? payload.detail?.url ?? null;
+                    if (url) {
+                        window.open(url, '_blank');
+                    }
+                });
+
                 Livewire.on('acceptance-form-completed', (event) => {
                     const payload = Array.isArray(event) ? (event[0] ?? {}) : (event ?? {});
                     const redirectUrl = payload.redirectUrl

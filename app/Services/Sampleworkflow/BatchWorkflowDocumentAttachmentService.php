@@ -123,6 +123,24 @@ class BatchWorkflowDocumentAttachmentService
         );
     }
 
+    public function attachRequestTestWorksheet(SampleHeader $batch, ?string $attachmentUrl = null, ?string $userId = null): ?string
+    {
+        $url = trim((string) ($attachmentUrl ?: ''));
+        if ($url === '') {
+            $url = app(RequestTestWorksheetPdfService::class)->batchViewUrl($batch);
+        }
+
+        return $this->upsertBatchAttachment(
+            $batch,
+            RequestTestWorksheetPdfService::BATCH_ATTACHMENT_TITLE,
+            $url,
+            app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId(
+                RequestTestWorksheetPdfService::BATCH_ATTACHMENT_TITLE
+            ),
+            $userId,
+        );
+    }
+
     /**
      * Upsert the generated Test Request Report PDF onto the batch Attachments tab.
      */

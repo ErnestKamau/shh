@@ -601,6 +601,18 @@ Route::get('/sample-submission-requests/customer/{customer}/contacts', 'SampleWo
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.status.view');
 Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage')->middleware('can:laboratory.components.all samples.view');
 Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details')->middleware('can:laboratory.components.all samples.view');
+Route::get('/sample-workflow/batch/{batch}/request-test-worksheet-pdf', [\App\Http\Controllers\Lab\RequestTestExportController::class, 'downloadPdf'])
+    ->name('batch.request-test-worksheet-pdf')
+    ->middleware('can:laboratory.components.all samples.view');
+Route::get('/sample-workflow/batch/{batch}/request-test-worksheet-print', [\App\Http\Controllers\Lab\RequestTestExportController::class, 'printPdf'])
+    ->name('batch.request-test-worksheet-print')
+    ->middleware('can:laboratory.components.all samples.view');
+Route::get('/sample-workflow/batch/{batch}/request-test-results-excel', [\App\Http\Controllers\Lab\RequestTestExportController::class, 'downloadExcel'])
+    ->name('batch.request-test-results-excel')
+    ->middleware('can:laboratory.components.all samples.view');
+Route::post('/sample-workflow/batch/{batch}/request-test-results-import', [\App\Http\Controllers\Lab\RequestTestExportController::class, 'importExcel'])
+    ->name('batch.request-test-results-import')
+    ->middleware('can:laboratory.components.all samples.edit');
 Route::get('/sample-workflow/batch/{sample}/approval-checklist', [\App\Http\Controllers\Lab\SampleApprovalChecklistController::class, 'show'])
     ->name('sample-approval-checklist.show')
     ->middleware('can:laboratory.components.sample-approval-checklist.view');
@@ -946,6 +958,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{instance}/sample-collection-label', 'FormInstanceController@sampleCollectionLabel')->name('sample-collection-label')->middleware('can:submission-forms.access');
         Route::get('/{submissionForm}/{instance}/sample-integrity-check', 'FormInstanceController@sampleIntegrityCheck')
             ->name('sample-integrity-check')
+            ->middleware('can:submission-forms.access');
+        Route::get('/{instance}/integrity-worksheet-pdf', [\App\Http\Controllers\Lab\RequestTestExportController::class, 'viewIntegrityPdf'])
+            ->name('integrity-worksheet-pdf')
             ->middleware('can:submission-forms.access');
         Route::post('/{instance}/intake-case/confirm', 'LabIntakeCaseController@confirm')->name('intake-case.confirm')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/intake-case/accept', 'LabIntakeCaseController@accept')->name('intake-case.accept')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');

@@ -259,8 +259,23 @@
                             aria-labelledby="batchActionsDropdownToggle"
                             @click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { open = false; }">
 
-                            @if(isset($batch->id))
-                                @if($batch->status == 'Finished Sample')
+                                @if(isset($batch->status) && in_array($batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection'], true) && Auth::user()->is_client == 0)
+                                    <li>
+                                        <a href="{{ route('batch.request-test-worksheet-pdf', ['batch' => $batch->id]) }}"
+                                           class="dropdown-item" target="_blank">
+                                            <i class="mdi mdi-file-pdf-box mr-2"></i> Generate tests PDF
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="{{ route('batch.request-test-worksheet-print', ['batch' => $batch->id]) }}"
+                                           class="dropdown-item" target="_blank">
+                                            <i class="mdi mdi-printer mr-2"></i> Print tests PDF
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                @endif
+                                @if(isset($batch->id))
+                                    @if($batch->status == 'Finished Sample')
                                     <?php            $reportpath = '/storage' . $batch->batch_report_url; ?>
                                     <li>
                                         <a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i

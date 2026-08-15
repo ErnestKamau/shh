@@ -10,6 +10,7 @@ use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
+use App\Services\Sampleworkflow\RequestTestWorksheetPdfService;
 use App\Services\Sampleworkflow\SampleIntegrityCheckService;
 use App\User;
 use Illuminate\Contracts\View\View;
@@ -256,6 +257,27 @@ class SampleIntegrityCheckPage extends Component
 
         $this->reloadRows();
         $this->setFlashMessage('Integrity assignments saved.', 'success');
+    }
+
+    public function generateWorksheetPdf(): void
+    {
+        $analystNamesById = [];
+        foreach ($this->analystsBySection as $sectionAnalysts) {
+            foreach ($sectionAnalysts as $analyst) {
+                $analystNamesById[(string) ($analyst['id'] ?? '')] = (string) ($analyst['name'] ?? '');
+            }
+        }
+
+        $url = app(RequestTestWorksheetPdfService::class)->storeIntegrityPdf(
+            $this->instance,
+            $this->enquiry,
+            $this->testRows,
+            $this->labSectionNames,
+            $analystNamesById,
+        );
+
+        $this->dispatch('open-integrity-worksheet-pdf', url: $url.'?v='.now()->timestamp);
+        $this->setFlashMessage('PDF generated and opened in a new tab.', 'success');
     }
 
     public function toggleSubcontracted(string $rowKey): void
