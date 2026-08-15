@@ -16,22 +16,28 @@
             </p>
         </div>
         <div class="d-flex flex-wrap align-items-center" style="gap: 0.5rem;">
-            <div class="btn-group">
+            <div class="btn-group integrity-actions-dropdown"
+                 x-data="{ open: false }"
+                 @click.outside="open = false">
                 <button type="button"
-                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                    data-toggle="dropdown"
-                    aria-haspopup="true"
-                    aria-expanded="false"
-                    id="integrity-actions-dropdown">
-                    <i class="mdi mdi-dots-horizontal"></i> Actions
+                    class="btn btn-sm btn-outline-secondary integrity-actions-dropdown__toggle"
+                    id="integrity-actions-dropdown"
+                    @click.stop="open = !open"
+                    :aria-expanded="open"
+                    aria-haspopup="true">
+                    <i class="mdi mdi-dots-horizontal" aria-hidden="true"></i>
+                    <span>Actions</span>
                 </button>
-                <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="integrity-actions-dropdown" style="min-width: 220px;">
+                <div class="dropdown-menu dropdown-menu-right shadow integrity-actions-dropdown__menu"
+                     :class="{ 'show': open }"
+                     aria-labelledby="integrity-actions-dropdown"
+                     @click="if ($event.target.closest('.dropdown-item')) { open = false; }">
                     <button type="button"
                         class="dropdown-item"
                         wire:click="generateWorksheetPdf"
                         wire:loading.attr="disabled"
                         wire:target="generateWorksheetPdf">
-                        <i class="mdi mdi-file-pdf-box mr-2"></i>
+                        <i class="mdi mdi-file-pdf-box mr-2 text-danger"></i>
                         <span wire:loading.remove wire:target="generateWorksheetPdf">Generate PDF</span>
                         <span wire:loading wire:target="generateWorksheetPdf">Generating…</span>
                     </button>
@@ -737,4 +743,61 @@
             }
         })();
     </script>
+
+    <style>
+        .sample-integrity-check-page .integrity-actions-dropdown {
+            position: relative;
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-height: 34px;
+            padding: 0.3rem 0.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__toggle::after {
+            display: none;
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__toggle .mdi {
+            font-size: 1.05rem;
+            line-height: 1;
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__menu {
+            min-width: 230px;
+            margin-top: 0.35rem;
+            padding: 0.35rem 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            z-index: 1050;
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__menu .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.95rem;
+            font-size: 0.875rem;
+            color: #0f172a;
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__menu .dropdown-item:hover,
+        .sample-integrity-check-page .integrity-actions-dropdown__menu .dropdown-item:focus {
+            background: #f8fafc;
+            color: var(--color-primary, #6D0A0E);
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__menu .dropdown-item .mdi {
+            width: 1.1rem;
+            text-align: center;
+        }
+
+        .sample-integrity-check-page .integrity-actions-dropdown__menu .dropdown-divider {
+            margin: 0.3rem 0;
+        }
+    </style>
 </div>

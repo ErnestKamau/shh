@@ -844,49 +844,48 @@
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content sample-parameters-modal__content">
                 <div class="modal-header border-0 sample-parameters-modal__header">
-                    <div class="flex-grow-1 pr-2 min-w-0">
-                        <div class="d-flex align-items-start justify-content-between flex-wrap" style="gap: 0.75rem;">
-                            <div class="min-w-0">
-                                <h5 class="modal-title mb-1">
-                                    <i class="mdi mdi-flask-outline text-primary"></i>
-                                    Parameters for sample
-                                </h5>
-                                <p class="text-muted small mb-0">
-                                    <span class="badge badge-light border font-weight-normal">{{ format_sample_code($selectedSampleCode) }}</span>
-                                    @if(!empty($sampleParameters))
-                                        <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
-                                    @endif
-                                    @if(count($parameterModalSampleCodes) > 1)
-                                        <span class="ml-2 text-muted">
-                                            {{ $parameterModalSampleIndex + 1 }} of {{ count($parameterModalSampleCodes) }}
-                                        </span>
-                                    @endif
-                                </p>
-                            </div>
+                    <div class="sample-parameters-modal__header-main">
+                        <div class="min-w-0">
+                            <h5 class="modal-title mb-1">
+                                <i class="mdi mdi-flask-outline"></i>
+                                Parameters for sample
+                            </h5>
+                            <p class="sample-parameters-modal__subtitle mb-0">
+                                <span class="sample-parameters-modal__code">{{ format_sample_code($selectedSampleCode) }}</span>
+                                @if(!empty($sampleParameters))
+                                    <span>{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
+                                @endif
+                                @if(count($parameterModalSampleCodes) > 1)
+                                    <span class="sample-parameters-modal__meta">
+                                        {{ $parameterModalSampleIndex + 1 }} of {{ count($parameterModalSampleCodes) }}
+                                    </span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="sample-parameters-modal__header-actions">
                             @if(in_array((string) $batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection'], true))
-                                <div class="btn-group sample-parameters-modal__excel-actions flex-shrink-0">
-                                    <a href="{{ route('batch.request-test-results-excel', ['batch' => $batch->id]) }}"
-                                       class="btn btn-sm btn-outline-secondary"
-                                       title="Download results Excel template">
-                                        <i class="mdi mdi-microsoft-excel"></i>
-                                        <span class="d-none d-md-inline ml-1">Excel</span>
-                                    </a>
+                                <div class="dropdown sample-parameters-modal__excel-actions"
+                                     x-data="{ open: false }"
+                                     @click.outside="open = false">
                                     <button type="button"
-                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                                            data-toggle="dropdown"
+                                            class="btn btn-sm sample-parameters-modal__excel-btn"
+                                            @click.stop="open = !open"
+                                            :aria-expanded="open"
                                             aria-haspopup="true"
-                                            aria-expanded="false"
-                                            title="Excel options">
-                                        <span class="sr-only">Excel options</span>
+                                            title="Excel template and import">
+                                        <i class="mdi mdi-file-excel-outline"></i>
+                                        <span>Excel</span>
+                                        <i class="mdi mdi-chevron-down"></i>
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-right shadow sample-parameters-modal__excel-menu"
-                                         onclick="event.stopPropagation()">
+                                         :class="{ 'show': open }"
+                                         @click.stop>
                                         <a class="dropdown-item"
                                            href="{{ route('batch.request-test-results-excel', ['batch' => $batch->id]) }}">
                                             <i class="mdi mdi-download mr-2"></i> Download template
                                         </a>
                                         <div class="dropdown-divider"></div>
-                                        <div class="px-3 py-2">
+                                        <div class="sample-parameters-modal__excel-upload px-3 py-2">
                                             <form method="POST"
                                                   action="{{ route('batch.request-test-results-import', ['batch' => $batch->id]) }}"
                                                   enctype="multipart/form-data"
@@ -911,9 +910,16 @@
                                     </div>
                                 </div>
                             @endif
+                            <button type="button" class="close sample-parameters-modal__close" wire:click="cancelViewParameters" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                         </div>
-                        @if(count($parameterModalSampleCodes) > 1)
-                        <div class="d-flex align-items-center flex-wrap mt-2 sample-parameters-modal__nav" style="gap: 0.35rem;">
+                    </div>
+                </div>
+
+                @if(count($parameterModalSampleCodes) > 1)
+                    <div class="sample-parameters-modal__toolbar">
+                        <div class="d-flex align-items-center flex-wrap sample-parameters-modal__nav" style="gap: 0.35rem;">
                             <button type="button"
                                 class="btn btn-sm btn-light border"
                                 wire:click="previousParameterSample"
@@ -942,12 +948,8 @@
                                 <i class="mdi mdi-chevron-right"></i>
                             </button>
                         </div>
-                        @endif
                     </div>
-                    <button type="button" class="close sample-parameters-modal__close" wire:click="cancelViewParameters" aria-label="Close">
-                        <span>&times;</span>
-                    </button>
-                </div>
+                @endif
 
                 {{-- Loading Indicator --}}
                 <div wire:loading wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample" class="text-center py-5">
@@ -1287,7 +1289,7 @@
 
     <style>
         .sample-parameters-modal .modal-dialog {
-            max-width: min(92vw, 1120px);
+            max-width: min(96vw, 1280px);
             margin: 1.25rem auto;
         }
 
@@ -1325,29 +1327,113 @@
         }
 
         .sample-parameters-modal__header {
-            padding: 1rem 1.25rem 0.85rem;
-            background: #fff;
-            border-bottom: 1px solid #eef2f7;
+            padding: 0.9rem 1.15rem !important;
+            flex-shrink: 0;
+        }
+
+        .sample-parameters-modal__header-main {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        .sample-parameters-modal__subtitle {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.45rem;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.86);
+        }
+
+        .sample-parameters-modal__code {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.12rem 0.45rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .sample-parameters-modal__meta {
+            opacity: 0.85;
+        }
+
+        .sample-parameters-modal__header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
             flex-shrink: 0;
         }
 
         .sample-parameters-modal__close {
-            margin: -0.15rem -0.25rem 0 0.5rem;
-            padding: 0.35rem 0.55rem;
+            margin: 0;
+            padding: 0.2rem 0.45rem;
+            line-height: 1;
+            color: #fff !important;
+            text-shadow: none;
+            opacity: 0.9;
+        }
+
+        .sample-parameters-modal__close:hover {
+            opacity: 1;
+            color: #fff !important;
+        }
+
+        .sample-parameters-modal__excel-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            min-height: 34px;
+            padding: 0.3rem 0.7rem;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff !important;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .sample-parameters-modal__excel-btn:hover,
+        .sample-parameters-modal__excel-btn:focus {
+            background: rgba(255, 255, 255, 0.24);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: #fff !important;
+        }
+
+        .sample-parameters-modal__excel-btn .mdi {
+            color: #fff !important;
+            font-size: 1rem;
             line-height: 1;
         }
 
-        .sample-parameters-modal__excel-actions .btn {
-            min-height: 34px;
-        }
-
         .sample-parameters-modal__excel-menu {
-            min-width: 260px;
-            padding-bottom: 0.35rem;
+            min-width: 270px;
+            margin-top: 0.35rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 0.35rem 0;
+            z-index: 1080;
         }
 
         .sample-parameters-modal__excel-menu .dropdown-item {
             font-size: 0.875rem;
+            padding: 0.45rem 0.9rem;
+        }
+
+        .sample-parameters-modal__excel-upload label {
+            color: #64748b !important;
+            font-weight: 500;
+        }
+
+        .sample-parameters-modal__toolbar {
+            flex-shrink: 0;
+            padding: 0.65rem 1.15rem;
+            background: #fff;
+            border-bottom: 1px solid #eef2f7;
         }
 
         .sample-parameters-modal__body {
@@ -1356,7 +1442,7 @@
             max-height: none;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 0.85rem 1.25rem;
+            padding: 0.85rem 1.15rem;
             background: #f8fafc;
         }
 
@@ -1365,7 +1451,7 @@
             border: 1px solid #e2e8f0;
             background: #fff;
             overflow: auto;
-            max-height: min(52vh, 520px);
+            max-height: min(56vh, 560px);
             max-width: 100%;
         }
 
@@ -1385,6 +1471,7 @@
         .sample-parameters-table {
             font-size: 0.8125rem;
             margin-bottom: 0;
+            min-width: 980px;
         }
 
         .sample-parameters-table thead th {
@@ -1402,8 +1489,41 @@
             vertical-align: middle;
         }
 
+        .sample-parameters-table thead th:nth-child(1),
+        .sample-parameters-table tbody td:nth-child(1) {
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            background: #fff;
+            box-shadow: 1px 0 0 #e2e8f0;
+        }
+
+        .sample-parameters-table thead th:nth-child(1) {
+            background: #f1f5f9;
+            z-index: 4;
+        }
+
+        .sample-parameters-table thead th:nth-child(2),
+        .sample-parameters-table tbody td:nth-child(2) {
+            position: sticky;
+            left: 100px;
+            z-index: 3;
+            background: #fff;
+            box-shadow: 1px 0 0 #e2e8f0;
+        }
+
+        .sample-parameters-table thead th:nth-child(2) {
+            background: #f1f5f9;
+            z-index: 4;
+        }
+
         .sample-parameters-table tbody tr:hover {
             background-color: #f8fafc;
+        }
+
+        .sample-parameters-table tbody tr:hover td:nth-child(1),
+        .sample-parameters-table tbody tr:hover td:nth-child(2) {
+            background: #f8fafc;
         }
 
         .sample-parameters-table tbody td {
@@ -1412,8 +1532,8 @@
         }
 
         .sample-parameters-modal__analyte {
-            min-width: 140px;
-            max-width: 200px;
+            min-width: 150px;
+            max-width: 220px;
         }
 
         .sample-parameters-modal__analyte .font-weight-semibold {
@@ -1422,7 +1542,7 @@
         }
 
         .sample-parameters-modal__footer {
-            padding: 0.85rem 1.25rem;
+            padding: 0.85rem 1.15rem;
             background: #fff;
             border-top: 1px solid #eef2f7;
             display: flex;
