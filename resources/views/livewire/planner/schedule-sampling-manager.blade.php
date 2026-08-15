@@ -712,7 +712,7 @@
                                 @foreach($viewingTrfSchedule->submissionFormInstances as $instance)
                                 <tr>
                                     <td class="px-3 py-2 font-weight-bold">{{ $instance->submissionForm?->name ?? 'Request Form' }}</td>
-                                    <td class="px-3 py-2">{{ $instance->selectedSampleTypeName() ?? $instance->submissionForm?->sampleTypes->first()?->name ?? 'N/A' }}</td>
+                                    <td class="px-3 py-2">{{ $instance->selectedSampleTypeName() ?? 'N/A' }}</td>
                                     <td class="px-3 py-2">{{ $instance->submittedBy?->name ?? 'N/A' }}</td>
                                     <td class="px-3 py-2"><span class="badge badge-success">{{ ucfirst($instance->status) }}</span></td>
                                     <td class="px-3 py-2 text-muted">{{ $instance->submitted_at?->format('M d, Y H:i') ?? $instance->created_at?->format('M d, Y H:i') }}</td>

@@ -192,7 +192,7 @@ class ModuleNavigationLanguageSeeder extends Seeder
                     'ar' => 'WorkSheets',
                 ],
                 'standards' => [
-                    'en' => 'Standards',
+                    'en' => 'Specification',
                     'sw' => 'Viwango',
                     'pt' => 'Padrões',
                     'ar' => 'المعايير',

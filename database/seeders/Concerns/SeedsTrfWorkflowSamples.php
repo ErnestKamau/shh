@@ -578,7 +578,8 @@ trait SeedsTrfWorkflowSamples
             default => [],
         };
 
-        $linkedSampleTypes = $form->sampleTypes()->get();
+        $linkedSampleTypes = app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+            ->resolveForForm($form);
 
         $sampleType = $this->pickSampleTypeCandidate($linkedSampleTypes, $patterns, true)
             ?? $this->pickSampleTypeCandidate($linkedSampleTypes, $patterns, false);

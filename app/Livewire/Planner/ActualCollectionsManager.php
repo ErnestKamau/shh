@@ -55,7 +55,7 @@ class ActualCollectionsManager extends Component
                 'contact',
                 'personnel',
                 'submissionFormInstances.values.element',
-                'submissionFormInstances.submissionForm.sampleTypes',
+                'submissionFormInstances.submissionForm.sampleTypeCategories',
                 'submissionFormInstances.submittedBy',
             ])
             ->where('company_id', $companyId)
@@ -150,7 +150,7 @@ class ActualCollectionsManager extends Component
                 'client',
                 'contact',
                 'personnel',
-                'submissionFormInstances.submissionForm.sampleTypes',
+                'submissionFormInstances.submissionForm.sampleTypeCategories',
                 'submissionFormInstances.submittedBy',
             ])
             ->where('company_id', getUserCompany())

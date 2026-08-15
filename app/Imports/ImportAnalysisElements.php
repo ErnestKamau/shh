@@ -137,6 +137,16 @@ class ImportAnalysisElements implements ToCollection, WithHeadingRow
                         $payload['reporting_time'] = (string) $tat;
                     }
 
+                    $lod = $this->value($rowData, ['lod']);
+                    if ($lod !== null && is_numeric($lod)) {
+                        $payload['lod'] = (float) $lod;
+                    }
+
+                    $loq = $this->value($rowData, ['loq', 'hod']);
+                    if ($loq !== null && is_numeric($loq)) {
+                        $payload['hod'] = (float) $loq;
+                    }
+
                     $existing = AnalysisElements::query()
                         ->where('analysis_type_id', $this->analysisType->id)
                         ->where('analyte_id', $analyte->id)

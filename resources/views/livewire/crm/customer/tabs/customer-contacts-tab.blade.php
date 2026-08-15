@@ -91,7 +91,11 @@
                                 </x-crm.action-buttons>
                             </td>
                             <td>{{ $loop->iteration }}</td>
-                            <td>{{ $contact->first_name }}</td>
+                            <td>{{ $contact->first_name }}
+                                @if($contact->is_main_customer_contact)
+                                    <span class="crm-badge crm-badge-primary ml-1">Main</span>
+                                @endif
+                            </td>
                             <td>{{ $contact->middle_name }}</td>
                             <td>{{ $contact->last_name }}</td>
                             <td>{{ $contact->job_occupation }}</td>

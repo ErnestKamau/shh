@@ -24,7 +24,7 @@ final class SubmissionFormValueNormalizer
             return [];
         }
 
-        $form->loadMissing(['sections.elementHolders.elements', 'sampleTypes']);
+        $form->loadMissing(['sections.elementHolders.elements']);
 
         $raw = $this->extractRawValues($instance);
         $raw = $this->attachRowsFromSections($instance, $form, $raw);
@@ -534,19 +534,13 @@ final class SubmissionFormValueNormalizer
             }
         }
 
-        if ($category === '' && isset($row['test_requirements'])) {
+        if ($categoryTokens === [] && isset($row['test_requirements'])) {
             $reqs = $row['test_requirements'];
             if (is_array($reqs)) {
-                if (! empty($reqs['microbiology'])) {
-                    $category = 'microbiology';
-                } elseif (! empty($reqs['legionella'])) {
-                    $category = 'legionella';
-                } elseif (! empty($reqs['chemistry'])) {
-                    $category = 'chemistry';
-                }
-
-                if ($category !== '') {
-                    $categoryTokens = [$category];
+                $selected = SubmissionFormSchemaHelper::testCategoryTokens($reqs);
+                if ($selected !== []) {
+                    $categoryTokens = $selected;
+                    $category = $selected[0];
                 }
             }
         }

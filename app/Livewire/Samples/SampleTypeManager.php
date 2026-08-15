@@ -288,7 +288,7 @@ class SampleTypeManager extends Component
                     'report_format_id' => $this->sampleTypeForm['report_format_id'],
                     'default_product_id' => $this->sampleTypeForm['default_product_id'],
                     'disposal_count' => $this->sampleTypeForm['disposal_count'] ?? 0,
-                    'active' => $this->sampleTypeForm['active'],
+                    'active' => $this->sampleTypeForm['active'] ?? true,
                     'is_results_attachable' => $this->sampleTypeForm['is_results_attachable'],
                     'company_id' => getUserCompany(),
                 ];
@@ -314,7 +314,7 @@ class SampleTypeManager extends Component
                     'report_format_id' => $this->sampleTypeForm['report_format_id'],
                     'default_product_id' => $this->sampleTypeForm['default_product_id'],
                     'disposal_count' => $this->sampleTypeForm['disposal_count'] ?? 0,
-                    'active' => $this->sampleTypeForm['active'],
+                    'active' => $this->sampleTypeForm['active'] ?? true,
                     'is_results_attachable' => $this->sampleTypeForm['is_results_attachable'],
                     'company_id' => getUserCompany(),
                 ];
@@ -544,7 +544,7 @@ class SampleTypeManager extends Component
                     'description' => $this->analysisTypeForm['description'],
                     'lab_id' => $this->analysisTypeForm['lab_id'],
                     'level' => $this->analysisTypeForm['level'],
-                    'active' => $this->analysisTypeForm['active'],
+                    'active' => $this->analysisTypeForm['active'] ?? true,
                 ]);
                 $this->message = 'Analysis type updated successfully!';
             } else {
@@ -555,7 +555,7 @@ class SampleTypeManager extends Component
                     'sample_type_id' => $this->selectedSampleType,
                     'lab_id' => $this->analysisTypeForm['lab_id'],
                     'level' => $this->analysisTypeForm['level'],
-                    'active' => $this->analysisTypeForm['active'],
+                    'active' => $this->analysisTypeForm['active'] ?? true,
                     'company_id' => getUserCompany(),
                 ]);
                 $this->message = 'Analysis type created successfully!';
@@ -687,7 +687,7 @@ class SampleTypeManager extends Component
                     'lod' => $this->elementForm['lod'],
                     'hod' => $this->elementForm['hod'],
                     'level' => $this->elementForm['level'],
-                    'active' => $this->elementForm['active'],
+                    'active' => $this->elementForm['active'] ?? true,
                     'non_detectable' => $this->elementForm['non_detectable'],
                     'non_accredited' => $this->elementForm['non_accredited'],
                     'show_on_report' => $this->elementForm['show_on_report']
@@ -706,7 +706,7 @@ class SampleTypeManager extends Component
                     'lod' => $this->elementForm['lod'],
                     'hod' => $this->elementForm['hod'],
                     'level' => $this->elementForm['level'],
-                    'active' => $this->elementForm['active'],
+                    'active' => $this->elementForm['active'] ?? true,
                     'non_detectable' => $this->elementForm['non_detectable'],
                     'non_accredited' => $this->elementForm['non_accredited'],
                     'show_on_report' => $this->elementForm['show_on_report'],

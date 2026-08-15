@@ -494,6 +494,10 @@
                                         <input type="checkbox" id="receiveFeedback" wire:model="receive_feedback">
                                         <span>{{ __('crm.opt_in_feedback_emails') }}</span>
                                     </label>
+                                    <label class="cf-pref" for="isMainCustomerContact">
+                                        <input type="checkbox" id="isMainCustomerContact" wire:model="is_main_customer_contact">
+                                        <span>Main Customer Contact</span>
+                                    </label>
                                     <label class="cf-pref" for="isActive">
                                         <input type="checkbox" id="isActive" wire:model="active">
                                         <span>{{ __('crm.is_active') }}</span>

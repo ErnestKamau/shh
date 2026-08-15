@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Concerns\DefaultsActiveOnCreate;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -13,6 +14,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class Standards extends Model implements Auditable
 {
+    use DefaultsActiveOnCreate;
     use HasUuids;
 
     protected $keyType = 'string';
@@ -28,6 +30,11 @@ class Standards extends Model implements Auditable
     ];
 
     protected $appends = ['qcschemeidsarr', 'qcschemenames'];
+
+    protected function activeDefaultColumn(): string
+    {
+        return 'status';
+    }
 
     public function getQcType()
     {

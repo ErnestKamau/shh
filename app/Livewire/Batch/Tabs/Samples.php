@@ -571,6 +571,8 @@ class Samples extends Component
      */
     private function persistSampleFromFormData(SampleDetails $sample, array $sampleData, int $index): SampleDetails
     {
+        $previousMainStandard = $sample->main_standard;
+
         $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
             ? implode(',', array_map('strval', $sampleData['analysis_type_id']))
             : (string) ($sampleData['analysis_type_id'] ?? '');
@@ -592,6 +594,15 @@ class Samples extends Component
         $sample->reporting_unit_id = ! empty($sampleData['reporting_unit_id']) ? $sampleData['reporting_unit_id'] : null;
 
         $sample->save();
+
+        if ((string) ($previousMainStandard ?? '') !== (string) ($sample->main_standard ?? '')) {
+            CapturedResult::query()
+                ->where('sample_detail_id', $sample->id)
+                ->update([
+                    'main_standard_id' => $sample->main_standard,
+                    'main_value' => null,
+                ]);
+        }
 
         return $sample;
     }
@@ -1954,7 +1965,7 @@ class Samples extends Component
             "sampleForms.$index.analysis_type_id.required" => 'Matrix is required',
             "sampleForms.$index.analysis_type_id.min" => 'At least one matrix option must be selected',
             "sampleForms.$index.lab_id.required" => 'Lab is required',
-            "sampleForms.$index.main_standard.required" => 'Main standard is required',
+            "sampleForms.$index.main_standard.required" => 'Specification is required',
         ]);
 
         DB::beginTransaction();
@@ -2025,7 +2036,7 @@ class Samples extends Component
             'sampleForms.*.lab_id.required' => 'Lab is required',
             'sampleForms.*.lab_id.uuid' => 'Lab selection is invalid',
             'sampleForms.*.lab_id.exists' => 'Selected lab does not exist',
-            'sampleForms.*.main_standard.required' => 'Main standard is required',
+            'sampleForms.*.main_standard.required' => 'Specification is required',
         ]);
 
         DB::beginTransaction();

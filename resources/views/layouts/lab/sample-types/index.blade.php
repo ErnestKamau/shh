@@ -405,7 +405,7 @@
         </div>
         <div class="form-group">
           <label class="control-label">
-            <input type="checkbox" name="active" value="1" />
+            <input type="checkbox" name="active" value="1" checked />
             Is Active
           </label>
         </div>
@@ -442,7 +442,7 @@
         </div>
         <div class="form-group">
           <label class="control-label">
-            <input type="checkbox" name="active" value="1" />
+            <input type="checkbox" name="active" value="1" checked />
             Is Active
           </label>
         </div>

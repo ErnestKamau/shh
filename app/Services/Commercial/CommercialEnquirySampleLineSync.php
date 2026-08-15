@@ -53,11 +53,15 @@ final class CommercialEnquirySampleLineSync
                 'batch_number' => $line['batch_number'] ?? null,
                 'test_category' => $line['test_category'] ?? null,
                 'test_requirements' => $line['test_requirements'] ?? null,
+                'field_sample_temp' => $line['field_sample_temp'] ?? null,
                 'picture_of_samples' => $line['picture_of_samples'] ?? null,
             ];
 
             if (! empty($line['attributes']) && is_array($line['attributes'])) {
                 $row['attributes'] = $line['attributes'];
+                if (($row['field_sample_temp'] ?? null) === null && ! empty($line['attributes']['field_sample_temp'])) {
+                    $row['field_sample_temp'] = $line['attributes']['field_sample_temp'];
+                }
             }
 
             $payload[] = $row;

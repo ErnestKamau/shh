@@ -74,8 +74,8 @@ class AnalysisElementsImporter extends BaseImporter
                 $equipmentCode !== '' ? $equipmentCode : null,
                 $equipmentName !== '' ? $equipmentName : null,
             ),
-            'lod' => $row['lod'] ?? null,
-            'hod' => $row['hod'] ?? null,
+            'lod' => $this->resolveNumericImportValue($row, ['lod']),
+            'hod' => $this->resolveNumericImportValue($row, ['loq', 'hod']),
             'level' => $row['level'] ?? null,
             'method_sequence_id' => $methodSequence?->id,
             'has_method_sequence' => $methodSequence !== null,
@@ -153,5 +153,31 @@ class AnalysisElementsImporter extends BaseImporter
 
             return null;
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $keys
+     */
+    protected function resolveNumericImportValue(array $row, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $row)) {
+                continue;
+            }
+
+            $value = $row[$key];
+            if ($value === null || trim((string) $value) === '') {
+                continue;
+            }
+
+            if (! is_numeric($value)) {
+                continue;
+            }
+
+            return (float) $value;
+        }
+
+        return null;
     }
 }

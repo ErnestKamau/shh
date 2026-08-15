@@ -720,6 +720,9 @@ Route::post('/billing/quotation/{id}/revision', 'Invoice\QuotationController@cre
 Route::post('/billing/save-quotation-final/{id}', 'Invoice\QuotationController@save_quotation_final')->name('save_quotation_final')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/delete_quotation/{id}', 'Invoice\QuotationController@delete_quotation')->name('delete_quotation')->middleware('can:laboratory.components.quotation.delete');
 Route::get('/billing/quotations/{id}/report/{token}', 'Invoice\QuotationController@publicReportView')->name('quotation.public.report');
+Route::get('/commercial/quotations/{enquiry}/{quotation}/approve/{token}', [\App\Http\Controllers\Commercial\QuotationEmailActionController::class, 'approve'])->name('commercial.quotations.email-approve');
+Route::get('/commercial/quotations/{enquiry}/{quotation}/accept/{contact}/{token}', [\App\Http\Controllers\Commercial\QuotationEmailActionController::class, 'showAcceptForm'])->name('commercial.quotations.email-accept');
+Route::post('/commercial/quotations/{enquiry}/{quotation}/accept/{contact}/{token}', [\App\Http\Controllers\Commercial\QuotationEmailActionController::class, 'submitAcceptance'])->name('commercial.quotations.email-accept.submit');
 Route::get('/billing/quotations/{id}/preview', 'Invoice\QuotationController@previewQuotation')->name('quotation.preview')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/quotations/{id}/preview.pdf', 'Invoice\QuotationController@streamQuotationPdf')->name('quotation.preview.pdf')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/print_quotation/{id}', 'Invoice\QuotationController@print_quotation')->name('print_quotation')->middleware('can:laboratory.components.quotation.view');

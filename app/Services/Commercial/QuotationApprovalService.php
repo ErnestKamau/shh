@@ -102,11 +102,19 @@ final class QuotationApprovalService
 
         if ($notifyEmail && filled($manager->email)) {
             try {
+                $approvalUrl = app(QuotationEmailActionService::class)->approvalUrl($submitted, $header);
                 $subject = 'Quotation '.$header->quote_number.' awaiting your approval';
                 $message = 'Hi '.$manager->name.',<br><br>'
-                    .$actor->name.' submitted quotation <strong>'.$header->quote_number.'</strong> for approval.<br>'
-                    .'Open the request from your personal dashboard to preview and approve.';
-                notify_user($message, $manager->email, $subject, false, false, [], [
+                    .$actor->name.' submitted quotation <strong>'.$header->quote_number.'</strong> for approval.';
+                if ($approvalUrl !== null) {
+                    $message .= '<br><br><a href="'.e($approvalUrl).'" '
+                        .'style="display:inline-block;padding:10px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">'
+                        .'Approve quotation</a>';
+                } else {
+                    $message .= '<br>Open the request from your personal dashboard to preview and approve.';
+                }
+                $message .= '<br><br>The quotation PDF is attached for your review.';
+                notify_user($message, $manager->email, $subject, $this->resolveQuotationAttachmentPath($header), false, [], [
                     'eyebrow' => 'Quotation Approval',
                 ]);
             } catch (\Throwable $exception) {
@@ -183,11 +191,19 @@ final class QuotationApprovalService
 
         if ($notifyEmail && filled($manager->email)) {
             try {
+                $approvalUrl = app(QuotationEmailActionService::class)->approvalUrl($reassigned, $header);
                 $subject = 'Quotation '.$header->quote_number.' awaiting your approval';
                 $message = 'Hi '.$manager->name.',<br><br>'
-                    .$actor->name.' assigned quotation <strong>'.$header->quote_number.'</strong> to you for approval.<br>'
-                    .'Open the request from your personal dashboard to preview and approve.';
-                notify_user($message, $manager->email, $subject, false, false, [], [
+                    .$actor->name.' assigned quotation <strong>'.$header->quote_number.'</strong> to you for approval.';
+                if ($approvalUrl !== null) {
+                    $message .= '<br><br><a href="'.e($approvalUrl).'" '
+                        .'style="display:inline-block;padding:10px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">'
+                        .'Approve quotation</a>';
+                } else {
+                    $message .= '<br>Open the request from your personal dashboard to preview and approve.';
+                }
+                $message .= '<br><br>The quotation PDF is attached for your review.';
+                notify_user($message, $manager->email, $subject, $this->resolveQuotationAttachmentPath($header), false, [], [
                     'eyebrow' => 'Quotation Approval',
                 ]);
             } catch (\Throwable $exception) {
@@ -246,6 +262,49 @@ final class QuotationApprovalService
             $actor,
             approved: true,
         );
+
+        return $approved;
+    }
+
+    /**
+     * Approve a quotation via a signed email link (no interactive login required).
+     */
+    public function approveViaEmailToken(
+        SampleSubmissionRequest $enquiry,
+        QuotationHeader $header,
+    ): SampleSubmissionRequest {
+        $approverId = trim((string) ($header->approved_by ?? ''));
+        if ($approverId === '') {
+            throw new RuntimeException('No lab manager is assigned to approve this quotation.');
+        }
+
+        if ((string) $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL
+            && (string) $header->status !== self::HEADER_STATUS_IN_APPROVAL) {
+            throw new RuntimeException('This quotation is not awaiting approval.');
+        }
+
+        $approved = DB::transaction(function () use ($enquiry, $header, $approverId): SampleSubmissionRequest {
+            $header->status = self::HEADER_STATUS_COMPLETE;
+            $header->is_approved = 1;
+            $header->is_complete = 1;
+            $header->approval_decision_at = now();
+            $header->save();
+
+            $enquiry->current_quotation_header_id = $header->id;
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND;
+            $enquiry->save();
+
+            $this->writeLog(
+                $header,
+                $enquiry,
+                QuotationApprovalLog::ACTION_APPROVED,
+                $approverId,
+                $approverId,
+                $header->approval_comments,
+            );
+
+            return $enquiry->fresh(['currentQuotation', 'customer', 'contact']) ?? $enquiry;
+        });
 
         return $approved;
     }
@@ -489,5 +548,28 @@ final class QuotationApprovalService
             'action' => $action,
             'comments' => $comments,
         ]);
+    }
+
+    private function resolveQuotationAttachmentPath(QuotationHeader $header): ?string
+    {
+        $uploadUrl = trim((string) ($header->upload_url ?? ''));
+        if ($uploadUrl === '') {
+            try {
+                $header = app(QuotationFromEnquiryService::class)->generatePdf($header->fresh() ?? $header);
+                $uploadUrl = trim((string) ($header->upload_url ?? ''));
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return null;
+            }
+        }
+
+        if ($uploadUrl === '') {
+            return null;
+        }
+
+        $path = storage_path('app'.(str_starts_with($uploadUrl, '/') ? $uploadUrl : '/'.$uploadUrl));
+
+        return is_file($path) ? $path : null;
     }
 }

@@ -24,6 +24,7 @@ class CustomerContact extends Model implements Auditable
         'email' => \App\Casts\SafeEncrypted::class,
         'telephone' => \App\Casts\SafeEncrypted::class,
         'mobile' => \App\Casts\SafeEncrypted::class,
+        'is_main_customer_contact' => 'boolean',
     ];
 
     /**
@@ -47,5 +48,26 @@ class CustomerContact extends Model implements Auditable
     public function hasSignatureImage(): bool
     {
         return app(\App\Services\CRM\ContactSignatureService::class)->hasUsableImageSignature($this->signature);
+    }
+
+    public function isLinkedToCompanyUnit(string $unitId): bool
+    {
+        $unitId = trim($unitId);
+        if ($unitId === '') {
+            return false;
+        }
+
+        if ((string) ($this->crm_company_unit_id ?? '') === $unitId) {
+            return true;
+        }
+
+        $linkedUnits = trim((string) ($this->unit_name ?? ''));
+        if ($linkedUnits === '') {
+            return false;
+        }
+
+        $unitIds = array_values(array_filter(array_map('trim', explode(',', $linkedUnits))));
+
+        return in_array($unitId, $unitIds, true);
     }
 }

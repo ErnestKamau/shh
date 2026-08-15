@@ -337,11 +337,14 @@ class RequestViewPagePresenter
      *         details: list<array{label: string, value: string}>
      *     }>,
      *     count: int,
-     *     extra_column_labels: list<string>
+     *     extra_column_labels: list<string>,
+     *     columns: list<array{key: string, label: string, inline?: bool}>,
+     *     variant: string
      * }
      */
     public function testSamplesCard(array $sampleLines): array
     {
+        $variant = $this->resolveTrfTableVariant();
         $grouped = [];
         // Multi-pickers store selections flat, so labels can arrive as CSV with unresolved ids mixed in.
 
@@ -368,12 +371,13 @@ class RequestViewPagePresenter
                 mb_strtolower($hasAnalysis ? $analysisName : ''),
             ]);
 
-            $samplingPoint = trim((string) (($line['sampling_point'] ?? null) ?: ($line['location'] ?? '')));
+            $samplingPoint = $this->resolveLineSamplingPoint($line);
             $testCategory = $this->testCategoryLabel($line);
             $productionDate = trim((string) ($line['production_date'] ?? ''));
             $expiryDate = trim((string) (($line['expiration_date'] ?? null) ?: ($line['expiry_date'] ?? '')));
             $batchNumber = trim((string) ($line['batch_number'] ?? ''));
-            $extraColumns = $this->buildSampleExtraColumns($line);
+            $sampleTemp = $this->resolveLineSampleTemp($line);
+            $extraColumns = $this->buildSampleExtraColumns($line, $variant);
 
             if (! isset($grouped[$groupKey])) {
                 $grouped[$groupKey] = [
@@ -388,6 +392,7 @@ class RequestViewPagePresenter
                     'production_date' => $productionDate !== '' ? $productionDate : '—',
                     'expiry_date' => $expiryDate !== '' ? $expiryDate : '—',
                     'batch_number' => $batchNumber !== '' ? $batchNumber : '—',
+                    'sample_temp' => $sampleTemp !== '' ? $sampleTemp : '—',
                     'sample_description' => $descriptionPlain !== '' ? $descriptionPlain : '—',
                     'sample_description_html' => $descriptionHtml,
                     'has_description' => $descriptionPlain !== '',
@@ -418,6 +423,9 @@ class RequestViewPagePresenter
                 }
                 if ($grouped[$groupKey]['batch_number'] === '—' && $batchNumber !== '') {
                     $grouped[$groupKey]['batch_number'] = $batchNumber;
+                }
+                if ($grouped[$groupKey]['sample_temp'] === '—' && $sampleTemp !== '') {
+                    $grouped[$groupKey]['sample_temp'] = $sampleTemp;
                 }
                 if (! $grouped[$groupKey]['has_description'] && $descriptionPlain !== '') {
                     $grouped[$groupKey]['sample_description'] = $descriptionPlain;
@@ -476,6 +484,7 @@ class RequestViewPagePresenter
 
             $samples[] = [
                 'number' => $number++,
+                'row_index' => $sample['row_index'],
                 'customer_sample_id' => $sample['customer_sample_id'],
                 'sample_type' => $sample['sample_type'],
                 'analysis_type' => $sample['analysis_type'],
@@ -485,6 +494,7 @@ class RequestViewPagePresenter
                 'production_date' => $sample['production_date'],
                 'expiry_date' => $sample['expiry_date'],
                 'batch_number' => $sample['batch_number'],
+                'sample_temp' => $sample['sample_temp'] ?? '—',
                 'sample_description' => $sample['sample_description'],
                 'sample_description_html' => $sample['sample_description_html'],
                 'has_description' => $sample['has_description'],
@@ -495,11 +505,108 @@ class RequestViewPagePresenter
             ];
         }
 
+        $columns = $this->testsTableColumns($variant, $extraColumnLabels);
+
         return [
             'samples' => $samples,
             'count' => count($samples),
             'extra_column_labels' => $extraColumnLabels,
+            'columns' => $columns,
+            'variant' => $variant,
         ];
+    }
+
+    public function canEditSampleRows(): bool
+    {
+        return ! $this->isPastReception();
+    }
+
+    /**
+     * @return list<array{key: string, label: string, inline?: bool}>
+     */
+    private function testsTableColumns(string $variant, array $extraColumnLabels): array
+    {
+        $columns = [
+            ['key' => 'actions', 'label' => 'Actions'],
+            ['key' => 'sample_type', 'label' => 'Sample type'],
+            ['key' => 'analysis_type', 'label' => 'Analysis types'],
+            ['key' => 'sample_description', 'label' => 'Sample description', 'inline' => true],
+            ['key' => 'sample_quantity', 'label' => 'Sample quantity'],
+            ['key' => 'sampling_point', 'label' => 'Sampling point'],
+        ];
+
+        if ($variant === 'water') {
+            $columns[] = ['key' => 'test_requirements', 'label' => 'TEST REQUIREMENTS'];
+            $columns[] = ['key' => 'sample_temp', 'label' => 'SampleTemp(°C)'];
+        } else {
+            $columns[] = ['key' => 'test_category', 'label' => 'Test category'];
+            $columns[] = ['key' => 'production_date', 'label' => 'Production date'];
+            $columns[] = ['key' => 'expiry_date', 'label' => 'Expiry date'];
+            $columns[] = ['key' => 'batch_number', 'label' => 'Batch number'];
+        }
+
+        foreach ($extraColumnLabels as $label) {
+            $columns[] = ['key' => 'extra:'.mb_strtolower($label), 'label' => $label];
+        }
+
+        return $columns;
+    }
+
+    private function resolveTrfTableVariant(): string
+    {
+        $code = strtoupper(trim((string) ($this->submissionForm->document_code ?? '')));
+
+        if (in_array($code, [TrfDocumentCodeForSampleType::WATER, TrfDocumentCodeForSampleType::WASTE_WATER], true)) {
+            return 'water';
+        }
+
+        return 'default';
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function resolveLineSamplingPoint(array $line): string
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+
+        $candidates = [
+            $line['sampling_point'] ?? null,
+            $line['location'] ?? null,
+            $attributes['sampling_point_manual'] ?? null,
+            $attributes['sampling_point'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function resolveLineSampleTemp(array $line): string
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+
+        foreach ([
+            $line['field_sample_temp'] ?? null,
+            $attributes['field_sample_temp'] ?? null,
+            $attributes['sample_temp'] ?? null,
+            $attributes['sample_temperature'] ?? null,
+        ] as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -509,13 +616,22 @@ class RequestViewPagePresenter
      */
     private function testCategoryLabel(array $line): string
     {
-        $raw = ($line['parameter_category'] ?? null)
-            ?: ($line['test_requirements'] ?? null)
-            ?: ($line['test_category'] ?? null)
-            ?: ($line['attributes']['test_category'] ?? null)
-            ?: ($line['attributes']['test_requirements'] ?? null);
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
 
-        return SubmissionFormSchemaHelper::testCategoryLabel($raw);
+        foreach ([
+            $line['parameter_category'] ?? null,
+            $line['test_requirements'] ?? null,
+            $line['test_category'] ?? null,
+            $attributes['test_category'] ?? null,
+            $attributes['test_requirements'] ?? null,
+        ] as $candidate) {
+            $label = SubmissionFormSchemaHelper::testCategoryLabel($candidate);
+            if ($label !== '') {
+                return $label;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -813,16 +929,16 @@ class RequestViewPagePresenter
      * @param  array<string, mixed>  $line
      * @return list<array{label: string, value: string}>
      */
-    private function buildSampleExtraColumns(array $line): array
+    private function buildSampleExtraColumns(array $line, string $variant = 'default'): array
     {
         $knownKeys = [
             'analysis_element_ids', 'test_requirements', 'parameters', 'test_category', 'food_sample_type',
-            'sample_temp', 'sample_temperature', 'field_sample_temp',
+            'sample_temp', 'sample_temperature', 'field_sample_temp', 'sampling_point_manual',
         ];
         $knownLabels = [
-            'Customer sample ID', 'Sample quantity', 'Sample temp (°C)', 'State of sample', 'Batch number',
-            'Production date', 'Expiration date', 'Sampling point / location', 'Test category', 'Sample type',
-            'Analysis type', 'Sample description', 'Sample condition', 'Tests',
+            'Customer sample ID', 'Sample quantity', 'Sample temp (°C)', 'SampleTemp(°C)', 'State of sample', 'Batch number',
+            'Production date', 'Expiration date', 'Sampling point / location', 'Sampling point', 'Test category', 'Sample type',
+            'Analysis type', 'Sample description', 'Sample condition', 'Tests', 'Field Sample Temp',
         ];
 
         $columns = [];

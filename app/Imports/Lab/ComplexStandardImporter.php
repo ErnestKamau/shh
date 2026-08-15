@@ -111,6 +111,7 @@ class ComplexStandardImporter extends BaseImporter
                 'name' => $this->sanitizeImportedString(str_replace('-', ' ', (string) $stdKey)),
                 'main_standard' => true,
                 'is_qc_standard' => false,
+                'status' => true,
             ]);
 
             // Update or create StandardAnalytes

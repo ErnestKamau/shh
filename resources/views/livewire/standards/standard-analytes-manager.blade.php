@@ -8,7 +8,7 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-test-tube text-primary"></i>
-                                Standard Analytes Management
+                                Specification Analytes Management
                             </h2>
                             <p class="text-muted mb-0">Manage standard analytes for: <strong>{{ $standard->name }}</strong></p>
                         </div>
@@ -101,7 +101,7 @@
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Analyte</th>
-                                        <th>Standard Value</th>
+                                        <th>Specification Value</th>
                                         <th>Type</th>
                                         <th>Range/Value</th>
                                         <th>Expected Value</th>
@@ -295,13 +295,13 @@
                             @if($standardAnalyteForm['value_type'] === 'use_value')
                                 <div class="card border-info">
                                     <div class="card-header bg-info text-white">
-                                        <h6 class="mb-0"><i class="mdi mdi-numeric"></i> Standard Value Configuration</h6>
+                                        <h6 class="mb-0"><i class="mdi mdi-numeric"></i> Specification Value Configuration</h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="row">
                                             <div class="col-md-12">
                                                 <div class="form-group mb-3">
-                                                    <label class="form-label">Standard Value <span class="text-danger">*</span></label>
+                                                    <label class="form-label">Specification Value <span class="text-danger">*</span></label>
                                                     <div class="tag-select-container" wire:click="searchStandardValues">
                                                         <div class="tag-select-input @error('standardAnalyteForm.standard_value_id') border-danger @enderror">
                                                             @if($selectedStandardValueName)

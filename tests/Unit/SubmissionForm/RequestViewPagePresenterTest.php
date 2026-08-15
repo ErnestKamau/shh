@@ -416,7 +416,44 @@ class RequestViewPagePresenterTest extends TestCase
         $this->assertStringContainsString('Clear bottled water', $sample['sample_description_html']);
         $this->assertSame('Plant A', $sample['sampling_point']);
         $this->assertSame('Routine', $sample['test_category']);
+        $this->assertSame(0, $sample['row_index']);
+        $this->assertNotEmpty($card['columns']);
         $this->assertNotEmpty($sample['parameter_groups']);
+    }
+
+    public function test_water_trf_test_samples_card_uses_water_column_layout(): void
+    {
+        [$form, $instance] = $this->createBareFormAndInstance();
+        $form->document_code = \App\Services\SubmissionForm\TrfDocumentCodeForSampleType::WATER;
+        $form->save();
+
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $form->fresh(),
+            commercialEnquiry: null,
+        );
+
+        $card = $presenter->testSamplesCard([
+            [
+                'row_index' => 0,
+                'sample_type_name' => 'Water',
+                'analysis_type_name' => 'Microbiology',
+                'sample_quantity' => '500',
+                'sample_quantity_unit' => 'ml',
+                'sampling_point' => 'Tap A',
+                'field_sample_temp' => '4.5',
+                'parameter_category' => 'microbiology',
+                'parameter_label' => 'TPC',
+            ],
+        ]);
+
+        $columnKeys = array_column($card['columns'], 'key');
+        $this->assertSame('water', $card['variant']);
+        $this->assertContains('test_requirements', $columnKeys);
+        $this->assertContains('sample_temp', $columnKeys);
+        $this->assertNotContains('production_date', $columnKeys);
+        $this->assertSame('4.5', $card['samples'][0]['sample_temp']);
+        $this->assertSame('Tap A', $card['samples'][0]['sampling_point']);
     }
 
     public function test_request_info_card_prefers_linked_enquiry_physical_sample_count(): void

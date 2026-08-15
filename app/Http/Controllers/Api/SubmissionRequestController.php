@@ -132,7 +132,10 @@ class SubmissionRequestController extends Controller
             return (string) $sampleTypeToken;
         }
 
-        $fallbackSampleType = $instance->submissionForm?->sampleTypes?->first();
+        $form = $instance->submissionForm;
+        $fallbackSampleType = $form !== null
+            ? app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)->resolveForForm($form)->first()
+            : null;
         if ($fallbackSampleType && isset($fallbackSampleType->id)) {
             return (string) $fallbackSampleType->id;
         }
@@ -342,7 +345,7 @@ class SubmissionRequestController extends Controller
         }
 
         $formInstance = SubmissionFormInstance::query()
-            ->with(['crmCustomer', 'submissionForm.sampleTypes', 'batches'])
+            ->with(['crmCustomer', 'submissionForm.sampleTypeCategories', 'batches'])
             ->find((string) $formInstanceId);
 
         if (!$formInstance) {

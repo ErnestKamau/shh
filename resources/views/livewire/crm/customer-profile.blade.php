@@ -270,6 +270,48 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">{{ __('crm.city') }}</label>
+                                            <div class="tag-select-container @error('customerForm.city_id') is-invalid @enderror {{ empty($customerForm['country_id']) ? 'bg-light' : '' }}"
+                                                wire:click="@if(!empty($customerForm['country_id'])) $set('showCityDropdown', true) @endif"
+                                                wire:click.outside="$set('showCityDropdown', false)">
+                                                <div class="tag-select-input">
+                                                    @if($this->selectedCity)
+                                                        <span class="tag-badge">
+                                                            {{ data_get($this->selectedCity, 'name') }}
+                                                            <i class="mdi mdi-close-circle" wire:click.stop="clearCity"></i>
+                                                        </span>
+                                                    @endif
+
+                                                    <input type="text"
+                                                        wire:model.live="citySearch"
+                                                        class="tag-input"
+                                                        placeholder="{{ empty($customerForm['country_id']) ? __('crm.select_country_first') : ($this->selectedCity ? '' : __('crm.search_cities')) }}"
+                                                        autocomplete="off"
+                                                        @disabled(empty($customerForm['country_id']))>
+                                                </div>
+
+                                                @if($showCityDropdown && !empty($customerForm['country_id']))
+                                                    <div class="tag-dropdown">
+                                                        @if(count($this->filteredCities) > 0)
+                                                            @foreach($this->filteredCities as $city)
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectCity('{{ data_get($city, 'id') }}')">
+                                                                    {{ data_get($city, 'name') }}
+                                                                </div>
+                                                            @endforeach
+                                                        @else
+                                                            <div class="tag-dropdown-item text-muted">{{ __('crm.no_cities_found') }}</div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            @error('customerForm.city_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
                                             <label class="form-label fw-bold">{{ __('crm.account_settings') }} <span class="text-danger">*</span></label>
                                             <div class="tag-select-container @error('customerForm.account_status') is-invalid @enderror"
                                                 wire:click="$set('showAccountDropdown', true)"

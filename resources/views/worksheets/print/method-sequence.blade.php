@@ -11,8 +11,8 @@
                     <th>Analyst</th>
                     <th>Method</th>
                     <th>Unit</th>
-                    <th>Standard</th>
-                    <th>Standard limit</th>
+                    <th>Specification</th>
+                    <th>Specification limit</th>
                     <th>Result</th>
                     <th>Remark</th>
                 </tr>

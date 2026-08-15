@@ -29,6 +29,9 @@ final class EnquiryFromQuotationService
 
     public const INTENT_ACCEPTED = 'accepted';
 
+    /** Wizard / TRF supplemental field bucket when one unified TRF covers all sample lines. */
+    public const UNIFIED_TRF_FIELD_KEY = '__unified__';
+
     /** @var list<string> */
     private const CUSTOMER_SECTION_TITLE_MARKERS = [
         'customer details',
@@ -427,34 +430,27 @@ final class EnquiryFromQuotationService
     public function fillableTrfGroups(QuotationHeader $quotation): array
     {
         $lines = $this->eligibleQuotationLines($quotation);
-        $typeIds = collect($lines)
-            ->map(static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')))
-            ->filter()
-            ->unique()
-            ->values();
-
-        $typeNames = \App\SampleType::query()
-            ->whereIn('id', $typeIds->all())
-            ->pluck('name', 'id');
-
         $crmCustomerId = trim((string) ($quotation->crm_customer_id ?? ''));
         $crmCustomerId = $crmCustomerId !== '' ? $crmCustomerId : null;
 
-        $groups = [];
-        foreach ($typeIds as $sampleTypeId) {
-            $form = $this->formInstanceSync->resolveSubmissionFormForSampleType($sampleTypeId, $crmCustomerId);
-            $sections = $form !== null ? $this->fillableSectionsForForm($form) : [];
+        $form = $this->formInstanceSync->resolveSubmissionFormForEnquiryLines($lines, $crmCustomerId);
+        $sections = $form !== null ? $this->fillableSectionsForForm($form) : [];
 
-            $groups[] = [
-                'sample_type_id' => $sampleTypeId,
-                'sample_type_name' => (string) ($typeNames[$sampleTypeId] ?? 'Sample type'),
-                'form_id' => $form?->id !== null ? (string) $form->id : null,
-                'form_name' => (string) ($form?->name ?? $form?->document_code ?? 'Test Request Form'),
-                'sections' => $sections,
-            ];
-        }
+        $typeNames = \App\SampleType::query()
+            ->whereIn('id', collect($lines)->pluck('sample_type_id')->filter()->unique()->all())
+            ->pluck('name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
 
-        return $groups;
+        return [[
+            'sample_type_id' => self::UNIFIED_TRF_FIELD_KEY,
+            'sample_type_name' => $typeNames !== '' ? $typeNames : (string) ($form?->name ?? 'Test Request Form'),
+            'form_id' => $form?->id !== null ? (string) $form->id : null,
+            'form_name' => (string) ($form?->name ?? $form?->document_code ?? 'Test Request Form'),
+            'sections' => $sections,
+        ]];
     }
 
     /**
@@ -1118,15 +1114,25 @@ final class EnquiryFromQuotationService
 
         $typeRowCounters = [];
 
+        $unifiedRaw = is_array($byType[EnquiryFromQuotationService::UNIFIED_TRF_FIELD_KEY] ?? null)
+            ? $byType[EnquiryFromQuotationService::UNIFIED_TRF_FIELD_KEY]
+            : null;
+        $globalRowIndex = 0;
+
         foreach ($configs as $index => $config) {
             $typeId = trim((string) ($config['sample_type_id'] ?? ''));
             $rowWithinType = $typeRowCounters[$typeId] ?? 0;
             $typeRowCounters[$typeId] = $rowWithinType + 1;
 
-            $typedRaw = ($typeId !== '' && is_array($byType[$typeId] ?? null))
-                ? $byType[$typeId]
-                : [];
-            $typed = self::resolveTrfSectionRowFields($typedRaw, $rowWithinType);
+            if ($unifiedRaw !== null) {
+                $typed = self::resolveTrfSectionRowFields($unifiedRaw, $globalRowIndex);
+                $globalRowIndex++;
+            } else {
+                $typedRaw = ($typeId !== '' && is_array($byType[$typeId] ?? null))
+                    ? $byType[$typeId]
+                    : [];
+                $typed = self::resolveTrfSectionRowFields($typedRaw, $rowWithinType);
+            }
             $merged = array_merge($sectionValues, $typed);
 
             foreach ($rowKeys as $key) {

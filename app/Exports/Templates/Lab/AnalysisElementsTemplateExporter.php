@@ -15,7 +15,7 @@ class AnalysisElementsTemplateExporter extends ExcelTemplateGenerator
             'equipment_code',
             'equipment',
             'lod',
-            'hod',
+            'loq',
             'level',
             'method_sequence_name',
             'procedure_worksheet_name',
@@ -25,8 +25,8 @@ class AnalysisElementsTemplateExporter extends ExcelTemplateGenerator
     protected function defineExamples(): array
     {
         return [
-            ['AT-001', 'ANALYTE-001', 'LS-001', 'EQ-001', 'ICP-OES Analyzer', '0.01', '100', 'high', '', ''],
-            ['AT-001', 'ANALYTE-002', 'LS-001', 'EQ-002', 'Spectrophotometer', '0.05', '50', 'medium', '', ''],
+            ['AT-001', 'ANALYTE-001', 'LS-001', 'EQ-001', 'ICP-OES Analyzer', '0.01', '0.05', 'high', '', ''],
+            ['AT-001', 'ANALYTE-002', 'LS-001', 'EQ-002', 'Spectrophotometer', '0.001', '0.005', 'medium', '', ''],
         ];
     }
 }

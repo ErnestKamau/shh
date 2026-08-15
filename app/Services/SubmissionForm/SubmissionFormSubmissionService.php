@@ -157,6 +157,18 @@ class SubmissionFormSubmissionService
             $inputValue = $request->input($fieldName);
             $fileValue = $request->file($fieldName);
 
+            if (in_array((string) $fieldName, ['test_requirements', 'test_category'], true) && is_array($inputValue)) {
+                $this->processArrayField(
+                    $instance,
+                    $element,
+                    $this->flattenPerRowMultiSelectValues($inputValue),
+                    $request,
+                    $fieldName,
+                );
+
+                continue;
+            }
+
             // Per-row multi-select: parameters[0] = [a,b], parameters[1] = [c]
             // must stay row-indexed — never expand each token into its own array_index.
             $isPerRowMultiSelect = is_array($inputValue) && $this->isPerRowMultiSelectValues($inputValue);
@@ -182,11 +194,20 @@ class SubmissionFormSubmissionService
                     $this->processArrayField($instance, $element, $inputValue ?? [], $request, $fieldName);
                 }
             } else {
+                if (in_array((string) $fieldName, ['test_requirements', 'test_category'], true)
+                    && is_string($inputValue)
+                    && SubmissionFormSchemaHelper::testCategoryTokens($inputValue) !== []) {
+                    $this->saveFieldValue($instance, $element, implode(',', SubmissionFormSchemaHelper::testCategoryTokens($inputValue)), null, 0);
+
+                    continue;
+                }
+
                 $this->processSingleField($instance, $element, $inputValue, $request);
             }
         }
 
         $this->persistCanonicalQtyFields($instance, $request, $elements);
+        $this->persistIndexedCheckboxRowFields($instance, $request, $elements);
     }
 
     /**
@@ -220,6 +241,13 @@ class SubmissionFormSubmissionService
 
                 if ($selectedKeys !== null) {
                     $out[(int) $index] = implode(',', $selectedKeys);
+
+                    continue;
+                }
+
+                $categoryTokens = SubmissionFormSchemaHelper::testCategoryTokens($value);
+                if ($categoryTokens !== []) {
+                    $out[(int) $index] = implode(',', $categoryTokens);
 
                     continue;
                 }
@@ -269,6 +297,69 @@ class SubmissionFormSubmissionService
         if ($unitElement instanceof SubmissionFormElement && is_array($unitValues)) {
             $this->processArrayField($instance, $unitElement, $unitValues);
         }
+    }
+
+    /**
+     * Checkbox groups on sample cards (e.g. water test_requirements) must stay
+     * row-indexed. The generic array walker can skip them when Livewire posts
+     * nested option maps that flatten to an empty string.
+     *
+     * @param  Collection<int, SubmissionFormElement>  $elements
+     */
+    private function persistIndexedCheckboxRowFields(
+        SubmissionFormInstance $instance,
+        Request $request,
+        Collection $elements,
+    ): void {
+        $byName = $elements->keyBy(fn (SubmissionFormElement $el): string => (string) $el->name);
+        $sampleRows = $request->input('sample_rows');
+        $sampleRows = is_array($sampleRows) ? array_values($sampleRows) : [];
+
+        foreach (['test_requirements', 'test_category'] as $fieldName) {
+            $element = $byName->get($fieldName);
+            if (! $element instanceof SubmissionFormElement) {
+                continue;
+            }
+
+            $indexed = $request->input($fieldName);
+            if (! is_array($indexed)) {
+                $indexed = [];
+            }
+
+            foreach ($sampleRows as $rowIndex => $row) {
+                if (! is_array($row) || ! array_key_exists($fieldName, $row)) {
+                    continue;
+                }
+
+                if ($this->checkboxRowHasSelection($indexed[$rowIndex] ?? null)) {
+                    continue;
+                }
+
+                $indexed[$rowIndex] = $row[$fieldName];
+            }
+
+            $flattened = $this->flattenPerRowMultiSelectValues($indexed);
+
+            foreach ($flattened as $rowIndex => $value) {
+                $tokens = SubmissionFormSchemaHelper::testCategoryTokens($value);
+                if ($tokens === []) {
+                    continue;
+                }
+
+                $this->saveFieldValue(
+                    $instance,
+                    $element,
+                    implode(',', $tokens),
+                    null,
+                    (int) $rowIndex,
+                );
+            }
+        }
+    }
+
+    private function checkboxRowHasSelection(mixed $value): bool
+    {
+        return SubmissionFormSchemaHelper::testCategoryTokens($value) !== [];
     }
 
     public function submitPortalInstance(
@@ -356,7 +447,8 @@ class SubmissionFormSubmissionService
 
             $instance = SubmissionFormInstance::query()->create($instanceData);
 
-            $elements = $this->elementsForForm($submissionForm);
+            $this->unhideRowElementsPresentInPayload($submissionForm, $fieldValues);
+            $elements = $this->elementsForWalkInSubmission($submissionForm, $fieldValues);
             $request = new Request();
             $request->merge($fieldValues);
             $this->processFormData($instance, $request, $elements);
@@ -503,6 +595,117 @@ class SubmissionFormSubmissionService
             ->get();
     }
 
+    /**
+     * Walk-in payloads may include builder-hidden row fields (e.g. water test_requirements).
+     *
+     * @param  array<string, mixed>  $fieldValues
+     * @return Collection<int, SubmissionFormElement>
+     */
+    private function elementsForWalkInSubmission(SubmissionForm $submissionForm, array $fieldValues): Collection
+    {
+        $elements = $this->elementsForForm($submissionForm);
+        $knownNames = $elements
+            ->map(static fn (SubmissionFormElement $element): string => (string) ($element->name ?? ''))
+            ->filter()
+            ->all();
+
+        $missingNames = [];
+        foreach ($fieldValues as $name => $value) {
+            if (! is_string($name) || $name === '' || in_array($name, $knownNames, true)) {
+                continue;
+            }
+
+            if (! is_array($value) || ! $this->isIndexedRowPayload($value)) {
+                continue;
+            }
+
+            $missingNames[] = $name;
+        }
+
+        if ($missingNames === []) {
+            return $elements;
+        }
+
+        $extra = SubmissionFormElement::query()
+            ->with('holder.section')
+            ->whereHas('holder.section', function ($query) use ($submissionForm): void {
+                $query->where('submission_form_id', $submissionForm->id);
+            })
+            ->whereIn('name', $missingNames)
+            ->get();
+
+        return $elements->merge($extra)->unique('id')->values();
+    }
+
+    /**
+     * @param  array<string, mixed>  $fieldValues
+     */
+    private function unhideRowElementsPresentInPayload(SubmissionForm $submissionForm, array $fieldValues): void
+    {
+        $names = [];
+        foreach ($fieldValues as $name => $value) {
+            if (! is_string($name) || $name === '' || ! is_array($value) || ! $this->rowPayloadHasContent($value)) {
+                continue;
+            }
+
+            $names[] = $name;
+        }
+
+        if ($names === []) {
+            return;
+        }
+
+        SubmissionFormElement::query()
+            ->whereHas('holder.section', function ($query) use ($submissionForm): void {
+                $query->where('submission_form_id', $submissionForm->id);
+            })
+            ->whereIn('name', $names)
+            ->where(function ($query): void {
+                $query->where('is_hidden', true)->orWhere('is_hidden', 1);
+            })
+            ->update(['is_hidden' => false]);
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function isIndexedRowPayload(array $values): bool
+    {
+        if ($values === []) {
+            return false;
+        }
+
+        return array_keys($values) === array_keys(array_values($values));
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function rowPayloadHasContent(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (is_array($value)) {
+                foreach ($value as $selected) {
+                    if (filter_var($selected, FILTER_VALIDATE_BOOLEAN)) {
+                        return true;
+                    }
+
+                    if (! is_bool($selected) && trim((string) $selected) !== '') {
+                        return true;
+                    }
+                }
+
+                continue;
+            }
+
+            if (trim((string) ($value ?? '')) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function processSingleField(
         SubmissionFormInstance $instance,
         SubmissionFormElement $element,
@@ -594,11 +797,29 @@ class SubmissionFormSubmissionService
                 $saveValue = Auth::id();
             }
 
-            if (($saveValue !== null && $saveValue !== '') || $filePath !== null) {
-                $this->saveFieldValue($instance, $element, $saveValue, $filePath, is_numeric($index) ? (int) $index : null);
-                $this->saveFieldValue($instance, $element, $saveValue, $filePath, $arrayIndex);
+            if (! $this->shouldPersistFieldValue($saveValue, $filePath)) {
+                continue;
             }
+
+            $this->saveFieldValue($instance, $element, $saveValue, $filePath, $arrayIndex);
         }
+    }
+
+    private function shouldPersistFieldValue(mixed $saveValue, ?string $filePath): bool
+    {
+        if ($filePath !== null) {
+            return true;
+        }
+
+        if ($saveValue === null || $saveValue === '') {
+            return false;
+        }
+
+        if (is_array($saveValue) && $saveValue === []) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

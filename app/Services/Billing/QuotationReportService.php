@@ -7,6 +7,7 @@ use App\AnalysisMethod;
 use App\AnalysisType;
 use App\Analyte;
 use App\Models\CRM\SamplePoint;
+use App\Models\SampleSubmissionRequest;
 use App\Models\System\SystemConfiguration;
 use App\QuotationDetails;
 use App\QuotationHeader;
@@ -17,6 +18,7 @@ use App\Services\Lab\UncertaintyBudgetResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -688,7 +690,7 @@ class QuotationReportService
     {
         $this->ensureHeaderMetadata($header);
         $header->refresh();
-        $header->loadMissing(['customer', 'contact', 'currency', 'revisionOf', 'approvedByUser']);
+        $header->loadMissing(['customer.country', 'customer.city', 'contact', 'currency', 'revisionOf', 'approvedByUser']);
 
         $preparedBy = getUserById($header->prepared_by_id);
         // After lab-manager approval, the Authorized Signature block shows the approver.
@@ -700,11 +702,7 @@ class QuotationReportService
             : null;
 
         $batch = SampleHeader::where('quote_id', $header->id)->orderByDesc('created_at')->first();
-        $samplingLocation = $header->sampling_location;
-        if (! $samplingLocation && $header->sample_point_id) {
-            $point = SamplePoint::find($header->sample_point_id);
-            $samplingLocation = $point?->display_name;
-        }
+        $samplingLocation = $this->resolveSamplingLocation($header);
 
         $contact = $header->contact;
         $attention = trim(implode(' ', array_filter([
@@ -713,14 +711,21 @@ class QuotationReportService
             $contact?->last_name ?? '',
         ])));
 
-        if (! empty($contact?->job_occupation)) {
-            $attention .= ' ('.$contact->job_occupation.')';
-        }
+        $customerCity = trim((string) ($header->customer?->city?->name ?? ''));
+        $customerCountry = trim((string) ($header->customer?->country?->name ?? ''));
+        $cityCountry = trim(implode(', ', array_filter([$customerCity, $customerCountry])));
 
         $row = (object) array_merge($header->toArray(), [
             'customer_name' => $header->customer?->name,
             'postal_address' => $header->customer?->postal_address,
             'physical_address' => $header->customer?->physical_address,
+            'customer_city' => $customerCity,
+            'customer_country' => $customerCountry,
+            'customer_city_country' => $cityCountry,
+            'customer_tel' => trim((string) ($contact?->telephone ?? $header->customer?->telephone1 ?? '')),
+            'customer_fax' => trim((string) ($header->customer?->fax ?? '')),
+            'customer_mobile' => trim((string) ($contact?->mobile ?? $header->customer?->telephone2 ?? '')),
+            'customer_email' => trim((string) ($contact?->email ?? $header->customer?->email ?? '')),
             'prepared_by_name' => $signatory?->name,
             'prepared_by_position' => $position,
             'prepared_by_email' => $signatory?->email,
@@ -874,12 +879,25 @@ class QuotationReportService
         }
 
         if ($header->sub_total !== null && $header->total_amount !== null) {
+            $net = (float) $header->sub_total;
+            $vat = (float) ($header->tax ?? 0);
+            $total = (float) $header->total_amount;
+
+            if ($vat <= 0) {
+                $computed = $this->computeTotalsFromDetails($header);
+                if ($computed['vat'] > 0) {
+                    $net = $computed['net'];
+                    $vat = $computed['vat'];
+                    $total = $computed['total'];
+                }
+            }
+
             return [
-                'net' => (float) $header->sub_total,
-                'vat' => (float) ($header->tax ?? 0),
-                'total' => (float) $header->total_amount,
-                'vat_rate' => $header->sub_total > 0
-                    ? round(((float) ($header->tax ?? 0) / (float) $header->sub_total) * 100, 2)
+                'net' => $net,
+                'vat' => $vat,
+                'total' => $total,
+                'vat_rate' => $net > 0
+                    ? round(($vat / $net) * 100, 2)
                     : null,
             ];
         }
@@ -900,6 +918,176 @@ class QuotationReportService
             'total' => $net,
             'vat_rate' => null,
         ];
+    }
+
+    public function recalculateTotals(QuotationHeader $header): void
+    {
+        $header->loadMissing('details');
+
+        $subTotal = 0.0;
+        $taxes = 0.0;
+
+        foreach ($header->details as $detail) {
+            $taxRate = (float) $detail->tax;
+
+            if ($taxRate <= 0 && ($header->quotation_type ?? '') !== 'General') {
+                $elementIds = $this->pricingResolver->collectElementIdsFromDetail($detail);
+                $suggestion = $this->pricingResolver->suggestManualLinePricing(
+                    $header,
+                    $detail->sample_type !== null ? (string) $detail->sample_type : null,
+                    (string) $detail->part_no,
+                    $elementIds,
+                );
+                $resolvedTax = (float) ($suggestion['tax'] ?? 0);
+
+                if ($resolvedTax > 0) {
+                    $taxRate = $resolvedTax;
+                    $detail->tax = $taxRate;
+                    $detail->save();
+                }
+            }
+
+            $quantity = max(1, (int) $detail->quantity);
+            $unitPrice = (float) $detail->unit_price;
+            $extended = $quantity * $unitPrice;
+            $subTotal += $extended;
+
+            if ($taxRate > 0) {
+                $taxes += ($taxRate / 100) * $extended;
+            }
+        }
+
+        $header->sub_total = $subTotal;
+        $header->tax = $taxes;
+        $header->total_amount = $subTotal + $taxes;
+        $header->save();
+    }
+
+    /**
+     * @return array{net: float, vat: float, total: float}
+     */
+    private function computeTotalsFromDetails(QuotationHeader $header): array
+    {
+        $header->loadMissing('details');
+
+        $subTotal = 0.0;
+        $taxes = 0.0;
+
+        foreach ($header->details as $detail) {
+            $quantity = max(1, (int) $detail->quantity);
+            $unitPrice = (float) $detail->unit_price;
+            $taxRate = (float) $detail->tax;
+            $extended = $quantity * $unitPrice;
+            $subTotal += $extended;
+
+            if ($taxRate > 0) {
+                $taxes += ($taxRate / 100) * $extended;
+            }
+        }
+
+        return [
+            'net' => $subTotal,
+            'vat' => $taxes,
+            'total' => $subTotal + $taxes,
+        ];
+    }
+
+    private function resolveSamplingLocation(QuotationHeader $header): ?string
+    {
+        if (filled($header->sampling_location)) {
+            return (string) $header->sampling_location;
+        }
+
+        if ($header->sample_point_id) {
+            $point = SamplePoint::find($header->sample_point_id);
+
+            if (filled($point?->display_name)) {
+                return (string) $point->display_name;
+            }
+        }
+
+        $enquiry = $this->resolveLinkedEnquiry($header);
+
+        if ($enquiry === null) {
+            return null;
+        }
+
+        $enquiry->loadMissing('submissionFormInstance');
+
+        $instance = $enquiry->submissionFormInstance ?? $enquiry->resolveLinkedFormInstance();
+
+        if ($instance !== null) {
+            $display = $instance->resolveDisplayValueByName('sampling_location');
+
+            if (filled($display)) {
+                return (string) $display;
+            }
+
+            $raw = $instance->getValueByElementName('sampling_location');
+
+            if (filled($raw)) {
+                return $this->resolveSamplePointLabel((string) $raw);
+            }
+        }
+
+        $collection = is_array($enquiry->collection_data) ? $enquiry->collection_data : [];
+
+        if (! empty($collection['sampling_location'])) {
+            return $this->resolveSamplePointLabel((string) $collection['sampling_location']);
+        }
+
+        if (is_array($enquiry->sample_lines)) {
+            foreach ($enquiry->sample_lines as $line) {
+                if (! is_array($line)) {
+                    continue;
+                }
+
+                $location = (string) ($line['location'] ?? $line['sampling_point'] ?? $line['sampling_location'] ?? '');
+
+                if ($location !== '') {
+                    return $this->resolveSamplePointLabel($location);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveLinkedEnquiry(QuotationHeader $header): ?SampleSubmissionRequest
+    {
+        $header->loadMissing(['sampleSubmissionRequest', 'linkedEnquiries']);
+
+        if ($header->sampleSubmissionRequest !== null) {
+            return $header->sampleSubmissionRequest;
+        }
+
+        $linked = $header->linkedEnquiries->first();
+
+        if ($linked !== null) {
+            return $linked;
+        }
+
+        return SampleSubmissionRequest::query()
+            ->where('current_quotation_header_id', $header->id)
+            ->orWhere('accepted_quotation_header_id', $header->id)
+            ->first();
+    }
+
+    private function resolveSamplePointLabel(string $value): string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        if (! Str::isUuid($value) && ! ctype_digit($value)) {
+            return $value;
+        }
+
+        $point = SamplePoint::query()->find($value);
+
+        return $point?->display_name ?? $value;
     }
 
     /**
@@ -1050,6 +1238,9 @@ class QuotationReportService
         if (! is_dir($fontDir)) {
             mkdir($fontDir, 0755, true);
         }
+
+        $this->recalculateTotals($header);
+        $header = $header->fresh() ?? $header;
 
         $data = $this->buildViewData($header, true);
         $pdf = Pdf::loadView('billing.quotations.amspec.pdf', $data);

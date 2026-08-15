@@ -38,7 +38,7 @@ final class PlannerKpiReportService
                 'sample_type',
                 'analysis_type',
                 'submissionFormInstances.values.element',
-                'submissionFormInstances.submissionForm.sampleTypes',
+                'submissionFormInstances.submissionForm.sampleTypeCategories',
             ])
             ->orderByDesc('sampling_datetime')
             ->get();
@@ -395,7 +395,7 @@ final class PlannerKpiReportService
         SamplingSchedule $schedule,
         array $lookup,
     ): array {
-        $instance->loadMissing(['values.element', 'submissionForm.sampleTypes']);
+        $instance->loadMissing(['values.element', 'submissionForm.sampleTypeCategories']);
 
         $categoryNames = $instance->getResolvedSampleTypeNames();
         $detailNames = [];

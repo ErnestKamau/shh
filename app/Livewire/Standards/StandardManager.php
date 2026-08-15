@@ -207,7 +207,7 @@ class StandardManager extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
-                    'status' => $this->standardForm['status'],
+                    'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $standard->syncQcSchemes($schemeIds);
@@ -224,7 +224,7 @@ class StandardManager extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
-                    'status' => $this->standardForm['status'],
+                    'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $standard->syncQcSchemes($schemeIds);
@@ -342,7 +342,7 @@ class StandardManager extends Component
                 $standardValue->update([
                     'name' => $this->standardValueForm['name'],
                     'code' => $this->standardValueForm['code'],
-                    'status' => $this->standardValueForm['status'],
+                    'status' => $this->standardValueForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $this->message = 'Standard value updated successfully!';
@@ -350,7 +350,7 @@ class StandardManager extends Component
                 StandardValue::create([
                     'name' => $this->standardValueForm['name'],
                     'code' => $this->standardValueForm['code'],
-                    'status' => $this->standardValueForm['status'],
+                    'status' => $this->standardValueForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
                 $this->message = 'Standard value created successfully!';
@@ -453,7 +453,7 @@ class StandardManager extends Component
                     'recommendations' => $this->standardAnalyteForm['recommendations'],
                     'expected_value' => $this->standardAnalyteForm['expected_value'],
                     'absolute_tolerance' => $this->standardAnalyteForm['absolute_tolerance'],
-                    'is_active' => $this->standardAnalyteForm['is_active'],
+                    'is_active' => $this->standardAnalyteForm['is_active'] ?? true,
                     'mean_value' => $this->standardAnalyteForm['mean_value'],
                     'rel_std_dev' => $this->standardAnalyteForm['rel_std_dev'],
                     'tolerance_1' => $this->standardAnalyteForm['tolerance_1'],
@@ -474,7 +474,7 @@ class StandardManager extends Component
                     'recommendations' => $this->standardAnalyteForm['recommendations'],
                     'expected_value' => $this->standardAnalyteForm['expected_value'],
                     'absolute_tolerance' => $this->standardAnalyteForm['absolute_tolerance'],
-                    'is_active' => $this->standardAnalyteForm['is_active'],
+                    'is_active' => $this->standardAnalyteForm['is_active'] ?? true,
                     'mean_value' => $this->standardAnalyteForm['mean_value'],
                     'rel_std_dev' => $this->standardAnalyteForm['rel_std_dev'],
                     'tolerance_1' => $this->standardAnalyteForm['tolerance_1'],

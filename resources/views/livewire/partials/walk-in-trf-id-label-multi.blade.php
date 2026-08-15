@@ -23,11 +23,13 @@
         ->values()
         ->all();
     $selected = array_values(array_filter(array_map('strval', $selected ?? [])));
-    // Stable key: field + option ids only (never selection) so the panel stays open while picking.
+    $remountWhen = $remountWhen ?? null;
+    // Stable key: field identity (+ optional remount token for dependent option lists).
     $optionsKey = md5(json_encode([
-        collect($options)->pluck('id')->all(),
+        $fieldId,
         $syncMethod,
         $wireKey,
+        $remountWhen,
     ]));
 @endphp
 
@@ -36,6 +38,7 @@
     class="rft-param-picker"
     wire:key="id-label-multi-{{ $fieldId }}-{{ $optionsKey }}"
     wire:ignore
+    :class="{ 'is-open': open }"
     x-data="rftIdLabelMultiPicker({
         wireKey: @js($wireKey),
         syncMethod: @js($syncMethod),

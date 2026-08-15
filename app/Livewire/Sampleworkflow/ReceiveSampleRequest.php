@@ -13,6 +13,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormSection;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\CRM\CRMCustomerService;
+use App\Services\CRM\CustomerContactPrefillService;
 use App\Services\Planner\SamplingScheduleCollectionProgress;
 use App\Services\Planner\SamplingScheduleTrfSync;
 use App\Services\Sampleworkflow\ReceivingLabMetadataService;
@@ -21,6 +22,7 @@ use App\Services\Sampleworkflow\SampleReceivingCheckInService;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
+use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\User;
 use Illuminate\Support\Collection;
@@ -70,7 +72,13 @@ class ReceiveSampleRequest extends Component
 
     public bool $showWalkInAddPointModal = false;
 
+    public bool $showWalkInAddUnitModal = false;
+
+    public string $walkInNewUnitName = '';
+
     public string $walkInNewContactName = '';
+
+    public string $walkInNewContactUnitId = '';
 
     public string $walkInNewContactEmail = '';
 
@@ -181,16 +189,18 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $firstInstance = SubmissionFormInstance::with(['crmCustomer', 'submissionForm.sampleTypes', 'batches.sampleType', 'values.element'])->find($this->selectedFormInstanceIds[0]);
+        $firstInstance = SubmissionFormInstance::with(['crmCustomer', 'submissionForm.sampleTypeCategories', 'batches.sampleType', 'values.element'])->find($this->selectedFormInstanceIds[0]);
         
         if (!$firstInstance) {
             return;
         }
 
-        // Try to determine sample type from submission form
+        // Try to determine sample type from submission form categories
         $sampleType = null;
-        if ($firstInstance->submissionForm && $firstInstance->submissionForm->sampleTypes->first()) {
-            $sampleType = $firstInstance->submissionForm->sampleTypes->first();
+        if ($firstInstance->submissionForm) {
+            $sampleType = app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+                ->resolveForForm($firstInstance->submissionForm)
+                ->first();
         }
 
         // If no sample type from submission form, try from batches
@@ -274,6 +284,8 @@ class ReceiveSampleRequest extends Component
                 $this->formData[$element->name] = $this->defaultValueForElement($element);
             }
         }
+
+        $this->ensureWaterTrfSyntheticFormFields($submissionForm);
     }
 
     public function getWalkInSectionsProperty(): Collection
@@ -345,8 +357,8 @@ class ReceiveSampleRequest extends Component
     /**
      * TRF cards for the Request For Testing page (UI only).
      *
-     * Walk-in RFT shows category-bound TRFs first, then sample-type-linked TRFs,
-     * then completely unlinked templates. Planner mode still lists by sample type.
+     * Walk-in RFT shows category-bound TRFs first, then unlinked templates.
+     * Planner mode still lists by sample type.
      *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
@@ -425,7 +437,7 @@ class ReceiveSampleRequest extends Component
                         ->values()
                         ->implode(', ');
 
-                    $cardTitle = $categoryNames !== '' ? $categoryNames : (string) $form->name;
+                    $cardTitle = (string) $form->name;
 
                     return [
                         'submission_form_id' => (string) $form->id,
@@ -449,64 +461,6 @@ class ReceiveSampleRequest extends Component
                 ->values();
         }
 
-        // Direct sample-type links (legacy pivot) — one card per TRF.
-        $sampleTypeLinkedCards = SubmissionForm::query()
-            ->where('is_active', true)
-            ->where('is_published', true)
-            ->where('form_type', 'template')
-            ->where(function ($query): void {
-                $query->where('document_code', 'like', 'TRF%')
-                    ->orWhereRaw('lower(name) like ?', ['%test request form%']);
-            })
-            ->whereHas('sampleTypes')
-            ->when(
-                ! $this->showHiddenRftForms,
-                fn ($query) => $query->where(function ($hiddenQuery): void {
-                    $hiddenQuery->where('is_hidden_from_rft', false)->orWhereNull('is_hidden_from_rft');
-                }),
-            )
-            ->with(['sampleTypes'])
-            ->orderBy('name')
-            ->get()
-            ->reject(fn (SubmissionForm $form): bool => isset($linkedFormIds[(string) $form->id]))
-            ->map(function (SubmissionForm $form) use (&$linkedFormIds): array {
-                $form->loadMissing(['sections.elementHolders.elements']);
-                $linkedFormIds[(string) $form->id] = true;
-
-                $linkedTypes = $form->sampleTypes
-                    ->sortBy('name')
-                    ->values();
-                $typeLabel = $linkedTypes
-                    ->pluck('name')
-                    ->filter()
-                    ->unique()
-                    ->values()
-                    ->implode(', ');
-                $singleTypeId = $linkedTypes->count() === 1
-                    ? (string) $linkedTypes->first()->id
-                    : null;
-
-                return [
-                    'submission_form_id' => (string) $form->id,
-                    'sample_type_id' => $singleTypeId,
-                    'requires_inline_sample_type' => $singleTypeId === null,
-                    'is_hidden_from_rft' => (bool) ($form->is_hidden_from_rft ?? false),
-                    'name' => (string) $form->name,
-                    'sample_type_name' => $typeLabel !== '' ? $typeLabel : 'Select in form',
-                    'document_code' => $form->document_code,
-                    'sections_count' => $this->wizardStepCountForForm($form),
-                    'description' => filled($form->description)
-                        ? (string) $form->description
-                        : 'Capture a test request for '.($typeLabel !== '' ? $typeLabel : $form->name).'.',
-                    'icon' => 'mdi-clipboard-edit-outline',
-                    'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
-                    'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
-                    'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
-                    'start_action' => $singleTypeId !== null ? 'sampleType' : 'form',
-                ];
-            })
-            ->values();
-
         $unlinkedCards = SubmissionForm::query()
             ->where('is_active', true)
             ->where('is_published', true)
@@ -515,7 +469,6 @@ class ReceiveSampleRequest extends Component
                 $query->where('document_code', 'like', 'TRF%')
                     ->orWhereRaw('lower(name) like ?', ['%test request form%']);
             })
-            ->whereDoesntHave('sampleTypes')
             ->when(
                 \Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories'),
                 fn ($q) => $q->whereDoesntHave('sampleTypeCategories')
@@ -553,10 +506,7 @@ class ReceiveSampleRequest extends Component
             })
             ->values();
 
-        return $categoryBoundCards
-            ->concat($sampleTypeLinkedCards)
-            ->concat($unlinkedCards)
-            ->values();
+        return $categoryBoundCards->concat($unlinkedCards)->values();
     }
 
     private function shouldIncludeFormOnRft(SubmissionForm $form): bool
@@ -1242,8 +1192,12 @@ class ReceiveSampleRequest extends Component
     {
         $name = (string) ($element->name ?? '');
 
-        if (in_array($name, ['method_of_sampling', 'test_category', 'test_requirements'], true)) {
+        if (in_array($name, ['method_of_sampling', 'test_category'], true)) {
             return [];
+        }
+
+        if ($name === 'test_requirements') {
+            return $this->defaultWaterTestRequirementsRow();
         }
 
         if ($element->element_type === 'checkbox') {
@@ -1390,7 +1344,8 @@ class ReceiveSampleRequest extends Component
      * @param  list<array{type: string, label: string, class: string, element: SubmissionFormElement, field?: array<string, mixed>}>  $tableColumns
      * @param  list<string>  $hiddenFields
      * @return array{
-     *     grid_rows: list<list<array<string, mixed>|null>>,
+     *     layout_variant: string,
+     *     grid_rows: list<array{type: string, cols?: int, label?: string, compact?: bool, columns?: list<array<string, mixed>|null>}>,
      *     parameters_column: array<string, mixed>|null,
      *     description_column: array<string, mixed>|null,
      *     extra_columns: list<array<string, mixed>>
@@ -1504,6 +1459,17 @@ class ReceiveSampleRequest extends Component
         $sampleTypeColumn = $take($findByNames(['sample_type_id', 'sample_type']));
         $analysisTypeColumn = $take($findByNames(['analysis_type_id', 'analysis_type', 'analysis_types']));
 
+        if ($this->usesWaterSampleCardLayout()) {
+            return $this->buildWaterSampleCardLayout(
+                $take,
+                $findQty,
+                $findTemp,
+                $findByNames,
+                $sampleTypeColumn,
+                $analysisTypeColumn,
+            );
+        }
+
         $gridRows = [
             [
                 $take($findQty()),
@@ -1544,10 +1510,129 @@ class ReceiveSampleRequest extends Component
         }
 
         return [
-            'grid_rows' => $gridRows,
+            'layout_variant' => 'default',
+            'grid_rows' => array_map(
+                static fn (array $row): array => [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'columns' => $row,
+                ],
+                $gridRows
+            ),
             'parameters_column' => $parametersColumn,
             'description_column' => $descriptionColumn,
             'extra_columns' => $extraColumns,
+        ];
+    }
+
+    private function usesWaterSampleCardLayout(): bool
+    {
+        if ($this->isWater) {
+            return true;
+        }
+
+        $documentCode = trim((string) ($this->submissionForm?->document_code ?? ''));
+
+        return $documentCode === TrfDocumentCodeForSampleType::WATER;
+    }
+
+    /**
+     * Water TRF sample card: Qty + point, field data block, type/analysis/requirements, parameters, description.
+     *
+     * @return array{
+     *     layout_variant: string,
+     *     grid_rows: list<array<string, mixed>>,
+     *     parameters_column: array<string, mixed>|null,
+     *     description_column: array<string, mixed>|null,
+     *     extra_columns: list<array<string, mixed>>
+     * }
+     */
+    private function buildWaterSampleCardLayout(
+        callable $take,
+        callable $findQty,
+        callable $findTemp,
+        callable $findByNames,
+        ?array $sampleTypeColumn,
+        ?array $analysisTypeColumn,
+    ): array {
+        $shortFieldLabel = static function (?array $column, string $defaultLabel): ?array {
+            if ($column === null) {
+                return null;
+            }
+
+            $label = trim((string) ($column['label'] ?? $defaultLabel));
+            $label = preg_replace('/^field data\s*[-–—]\s*/iu', '', $label) ?? $label;
+            $column['label'] = $label !== '' ? $label : $defaultLabel;
+
+            return $column;
+        };
+
+        $qtyColumn = $take($findQty());
+        if ($qtyColumn !== null) {
+            $qtyColumn['label'] = 'Qty / Unit';
+        }
+
+        $samplingPointColumn = $shortFieldLabel(
+            $take($findByNames(['sampling_point_manual', 'manual_sampling_point'])),
+            'Sampling Point'
+        );
+        $tempColumn = $shortFieldLabel($take($findTemp()), 'Sample temp (°C)');
+        $appearanceColumn = $shortFieldLabel($take($findByNames(['field_appearance'])), 'Appearance');
+        $residualChlorineColumn = $shortFieldLabel($take($findByNames(['field_residual_chlorine'])), 'Residual chlorine');
+        $odorColumn = $shortFieldLabel($take($findByNames(['field_odor'])), 'Odor');
+        $phColumn = $shortFieldLabel($take($findByNames(['field_ph'])), 'pH');
+
+        $testRequirementsColumn = $take($findByNames(['test_requirements', 'test_category']));
+        if ($testRequirementsColumn === null) {
+            $testRequirementsColumn = $take($this->waterTestRequirementsFallbackColumn());
+        }
+        if ($testRequirementsColumn !== null) {
+            $testRequirementsColumn['label'] = 'Test requirement';
+        }
+
+        $parametersColumn = $take($findByNames(['parameters', 'parameter']));
+        if ($parametersColumn !== null) {
+            $parametersColumn['label'] = 'Tests';
+        }
+
+        $descriptionColumn = $take($findByNames(['sample_description']));
+
+        return [
+            'layout_variant' => 'water',
+            'grid_rows' => [
+                [
+                    'type' => 'fields',
+                    'cols' => 2,
+                    'columns' => [$qtyColumn, $samplingPointColumn],
+                ],
+                [
+                    'type' => 'section',
+                    'label' => 'Field data',
+                ],
+                [
+                    'type' => 'fields',
+                    'cols' => 2,
+                    'group' => 'field_data',
+                    'columns' => [$tempColumn, $appearanceColumn],
+                ],
+                [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'group' => 'field_data',
+                    'columns' => [$residualChlorineColumn, $odorColumn, $phColumn],
+                ],
+                [
+                    'type' => 'divider',
+                ],
+                [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'columns' => [$sampleTypeColumn, $analysisTypeColumn, $testRequirementsColumn],
+                ],
+            ],
+            'parameters_column' => $parametersColumn,
+            'description_column' => $descriptionColumn,
+            'extra_columns' => [],
         ];
     }
 
@@ -1848,8 +1933,82 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->ensureWalkInCanonicalQtyFields($this->schemaRowCount());
+        $this->appendWaterTrfSyntheticRowDefaults();
 
         $this->dispatch('trf-reinit-parameter-selects');
+    }
+
+    /**
+     * Water TRF expects test_requirements even when the live form schema has not been patched yet.
+     */
+    private function ensureWaterTrfSyntheticFormFields(SubmissionForm $submissionForm): void
+    {
+        if (trim((string) ($submissionForm->document_code ?? '')) !== TrfDocumentCodeForSampleType::WATER) {
+            return;
+        }
+
+        if (isset($this->formData['test_requirements'])) {
+            return;
+        }
+
+        $rowCount = 1;
+        foreach ($this->formData as $values) {
+            if (is_array($values)) {
+                $rowCount = max($rowCount, count($values));
+            }
+        }
+
+        $this->formData['test_requirements'] = array_fill(0, $rowCount, $this->defaultWaterTestRequirementsRow());
+    }
+
+    /**
+     * @return array{microbiology: bool, legionella: bool, chemistry: bool}
+     */
+    private function defaultWaterTestRequirementsRow(): array
+    {
+        return [
+            'microbiology' => false,
+            'legionella' => false,
+            'chemistry' => false,
+        ];
+    }
+
+    private function appendWaterTrfSyntheticRowDefaults(): void
+    {
+        if (! $this->usesWaterSampleCardLayout()) {
+            return;
+        }
+
+        if (! isset($this->formData['test_requirements']) || ! is_array($this->formData['test_requirements'])) {
+            $this->formData['test_requirements'] = [];
+        }
+
+        $this->formData['test_requirements'][] = $this->defaultWaterTestRequirementsRow();
+    }
+
+    /**
+     * @return array{type: string, label: string, class: string, element: SubmissionFormElement, field: array<string, mixed>}
+     */
+    private function waterTestRequirementsFallbackColumn(): array
+    {
+        $element = new SubmissionFormElement([
+            'name' => 'test_requirements',
+            'label' => 'Test requirements',
+            'element_type' => 'checkbox',
+            'options' => [
+                ['value' => 'microbiology', 'label' => 'Microbiology'],
+                ['value' => 'legionella', 'label' => 'Legionella'],
+                ['value' => 'chemistry', 'label' => 'Chemical Analysis'],
+            ],
+        ]);
+
+        return [
+            'type' => 'field',
+            'label' => 'Test requirement',
+            'class' => 'walk-in-trf-col-radio',
+            'element' => $element,
+            'field' => app(\App\Services\Sampleworkflow\WalkInTrfFieldMapper::class)->toField($element),
+        ];
     }
 
     public function getSelectedSampleTypeProperty()
@@ -1930,8 +2089,18 @@ class ReceiveSampleRequest extends Component
     public function updatedSelectedSampleTypeId($value): void
     {
         $normalizedValue = $value !== null && $value !== '' ? (string) $value : null;
+        $lastSelected = $this->lastSelectedSampleTypeId !== null && $this->lastSelectedSampleTypeId !== ''
+            ? (string) $this->lastSelectedSampleTypeId
+            : null;
 
-        if ($normalizedValue === $this->lastSelectedSampleTypeId) {
+        if ($normalizedValue === $lastSelected) {
+            return;
+        }
+
+        // RFT fill by document code: sample types are chosen per sample row only.
+        if ($this->pageMode && $this->wizardOnly && filled($this->selectedSubmissionFormId)) {
+            $this->lastSelectedSampleTypeId = $normalizedValue;
+
             return;
         }
 
@@ -1984,6 +2153,8 @@ class ReceiveSampleRequest extends Component
     public function updatedFormDataContactPerson(?string $value): void
     {
         if ($value === null || trim($value) === '') {
+            $this->clearContactCommunicationFields();
+
             return;
         }
 
@@ -1992,15 +2163,38 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        if (array_key_exists('customer_email', $this->formData)) {
-            $this->formData['customer_email'] = (string) ($contact->email ?? $this->formData['customer_email'] ?? '');
+        $customer = CRMCustomer::query()->find($this->selectedCrmCustomerId ?? $contact->crm_customer_id);
+        if ($customer === null) {
+            return;
         }
 
-        if (array_key_exists('email', $this->formData) && empty($this->formData['email'])) {
-            $this->formData['email'] = (string) ($contact->email ?? '');
+        $communicationFields = app(CustomerContactPrefillService::class)
+            ->buildSelectedContactCommunicationFields($contact);
+
+        foreach ($communicationFields as $key => $fieldValue) {
+            if (! array_key_exists($key, $this->formData)) {
+                continue;
+            }
+
+            $this->formData[$key] = $fieldValue;
         }
 
         $this->applyCustomerRepresentativeFromContact($contact);
+    }
+
+    public function updatedFormDataCompanyUnitId(?string $value): void
+    {
+        $this->formData['contact_person'] = '';
+        $this->clearContactCommunicationFields();
+        $this->formData['sampling_location'] = '';
+
+        foreach (['sampling_point', 'sampling_location', 'location'] as $fieldName) {
+            if (! isset($this->formData[$fieldName]) || ! is_array($this->formData[$fieldName])) {
+                continue;
+            }
+
+            $this->formData[$fieldName] = array_map(static fn (): string => '', $this->formData[$fieldName]);
+        }
     }
 
     public function openWalkInAddCustomerModal(): void
@@ -2018,7 +2212,26 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->resetWalkInContactModal();
+        $this->walkInNewContactUnitId = trim((string) ($this->formData['company_unit_id'] ?? '')) !== ''
+            ? trim((string) $this->formData['company_unit_id'])
+            : (string) (CRMCompanyUnit::query()
+                ->where('crm_customer_id', $this->resolveSelectedCustomerId())
+                ->where('active', 1)
+                ->orderBy('name')
+                ->value('id') ?? '');
         $this->showWalkInAddContactModal = true;
+    }
+
+    public function openWalkInAddUnitModal(): void
+    {
+        if ($this->resolveSelectedCustomerId() === null) {
+            $this->addError('formData.customer_name', 'Select a customer before adding a company unit.');
+
+            return;
+        }
+
+        $this->resetWalkInUnitModal();
+        $this->showWalkInAddUnitModal = true;
     }
 
     public function openWalkInAddPointModal(string $fieldName = 'sampling_location', ?int $rowIndex = null): void
@@ -2033,11 +2246,14 @@ class ReceiveSampleRequest extends Component
         $this->resetWalkInPointModal();
         $this->walkInSamplePointTargetField = $fieldName !== '' ? $fieldName : 'sampling_location';
         $this->walkInSamplePointTargetRowIndex = $rowIndex;
-        $this->walkInNewPointUnitId = (string) (CRMCompanyUnit::query()
-            ->where('crm_customer_id', $customerId)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->value('id') ?? '');
+        $selectedUnitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        $this->walkInNewPointUnitId = $selectedUnitId !== ''
+            ? $selectedUnitId
+            : (string) (CRMCompanyUnit::query()
+                ->where('crm_customer_id', $customerId)
+                ->where('active', 1)
+                ->orderBy('name')
+                ->value('id') ?? '');
         $this->showWalkInAddPointModal = true;
     }
 
@@ -2081,9 +2297,22 @@ class ReceiveSampleRequest extends Component
 
         $this->validate([
             'walkInNewContactName' => 'required|string|max:255',
+            'walkInNewContactUnitId' => 'required|exists:crm_company_units,id',
             'walkInNewContactEmail' => 'nullable|email|max:255',
             'walkInNewContactPhone' => 'nullable|string|max:50',
         ]);
+
+        $unitId = trim($this->walkInNewContactUnitId);
+        $unitBelongsToCustomer = CRMCompanyUnit::query()
+            ->whereKey($unitId)
+            ->where('crm_customer_id', $customerId)
+            ->exists();
+
+        if (! $unitBelongsToCustomer) {
+            $this->addError('walkInNewContactUnitId', 'Select a company unit for this client.');
+
+            return;
+        }
 
         $nameParts = preg_split('/\s+/', trim($this->walkInNewContactName)) ?: [];
         $firstName = $nameParts[0] ?? '';
@@ -2103,18 +2332,55 @@ class ReceiveSampleRequest extends Component
         $contact->receive_invoice = 0;
         $contact->receive_report = 0;
         $contact->active = 1;
+        $contact->crm_company_unit_id = $unitId;
+        $contact->unit_name = $unitId;
         $contact->save();
 
         if (array_key_exists('contact_person', $this->formData)) {
             $this->formData['contact_person'] = (string) $contact->id;
         }
 
-        if (array_key_exists('customer_email', $this->formData) && $contact->email) {
-            $this->formData['customer_email'] = (string) $contact->email;
+        $communicationFields = app(CustomerContactPrefillService::class)
+            ->buildSelectedContactCommunicationFields($contact);
+
+        foreach ($communicationFields as $key => $fieldValue) {
+            if (! array_key_exists($key, $this->formData)) {
+                continue;
+            }
+
+            $this->formData[$key] = $fieldValue;
         }
 
         $this->showWalkInAddContactModal = false;
         $this->resetWalkInContactModal();
+    }
+
+    public function saveWalkInCompanyUnit(): void
+    {
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            $this->addError('walkInNewUnitName', 'Select a customer first.');
+
+            return;
+        }
+
+        $this->validate([
+            'walkInNewUnitName' => 'required|string|max:255',
+        ]);
+
+        $unit = new CRMCompanyUnit();
+        $unit->name = trim($this->walkInNewUnitName);
+        $unit->company_id = getUserCompany();
+        $unit->crm_customer_id = $customerId;
+        $unit->active = 1;
+        $unit->save();
+
+        if (array_key_exists('company_unit_id', $this->formData)) {
+            $this->formData['company_unit_id'] = (string) $unit->id;
+        }
+
+        $this->showWalkInAddUnitModal = false;
+        $this->resetWalkInUnitModal();
     }
 
     public function saveWalkInSamplePoint(): void
@@ -2156,6 +2422,12 @@ class ReceiveSampleRequest extends Component
         $this->resetWalkInContactModal();
     }
 
+    public function closeWalkInAddUnitModal(): void
+    {
+        $this->showWalkInAddUnitModal = false;
+        $this->resetWalkInUnitModal();
+    }
+
     public function closeWalkInAddPointModal(): void
     {
         $this->showWalkInAddPointModal = false;
@@ -2179,12 +2451,22 @@ class ReceiveSampleRequest extends Component
     private function resetWalkInContactModal(): void
     {
         $this->walkInNewContactName = '';
+        $this->walkInNewContactUnitId = '';
         $this->walkInNewContactEmail = '';
         $this->walkInNewContactPhone = '';
         $this->resetValidation([
             'walkInNewContactName',
+            'walkInNewContactUnitId',
             'walkInNewContactEmail',
             'walkInNewContactPhone',
+        ]);
+    }
+
+    private function resetWalkInUnitModal(): void
+    {
+        $this->walkInNewUnitName = '';
+        $this->resetValidation([
+            'walkInNewUnitName',
         ]);
     }
 
@@ -2261,12 +2543,31 @@ class ReceiveSampleRequest extends Component
             return collect();
         }
 
-        return CustomerContact::query()
+        $contacts = CustomerContact::query()
             ->where('crm_customer_id', $customerId)
             ->where('active', 1)
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get();
+
+        $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        if ($unitId === '') {
+            return $contacts;
+        }
+
+        return $contacts
+            ->filter(fn (CustomerContact $contact): bool => $contact->isLinkedToCompanyUnit($unitId))
+            ->values();
+    }
+
+    public function getSelectedCompanyUnitNameProperty(): ?string
+    {
+        $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        if ($unitId === '') {
+            return null;
+        }
+
+        return CRMCompanyUnit::query()->whereKey($unitId)->value('name');
     }
 
     public function getCustomerSamplePointsProperty(): Collection
@@ -2276,8 +2577,14 @@ class ReceiveSampleRequest extends Component
             return collect();
         }
 
+        $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        if ($unitId === '') {
+            return collect();
+        }
+
         return SamplePoint::query()
             ->where('crm_customer_id', $customerId)
+            ->where('crm_company_unit_id', $unitId)
             ->where('active', 1)
             ->orderBy('name')
             ->get();
@@ -2327,17 +2634,20 @@ class ReceiveSampleRequest extends Component
     {
         $first = $sampleTypeIds[0] ?? null;
 
-        if ($first !== null) {
-            $this->selectedSampleTypeId = $first;
-            $this->lastSelectedSampleTypeId = $first;
-        } elseif ($rowIndex === null
-            && filled($this->selectedSubmissionFormId)
-            && ! filled($this->initialSampleTypeId)
-        ) {
-            $this->selectedSampleTypeId = null;
+        // Per-row sample type pickers must not touch form-level selectedSampleTypeId;
+        // that triggers updatedSelectedSampleTypeId() and wipes wizard state (scroll jump).
+        if ($rowIndex === null) {
+            if ($first !== null) {
+                $this->selectedSampleTypeId = (string) $first;
+                $this->lastSelectedSampleTypeId = (string) $first;
+            } elseif (
+                filled($this->selectedSubmissionFormId)
+                && ! filled($this->initialSampleTypeId)
+            ) {
+                $this->selectedSampleTypeId = null;
+            }
         }
 
-        // Selecting sample type(s) auto-selects every analysis type under them.
         $this->autoSelectAnalysisTypesForRow($rowIndex);
         $this->refreshWalkInParametersForAnalysisChange($rowIndex);
     }
@@ -3071,11 +3381,42 @@ class ReceiveSampleRequest extends Component
         $this->mirrorCanonicalQtyOntoLegacySchemaFields();
 
         $normalizer = app(SubmissionFormValueNormalizer::class);
-
-        return array_merge(
+        $payload = array_merge(
             $this->formData,
             $normalizer->toRequestPayload($this->formData),
         );
+
+        // Indexed row fields are the source of truth for processFormData persistence.
+        foreach ($this->walkInPersistableRowFieldNames() as $name) {
+            if (! array_key_exists($name, $this->formData) || ! is_array($this->formData[$name])) {
+                continue;
+            }
+
+            $payload[$name] = $this->formData[$name];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function walkInPersistableRowFieldNames(): array
+    {
+        $names = array_merge(
+            $this->schemaRowFieldNames(),
+            ['sample_quantity', 'sample_quantity_unit', 'number_of_samples'],
+        );
+
+        if ($this->usesWaterSampleCardLayout()) {
+            $names[] = 'test_requirements';
+        }
+
+        if ($this->isFood) {
+            $names[] = 'test_category';
+        }
+
+        return array_values(array_unique(array_filter($names)));
     }
 
     /**
@@ -3203,7 +3544,7 @@ class ReceiveSampleRequest extends Component
                 $this->addError('formData.test_category.'.$index, 'Test category is required for row '.($index + 1).'.');
             }
 
-            if ($this->isWater && ! $this->rowHasMultiOptionSelection($index, 'test_requirements')) {
+            if ($this->usesWaterSampleCardLayout() && ! $this->rowHasMultiOptionSelection($index, 'test_requirements')) {
                 $this->addError('formData.test_requirements.'.$index, 'Test requirement is required for row '.($index + 1).'.');
             }
         }
@@ -3494,50 +3835,9 @@ class ReceiveSampleRequest extends Component
     private function applyCustomerPrefillFromCrm(CRMCustomer $customer, bool $onlyEmpty = false): void
     {
         $this->selectedCrmCustomerId = (string) $customer->id;
-        $customer->loadMissing('contacts');
-        $contact = $customer->contacts->first();
 
-        $contactName = '';
-        $contactId = '';
-        if ($contact) {
-            $contactName = trim(implode(' ', array_filter([
-                (string) ($contact->first_name ?? ''),
-                (string) ($contact->middle_name ?? ''),
-                (string) ($contact->last_name ?? ''),
-            ])));
-            $contactId = (string) $contact->id;
-        }
-
-        $canonicalName = trim((string) ($customer->name ?? ''));
-        $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
-        $telFax = (string) ($customer->telephone1 ?? $customer->telephone2 ?? '');
-        $mobile = (string) ($customer->telephone2 ?? $customer->telephone1 ?? '');
-        $email = (string) ($customer->email ?? '');
-
-        $prefill = [
-            'customer_name' => $canonicalName,
-            'customer_address' => $address,
-            'customer_phone' => $telFax,
-            'mobile_number' => $mobile,
-            'contact_person' => $contactId !== '' ? $contactId : $contactName,
-            'customer_email' => $email,
-            'sampling_location' => '',
-            'client_name' => $canonicalName,
-            'customer' => $canonicalName,
-            'client' => $canonicalName,
-            'address' => $address,
-            'physical_address' => (string) ($customer->physical_address ?? ''),
-            'postal_address' => (string) ($customer->postal_address ?? ''),
-            'phone' => $telFax,
-            'telephone' => $telFax,
-            'phone_number' => $telFax,
-            'telephone_number' => $telFax,
-            'tel_fax_no' => $telFax,
-            'email' => $email,
-            'email_address' => $email,
-            'contact' => $contactName,
-            'contact_name' => $contactName,
-        ];
+        $prefillService = app(CustomerContactPrefillService::class);
+        $prefill = $prefillService->buildWalkInCustomerPrefillMap($customer);
 
         foreach ($prefill as $key => $value) {
             if (! array_key_exists($key, $this->formData)) {
@@ -3548,14 +3848,73 @@ class ReceiveSampleRequest extends Component
                 continue;
             }
 
-            if ($value !== '') {
-                $this->formData[$key] = $value;
+            $this->formData[$key] = $value;
+        }
+
+        $selectedContactId = trim((string) ($this->formData['contact_person'] ?? ''));
+        if ($selectedContactId !== '') {
+            $contact = CustomerContact::query()
+                ->where('crm_customer_id', $customer->id)
+                ->whereKey($selectedContactId)
+                ->first();
+
+            if ($contact !== null) {
+                $this->applyContactCommunicationPrefill($contact, $onlyEmpty);
+                $this->applyCustomerRepresentativeFromContact($contact);
+
+                return;
             }
         }
 
-        if ($contact !== null) {
-            $this->applyCustomerRepresentativeFromContact($contact);
+        if (! $onlyEmpty) {
+            $this->clearContactPersonAndCommunicationFields();
         }
+    }
+
+    private function applyContactCommunicationPrefill(CustomerContact $contact, bool $onlyEmpty = false): void
+    {
+        $communicationFields = app(CustomerContactPrefillService::class)
+            ->buildSelectedContactCommunicationFields($contact);
+
+        foreach ($communicationFields as $key => $fieldValue) {
+            if (! array_key_exists($key, $this->formData)) {
+                continue;
+            }
+
+            if ($onlyEmpty && ! empty($this->formData[$key])) {
+                continue;
+            }
+
+            $this->formData[$key] = $fieldValue;
+        }
+    }
+
+    private function clearContactCommunicationFields(): void
+    {
+        foreach ([
+            'customer_phone',
+            'mobile_number',
+            'customer_email',
+            'tel_fax_no',
+            'phone',
+            'telephone',
+            'email',
+            'email_address',
+            'crm_contact_id',
+        ] as $key) {
+            if (array_key_exists($key, $this->formData)) {
+                $this->formData[$key] = '';
+            }
+        }
+    }
+
+    private function clearContactPersonAndCommunicationFields(): void
+    {
+        if (array_key_exists('contact_person', $this->formData)) {
+            $this->formData['contact_person'] = '';
+        }
+
+        $this->clearContactCommunicationFields();
     }
 
     public function render()

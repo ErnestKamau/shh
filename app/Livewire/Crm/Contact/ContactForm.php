@@ -32,7 +32,8 @@ class ContactForm extends BaseCrmComponent
     public $receive_invoice = false;
     public $receive_report = false;
     public $receive_feedback = false;
-    public $active = false;
+    public $is_main_customer_contact = false;
+    public $active = true;
     public $units = [];
     public $unitSearch = '';
     public $showUnitDropdown = false;
@@ -69,6 +70,7 @@ class ContactForm extends BaseCrmComponent
                 $this->receive_invoice = (bool) ($contact->receive_invoice ?? 0);
                 $this->receive_report = (bool) ($contact->receive_report ?? 0);
                 $this->receive_feedback = (bool) ($contact->receive_feedback ?? 0);
+                $this->is_main_customer_contact = (bool) ($contact->is_main_customer_contact ?? 0);
                 $this->active = (bool) ($contact->active ?? 0);
                 $this->can_login = (bool) ($contact->can_login ?? 0);
                 $signatureService = app(ContactSignatureService::class);
@@ -254,6 +256,7 @@ class ContactForm extends BaseCrmComponent
             $contact->receive_invoice = $this->receive_invoice ? 1 : 0;
             $contact->receive_report = $this->receive_report ? 1 : 0;
             $contact->receive_feedback = $this->receive_feedback ? 1 : 0;
+            $contact->is_main_customer_contact = $this->is_main_customer_contact ? 1 : 0;
             $contact->active = $this->active ? 1 : 0;
             $contact->can_login = $this->can_login ? 1 : 0;
 
@@ -269,6 +272,13 @@ class ContactForm extends BaseCrmComponent
             }
 
             $contact->save();
+
+            if ($this->is_main_customer_contact) {
+                CustomerContact::query()
+                    ->where('crm_customer_id', $this->customerId)
+                    ->where('id', '!=', $contact->id)
+                    ->update(['is_main_customer_contact' => false]);
+            }
 
             // Refresh preview state from the persisted path.
             $this->currentSignature = $signatureService->publicUrl($contact->signature);

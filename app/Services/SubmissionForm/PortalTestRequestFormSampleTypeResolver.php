@@ -14,8 +14,7 @@ class PortalTestRequestFormSampleTypeResolver
      *
      * Priority:
      *  1. Sample types that belong to any of the form's linked sample type categories.
-     *  2. Directly linked sample types via the legacy sample-type pivot.
-     *  3. Heuristic fallback keyed by document code / form name.
+     *  2. Heuristic fallback keyed by document code / form name.
      *
      * @return Collection<int, SampleType>
      */
@@ -35,16 +34,6 @@ class PortalTestRequestFormSampleTypeResolver
             }
         }
 
-        // 2. Legacy direct sample-type pivot.
-        $linked = $form->relationLoaded('sampleTypes')
-            ? $form->sampleTypes
-            : $form->sampleTypes()->get();
-
-        if ($linked->isNotEmpty()) {
-            return $linked;
-        }
-
-        // 3. Heuristic fallback.
         return $this->resolveByHeuristic($form);
     }
 
@@ -68,8 +57,8 @@ class PortalTestRequestFormSampleTypeResolver
     }
 
     /**
-     * A form is "tied" when it either links sample types through the pivot or its
-     * document code / name identifies exactly one family (Food, Water, Waste Water).
+     * A form is "tied" when linked categories (or document code / name heuristics)
+     * resolve to a non-empty sample type set.
      * Untied forms let the submitter pick the sample type per sample card.
      */
     public function isTiedToSampleTypes(SubmissionForm $form): bool

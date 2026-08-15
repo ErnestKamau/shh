@@ -694,7 +694,8 @@
                                 <code>reporting_unit</code>, <code>accredited</code>
                                 (1/Yes = accredited),
                                 <code>lab_section</code>, <code>operator</code>,
-                                <code>tat</code>, <code>equipment</code>
+                                <code>tat</code>, <code>equipment</code>,
+                                <code>lod</code>, <code>loq</code>
                             </div>
                         </div>
 

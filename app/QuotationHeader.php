@@ -47,6 +47,8 @@ class QuotationHeader extends Model implements Auditable
 
     public const ACCEPTANCE_CHANNEL_PORTAL = 'portal';
 
+    public const ACCEPTANCE_CHANNEL_EMAIL = 'email';
+
     protected function casts(): array
     {
         return [

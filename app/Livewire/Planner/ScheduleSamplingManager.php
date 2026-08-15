@@ -508,7 +508,7 @@ class ScheduleSamplingManager extends Component
             'submissionFormInstances' => function ($query) {
                 $query->orderByDesc('submitted_at')->orderByDesc('created_at');
             },
-            'submissionFormInstances.submissionForm.sampleTypes',
+            'submissionFormInstances.submissionForm.sampleTypeCategories',
             'submissionFormInstances.submittedBy',
         ])->visibleTo()->findOrFail($id);
         $this->showTrfFormsModal = true;

@@ -8,7 +8,7 @@
     $controlClass = $compact ? 'form-control form-control-xs' : 'form-control form-control-sm';
     $compactStyle = $compact ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
 @endphp
-@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_select', 'client_contact_select', 'customer_sample_point_select', 'signature'], true) && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id'], true))
+@if(! $hideLabel && ! $compact && ! in_array($field['type'] ?? '', ['client_select', 'client_unit_select', 'client_contact_select', 'customer_sample_point_select', 'signature'], true) && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'company_unit_id', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id'], true))
     <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small">
         {{ $field['label'] ?? $fieldName }}
         @if($field['required'] ?? false)
@@ -175,6 +175,32 @@
             <label class="custom-control-label small" for="field_{{ $fieldId }}">{{ $field['label'] ?? $fieldName }}</label>
         </div>
     @endif
+@elseif(($field['type'] ?? '') === 'client_unit_select' || $fieldName === 'company_unit_id')
+    <div class="d-flex align-items-center justify-content-between mb-1">
+        @if(! $hideLabel)
+            <label for="field_{{ $fieldId }}" class="font-weight-bold text-secondary small mb-0">
+                {{ $field['label'] ?? 'Company unit / Site name' }}
+                @if($field['required'] ?? false)
+                    <span class="text-danger">*</span>
+                @endif
+            </label>
+        @else
+            <span></span>
+        @endif
+        <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1"
+            wire:click="openWalkInAddUnitModal" title="Add company unit" aria-label="Add company unit">
+            <i class="mdi mdi-plus" aria-hidden="true"></i>
+        </button>
+    </div>
+    <select id="field_{{ $fieldId }}" wire:model.live="{{ $wirePrefix }}"
+        class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
+        @if($compactStyle) style="{{ $compactStyle }}" @endif
+        @if($field['readonly'] ?? false) disabled @endif>
+        <option value="">Select company unit</option>
+        @foreach($this->customerCompanyUnits as $unit)
+            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+        @endforeach
+    </select>
 @elseif(($field['type'] ?? '') === 'client_contact_select' || $fieldName === 'contact_person')
     <div class="d-flex align-items-center justify-content-between mb-1">
         @if(! $hideLabel)
@@ -196,17 +222,25 @@
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif
         @if($field['readonly'] ?? false) disabled @endif>
-        <option value="">Select contact person</option>
-        @foreach($this->customerContacts as $contact)
-            @php
-                $contactLabel = trim(implode(' ', array_filter([
-                    (string) ($contact->first_name ?? ''),
-                    (string) ($contact->middle_name ?? ''),
-                    (string) ($contact->last_name ?? ''),
-                ])));
-            @endphp
-            <option value="{{ $contact->id }}">{{ $contactLabel !== '' ? $contactLabel : 'Contact' }}</option>
-        @endforeach
+        @php
+            $selectedUnitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+            $filteredContacts = $this->customerContacts;
+        @endphp
+        @if($selectedUnitId !== '' && $filteredContacts->isEmpty())
+            <option value="" disabled selected>No contacts for {{ $this->selectedCompanyUnitName ?? 'selected unit' }}</option>
+        @else
+            <option value="">Select contact person</option>
+            @foreach($filteredContacts as $contact)
+                @php
+                    $contactLabel = trim(implode(' ', array_filter([
+                        (string) ($contact->first_name ?? ''),
+                        (string) ($contact->middle_name ?? ''),
+                        (string) ($contact->last_name ?? ''),
+                    ])));
+                @endphp
+                <option value="{{ $contact->id }}">{{ $contactLabel !== '' ? $contactLabel : 'Contact' }}</option>
+            @endforeach
+        @endif
     </select>
 @elseif(($field['type'] ?? '') === 'customer_sample_point_select' || in_array($fieldName, ['sampling_location', 'sampling_point'], true))
     <div class="d-flex align-items-center justify-content-between mb-1">
@@ -241,13 +275,22 @@
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif
         @if($field['readonly'] ?? false) disabled @endif>
-        <option value="">Select sampling location</option>
-        @if ($orphanLocation !== null)
-            <option value="{{ $orphanLocation }}">{{ $orphanLocation }}</option>
+        @php
+            $selectedUnitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        @endphp
+        @if($selectedUnitId === '')
+            <option value="" disabled selected>Select a company unit first</option>
+        @elseif($this->customerSamplePoints->isEmpty() && $orphanLocation === null)
+            <option value="" disabled selected>No sampling locations for {{ $this->selectedCompanyUnitName ?? 'selected unit' }}</option>
+        @else
+            <option value="">Select sampling location</option>
+            @if ($orphanLocation !== null)
+                <option value="{{ $orphanLocation }}">{{ $orphanLocation }}</option>
+            @endif
+            @foreach($this->customerSamplePoints as $point)
+                <option value="{{ $point->id }}">{{ $point->display_name }}</option>
+            @endforeach
         @endif
-        @foreach($this->customerSamplePoints as $point)
-            <option value="{{ $point->id }}">{{ $point->display_name }}</option>
-        @endforeach
     </select>
 @elseif($fieldName === 'customer_tax_id')
     {{-- Removed from walk-in TRF --}}

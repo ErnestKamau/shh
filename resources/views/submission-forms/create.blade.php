@@ -268,22 +268,6 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="sample_type_ids">Sample Types <small class="text-muted">(legacy — prefer categories above)</small></label>
-                  <select class="form-control ls-select2 @error('sample_type_ids') is-invalid @enderror" id="sample_type_ids" name="sample_type_ids[]" multiple>
-                    @php($selectedSampleTypes = old('sample_type_ids', []))
-                    @foreach($sampleTypes as $sampleType)
-                      <option value="{{ $sampleType->id }}" {{ in_array($sampleType->id, $selectedSampleTypes) ? 'selected' : '' }}>
-                        {{ $sampleType->name }}
-                      </option>
-                    @endforeach
-                  </select>
-                  @error('sample_type_ids')
-                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                  @enderror
-                  <small class="form-text text-muted">Restrict this form to specific sample types. Leave empty when using category binding above.</small>
-                </div>
-
-                <div class="form-group">
                   <label for="sample_analysis_stage_ids">Lab Sections</label>
                   <select class="form-control ls-select2 @error('sample_analysis_stage_ids') is-invalid @enderror" id="sample_analysis_stage_ids" name="sample_analysis_stage_ids[]" multiple>
                     @php($selectedStages = old('sample_analysis_stage_ids', []))

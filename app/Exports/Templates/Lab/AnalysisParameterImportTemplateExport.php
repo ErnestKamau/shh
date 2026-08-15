@@ -23,6 +23,8 @@ class AnalysisParameterImportTemplateExport implements FromArray, WithHeadings, 
             'operator',
             'tat',
             'equipment',
+            'lod',
+            'loq',
         ];
     }
 
@@ -38,6 +40,8 @@ class AnalysisParameterImportTemplateExport implements FromArray, WithHeadings, 
                 'Jane Doe',
                 '2',
                 'pH Meter',
+                '0.01',
+                '0.05',
             ],
             [
                 'Iron as Fe',
@@ -48,13 +52,15 @@ class AnalysisParameterImportTemplateExport implements FromArray, WithHeadings, 
                 '',
                 '3',
                 'ICP-OES',
+                '0.001',
+                '0.005',
             ],
         ];
     }
 
     public function styles(Worksheet $sheet): array
     {
-        $lastColumn = 'H';
+        $lastColumn = 'J';
 
         $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
             'fill' => [

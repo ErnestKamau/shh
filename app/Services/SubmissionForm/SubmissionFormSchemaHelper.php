@@ -111,6 +111,35 @@ final class SubmissionFormSchemaHelper
     }
 
     /**
+     * Sampling location belongs on collection (section 2), never on per-sample rows.
+     *
+     * @return list<string>
+     */
+    public static function deprecatedTrfRowLocationFieldNames(): array
+    {
+        return [
+            'sampling_location',
+            'location',
+            'sampling_point',
+            'sampling_point_other',
+            'sampling_point_others',
+            'other_sampling_point',
+        ];
+    }
+
+    public static function shouldExcludeFromSampleRowEditor(SubmissionFormElement $element): bool
+    {
+        $name = (string) ($element->name ?? '');
+        $type = (string) ($element->element_type ?? '');
+
+        if (in_array($name, self::deprecatedTrfRowLocationFieldNames(), true)) {
+            return true;
+        }
+
+        return in_array($type, ['sample_point_select', 'customer_sample_point_select'], true);
+    }
+
+    /**
      * Field names that define physical sample-card rows (not multi-select expansions).
      *
      * @return list<string>
@@ -148,6 +177,8 @@ final class SubmissionFormSchemaHelper
             'analysis_types',
             'sample_type_id',
             'sample_type',
+            'test_requirements',
+            'test_category',
         ];
     }
 
@@ -234,6 +265,40 @@ final class SubmissionFormSchemaHelper
             },
             self::testCategoryTokens($value),
         ));
+    }
+
+    /**
+     * Normalize stored checkbox-group values to an associative map keyed by option slug.
+     *
+     * @return array<string, bool>
+     */
+    public static function checkboxGroupValueMap(mixed $value): array
+    {
+        if ($value === null || $value === '' || $value === []) {
+            return [];
+        }
+
+        if (is_array($value)) {
+            if (self::selectedCheckboxKeys($value) !== null) {
+                return $value;
+            }
+
+            $tokens = self::testCategoryTokens($value);
+        } else {
+            $decoded = json_decode((string) $value, true);
+            if (is_array($decoded)) {
+                return self::checkboxGroupValueMap($decoded);
+            }
+
+            $tokens = self::testCategoryTokens($value);
+        }
+
+        $map = [];
+        foreach ($tokens as $token) {
+            $map[$token] = true;
+        }
+
+        return $map;
     }
 
     /**

@@ -109,7 +109,7 @@ class AcceptanceFormWizard extends Component
 
     public bool $defaultExpandParameters = true;
 
-    public bool $defaultExpandSampleDetails = true;
+    public bool $defaultExpandSampleDetails = false;
 
     /** receive_only = Ready for Reception handoff; accept_register = Integrity Accept creates job/samples. */
     public string $wizardMode = 'accept_register';
@@ -371,6 +371,7 @@ class AcceptanceFormWizard extends Component
             $configService->validateReceptionConfigs(
                 $this->sampleConfigs,
                 requireParameterAssignments: false,
+                requireMainStandard: false,
             );
             $normalizedConfigs = $configService->normalizeConfigsForStorage(
                 $this->sampleConfigs,
@@ -747,6 +748,8 @@ class AcceptanceFormWizard extends Component
         $this->showParametersOnConfig = ! $isReceiveOnly;
         $this->showParameterLabSectionsOnConfig = false;
         $this->showSectionAnalystsOnConfig = false;
+        $this->defaultExpandSampleDetails = false;
+        $this->defaultExpandParameters = ! $isReceiveOnly;
     }
 
     public function render()

@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Concerns\DefaultsActiveOnCreate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -9,6 +10,7 @@ use App\Analyte;
 
 class AnalysisElements extends Model implements Auditable
 {
+	use DefaultsActiveOnCreate;
 	use \OwenIt\Auditing\Auditable;
 
 	public $incrementing = false;

@@ -78,21 +78,15 @@
             <th class="amspec-th-primary" bgcolor="{{ $primaryColor }}" style="{{ $thStyle($primaryColor, $wTests) }}">Tests</th>
             <th class="amspec-th-primary" bgcolor="{{ $primaryColor }}" style="{{ $thStyle($primaryColor, $wMethod) }}">Test Method</th>
             @if($showLoqColumn)
-                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wLoq) }}">
-                    LOQ
-                    <span class="amspec-th-sub">(Option to add)</span>
-                </th>
+                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wLoq) }}">LOQ</th>
             @endif
             @if($showMuColumn)
-                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wMu) }}">
-                    MU%
-                    <span class="amspec-th-sub">(Option to add)</span>
-                </th>
+                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wMu) }}">MU%</th>
             @endif
             @if($showTatColumn)
                 <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="{{ $thStyle($accentColor, $wTat) }}">
                     TAT
-                    <span class="amspec-th-sub">(days)</span>
+                    <span class="amspec-th-sub amspec-th-sub-sm">(Working Days)</span>
                 </th>
             @endif
             @if($showQuantityColumn)

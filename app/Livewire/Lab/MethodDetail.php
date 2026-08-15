@@ -100,7 +100,7 @@ class MethodDetail extends Component
                 'name' => $this->methodForm['name'],
                 'code' => $this->methodForm['code'],
                 'description' => $this->methodForm['description'] ?: null,
-                'active' => $this->methodForm['active'] ? 1 : 0,
+                'active' => ($this->methodForm['active'] ?? true) ? 1 : 0,
                 'is_sampling_method' => $this->methodForm['is_sampling_method'] ? 1 : 0,
                 'is_ltm' => $this->methodForm['is_ltm'] ? 1 : 0,
             ]);

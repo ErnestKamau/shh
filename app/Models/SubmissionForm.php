@@ -110,16 +110,6 @@ class SubmissionForm extends Model implements Auditable
         );
     }
 
-    public function sampleTypes()
-    {
-        return $this->belongsToMany(
-            \App\SampleType::class,
-            'submission_form_sample_types',
-            'submission_form_id',
-            'sample_type_id'
-        );
-    }
-
     public function sampleTypeCategories()
     {
         return $this->belongsToMany(

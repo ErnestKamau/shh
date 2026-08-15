@@ -163,6 +163,13 @@
                     </div>
 
                     <div class="form-group row">
+                        <label class="col-sm-4 col-form-label">{{ __('crm.city') }}:</label>
+                        <div class="col-sm-8">
+                            @include('livewire.crm.partials.city-dropdown', ['country_id' => $country_id])
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
                         <label class="col-sm-4 col-form-label">{{ __('crm.company_address') }}: <span class="text-danger">*</span></label>
                         <div class="col-sm-8">
                             <input type="text" class="form-control @error('physical_address') is-invalid @enderror"
@@ -426,6 +433,10 @@
                         <tr>
                             <th style="width:35%;" scope="row">{{ __('crm.country') }}:</th>
                             <td>{{ $customer->country->name ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">{{ __('crm.city') }}:</th>
+                            <td>{{ $customer->city->name ?? '—' }}</td>
                         </tr>
                         <tr>
                             <th>{{ __('crm.company_address') }}:</th>

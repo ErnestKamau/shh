@@ -22,7 +22,7 @@ class StandardsController extends Controller
         $standards = Standards::all();
         $standard->code = $request->code;
         $standard->name = $request->name;
-				$standard->status = $request->active ?? 0;
+				$standard->status = $request->boolean('active', true) ? 1 : 0;
 
         if(isset($request->main_standard)){
             foreach($standards as $st){
@@ -63,7 +63,7 @@ class StandardsController extends Controller
         $standard_value = new StandardValue();
         $standard_value->code = $request->code;
         $standard_value->name = $request->name;
-				$standard_value->status = $request->active ?? 0;
+				$standard_value->status = $request->boolean('active', true) ? 1 : 0;
 
         $standard_value->save();
         return redirect()->back()->with('success','Standard Value added successfully!');

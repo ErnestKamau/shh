@@ -2,10 +2,13 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\SamplePoint;
 use App\Models\System\SystemConfiguration;
 use App\Models\SubmissionFormInstance;
+use App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use Carbon\Carbon;
@@ -56,7 +59,7 @@ class TestRequestFormReportDataBuilder
     public function buildFromSubmissionFormInstance(SubmissionFormInstance $instance, bool $forPdf = true): array
     {
         $instance->loadMissing([
-            'submissionForm.sampleTypes',
+            'submissionForm.sampleTypeCategories',
             'crmCustomer.contacts',
             'submittedBy',
             'values.element',
@@ -64,7 +67,9 @@ class TestRequestFormReportDataBuilder
         ]);
 
         $formData = app(SubmissionFormValueNormalizer::class)->valuesMapFromInstance($instance);
-        $sampleType = $instance->submissionForm?->sampleTypes->first();
+        $sampleType = $instance->submissionForm !== null
+            ? app(PortalTestRequestFormSampleTypeResolver::class)->resolveForForm($instance->submissionForm)->first()
+            : null;
 
         return $this->buildPayload(
             $formData,
@@ -384,19 +389,21 @@ class TestRequestFormReportDataBuilder
     {
         $crm = $submission?->crmCustomer;
         $resolvedContact = $this->resolveContactFromFormValue($formData['contact_person'] ?? null, $crm);
-        $fallbackContact = $resolvedContact ?? ($crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null);
+        $crm?->loadMissing(['mainContact', 'contacts']);
+        $fallbackContact = $resolvedContact ?? $crm?->mainContact ?? ($crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null);
 
-        $customerEmail = (string) ($formData['customer_email'] ?? $crm?->email ?? '');
+        $customerEmail = (string) ($formData['customer_email'] ?? $resolvedContact?->email ?? $fallbackContact?->email ?? $crm?->email ?? '');
 
         return [
             'job_number' => $this->resolveJobNumber($formData, $submission),
             'customer_name' => (string) ($formData['customer_name'] ?? $formData['client_name'] ?? $crm?->name ?? ''),
             'customer_address' => (string) ($formData['customer_address'] ?? $formData['address'] ?? $crm?->physical_address ?? $crm?->postal_address ?? ''),
-            'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
+            'company_unit_name' => $this->resolveCompanyUnitLabel((string) ($formData['company_unit_id'] ?? '')),
+            'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $resolvedContact?->telephone ?? $fallbackContact?->telephone ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
             'contact_person' => $this->formatContactName($resolvedContact) !== ''
                 ? $this->formatContactName($resolvedContact)
                 : $this->resolveContactPersonLabel((string) ($formData['contact_person'] ?? ''), $fallbackContact),
-            'mobile_number' => (string) ($formData['mobile_number'] ?? $resolvedContact?->mobile ?? $resolvedContact?->telephone ?? $fallbackContact?->mobile ?? $crm?->cell_phone ?? ''),
+            'mobile_number' => (string) ($formData['mobile_number'] ?? $resolvedContact?->mobile ?? $resolvedContact?->telephone ?? $fallbackContact?->mobile ?? $fallbackContact?->telephone ?? $crm?->telephone2 ?? $crm?->telephone1 ?? ''),
             'customer_tax_id' => '',
             'customer_email' => $customerEmail,
             'has_customer_extras' => $this->hasAnyFilledValues([$customerEmail]),
@@ -481,7 +488,7 @@ class TestRequestFormReportDataBuilder
             'sampling_date' => $this->formatOrdinalDate($formData['sampling_date'] ?? ''),
             'sampling_date_raw' => $this->formatDate($formData['sampling_date'] ?? ''),
             'sampling_time' => (string) ($formData['sampling_time'] ?? ''),
-            'sampling_location' => $this->resolveSamplePointLabel((string) ($formData['sampling_location'] ?? '')),
+            'sampling_location' => $this->resolveSamplePointDisplayLabel((string) ($formData['sampling_location'] ?? '')),
             'thermometer_id' => (string) ($formData['thermometer_id'] ?? ''),
             'sampling_apparatus' => self::normalizeCheckboxGroup($formData['sampling_apparatus'] ?? [], $options['sampling_apparatus']),
             'method_of_sampling' => self::normalizeCheckboxGroup($formData['method_of_sampling'] ?? [], $options['method_of_sampling']),
@@ -539,6 +546,28 @@ class TestRequestFormReportDataBuilder
                 ?? $row['location']
                 ?? ''
             ));
+
+            if ($variant === 'water') {
+                $testRequirementChecks = $this->resolveWaterTestRequirementChecks($row);
+                $normalized[] = [
+                    'serial' => $index + 1,
+                    'sample_no' => (string) ($row['sample_no'] ?? $row['lims_sample_no'] ?? ''),
+                    'sample_description' => $this->plainTextField($row['sample_description'] ?? ''),
+                    'qty' => $this->formatRowQuantity($row),
+                    'sampling_point' => trim((string) ($row['sampling_point_manual'] ?? $row['manual_sampling_point'] ?? '')),
+                    'ph' => (string) ($row['ph'] ?? $row['field_ph'] ?? ''),
+                    'appearance' => (string) ($row['appearance'] ?? $row['field_appearance'] ?? ''),
+                    'residual_chlorine' => (string) ($row['residual_chlorine'] ?? $row['field_residual_chlorine'] ?? ''),
+                    'odor' => (string) ($row['odor'] ?? $row['field_odor'] ?? ''),
+                    'sample_temp' => (string) ($row['sample_temp'] ?? $row['field_sample_temp'] ?? ''),
+                    'microbiology' => $testRequirementChecks['microbiology'],
+                    'legionella' => $testRequirementChecks['legionella'],
+                    'chemistry' => $testRequirementChecks['chemistry'],
+                ];
+
+                continue;
+            }
+
             $normalized[] = [
                 'serial' => $index + 1,
                 'sample_no' => (string) ($row['sample_no'] ?? $row['lims_sample_no'] ?? ''),
@@ -561,6 +590,46 @@ class TestRequestFormReportDataBuilder
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{microbiology: bool, legionella: bool, chemistry: bool}
+     */
+    private function resolveWaterTestRequirementChecks(array $row): array
+    {
+        $requirementSource = $row['test_requirements']
+            ?? $row['test_category']
+            ?? null;
+
+        if ($requirementSource === null || $requirementSource === '') {
+            if (
+                filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($row['chemistry'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($row['chemical_analysis'] ?? false, FILTER_VALIDATE_BOOLEAN)
+            ) {
+                return [
+                    'microbiology' => filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'legionella' => filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'chemistry' => filter_var($row['chemistry'] ?? $row['chemical_analysis'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                ];
+            }
+
+            return [
+                'microbiology' => false,
+                'legionella' => false,
+                'chemistry' => false,
+            ];
+        }
+
+        $tokens = SubmissionFormSchemaHelper::testCategoryTokens($requirementSource);
+
+        return [
+            'microbiology' => in_array('microbiology', $tokens, true),
+            'legionella' => in_array('legionella', $tokens, true),
+            'chemistry' => in_array('chemistry', $tokens, true),
+        ];
     }
 
     /**
@@ -776,10 +845,10 @@ class TestRequestFormReportDataBuilder
         return [
             'meta_rows' => $metaRows,
             'apparatus' => $apparatus,
-            'apparatus_ordered_keys' => ['STERILE BAG', 'GRABBER', 'STERILE BOTTLE', 'OTHERS'],
+            'apparatus_ordered_keys' => self::WATER_OPTIONS['sampling_apparatus'],
             'thermometer_id' => $thermometerId,
             'method' => $method,
-            'method_ordered_keys' => $methodOrderedKeys,
+            'method_ordered_keys' => self::WATER_OPTIONS['method_of_sampling'],
             'reason' => $reason,
             'reason_ordered_keys' => self::WATER_OPTIONS['reason_of_collection'],
             'transport' => $transport,
@@ -1095,6 +1164,48 @@ class TestRequestFormReportDataBuilder
         $name = trim((string) ($point->display_name ?? $point->name ?? ''));
 
         return $name !== '' ? $name : $value;
+    }
+
+    private function resolveSamplePointDisplayLabel(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (! Str::isUuid($value) && ! ctype_digit($value)) {
+            return $value;
+        }
+
+        $point = SamplePoint::query()->with('unit')->find($value);
+        if ($point === null) {
+            return $value;
+        }
+
+        $pointName = trim((string) ($point->display_name ?? $point->name ?? ''));
+        $unitName = trim((string) ($point->unit?->name ?? ''));
+
+        if ($unitName !== '' && $pointName !== '') {
+            return $unitName.', '.$pointName;
+        }
+
+        return $pointName !== '' ? $pointName : $value;
+    }
+
+    private function resolveCompanyUnitLabel(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (! Str::isUuid($value) && ! ctype_digit($value)) {
+            return $value;
+        }
+
+        $unitName = CRMCompanyUnit::query()->whereKey($value)->value('name');
+
+        return is_string($unitName) && trim($unitName) !== '' ? trim($unitName) : $value;
     }
 
     private function resolveContactFromFormValue(mixed $value, $crm): ?CustomerContact

@@ -120,6 +120,7 @@
                 @if($activeTab === 'tests')
                     @include('livewire.submission-forms.request-view.tabs.tests', [
                         'testSamplesCard' => $testSamplesCard,
+                        'canEditSampleRows' => $canEditSampleRows,
                         'acceptanceForm' => $acceptanceForm,
                         'boardStatus' => $boardStatus,
                         'attachmentInstances' => $attachmentInstances,
@@ -560,5 +561,398 @@
 
         $wire.call('submitQuotationAcceptanceSignature', requestViewQuotationPad.toDataURL('image/png'));
     }, true);
+
+    (function initSampleRowEditModalUi() {
+        if (window.__sampleRowEditModalUiBound) {
+            return;
+        }
+        window.__sampleRowEditModalUiBound = true;
+
+        const preloadTinyMce = () => {
+            if (typeof tinymce !== 'undefined' || document.querySelector('script[data-rft-tinymce]')) {
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = '/tinymce/tinymce.min.js';
+            script.dataset.rftTinymce = '1';
+            document.head.appendChild(script);
+        };
+
+        preloadTinyMce();
+
+        const modalDialog = () => document.querySelector('.rv-sample-row-edit-dialog');
+        let sampleRowModalPrepared = false;
+        const setModalLoading = (loading) => {
+            const dialog = modalDialog();
+            if (!dialog) {
+                return;
+            }
+
+            dialog.classList.toggle('is-ready', !loading);
+            dialog.setAttribute('aria-busy', loading ? 'true' : 'false');
+        };
+        const revealPreparedModal = () => {
+            if (!sampleRowModalPrepared || !modalDialog()) {
+                return;
+            }
+
+            setModalLoading(false);
+        };
+
+        const flushSampleRowRichText = () => {
+            if (typeof tinymce === 'undefined') {
+                return;
+            }
+
+            tinymce.triggerSave();
+            document.querySelectorAll('.rv-sample-row-edit-modal .sf-rich-text-livewire textarea[id]').forEach((textarea) => {
+                const editor = tinymce.get(textarea.id);
+                if (!editor) {
+                    return;
+                }
+
+                const alpineRoot = textarea.closest('[x-data]');
+                if (!alpineRoot || !window.Alpine) {
+                    return;
+                }
+
+                const state = Alpine.$data(alpineRoot);
+                if (state?.wireKey && typeof $wire?.set === 'function') {
+                    $wire.set(state.wireKey, editor.getContent(), false);
+                }
+            });
+        };
+
+        const flushSampleRowSelect2 = () => {
+            if (!window.jQuery?.fn?.select2) {
+                return;
+            }
+
+            window.jQuery('.rv-sample-row-edit-modal select.livewire-select2').each(function () {
+                const $el = window.jQuery(this);
+                const wireField = $el.data('wireField');
+                if (!wireField || typeof $wire?.set !== 'function') {
+                    return;
+                }
+
+                const val = $el.prop('multiple') ? ($el.val() || []) : ($el.val() || '');
+                $wire.set(wireField, val, false);
+            });
+        };
+
+        const bindSelect2LivewireSync = ($el) => {
+            $el.off('change.sampleRowEditSync select2:select.sampleRowEditSync select2:unselect.sampleRowEditSync select2:clear.sampleRowEditSync')
+                .on('change.sampleRowEditSync select2:select.sampleRowEditSync select2:unselect.sampleRowEditSync select2:clear.sampleRowEditSync', function () {
+                    const $select = window.jQuery(this);
+                    const wireField = $select.data('wireField');
+                    const isLive = String($select.data('selectLive')) === '1';
+
+                    if (!wireField || typeof $wire?.set !== 'function') {
+                        return;
+                    }
+
+                    const val = $select.prop('multiple') ? ($select.val() || []) : ($select.val() || '');
+                    $wire.set(wireField, val, isLive);
+                });
+        };
+
+        const readSelectedValues = (select) => {
+            const raw = select.dataset.selectedValues;
+            if (!raw) {
+                return select.multiple ? [] : [''];
+            }
+
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    return parsed.map((value) => String(value));
+                }
+            } catch (error) {
+                // ignore malformed JSON
+            }
+
+            return select.multiple ? [] : [''];
+        };
+
+        const initOneSelect2 = ($el) => {
+            if ($el.data('select2')) {
+                $el.select2('destroy');
+            }
+
+            $el.select2({
+                placeholder: $el.data('placeholder') || 'Select an option',
+                width: '100%',
+                allowClear: !$el.prop('multiple'),
+                closeOnSelect: !$el.prop('multiple'),
+                dropdownParent: $el.closest('.rv-modal').length ? $el.closest('.rv-modal') : window.jQuery(document.body),
+            });
+
+            const selectedValues = readSelectedValues($el.get(0));
+            if ($el.prop('multiple')) {
+                $el.val(selectedValues).trigger('change.select2');
+            } else {
+                $el.val(selectedValues[0] ?? '').trigger('change.select2');
+            }
+
+            bindSelect2LivewireSync($el);
+        };
+
+        const initSampleRowEditSelect2 = () => {
+            if (!window.jQuery?.fn?.select2) {
+                return;
+            }
+
+            window.jQuery('.rv-sample-row-edit-modal select.livewire-select2').each(function () {
+                initOneSelect2(window.jQuery(this));
+            });
+        };
+
+        const rebuildSelectOptions = (select, options, selectedValues) => {
+            const isMultiple = select.multiple;
+            select.innerHTML = '';
+
+            if (!isMultiple) {
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = '— Select —';
+                select.appendChild(emptyOption);
+            }
+
+            (options || []).forEach((option) => {
+                const node = document.createElement('option');
+                node.value = String(option.value ?? '');
+                node.textContent = String(option.label ?? option.value ?? '');
+                select.appendChild(node);
+            });
+
+            const $el = window.jQuery(select);
+            if ($el.data('select2')) {
+                $el.val(isMultiple ? selectedValues : (selectedValues[0] ?? '')).trigger('change.select2');
+            } else {
+                if (isMultiple) {
+                    Array.from(select.options).forEach((option) => {
+                        option.selected = selectedValues.includes(option.value);
+                    });
+                } else {
+                    select.value = selectedValues[0] ?? '';
+                }
+            }
+        };
+
+        const refreshSampleRowSelectOptions = (payload) => {
+            const detail = payload?.options !== undefined ? payload : (payload?.[0] ?? {});
+            const optionsByField = detail.options ?? {};
+            const cleared = Array.isArray(detail.cleared) ? detail.cleared : [];
+
+            cleared.forEach((fieldName) => {
+                const select = document.getElementById('edit-row-' + fieldName);
+                if (!select) {
+                    return;
+                }
+
+                const fieldOptions = optionsByField[fieldName] ?? [];
+                rebuildSelectOptions(select, fieldOptions, select.multiple ? [] : ['']);
+            });
+
+            Object.entries(optionsByField).forEach(([fieldName, fieldOptions]) => {
+                if (cleared.includes(fieldName)) {
+                    return;
+                }
+
+                const select = document.getElementById('edit-row-' + fieldName);
+                if (!select) {
+                    return;
+                }
+
+                const $el = window.jQuery(select);
+                const current = $el.prop('multiple') ? ($el.val() || []) : [($el.val() || '')];
+                rebuildSelectOptions(select, fieldOptions, current);
+            });
+        };
+
+        const waitForRichTextEditor = () => new Promise((resolve) => {
+            const textarea = document.querySelector('.rv-sample-row-edit-modal .sf-rich-text-livewire textarea[id]');
+            if (!textarea) {
+                resolve();
+                return;
+            }
+
+            const editorId = textarea.id;
+            const finish = () => resolve();
+
+            if (typeof tinymce !== 'undefined' && tinymce.get(editorId)) {
+                finish();
+                return;
+            }
+
+            const onReady = (event) => {
+                if (event.detail?.editorId === editorId) {
+                    window.removeEventListener('sample-row-rich-text-ready', onReady);
+                    finish();
+                }
+            };
+
+            window.addEventListener('sample-row-rich-text-ready', onReady);
+            setTimeout(() => {
+                window.removeEventListener('sample-row-rich-text-ready', onReady);
+                finish();
+            }, 4000);
+        });
+
+        const prepareSampleRowEditModal = () => {
+            sampleRowModalPrepared = false;
+            setModalLoading(true);
+
+            window.requestAnimationFrame(() => {
+                initSampleRowEditSelect2();
+
+                Promise.all([
+                    waitForRichTextEditor(),
+                    new Promise((resolve) => setTimeout(resolve, 80)),
+                ]).then(() => {
+                    sampleRowModalPrepared = true;
+                    setModalLoading(false);
+                });
+            });
+        };
+
+        const bootSampleRowEditModal = () => {
+            Livewire.on('sample-row-edit-modal-opened', () => {
+                setTimeout(prepareSampleRowEditModal, 100);
+            });
+
+            Livewire.on('sample-row-edit-modal-closed', () => {
+                sampleRowModalPrepared = false;
+                setModalLoading(true);
+
+                if (typeof tinymce !== 'undefined') {
+                    document.querySelectorAll('.rv-sample-row-edit-modal .sf-rich-text-livewire textarea[id]').forEach((textarea) => {
+                        if (tinymce.get(textarea.id)) {
+                            tinymce.remove('#' + textarea.id);
+                        }
+                    });
+                }
+
+                if (window.jQuery?.fn?.select2) {
+                    window.jQuery('.rv-sample-row-edit-modal select.livewire-select2').each(function () {
+                        const $el = window.jQuery(this);
+                        if ($el.data('select2')) {
+                            try {
+                                $el.select2('destroy');
+                            } catch (e) {
+                                // ignore
+                            }
+                        }
+                    });
+                }
+            });
+
+            Livewire.on('sample-row-select-options-refreshed', (payload) => {
+                refreshSampleRowSelectOptions(payload);
+                revealPreparedModal();
+            });
+
+            if (typeof Livewire.hook === 'function') {
+                Livewire.hook('commit', ({ succeed }) => {
+                    succeed(() => revealPreparedModal());
+                });
+            }
+
+            document.addEventListener('click', (event) => {
+                const saveButton = event.target.closest('[data-sample-row-save]');
+                if (!saveButton || !saveButton.closest('.rv-sample-row-edit-modal')) {
+                    return;
+                }
+
+                flushSampleRowSelect2();
+                flushSampleRowRichText();
+            }, true);
+        };
+
+        if (window.Livewire) {
+            bootSampleRowEditModal();
+        } else {
+            document.addEventListener('livewire:init', bootSampleRowEditModal);
+        }
+
+        const registerRftSampleDescriptionEditor = () => {
+            if (window.__rftSampleDescriptionEditorRegistered || !window.Alpine) {
+                return;
+            }
+
+            window.__rftSampleDescriptionEditorRegistered = true;
+
+            Alpine.data('rftSampleDescriptionEditor', (config) => ({
+                editorId: config.editorId,
+                wireKey: config.wireKey,
+                rowIndex: config.rowIndex ?? 0,
+                init() {
+                    this.$nextTick(() => this.mountEditor());
+                },
+                mountEditor() {
+                    if (typeof tinymce === 'undefined') {
+                        const existing = document.querySelector('script[data-rft-tinymce]');
+                        if (existing) {
+                            existing.addEventListener('load', () => this.initTiny(), { once: true });
+                            return;
+                        }
+
+                        const script = document.createElement('script');
+                        script.src = '/tinymce/tinymce.min.js';
+                        script.dataset.rftTinymce = '1';
+                        script.onload = () => this.initTiny();
+                        document.head.appendChild(script);
+                        return;
+                    }
+
+                    this.initTiny();
+                },
+                initTiny() {
+                    if (typeof tinymce === 'undefined') {
+                        return;
+                    }
+
+                    if (tinymce.get(this.editorId)) {
+                        tinymce.remove('#' + this.editorId);
+                    }
+
+                    const self = this;
+                    tinymce.init({
+                        selector: '#' + this.editorId,
+                        height: 160,
+                        menubar: false,
+                        statusbar: false,
+                        branding: false,
+                        plugins: 'lists',
+                        toolbar: 'bold italic underline | bullist numlist',
+                        setup(editor) {
+                            editor.on('init', () => {
+                                window.dispatchEvent(new CustomEvent('sample-row-rich-text-ready', {
+                                    detail: { editorId: self.editorId },
+                                }));
+                            });
+                            editor.on('change keyup blur', function () {
+                                if (self.$wire) {
+                                    self.$wire.set(self.wireKey, editor.getContent(), false);
+                                }
+                            });
+                        },
+                    });
+                },
+                destroy() {
+                    if (typeof tinymce !== 'undefined' && tinymce.get(this.editorId)) {
+                        tinymce.remove('#' + this.editorId);
+                    }
+                },
+            }));
+        };
+
+        if (window.Alpine) {
+            registerRftSampleDescriptionEditor();
+        } else {
+            document.addEventListener('alpine:init', registerRftSampleDescriptionEditor);
+        }
+    })();
 </script>
 @endscript

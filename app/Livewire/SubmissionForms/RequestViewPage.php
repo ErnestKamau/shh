@@ -22,10 +22,14 @@ use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Planner\SamplingScheduleTrfSync;
+use App\Services\SubmissionForm\PortalDynamicOptionsService;
 use App\Services\SubmissionForm\RequestViewPagePresenter;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
+use App\Services\SubmissionForm\SubmissionFormInstanceSampleRowUpdateService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
+use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
+use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -138,6 +142,21 @@ class RequestViewPage extends Component
     public bool $poRequiresPo = false;
 
     public string $poRuleMessage = '';
+
+    public bool $showSampleRowEditModal = false;
+
+    public ?int $editingRowIndex = null;
+
+    /** @var array<string, mixed> */
+    public array $editingRowFields = [];
+
+    /** @var list<array{id: string, name: string, label: string, element_type: string, required: bool, options: array<int|string, mixed>}> */
+    public array $editingRowFieldDefinitions = [];
+
+    /** @var array<string, list<array{value: mixed, label: string}>> */
+    public array $editingRowSelectOptions = [];
+
+    public string $editingRowCollectionSamplingLocation = '';
 
     public function mount(
         string $submissionFormId,
@@ -1018,6 +1037,377 @@ class RequestViewPage extends Component
         return app(SubmissionRequestSampleLineService::class)->linesForInstance($this->instance);
     }
 
+    public function openSampleRowEditor(int $rowIndex): void
+    {
+        $this->authorizeSampleRowEdit(auth()->user());
+
+        $presenter = $this->requestViewPresenter();
+        if (! $presenter->canEditSampleRows()) {
+            session()->flash('request_view_message', 'Sample rows can no longer be edited after reception.');
+
+            return;
+        }
+
+        try {
+            $service = app(SubmissionFormInstanceSampleRowUpdateService::class);
+            $this->editingRowIndex = $rowIndex;
+            $this->editingRowFieldDefinitions = $this->prepareSampleRowEditDefinitions(
+                $service->rowFieldDefinitions($this->submissionForm),
+            );
+            $this->editingRowFields = $service->rowValues($this->instance, $rowIndex);
+            $this->editingRowCollectionSamplingLocation = $service->collectionSamplingLocationLabel($this->instance);
+
+            foreach ($this->editingRowFieldDefinitions as $field) {
+                $name = (string) ($field['name'] ?? '');
+                $type = (string) ($field['element_type'] ?? '');
+
+                if ($name === '') {
+                    continue;
+                }
+
+                if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
+                    $this->editingRowFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
+                        $this->editingRowFields[$name] ?? null,
+                    );
+
+                    $this->ensureCheckboxOptionKeys($name, $field['options'] ?? []);
+                }
+
+                if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
+                    || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
+                    $this->editingRowFields[$name] = $this->normalizeRowSelectValues($this->editingRowFields[$name] ?? null);
+                }
+
+                if ($type === 'analysis_elements_select' || $name === 'parameters') {
+                    $current = $this->editingRowFields[$name] ?? '';
+                    if (is_string($current) && str_contains($current, ',')) {
+                        $this->editingRowFields[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
+                    } elseif (is_string($current) && $current !== '') {
+                        $this->editingRowFields[$name] = [$current];
+                    } elseif (! is_array($current)) {
+                        $this->editingRowFields[$name] = [];
+                    }
+                }
+            }
+
+            $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
+            $this->showSampleRowEditModal = true;
+            $this->dispatch('sample-row-edit-modal-opened');
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->closeSampleRowEditor();
+            session()->flash(
+                'request_view_message',
+                app()->isProduction()
+                    ? 'Unable to open the sample editor. Please contact support if this continues.'
+                    : 'Unable to open the sample editor: '.$exception->getMessage(),
+            );
+        }
+    }
+
+    public function closeSampleRowEditor(): void
+    {
+        $this->dispatch('sample-row-edit-modal-closed');
+        $this->showSampleRowEditModal = false;
+        $this->editingRowIndex = null;
+        $this->editingRowFields = [];
+        $this->editingRowFieldDefinitions = [];
+        $this->editingRowSelectOptions = [];
+        $this->editingRowCollectionSamplingLocation = '';
+    }
+
+    public function updated($property): void
+    {
+        if (! in_array($property, ['editingRowFields.sample_type_id', 'editingRowFields.analysis_type_id'], true)) {
+            return;
+        }
+
+        $cleared = [];
+
+        if ($property === 'editingRowFields.sample_type_id') {
+            $this->editingRowFields['analysis_type_id'] = [];
+            $this->editingRowFields['parameters'] = [];
+            $cleared = ['analysis_type_id', 'parameters'];
+        } elseif ($property === 'editingRowFields.analysis_type_id') {
+            $this->editingRowFields['parameters'] = [];
+            $cleared = ['parameters'];
+        }
+
+        $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
+
+        $this->dispatch(
+            'sample-row-select-options-refreshed',
+            options: $this->editingRowSelectOptions,
+            cleared: $cleared,
+        );
+
+        $this->skipRender();
+    }
+
+    public function saveSampleRow(): void
+    {
+        $this->authorizeSampleRowEdit(auth()->user());
+
+        $presenter = $this->requestViewPresenter();
+        if (! $presenter->canEditSampleRows()) {
+            session()->flash('request_view_message', 'Sample rows can no longer be edited after reception.');
+            $this->closeSampleRowEditor();
+
+            return;
+        }
+
+        if ($this->editingRowIndex === null) {
+            return;
+        }
+
+        $service = app(SubmissionFormInstanceSampleRowUpdateService::class);
+        $this->instance = $service->updateRow(
+            $this->instance,
+            $this->editingRowIndex,
+            $this->editingRowFields,
+        );
+
+        $this->commercialEnquiry = $this->instance->sampleSubmissionRequest
+            ?? SampleSubmissionRequest::query()
+                ->with(['currentQuotation', 'contact', 'customer'])
+                ->where('submission_form_instance_id', $this->instance->id)
+                ->first();
+
+        $this->closeSampleRowEditor();
+        session()->flash('request_view_message', 'Sample row updated successfully.');
+    }
+
+    public function isWaterTrf(): bool
+    {
+        $documentCode = trim((string) ($this->submissionForm->document_code ?? ''));
+
+        return $documentCode === TrfDocumentCodeForSampleType::WATER;
+    }
+
+    /**
+     * @return Collection<int, \App\ReportingUnit>
+     */
+    public function getReportingUnitsProperty(): Collection
+    {
+        return \App\ReportingUnit::query()->where('active', 1)->orderBy('name')->get();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function waterTestRequirementOptions(): array
+    {
+        return [
+            'microbiology' => 'Microbiology',
+            'legionella' => 'Legionella',
+            'chemistry' => 'Chemical Analysis',
+        ];
+    }
+
+    /**
+     * @param  list<array{id: string, name: string, label: string, element_type: string, required: bool, options: array<int|string, mixed>}>  $definitions
+     * @return list<array{id: string, name: string, label: string, element_type: string, required: bool, options: array<int|string, mixed>}>
+     */
+    private function prepareSampleRowEditDefinitions(array $definitions): array
+    {
+        if (! $this->isWaterTrf()) {
+            return $definitions;
+        }
+
+        $hasTestRequirements = false;
+
+        foreach ($definitions as $index => $definition) {
+            if (($definition['name'] ?? '') !== 'test_requirements') {
+                continue;
+            }
+
+            $hasTestRequirements = true;
+
+            if (($definition['options'] ?? []) === []) {
+                $definitions[$index]['options'] = $this->waterTestRequirementOptions();
+            }
+
+            $definitions[$index]['label'] = 'Test requirement';
+        }
+
+        if (! $hasTestRequirements) {
+            $definitions[] = [
+                'id' => '',
+                'name' => 'test_requirements',
+                'label' => 'Test requirement',
+                'element_type' => 'checkbox',
+                'required' => false,
+                'options' => $this->waterTestRequirementOptions(),
+            ];
+        }
+
+        return $definitions;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $options
+     */
+    private function ensureCheckboxOptionKeys(string $fieldName, array $options): void
+    {
+        if (! is_array($this->editingRowFields[$fieldName] ?? null)) {
+            $this->editingRowFields[$fieldName] = [];
+        }
+
+        foreach ($options as $optionValue => $optionLabel) {
+            if (is_array($optionLabel) && isset($optionLabel['value'])) {
+                $optionKey = (string) $optionLabel['value'];
+            } elseif (is_string($optionValue) && ! is_numeric($optionValue)) {
+                $optionKey = $optionValue;
+            } elseif (is_string($optionLabel)) {
+                $optionKey = $optionLabel;
+            } else {
+                continue;
+            }
+
+            if (! array_key_exists($optionKey, $this->editingRowFields[$fieldName])) {
+                $this->editingRowFields[$fieldName][$optionKey] = false;
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $rowFields
+     * @return array<string, list<array{value: mixed, label: string}>>
+     */
+    private function buildSampleRowSelectOptions(array $rowFields): array
+    {
+        $optionsService = app(PortalDynamicOptionsService::class);
+        $customerId = trim((string) ($this->instance->crm_customer_id ?? ''));
+        $sampleTypeIds = $this->normalizeRowSelectValues($rowFields['sample_type_id'] ?? null);
+        $analysisTypeIds = $this->normalizeRowSelectValues($rowFields['analysis_type_id'] ?? null);
+
+        $resolve = function (string $elementType, array $extra = []) use ($optionsService, $customerId, $sampleTypeIds, $analysisTypeIds): array {
+            $request = HttpRequest::create('/', 'GET', array_merge([
+                'element_type' => $elementType,
+                'client_id' => $customerId !== '' ? $customerId : null,
+                'sample_type_id' => $sampleTypeIds !== [] ? $sampleTypeIds : null,
+                'analysis_type_id' => $analysisTypeIds !== [] ? $analysisTypeIds : null,
+                'submission_form_id' => $this->submissionForm->id,
+            ], $extra));
+
+            try {
+                $payload = $optionsService->resolve($request, $customerId !== '' ? $customerId : null);
+            } catch (\Illuminate\Validation\ValidationException) {
+                return [];
+            }
+
+            return is_array($payload['options'] ?? null) ? $payload['options'] : [];
+        };
+
+        return [
+            'sample_type_id' => $this->mergeSelectedSelectOptions(
+                $resolve('sample_type_select'),
+                $this->normalizeRowSelectValues($rowFields['sample_type_id'] ?? null),
+                fn (string $id): ?string => \App\SampleType::query()->whereKey($id)->value('name'),
+            ),
+            'analysis_type_id' => $this->mergeSelectedSelectOptions(
+                $resolve('analysis_type_select'),
+                $this->normalizeRowSelectValues($rowFields['analysis_type_id'] ?? null),
+                fn (string $id): ?string => \App\AnalysisType::query()->whereKey($id)->value('name'),
+            ),
+            'parameters' => $this->mergeSelectedSelectOptions(
+                $resolve('analysis_elements_select'),
+                $this->normalizeRowSelectValues($rowFields['parameters'] ?? null),
+                fn (string $id): ?string => app(\App\Services\Lab\AnalysisReferenceLabelResolver::class)->resolveToken($id),
+            ),
+            'sampling_point' => $resolve('sample_point_select'),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeRowSelectValues(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(
+                static fn ($item): string => trim((string) $item),
+                $value,
+            ), static fn (string $token): bool => $token !== ''));
+        }
+
+        $string = trim((string) $value);
+        if ($string === '') {
+            return [];
+        }
+
+        if (str_contains($string, ',')) {
+            return array_values(array_filter(array_map('trim', explode(',', $string))));
+        }
+
+        return [$string];
+    }
+
+    /**
+     * @param  list<array{value: mixed, label: string}>  $options
+     * @param  list<string>  $selectedIds
+     * @param  callable(string): ?string  $labelResolver
+     * @return list<array{value: mixed, label: string}>
+     */
+    private function mergeSelectedSelectOptions(array $options, array $selectedIds, callable $labelResolver): array
+    {
+        $options = array_values(array_filter($options, is_array(...)));
+
+        if ($selectedIds === []) {
+            return $options;
+        }
+
+        $existing = collect($options)
+            ->mapWithKeys(fn (array $option): array => [(string) ($option['value'] ?? '') => $option]);
+
+        foreach ($selectedIds as $selectedId) {
+            if ($existing->has($selectedId)) {
+                continue;
+            }
+
+            $label = trim((string) ($labelResolver($selectedId) ?? ''));
+            $options[] = [
+                'value' => $selectedId,
+                'label' => $label !== '' ? $label : $selectedId,
+            ];
+        }
+
+        return $options;
+    }
+
+    private function requestViewPresenter(): RequestViewPagePresenter
+    {
+        return new RequestViewPagePresenter(
+            instance: $this->instance,
+            submissionForm: $this->submissionForm,
+            commercialEnquiry: $this->commercialEnquiry,
+            trfPdfUrl: $this->trfPdfUrl,
+            canCreateSamples: false,
+            linkedBatchesOutOfSyncWithForm: $this->linkedBatchesOutOfSyncWithForm,
+            showSampleCollectionLabel: $this->shouldShowSampleCollectionLabel(),
+            isTrfForm: $this->isTrfForm(),
+        );
+    }
+
+    private function authorizeSampleRowEdit(?\App\User $user): void
+    {
+        $this->authorizeFormAccess($user);
+
+        if ($user === null) {
+            abort(403, 'You are not authorized to edit sample rows.');
+        }
+
+        if (method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) {
+            return;
+        }
+
+        if ($user->can('submission-forms.process') || $user->can('laboratory.permission')) {
+            return;
+        }
+
+        abort(403, 'You are not authorized to edit sample rows.');
+    }
+
     /**
      * @return Collection<int, object{
      *     source: string,
@@ -1375,6 +1765,15 @@ class RequestViewPage extends Component
         $approvalService = app(QuotationApprovalService::class);
         $quotationApproverName = $approvalService->resolveApproverName($quotationHeader);
 
+        $user = auth()->user();
+        $canEditSampleRows = $presenter->canEditSampleRows()
+            && $user !== null
+            && (
+                (method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin())
+                || $user->can('submission-forms.process')
+                || $user->can('laboratory.permission')
+            );
+
         return view('livewire.submission-forms.request-view-page', [
             'formData' => $formData,
             'attachmentInstances' => $attachmentInstances,
@@ -1390,6 +1789,7 @@ class RequestViewPage extends Component
             'customerCard' => $sectionCards['customer'],
             'sectionCards' => $sectionCards['sections'],
             'testSamplesCard' => $presenter->testSamplesCard($sampleLines),
+            'canEditSampleRows' => $canEditSampleRows,
             'nextStepActions' => $presenter->nextStepActions($boardStatus),
             'boardStatus' => $boardStatus,
             'boardTab' => $this->workflowBoardTab(),

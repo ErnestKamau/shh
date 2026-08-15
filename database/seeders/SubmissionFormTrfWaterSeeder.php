@@ -20,11 +20,7 @@ class SubmissionFormTrfWaterSeeder extends Seeder
             'print_template_name' => 'layouts.lab.invoice.print-trf-amspec-water',
         ]);
 
-        $this->syncSampleTypesByCodes($form, ['WATER', 'WTR', 'SMP-WTR']);
-
-        if ($form->sampleTypes()->count() === 0) {
-            $this->syncSampleTypesByNamePatterns($form, ['potable']);
-        }
+        $this->syncSampleTypeCategoriesByNames($form, ['Water']);
 
         if ($form->sections()->exists()) {
             $this->command?->info('Test Request Form - Water structure already exists; patching fields.');

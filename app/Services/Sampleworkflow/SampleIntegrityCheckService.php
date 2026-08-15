@@ -359,6 +359,129 @@ final class SampleIntegrityCheckService
     }
 
     /**
+     * Test & sample information keyed by enquiry sample config id (integrity rail sample key).
+     *
+     * @param  list<array<string, mixed>>  $testRows
+     * @return array<string, array{
+     *     label: string,
+     *     sample_details: string,
+     *     details: list<array{label: string, value: string}>,
+     *     tests: list<string>
+     * }>
+     */
+    public function sampleInfoByConfigKey(
+        SubmissionFormInstance $instance,
+        ?SampleSubmissionRequest $enquiry,
+        array $testRows,
+    ): array {
+        if ($enquiry === null) {
+            return [];
+        }
+
+        $instance->loadMissing(['submissionForm', 'crmCustomer']);
+        $sampleLines = $this->sampleLineService->linesForInstance($instance);
+        $configs = $this->resolveConfigs($enquiry, $instance);
+
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $instance->submissionForm,
+            commercialEnquiry: $enquiry,
+            trfPdfUrl: null,
+            canCreateSamples: false,
+            linkedBatchesOutOfSyncWithForm: false,
+            showSampleCollectionLabel: false,
+            isTrfForm: false,
+        );
+
+        $testSamplesCard = $presenter->testSamplesCard($sampleLines);
+        $samplesByCustomerId = [];
+        $samplesByIndex = [];
+
+        foreach ($testSamplesCard['samples'] as $index => $sample) {
+            $samplesByIndex[$index] = $sample;
+            $customerSampleId = trim((string) ($sample['customer_sample_id'] ?? ''));
+            if ($customerSampleId !== '' && $customerSampleId !== '—') {
+                $samplesByCustomerId[mb_strtolower($customerSampleId)] = $sample;
+            }
+        }
+
+        /** @var array<string, list<string>> $testsByConfig */
+        $testsByConfig = [];
+        foreach ($testRows as $row) {
+            $configId = (string) ($row['config_id'] ?? '');
+            $testLabel = trim((string) ($row['test_label'] ?? ''));
+            if ($configId === '' || $testLabel === '') {
+                continue;
+            }
+
+            $testsByConfig[$configId][] = $testLabel;
+        }
+
+        foreach ($testsByConfig as $configId => $tests) {
+            $testsByConfig[$configId] = array_values(array_unique($tests));
+        }
+
+        $info = [];
+
+        foreach ($configs as $configIndex => $config) {
+            $configId = (string) ($config['id'] ?? '');
+            if ($configId === '') {
+                continue;
+            }
+
+            $customerSampleId = trim((string) ($config['customer_sample_id'] ?? ''));
+            $sampleMarking = trim((string) ($config['sample_marking'] ?? ''));
+
+            $matched = null;
+            if ($customerSampleId !== '' && isset($samplesByCustomerId[mb_strtolower($customerSampleId)])) {
+                $matched = $samplesByCustomerId[mb_strtolower($customerSampleId)];
+            } elseif ($sampleMarking !== '' && isset($samplesByCustomerId[mb_strtolower($sampleMarking)])) {
+                $matched = $samplesByCustomerId[mb_strtolower($sampleMarking)];
+            } elseif (isset($samplesByIndex[$configIndex])) {
+                $matched = $samplesByIndex[$configIndex];
+            }
+
+            $details = is_array($matched) && is_array($matched['details'] ?? null)
+                ? $matched['details']
+                : [];
+            $sampleDetails = '';
+            if (is_array($matched)) {
+                $sampleDetails = trim((string) ($matched['sample_description'] ?? ''));
+                if ($sampleDetails === '' || $sampleDetails === '—') {
+                    $sampleDetails = trim(strip_tags((string) ($matched['sample_description_html'] ?? '')));
+                }
+            }
+
+            $details = array_values(array_filter(
+                $details,
+                static fn (array $field): bool => ! in_array(
+                    mb_strtolower(trim((string) ($field['label'] ?? ''))),
+                    ['sample description', 'tests'],
+                    true
+                )
+            ));
+
+            $tests = $testsByConfig[$configId] ?? [];
+
+            if ($tests === [] && is_array($matched) && is_array($matched['test_codes'] ?? null)) {
+                $tests = array_values(array_filter(array_map(
+                    static fn (mixed $code): string => trim((string) $code),
+                    $matched['test_codes']
+                ), static fn (string $code): bool => $code !== ''));
+            }
+
+            $info[$configId] = [
+                'label' => $this->sampleLabelForConfig($config, $configIndex),
+                'sample_details' => $sampleDetails,
+                'details' => $details,
+                'tests' => $tests,
+            ];
+        }
+
+        return $info;
+    }
+
+    /**
      * @return array{fields: list<array{label: string, value: string, name: ?string}>, remarks: ?string}
      */
     public function requestInfoCard(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry): array

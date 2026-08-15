@@ -84,7 +84,7 @@ class TaxRegimeManager extends Component
         $this->taxForm = [
             'id' => $tax->id,
             'value' => $tax->value,
-            'active' => $tax->active,
+            'active' => (bool) $tax->active,
         ];
 
         $this->editingTax = true;
@@ -95,44 +95,50 @@ class TaxRegimeManager extends Component
     {
         $this->validate();
 
+        $isActive = filter_var($this->taxForm['active'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
         try {
             if ($this->editingTax) {
                 $tax = TaxRegime::findOrFail($this->taxForm['id']);
-                
-                // If setting as active, deactivate all others and set end_date
-                if ($this->taxForm['active']) {
-                    TaxRegime::where('active', 1)->update([
-                        'active' => 0,
-                        'end_date' => now()
-                    ]);
+
+                if ($isActive) {
+                    TaxRegime::query()
+                        ->where('active', 1)
+                        ->where('id', '!=', $tax->id)
+                        ->update([
+                            'active' => 0,
+                            'end_date' => now(),
+                        ]);
                 }
-                
+
                 $tax->update([
                     'value' => $this->taxForm['value'],
-                    'active' => $this->taxForm['active'],
-                    'end_date' => $this->taxForm['active'] ? null : $tax->end_date,
+                    'active' => $isActive,
+                    'end_date' => $isActive ? null : ($tax->end_date ?? now()),
                 ]);
-                
+
                 $this->message = 'Tax regime updated successfully!';
             } else {
-                // If setting as active, deactivate all others and set end_date
-                if ($this->taxForm['active']) {
-                    TaxRegime::where('active', 1)->update([
-                        'active' => 0,
-                        'end_date' => now()
-                    ]);
+                if ($isActive) {
+                    TaxRegime::query()
+                        ->where('active', 1)
+                        ->update([
+                            'active' => 0,
+                            'end_date' => now(),
+                        ]);
                 }
-                
+
                 TaxRegime::create([
                     'registered_by' => Auth::id(),
                     'value' => $this->taxForm['value'],
-                    'active' => $this->taxForm['active'],
+                    'active' => $isActive,
                     'end_date' => null,
                 ]);
-                
+
                 $this->message = 'Tax regime created successfully!';
             }
 
+            $this->statusFilter = $isActive ? '1' : '0';
             $this->messageType = 'success';
             $this->showTaxModal = false;
             $this->resetTaxForm();
@@ -175,7 +181,7 @@ class TaxRegimeManager extends Component
     {
         $this->taxForm = [
             'value' => 0,
-            'active' => false,
+            'active' => true,
         ];
         $this->resetValidation();
     }

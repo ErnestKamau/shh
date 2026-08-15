@@ -19,6 +19,11 @@
             return $content.length ? $content : $modal;
         }
 
+        var $rvModal = $el.closest('.rv-modal');
+        if ($rvModal.length) {
+            return $rvModal;
+        }
+
         var $wizard = $el.closest('.acc-wizard-modal, .acc-wizard-root');
         if ($wizard.length) {
             return $wizard;

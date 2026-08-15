@@ -29,7 +29,7 @@
                     <tr>
                         <th style="padding: 0.4rem 0.55rem; border-bottom: 1px solid #cbd5e1; color: #64748b; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.03em; width: 20%; vertical-align: middle;">Sample</th>
                         <th style="padding: 0.4rem 0.55rem; border-bottom: 1px solid #cbd5e1; color: #64748b; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.03em; width: 20%; vertical-align: middle;">Reporting Symbol</th>
-                        <th style="padding: 0.4rem 0.55rem; border-bottom: 1px solid #cbd5e1; color: #64748b; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.03em; width: 20%; vertical-align: middle;">Standard Limit</th>
+                        <th style="padding: 0.4rem 0.55rem; border-bottom: 1px solid #cbd5e1; color: #64748b; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.03em; width: 20%; vertical-align: middle;">Specification Limit</th>
                         <th style="padding: 0.4rem 0.55rem; border-bottom: 1px solid #cbd5e1; color: #64748b; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.03em; width: 20%; vertical-align: middle;">Result</th>
                         <th style="padding: 0.4rem 0.55rem; border-bottom: 1px solid #cbd5e1; color: #64748b; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.03em; width: 20%; vertical-align: middle;">Remark</th>
                     </tr>
@@ -66,7 +66,7 @@
                                     </select>
                                 </td>
                                 
-                                {{-- Standard Limit Column --}}
+                                {{-- Specification Limit Column --}}
                                 <td style="padding: 0.4rem 0.55rem; vertical-align: middle;">
                                     @php
                                         $displayLimit = $sample['standard_limit'] ?? $sample['standard_limit_text'] ?? '-';
@@ -88,7 +88,7 @@
                                                     data-captured-result-id="{{ $sample['captured_result_id'] }}"
                                                     data-standard-value-id="{{ $sample['standard_value_id'] ?? '' }}"
                                                     data-standard-limit-text="{{ $displayLimit !== '' ? $displayLimit : '' }}"
-                                                    title="Edit Standard Limit">
+                                                    title="Edit Specification Limit">
                                                 <i class="mdi mdi-pencil text-muted" style="font-size: 12px;"></i>
                                             </button>
                                         </div>

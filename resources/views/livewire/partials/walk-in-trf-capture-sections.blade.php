@@ -22,20 +22,18 @@
         'seal_number',
     ];
     $customerPrimaryFields = ['customer_name', 'client_name', 'customer', 'client'];
+    $customerCompanyUnitFields = ['company_unit_id'];
     $customerContactFields = ['contact_person'];
-    $customerAutofillFields = [
-        'customer_phone',
-        'tel_fax_no',
-        'phone',
-        'telephone',
-        'mobile_number',
-        'customer_address',
-        'address',
-        'physical_address',
-        'customer_email',
-        'email',
-        'email_address',
-    ];
+    $customerEmailFields = ['customer_email', 'email', 'email_address'];
+    $customerMobileFields = ['mobile_number'];
+    $customerPhoneFields = ['customer_phone', 'tel_fax_no', 'phone', 'telephone'];
+    $customerAddressFields = ['customer_address', 'address', 'physical_address'];
+    $customerAutofillFields = array_merge(
+        $customerEmailFields,
+        $customerMobileFields,
+        $customerPhoneFields,
+        $customerAddressFields,
+    );
     $activeSection = $walkInSections->values()->get($walkInActiveStepIndex);
     $isCustomerSection = ($activeSection->title ?? '') === 'Customer details';
     $useCardRows = (bool) ($this->pageMode ?? false);
@@ -168,76 +166,146 @@
                     ->flatMap(fn ($holder) => $holder->elements->sortBy('sort_order'))
                     ->reject(fn ($el) => $shouldOmitWalkInElement($el))
                     ->values();
-                $clientElement = $allElements->first(fn ($el) => in_array((string) $el->name, $customerPrimaryFields, true));
-                $contactElement = $allElements->first(fn ($el) => in_array((string) $el->name, $customerContactFields, true));
-                $autofillElements = $allElements
-                    ->filter(fn ($el) => in_array((string) $el->name, $customerAutofillFields, true))
-                    ->unique(fn ($el) => (string) $el->name)
-                    ->values();
+
+                $findCustomerElement = static function (array $names) use ($allElements) {
+                    return $allElements->first(fn ($el) => in_array((string) ($el->name ?? ''), $names, true));
+                };
+
+                $clientElement = $findCustomerElement($customerPrimaryFields);
+                $companyUnitElement = $findCustomerElement($customerCompanyUnitFields);
+                $contactElement = $findCustomerElement($customerContactFields);
+                $emailElement = $findCustomerElement($customerEmailFields);
+                $mobileElement = $findCustomerElement($customerMobileFields);
+                $phoneElement = $findCustomerElement($customerPhoneFields);
+                $addressElement = $findCustomerElement($customerAddressFields);
+
+                $placedCustomerFieldNames = array_merge(
+                    $customerPrimaryFields,
+                    $customerCompanyUnitFields,
+                    $customerContactFields,
+                    $customerAutofillFields,
+                );
                 $remainingElements = $allElements
-                    ->filter(function ($el) use ($customerPrimaryFields, $customerContactFields, $customerAutofillFields) {
+                    ->filter(function ($el) use ($placedCustomerFieldNames) {
                         $elementName = (string) ($el->name ?? '');
 
                         return $elementName !== ''
-                            && ! in_array($elementName, $customerPrimaryFields, true)
-                            && ! in_array($elementName, $customerContactFields, true)
-                            && ! in_array($elementName, $customerAutofillFields, true);
+                            && ! in_array($elementName, $placedCustomerFieldNames, true);
                     })
                     ->unique(fn ($el) => (string) $el->name)
                     ->values();
             @endphp
-            <div class="row">
+
+            <div class="row rft-customer-grid-row">
                 @if($clientElement)
-                    <div class="col-md-6 mb-3" wire:key="field-{{ $clientElement->id }}">
+                    <div class="col-md-4 mb-3" wire:key="field-{{ $clientElement->id }}">
                         @include('livewire.sampleworkflow.test-request-field-render', [
                             'field' => array_merge($fieldMapper->toField($clientElement), ['label' => 'Client']),
                         ])
                     </div>
                 @endif
+                @if($companyUnitElement)
+                    <div class="col-md-4 mb-3" wire:key="field-{{ $companyUnitElement->id }}">
+                        @include('livewire.sampleworkflow.test-request-field-render', [
+                            'field' => $fieldMapper->toField($companyUnitElement),
+                        ])
+                    </div>
+                @endif
                 @if($contactElement)
-                    <div class="col-md-6 mb-3" wire:key="field-{{ $contactElement->id }}">
+                    <div class="col-md-4 mb-3" wire:key="field-{{ $contactElement->id }}">
                         @include('livewire.sampleworkflow.test-request-field-render', [
                             'field' => $fieldMapper->toField($contactElement),
                         ])
                     </div>
                 @endif
             </div>
-            <div class="row">
-                @foreach($autofillElements as $element)
-                    <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
+
+            <div class="row rft-customer-grid-row">
+                @if($emailElement)
+                    <div class="col-md-4 mb-3" wire:key="field-{{ $emailElement->id }}">
                         @include('livewire.sampleworkflow.test-request-field-render', [
-                            'field' => array_merge($fieldMapper->toField($element), ['readonly' => true]),
+                            'field' => array_merge($fieldMapper->toField($emailElement), ['readonly' => true]),
                         ])
                     </div>
-                @endforeach
-            </div>
-            {{-- Render any remaining customer fields not covered above --}}
-            <div class="row">
-                @foreach($remainingElements as $element)
-                    <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
+                @endif
+                @if($mobileElement)
+                    <div class="col-md-4 mb-3" wire:key="field-{{ $mobileElement->id }}">
                         @include('livewire.sampleworkflow.test-request-field-render', [
-                            'field' => $fieldMapper->toField($element),
+                            'field' => array_merge($fieldMapper->toField($mobileElement), ['readonly' => true]),
                         ])
                     </div>
-                @endforeach
+                @endif
+                @if($phoneElement)
+                    <div class="col-md-4 mb-3" wire:key="field-{{ $phoneElement->id }}">
+                        @include('livewire.sampleworkflow.test-request-field-render', [
+                            'field' => array_merge($fieldMapper->toField($phoneElement), ['readonly' => true]),
+                        ])
+                    </div>
+                @endif
             </div>
-        @else
-            <div class="row">
-                @foreach($activeSection->elementHolders->sortBy('sort_order') as $holder)
-                    @foreach($holder->elements->sortBy('sort_order') as $element)
-                        @php
-                            $elementName = (string) ($element->name ?? '');
-                            $hideInCollectionSection = ($activeSection->title ?? '') === 'Sample collection data'
-                                && in_array($elementName, $miscellaneousOnlyTrfFieldNames, true);
-                        @endphp
-                        @if(! $shouldOmitWalkInElement($element) && ! $hideInCollectionSection)
-                            <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
-                                @include('livewire.sampleworkflow.test-request-field-render', [
-                                    'field' => $fieldMapper->toField($element),
-                                ])
-                            </div>
-                        @endif
+
+            @if($addressElement)
+                <div class="row">
+                    <div class="col-12 mb-3" wire:key="field-{{ $addressElement->id }}">
+                        @include('livewire.sampleworkflow.test-request-field-render', [
+                            'field' => array_merge($fieldMapper->toField($addressElement), ['readonly' => true]),
+                        ])
+                    </div>
+                </div>
+            @endif
+
+            @if($remainingElements->isNotEmpty())
+                <div class="row">
+                    @foreach($remainingElements as $element)
+                        <div class="col-md-4 mb-3" wire:key="field-{{ $element->id }}">
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => $fieldMapper->toField($element),
+                            ])
+                        </div>
                     @endforeach
+                </div>
+            @endif
+        @else
+            @php
+                $isCollectionSection = ($activeSection->title ?? '') === 'Sample collection data';
+                $regularElements = $activeSection->elementHolders
+                    ->sortBy('sort_order')
+                    ->flatMap(fn ($holder) => $holder->elements->sortBy('sort_order'))
+                    ->reject(fn ($el) => $shouldOmitWalkInElement($el))
+                    ->reject(function ($el) use ($activeSection, $miscellaneousOnlyTrfFieldNames): bool {
+                        $elementName = (string) ($el->name ?? '');
+                        $hideInCollectionSection = ($activeSection->title ?? '') === 'Sample collection data'
+                            && in_array($elementName, $miscellaneousOnlyTrfFieldNames, true);
+
+                        return $hideInCollectionSection;
+                    })
+                    ->values();
+                $thermometerElement = $isCollectionSection
+                    ? $regularElements->first(fn ($el) => (string) ($el->name ?? '') === 'thermometer_id')
+                    : null;
+            @endphp
+            <div class="row">
+                @foreach($regularElements as $element)
+                    @php
+                        $elementName = (string) ($element->name ?? '');
+                        if ($isCollectionSection && $elementName === 'thermometer_id') {
+                            continue;
+                        }
+                    @endphp
+                    @if(! $shouldOmitWalkInElement($element))
+                        <div class="col-md-6 mb-3" wire:key="field-{{ $element->id }}">
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => $fieldMapper->toField($element),
+                            ])
+                            @if($isCollectionSection && $elementName === 'sampling_apparatus' && $thermometerElement)
+                                <div class="mt-2" wire:key="field-{{ $thermometerElement->id }}-nested">
+                                    @include('livewire.sampleworkflow.test-request-field-render', [
+                                        'field' => $fieldMapper->toField($thermometerElement),
+                                    ])
+                                </div>
+                            @endif
+                        </div>
+                    @endif
                 @endforeach
             </div>
         @endif

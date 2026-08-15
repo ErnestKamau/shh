@@ -61,16 +61,16 @@
                                 </a>
                             </li>
                             <li class="crm-tab-item">
+                                <a class="crm-tab-link {{ $activeTab == 'contacts' ? 'active' : '' }}"
+                                    wire:click.prevent="switchTab('contacts')" href="#Contacts" role="tab">
+                                    <i class="mdi mdi-account-box-outline"></i> {{ __('crm.contacts') }}
+                                </a>
+                            </li>
+                            <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'sample-points' ? 'active' : '' }}"
                                     wire:click.prevent="switchTab('sample-points')" href="#Sample-Points" role="tab">
                                     <i class="mdi mdi-map-marker"></i>
                                     {{ trim($customer->sample_point_configurable_name) != "" ? $customer->sample_point_configurable_name : __('crm.sample_points') }}
-                                </a>
-                            </li>
-                            <li class="crm-tab-item">
-                                <a class="crm-tab-link {{ $activeTab == 'contacts' ? 'active' : '' }}"
-                                    wire:click.prevent="switchTab('contacts')" href="#Contacts" role="tab">
-                                    <i class="mdi mdi-account-box-outline"></i> {{ __('crm.contacts') }}
                                 </a>
                             </li>
                             <li class="crm-tab-item">

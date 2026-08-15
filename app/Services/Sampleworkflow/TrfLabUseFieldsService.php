@@ -73,7 +73,7 @@ final class TrfLabUseFieldsService
         });
 
         try {
-            $this->pdfService->generateAndStore($instance->fresh(['values.element', 'submissionForm.sampleTypes']));
+            $this->pdfService->generateAndStore($instance->fresh(['values.element', 'submissionForm.sampleTypeCategories']));
         } catch (\Throwable) {
             // PDF regeneration failure must not block the check-in flow.
         }

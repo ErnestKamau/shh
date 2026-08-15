@@ -213,9 +213,9 @@
                             </div>
 
                             <div class="form-check p-3 bg-light rounded">
-                                <input class="form-check-input" 
-                                       type="checkbox" 
-                                       wire:model="taxForm.active" 
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       wire:model.live="taxForm.active"
                                        id="active">
                                 <label class="form-check-label fw-bold" for="active">
                                     <i class="mdi mdi-check-circle text-success"></i> Set as Active Tax Rate

@@ -1127,8 +1127,21 @@ final class QuotationFromEnquiryService
             $contact->middle_name ?? '',
             $contact->last_name ?? '',
         ])));
+        $acceptUrl = app(QuotationEmailActionService::class)->acceptanceUrl(
+            $enquiry,
+            $header,
+            (string) $contact->id,
+        );
+        $previewUrl = app(QuotationReportService::class)->resolveReportViewUrl($header);
         $message = 'Quotation '.$header->quote_number.' has been sent to you from '.($company->name ?? 'GCLA').'. Kindly find it attached.';
-        $body = 'Hi '.$name.', <br>'.$message.'<br>Regards,<br>'.($company->name ?? 'GCLA');
+        $body = 'Hi '.$name.', <br>'.$message
+            .'<br><br><a href="'.e($acceptUrl).'" '
+            .'style="display:inline-block;padding:10px 18px;background:#16a34a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">'
+            .'Accept quotation</a>'
+            .' &nbsp; <a href="'.e($previewUrl).'" '
+            .'style="display:inline-block;padding:10px 18px;background:#64748b;color:#fff;text-decoration:none;border-radius:6px;">'
+            .'View online</a>'
+            .'<br>Regards,<br>'.($company->name ?? 'GCLA');
         $subject = '['.($company->name ?? 'GCLA').'] Quotation '.$header->quote_number;
         $file = storage_path('app'.$header->upload_url);
         notify_user($body, $contact->email, $subject, $file);
@@ -1200,7 +1213,9 @@ final class QuotationFromEnquiryService
                     'signer_name' => $signerName,
                     'contact_id' => $acceptance['contact_id'] ?? null,
                     'signed_at' => $signedAt,
-                    'channel' => QuotationHeader::ACCEPTANCE_CHANNEL_WALK_IN,
+                    'channel' => filled($acceptance['channel'] ?? null)
+                        ? (string) $acceptance['channel']
+                        : QuotationHeader::ACCEPTANCE_CHANNEL_WALK_IN,
                 ],
                 acceptedAt: $acceptedAt,
                 linkSource: EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,

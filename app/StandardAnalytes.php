@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Concerns\DefaultsActiveOnCreate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -9,6 +10,7 @@ use App\Analyte;
 
 class StandardAnalytes extends Model implements Auditable
 {
+    use DefaultsActiveOnCreate;
     use HasUuids;
 
     protected $keyType = 'string';
@@ -24,6 +26,11 @@ class StandardAnalytes extends Model implements Auditable
         'matrix_operator', 'matrix_value'
     ];
     protected $appends = ['analytename'];
+
+    protected function activeDefaultColumn(): string
+    {
+        return 'is_active';
+    }
 
     public function getAnalyte(){
         return Analyte::find($this->analyte_id);

@@ -50,6 +50,7 @@ class CustomerProfile extends Component
         'telephone1' => '',
         'telephone2' => '',
         'country_id' => null,
+        'city_id' => null,
         'credit_days' => null,
         'payment_terms_note' => '',
         'payment_method' => null,
@@ -73,9 +74,12 @@ class CustomerProfile extends Component
 
     // Custom dropdown state
     public $countrySearch = '';
+    public $citySearch = '';
     public $accountSearch = '';
     public $showCountryDropdown = false;
+    public $showCityDropdown = false;
     public $showAccountDropdown = false;
+    public $cities = [];
 
     // UI State
     public $loading = false;
@@ -103,6 +107,16 @@ class CustomerProfile extends Component
             'customerForm.email' => 'required|email|max:255',
             'customerForm.telephone1' => 'required|string|max:50',
             'customerForm.country_id' => 'required|exists:countries,id',
+            'customerForm.city_id' => [
+                'nullable',
+                'string',
+                Rule::exists('cities', 'id')->where(function ($query) {
+                    $countryId = $this->customerForm['country_id'] ?? null;
+                    if ($countryId) {
+                        $query->where('country_id', $countryId);
+                    }
+                }),
+            ],
             'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
             'customerForm.credit_days' => $terms['billing_type'] === 'other'
                 ? 'required|integer|min:0|max:3650'
@@ -166,6 +180,7 @@ class CustomerProfile extends Component
             'telephone1' => $this->customer->telephone1,
             'telephone2' => $this->customer->telephone2 ?? '',
             'country_id' => $this->customer->country_id,
+            'city_id' => $this->customer->city_id,
             'credit_days' => $this->customer->credit_days,
             'payment_terms_note' => $this->customer->payment_terms_note ?? '',
             'payment_method' => $this->customer->payment_method,
@@ -179,6 +194,7 @@ class CustomerProfile extends Component
         ];
 
         $this->hydrateDropdownLabels();
+        $this->loadCitiesForSelectedCountry();
     }
 
     protected function hydrateDropdownLabels(): void
@@ -283,7 +299,9 @@ class CustomerProfile extends Component
             return null;
         }
 
-        return collect($this->countries)->firstWhere('id', (int) $this->customerForm['country_id']);
+        return collect($this->countries)->first(
+            fn ($country) => (string) data_get($country, 'id') === (string) $this->customerForm['country_id']
+        );
     }
 
     public function getFilteredCountriesProperty()
@@ -304,20 +322,85 @@ class CustomerProfile extends Component
 
     public function selectCountry($countryId): void
     {
-        $country = collect($this->countries)->firstWhere('id', (int) $countryId);
+        $country = collect($this->countries)->first(
+            fn ($c) => (string) data_get($c, 'id') === (string) $countryId
+        );
 
         if ($country) {
-            $this->customerForm['country_id'] = (int) data_get($country, 'id');
+            $this->customerForm['country_id'] = (string) data_get($country, 'id');
+            $this->customerForm['city_id'] = null;
             $this->countrySearch = (string) data_get($country, 'name', '');
+            $this->citySearch = '';
             $this->showCountryDropdown = false;
+            $this->showCityDropdown = false;
+            $this->loadCitiesForSelectedCountry();
         }
     }
 
     public function clearCountry(): void
     {
         $this->customerForm['country_id'] = null;
+        $this->customerForm['city_id'] = null;
         $this->countrySearch = '';
+        $this->citySearch = '';
+        $this->cities = [];
         $this->showCountryDropdown = true;
+        $this->showCityDropdown = false;
+    }
+
+    public function selectCity($cityId): void
+    {
+        $this->customerForm['city_id'] = $cityId ?: null;
+        $this->citySearch = '';
+        $this->showCityDropdown = false;
+    }
+
+    public function clearCity(): void
+    {
+        $this->customerForm['city_id'] = null;
+        $this->citySearch = '';
+        $this->showCityDropdown = false;
+    }
+
+    public function loadCitiesForSelectedCountry(): void
+    {
+        $countryId = $this->customerForm['country_id'] ?? null;
+        if (! $countryId) {
+            $this->cities = [];
+
+            return;
+        }
+
+        $this->cities = \App\City::query()
+            ->where('country_id', $countryId)
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'country_id']);
+    }
+
+    public function getSelectedCityProperty()
+    {
+        $cityId = $this->customerForm['city_id'] ?? null;
+        if (! $cityId) {
+            return null;
+        }
+
+        return collect($this->cities)->first(
+            fn ($city) => (string) data_get($city, 'id') === (string) $cityId
+        );
+    }
+
+    public function getFilteredCitiesProperty()
+    {
+        $search = strtolower(trim($this->citySearch));
+        $cities = collect($this->cities);
+        if ($search === '') {
+            return $cities->values();
+        }
+
+        return $cities
+            ->filter(fn ($city) => str_contains(strtolower((string) data_get($city, 'name', '')), $search))
+            ->values();
     }
 
     public function getSelectedAccountProperty()
@@ -413,6 +496,7 @@ class CustomerProfile extends Component
             $this->customer->telephone1 = $this->customerForm['telephone1'];
             $this->customer->telephone2 = $this->customerForm['telephone2'];
             $this->customer->country_id = $this->customerForm['country_id'];
+            $this->customer->city_id = $this->customerForm['city_id'] ?: null;
             $this->customer->active = $this->customerForm['active'] ? 1 : 0;
             $this->customer->account_status = $this->customerForm['account_status'];
             app(AccountPaymentTermsService::class)->syncCustomerFromAccountSetting(

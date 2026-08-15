@@ -8,18 +8,21 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-scale text-primary"></i>
-                                Standards Management
+                                Specifications Management
                             </h2>
-                            <p class="text-muted mb-0">Manage standards and standard values</p>
+                            <p class="text-muted mb-0">Manage specifications and specification values</p>
                         </div>
                         <div class="btn-group">
                             @if($activeTab === 'standards')
+                                <button wire:click="openBulkUploadModal" class="btn btn-outline-success">
+                                    <i class="mdi mdi-upload"></i> Bulk Import
+                                </button>
                                 <button wire:click="showCreateStandardModal" class="btn btn-primary">
-                                    <i class="mdi mdi-plus"></i> Add Standard
+                                    <i class="mdi mdi-plus"></i> Add Specification
                                 </button>
                             @else
                                 <button wire:click="showCreateStandardValueModal" class="btn btn-primary">
-                                    <i class="mdi mdi-plus"></i> Add Standard Value
+                                    <i class="mdi mdi-plus"></i> Add Specification Value
                                 </button>
                             @endif
                         </div>
@@ -51,7 +54,7 @@
                                     <i class="mdi mdi-scale"></i>
                                 </div>
                                 <div class="tab-content">
-                                    <span class="tab-title">Standards</span>
+                                    <span class="tab-title">Specifications</span>
                                     <span class="tab-subtitle">Manage standards</span>
                                 </div>
                             </button>
@@ -62,7 +65,7 @@
                                     <i class="mdi mdi-numeric"></i>
                                 </div>
                                 <div class="tab-content">
-                                    <span class="tab-title">Standard Values</span>
+                                    <span class="tab-title">Specification Values</span>
                                     <span class="tab-subtitle">Manage standard values</span>
                                 </div>
                             </button>
@@ -146,7 +149,7 @@
                                             <th>Code</th>
                                             <th>Name</th>
                                             <th>Type</th>
-                                            <th>Standard Analytes</th>
+                                            <th>Specification Analytes</th>
                                             <th>Status</th>
                                             <th>Actions</th>
                                         </tr>
@@ -184,7 +187,7 @@
                                                     <div class="d-flex flex-wrap">
                                                         <a href="{{ route('livewire.standard-analytes', ['standardId' => $standard->id]) }}"
                                                            class="btn btn-sm rm-act-btn rm-act-btn--view"
-                                                           title="View Standard Analytes">
+                                                           title="View Specification Analytes">
                                                             <i class="mdi mdi-eye"></i>
                                                         </a>
                                                         <button wire:click="showEditStandardModal(@js($standard->id))"
@@ -315,7 +318,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingStandard ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingStandard ? 'Edit' : 'Create' }} Standard
+                            {{ $editingStandard ? 'Edit' : 'Create' }} Specification
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeStandardModal"></button>
                     </div>
@@ -342,7 +345,7 @@
                                     <div class="form-group mb-3">
                                         <div class="form-check">
                                             <input type="checkbox" wire:model="standardForm.main_standard" class="form-check-input" id="main_standard">
-                                            <label class="form-check-label" for="main_standard">Main Standard</label>
+                                            <label class="form-check-label" for="main_standard">Main Specification</label>
                                         </div>
                                     </div>
                                 </div>
@@ -386,7 +389,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingStandardValue ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingStandardValue ? 'Edit' : 'Create' }} Standard Value
+                            {{ $editingStandardValue ? 'Edit' : 'Create' }} Specification Value
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeStandardValueModal"></button>
                     </div>
@@ -850,4 +853,37 @@
         }
     });
     </script>
+
+    @if($showBulkUploadModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;" wire:key="standards-bulk-upload-modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius: 12px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="mdi mdi-upload"></i> Bulk Import Specifications</h5>
+                        <button type="button" class="btn-close" wire:click="closeBulkUploadModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Import specifications and specification analyte limits. Repeat standard_code on the first row only; leave it blank on subsequent analyte rows for the same specification.</p>
+                        <button type="button" wire:click="downloadTemplate" class="btn btn-outline-primary btn-sm mb-3">
+                            <i class="mdi mdi-download"></i> Download Template
+                        </button>
+                        <form wire:submit.prevent="processBulkUpload">
+                            <div class="form-group">
+                                <label class="form-label">Upload file</label>
+                                <input type="file" wire:model="bulkFile" class="form-control" accept=".xlsx,.xls,.csv">
+                                @error('bulkFile') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeBulkUploadModal">Cancel</button>
+                        <button type="button" class="btn btn-success" wire:click="processBulkUpload" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="processBulkUpload"><i class="mdi mdi-upload"></i> Import</span>
+                            <span wire:loading wire:target="processBulkUpload"><i class="mdi mdi-loading mdi-spin"></i> Importing...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

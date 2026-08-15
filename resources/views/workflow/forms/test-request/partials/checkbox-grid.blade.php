@@ -41,7 +41,7 @@
         if (! $sectionFit) {
             $gridClass .= ' trf-check-grid-bordered';
         }
-        if (in_array($size, ['compact', 'normal', 'relaxed'], true)) {
+        if (in_array($size, ['compact', 'normal', 'relaxed', 'water-collection'], true)) {
             $gridClass .= ' trf-check-grid-'.$size;
         } elseif ($compact) {
             $gridClass .= ' trf-check-grid-compact';
@@ -59,6 +59,7 @@
     $gridLine = '#000';
     $sizeStyles = [
         'compact' => 'padding:0 2px;font-size:5.5pt;line-height:1.05;vertical-align:top;text-align:left;background:#fff;min-height:10px;height:10px;',
+        'water-collection' => 'padding:2px 3px;font-size:7.5pt;line-height:1.15;vertical-align:top;text-align:left;background:#fff;min-height:14px;height:14px;',
         'normal' => 'padding:2px 3px;font-size:7pt;line-height:1.2;vertical-align:top;text-align:left;background:#fff;min-height:14px;height:14px;',
         'relaxed' => 'padding:3px 4px;font-size:7.5pt;line-height:1.25;vertical-align:top;text-align:left;background:#fff;min-height:18px;height:18px;',
     ];

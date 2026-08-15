@@ -1065,10 +1065,11 @@ class SampleCreationService
             }
         }
 
-        // 2. Try to get from form template sample types pivot
-        $formSampleTypes = $instance->submissionForm->sampleTypes;
-        if ($formSampleTypes->count() === 1) {
-            return (string) $formSampleTypes->first()->id;
+        // 2. Try to get from form template category bindings
+        $resolved = app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)
+            ->resolveForForm($instance->submissionForm);
+        if ($resolved->count() === 1) {
+            return (string) $resolved->first()->id;
         }
 
         return null;

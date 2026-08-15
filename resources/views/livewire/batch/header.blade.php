@@ -764,7 +764,7 @@
 
                                 <div class="form-row">
                                     <div class="form-group col-md-6">
-                                        <label class="text-muted small modal-label-small">Main Standard</label>
+                                        <label class="text-muted small modal-label-small">Specification</label>
                                         <select class="form-control form-control-modern"
                                             wire:model="bulkData.main_standard">
                                             <option value="">-- No Change --</option>
@@ -774,7 +774,7 @@
                                         </select>
                                     </div>
                                     <div class="form-group col-md-6">
-                                        <label class="text-muted small modal-label-small">Secondary Standard</label>
+                                        <label class="text-muted small modal-label-small">Secondary Specification</label>
                                         <select class="form-control form-control-modern"
                                             wire:model="bulkData.secondary_standard">
                                             <option value="">-- No Change --</option>

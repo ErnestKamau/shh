@@ -268,10 +268,10 @@
                         <th style="min-width: 150px;">Sample Type</th>
                         <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
                         <th style="min-width: 130px;">
-                            Main Standard<sup class="text-danger">*</sup>
+                            Specification<sup class="text-danger">*</sup>
                         </th>
                         <th style="min-width: 130px;">
-                            Secondary Standard
+                            Secondary Specification
                         </th>
                         <th style="min-width: 120px;">Condition</th>
                         <th style="min-width: 150px;">
@@ -505,7 +505,7 @@
                             @endif
                         </td>
 
-                        {{-- Main Standard --}}
+                        {{-- Specification --}}
                         <td>
                             <select class="form-control form-control-sm modern-select no-select2"
                                 wire:model="sampleForms.{{ $index }}.main_standard" required>
@@ -519,7 +519,7 @@
                             @enderror
                         </td>
 
-                        {{-- Secondary Standard --}}
+                        {{-- Secondary Specification --}}
                         <td>
                             <select class="form-control form-control-sm modern-select no-select2"
                                 wire:model="sampleForms.{{ $index }}.secondary_standard">
@@ -1019,7 +1019,7 @@
                                     @if($uncertaintyRequired)
                                     <th style="min-width: 80px;">M.U.</th>
                                     @endif
-                                    <th style="min-width: 110px;">Standard</th>
+                                    <th style="min-width: 110px;">Spec limit</th>
                                     <th style="min-width: 180px;">Remark</th>
                                     <th style="min-width: 100px;">Unit</th>
                                     <th style="min-width: 120px;">Operator</th>
@@ -1120,7 +1120,7 @@
                                             @if($param['standard_id'] && ! $parametersDisabled)
                                             <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 1)"
                                                 class="btn btn-sm btn-link p-0 text-secondary ml-1"
-                                                title="Edit Main Standard" style="line-height: 1;"
+                                                title="Edit Specification" style="line-height: 1;"
                                                 wire:loading.attr="disabled">
                                                 <i wire:loading.remove wire:target="openEditStandardModal('{{ $id }}', 1)"
                                                     class="mdi mdi-pencil" style="font-size: 12px;"></i>
@@ -1135,7 +1135,7 @@
                                             @if($param['sec_standard_id'] && ! $parametersDisabled)
                                             <button type="button" wire:click.stop="openEditStandardModal('{{ $id }}', 2)"
                                                 class="btn btn-sm btn-link p-0 text-muted ml-1"
-                                                title="Edit Secondary Standard" style="line-height: 1;"
+                                                title="Edit Secondary Specification" style="line-height: 1;"
                                                 wire:loading.attr="disabled">
                                                 <i wire:loading.remove wire:target="openEditStandardModal('{{ $id }}', 2)"
                                                     class="mdi mdi-pencil" style="font-size: 12px;"></i>
@@ -2274,14 +2274,14 @@
             <div class="modal-content">
                 <form wire:submit.prevent="saveStandardLimit">
                     <div class="modal-header bg-light">
-                        <h5 class="modal-title text-dark">Edit Standard: {{ $editingStandardData['analyte_name'] }}</h5>
+                        <h5 class="modal-title text-dark">Edit Specification: {{ $editingStandardData['analyte_name'] }}</h5>
                         <button type="button" class="close" wire:click="cancelEditStandardModal">
                             <span>&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
                         <div class="alert" style="background-color: #f8f9fa; border-color: #dee2e6; color: #6c757d;">
-                            <small>Updating this standard will affect the master setup for this analyte.</small>
+                            <small>Updating this specification will affect the master setup for this analyte.</small>
                         </div>
 
                         <div class="form-group mb-2">
@@ -2291,7 +2291,7 @@
                         </div>
 
                         <div class="form-group mb-3">
-                            <label class="d-block">Standard Value Type</label>
+                            <label class="d-block">Specification Value Type</label>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio"
                                     wire:model.live="editingStandardData.standard_value_type" value="1" id="svt_range">
@@ -2323,7 +2323,7 @@
                         </div>
                         @else
                         <div class="form-group">
-                            <label>Standard Value <span class="text-danger">*</span></label>
+                            <label>Specification Value <span class="text-danger">*</span></label>
                             <select class="form-control grey-input"
                                 wire:model.live="editingStandardData.standard_valuetype">
                                 <option value="">- Select -</option>

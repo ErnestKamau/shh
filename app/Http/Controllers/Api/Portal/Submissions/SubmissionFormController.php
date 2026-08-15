@@ -62,7 +62,7 @@ class SubmissionFormController extends Controller
     {
         $customerId = $this->access->customerIdFromRequest($request);
         $form = $this->access->findPortalForm($submissionForm, $customerId);
-        $form->loadMissing(['sampleTypes', 'sampleTypeCategories']);
+        $form->loadMissing(['sampleTypeCategories']);
 
         $response = [
             'data' => $this->schemaBuilder->buildTemplateWithAttachments($form),
@@ -112,13 +112,15 @@ class SubmissionFormController extends Controller
             return response()->json(['message' => 'This form is not a test request form template.'], 422);
         }
 
-        $form->loadMissing(['sampleTypes', 'sections.elementHolders.elements']);
+        $form->loadMissing(['sections.elementHolders.elements']);
+
+        $resolvedSampleTypes = $this->sampleTypeResolver->resolveForForm($form);
 
         return response()->json([
             'data' => $this->schemaBuilder->buildTemplateWithAttachments($form),
             'meta' => [
                 'crm_customer_id' => $customerId,
-                'sample_type_id' => $form->sampleTypes->first()?->id,
+                'sample_type_id' => $resolvedSampleTypes->first()?->id,
             ],
         ]);
     }
@@ -137,7 +139,7 @@ class SubmissionFormController extends Controller
                 return response()->json(['message' => 'No test request form found for this sample type category.'], 404);
             }
 
-            $form->loadMissing(['sampleTypeCategories', 'sampleTypes']);
+            $form->loadMissing(['sampleTypeCategories']);
 
             return response()->json([
                 'data' => array_merge(
@@ -200,7 +202,7 @@ class SubmissionFormController extends Controller
         $customerId = $this->access->customerIdFromRequest($request);
 
         $forms = $this->access->testRequestTemplatesQuery($customerId)
-            ->with(['sampleTypes:id,name,code', 'sampleTypeCategories:id,sample_type_category'])
+            ->with(['sampleTypeCategories:id,sample_type_category'])
             ->withCount('sections')
             ->get()
             ->map(fn ($form): array => array_merge(
@@ -241,7 +243,7 @@ class SubmissionFormController extends Controller
             ->where('is_customer_portal_form', true)
             ->where('is_published', true)
             ->where('is_active', true)
-            ->with('sampleTypes')
+            ->with('sampleTypeCategories')
             ->orderBy('name')
             ->get()
             ->filter(function ($attachment) use ($sampleTypeId): bool {
@@ -249,11 +251,18 @@ class SubmissionFormController extends Controller
                     return true;
                 }
 
-                if ($attachment->sampleTypes->isEmpty()) {
+                if ($attachment->sampleTypeCategories->isEmpty()) {
                     return true;
                 }
 
-                return $attachment->sampleTypes->contains('id', $sampleTypeId);
+                $sampleType = \App\SampleType::query()->find($sampleTypeId);
+                if ($sampleType === null || $sampleType->sample_type_category === null) {
+                    return false;
+                }
+
+                return $attachment->sampleTypeCategories->contains(
+                    fn ($category): bool => (int) $category->id === (int) $sampleType->sample_type_category
+                );
             })
             ->values()
             ->map(fn ($attachment): array => array_merge(
@@ -271,7 +280,7 @@ class SubmissionFormController extends Controller
     private function formsMatchingSampleType(?string $customerId, string $sampleTypeId): Collection
     {
         return $this->access->testRequestTemplatesQuery($customerId)
-            ->with(['sampleTypes:id,name,code', 'sampleTypeCategories:id,sample_type_category'])
+            ->with(['sampleTypeCategories:id,sample_type_category'])
             ->get()
             ->filter(function ($form) use ($sampleTypeId): bool {
                 return $this->sampleTypeResolver->resolveForForm($form)

@@ -3,6 +3,7 @@
 namespace App\Livewire\Crm\Customer\Tabs;
 
 use App\Livewire\Crm\BaseCrmComponent;
+use App\Livewire\Crm\Concerns\InteractsWithCrmCityCountry;
 use App\Services\Commercial\AccountPaymentTermsService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -12,6 +13,7 @@ use Livewire\WithFileUploads;
 class CustomerDetailsTab extends BaseCrmComponent
 {
     use WithFileUploads;
+    use InteractsWithCrmCityCountry;
 
     public $customer;
     public $isEditing = false;
@@ -51,7 +53,7 @@ class CustomerDetailsTab extends BaseCrmComponent
 
     public function mount($customer)
     {
-        $this->customer = $customer->fresh(['country']);
+        $this->customer = $customer->fresh(['country', 'city']);
         $this->countries = \App\Country::orderBy('name')->get();
 
         $this->account_settings = getConfigTypeByName('Account Settings');
@@ -81,6 +83,7 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->payment_terms_note = $this->customer->payment_terms_note ?? '';
         $this->payment_method = $this->customer->payment_method;
         $this->country_id = $this->customer->country_id;
+        $this->city_id = (string) ($this->customer->city_id ?? '');
         $this->active = (bool) $this->customer->active;
         $this->lpos_required = (bool) $this->customer->lpos_required;
         $this->is_internal = (bool) ($this->customer->is_internal ?? false);
@@ -89,6 +92,7 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->trade_license = $this->customer->trade_license ?? '';
         $this->logoFile = null;
         $this->vatRegistrationCertificateFile = null;
+        $this->bootCityCountry();
     }
 
     public function cancel()
@@ -97,11 +101,14 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->logoFile = null;
         $this->vatRegistrationCertificateFile = null;
         $this->resetValidation();
+        $this->clearCitySelection();
     }
 
     public function getSelectedCountryProperty()
     {
-        return collect($this->countries)->firstWhere('id', (int) $this->country_id);
+        return collect($this->countries)->first(
+            fn ($country) => (string) data_get($country, 'id') === (string) $this->country_id
+        );
     }
 
     public function getFilteredCountriesProperty()
@@ -163,12 +170,17 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->country_id = (string) $countryId;
         $this->countrySearch = '';
         $this->showCountryDropdown = false;
+        $this->clearCitySelection();
+        if ($this->country_id !== '') {
+            $this->loadCitiesForCountry($this->country_id);
+        }
     }
 
     public function clearCountry()
     {
         $this->country_id = '';
         $this->countrySearch = '';
+        $this->clearCitySelection();
     }
 
     public function selectAccountStatus($accountId)
@@ -221,6 +233,7 @@ class CustomerDetailsTab extends BaseCrmComponent
                 : 'nullable|string|max:100',
             'payment_terms_note' => 'nullable|string|max:500',
             'country_id' => 'nullable|exists:countries,id',
+            ...$this->cityValidationRules($this->country_id ? (string) $this->country_id : null),
             'active' => 'boolean',
             'lpos_required' => 'boolean',
             'is_internal' => 'boolean',
@@ -249,6 +262,7 @@ class CustomerDetailsTab extends BaseCrmComponent
         $this->customer->telephone1 = $this->telephone1;
         $this->customer->telephone2 = $this->telephone2;
         $this->customer->country_id = $this->country_id;
+        $this->customer->city_id = $this->city_id !== '' ? $this->city_id : null;
         $this->customer->active = $this->active ? 1 : 0;
         $this->customer->lpos_required = $this->lpos_required ? 1 : 0;
         $this->customer->is_internal = $this->is_internal ? 1 : 0;

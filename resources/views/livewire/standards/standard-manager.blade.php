@@ -6,7 +6,7 @@
                 <div>
                     <h2 class="mb-0">
                         <i class="mdi mdi-scale text-primary"></i>
-                        Standards Management
+                        Specifications Management
                     </h2>
                     <p class="text-muted mb-0">Manage standards, standard values, and standard analytes</p>
                 </div>
@@ -15,7 +15,7 @@
                         <i class="mdi mdi-plus"></i> Add Standard
                     </button>
                     <button wire:click="showCreateStandardValueModal" class="btn btn-outline-primary">
-                        <i class="mdi mdi-plus"></i> Add Standard Value
+                        <i class="mdi mdi-plus"></i> Add Specification Value
                     </button>
                 </div>
             </div>
@@ -66,7 +66,7 @@
                                         <th>Code</th>
                                         <th>Name</th>
                                         <th>Type</th>
-                                        <th>Standard Analytes</th>
+                                        <th>Specification Analytes</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -102,7 +102,7 @@
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="selectStandard('{{ $standard->id }}')"
                                                             class="btn btn-sm btn-outline-primary"
-                                                            title="View Standard Analytes">
+                                                            title="View Specification Analytes">
                                                         <i class="mdi mdi-eye"></i>
                                                     </button>
                                                     <button wire:click="showEditStandardModal('{{ $standard->id }}')"
@@ -141,7 +141,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Standard Analytes</h5>
+                        <h5 class="card-title mb-0">Specification Analytes</h5>
                         <button wire:click="showCreateStandardAnalyteModal" class="btn btn-sm btn-primary">
                             <i class="mdi mdi-plus"></i> Add Standard Analyte
                         </button>
@@ -153,7 +153,7 @@
                                     <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Analyte</th>
-                                            <th>Standard Value</th>
+                                            <th>Specification Value</th>
                                             <th>Type</th>
                                             <th>Range/Value</th>
                                             <th>Comments</th>
@@ -261,7 +261,7 @@
                                     <div class="form-group mb-3">
                                         <div class="form-check">
                                             <input type="checkbox" wire:model="standardForm.main_standard" class="form-check-input" id="main_standard">
-                                            <label class="form-check-label" for="main_standard">Main Standard</label>
+                                            <label class="form-check-label" for="main_standard">Main Specification</label>
                                         </div>
                                     </div>
                                 </div>
@@ -305,7 +305,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingStandardValue ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingStandardValue ? 'Edit' : 'Create' }} Standard Value
+                            {{ $editingStandardValue ? 'Edit' : 'Create' }} Specification Value
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeStandardValueModal"></button>
                     </div>
@@ -376,12 +376,12 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Standard Value</label>
+                                        <label class="form-label">Specification Value</label>
                                         <x-searchable-select
                                             wire:model="standardAnalyteForm.standard_value_id"
                                             :options="collect($standardValues)->map(fn($value) => ['id' => $value->id, 'name' => $value->name . ' (' . $value->code . ')'])"
                                             placeholder="Search standard values..."
-                                            empty-label="Select Standard Value"
+                                            empty-label="Select Specification Value"
                                         />
                                     </div>
                                 </div>

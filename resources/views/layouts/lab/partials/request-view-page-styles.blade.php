@@ -1521,8 +1521,67 @@
 		border-radius: 6px;
 	}
 
+	.request-view-page .rv-sample-description-cell {
+		max-width: 220px;
+		vertical-align: middle;
+	}
+
+	.request-view-page .rv-sample-description-inline {
+		font-size: 0.8125rem;
+		line-height: 1.4;
+		font-weight: 500;
+		color: #1e293b;
+		word-break: break-word;
+	}
+
+	.request-view-page .rv-sample-description-inline p,
+	.request-view-page .rv-sample-description-inline div {
+		margin: 0;
+	}
+
 	.request-view-page .rv-modal--wide {
 		width: min(720px, 100%);
+	}
+
+	.request-view-page .rv-sample-row-edit-dialog {
+		position: relative;
+		overflow: hidden;
+	}
+
+	.request-view-page .rv-sample-row-edit-dialog:not(.is-ready) .rv-modal-header,
+	.request-view-page .rv-sample-row-edit-dialog:not(.is-ready) .rv-modal-body,
+	.request-view-page .rv-sample-row-edit-dialog:not(.is-ready) .rv-modal-footer {
+		visibility: hidden;
+	}
+
+	.request-view-page .rv-sample-row-edit-loading {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(255, 255, 255, 0.92);
+		z-index: 2;
+	}
+
+	.request-view-page .rv-sample-row-edit-dialog.is-ready .rv-sample-row-edit-loading {
+		display: none;
+	}
+
+	.request-view-page .rv-sample-row-select2-wrap .select2-container {
+		width: 100% !important;
+	}
+
+	.request-view-page .rv-sample-row-edit-dialog .rv-modal-body {
+		overflow-x: hidden;
+	}
+
+	.request-view-page .rv-qty-unit-wrap .form-control-sm {
+		min-width: 0;
+	}
+
+	.request-view-page .rv-test-requirements-checkboxes .form-check-label {
+		font-size: 0.8125rem;
 	}
 
 	.request-view-page .rv-param-group-title {

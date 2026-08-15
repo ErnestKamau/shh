@@ -33,7 +33,7 @@
         <form class="modal-content" id="edit-standard-form">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="mdi mdi-pencil"></i> Edit Standard Limit
+                    <i class="mdi mdi-pencil"></i> Edit Specification Limit
                 </h5>
                 <button type="button" class="close" data-dismiss="modal">
                     <span>&times;</span>
@@ -85,11 +85,11 @@
 
                 <div id="esl-use-value-section" class="esl-config-card mb-0">
                     <div class="esl-config-card__header">
-                        <i class="mdi mdi-numeric"></i> Standard Value Configuration
+                        <i class="mdi mdi-numeric"></i> Specification Value Configuration
                     </div>
                     <div class="esl-config-card__body">
                         <div class="form-group mb-2">
-                            <label class="control-label">Standard Value <span class="text-danger">*</span></label>
+                            <label class="control-label">Specification Value <span class="text-danger">*</span></label>
                             <select class="form-control form-control-sm no-select2" name="standard_value_id" id="esl_standard_value_id">
                                 <option value="">Select standard value...</option>
                                 @foreach($editStandardLookupValues as $lookupValue)

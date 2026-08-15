@@ -85,7 +85,7 @@ class AcceptanceFormPricingService
         } elseif ($submissionFormInstanceId) {
             $instance = SubmissionFormInstance::with([
                 'crmCustomer',
-                'submissionForm.sampleTypes:id,name',
+                'submissionForm.sampleTypeCategories:id,sample_type_category',
                 'values.element:id,name,label,element_type,mapping_field',
                 'batches',
             ])->find((string) $submissionFormInstanceId);
@@ -1163,7 +1163,10 @@ class AcceptanceFormPricingService
             return (string) $sampleTypeToken;
         }
 
-        $fallbackSampleType = $instance->submissionForm?->sampleTypes?->first();
+        $form = $instance->submissionForm;
+        $fallbackSampleType = $form !== null
+            ? app(\App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver::class)->resolveForForm($form)->first()
+            : null;
         if ($fallbackSampleType && isset($fallbackSampleType->id)) {
             return (string) $fallbackSampleType->id;
         }
