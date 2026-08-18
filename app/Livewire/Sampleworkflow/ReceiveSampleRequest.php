@@ -50,6 +50,7 @@ class ReceiveSampleRequest extends Component
 
     // Dynamic SubmissionForm TRF capture state
     public ?string $selectedSampleTypeId = null;
+    public ?string $selectedSampleTypeCategoryId = null;
 
     public array $formData = [];
 
@@ -261,6 +262,28 @@ class ReceiveSampleRequest extends Component
         return $form->loadMissing(['sections.elementHolders.elements']);
     }
 
+    private function resolveSubmissionFormForSampleTypeCategory(string $categoryId): ?SubmissionForm
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories')) {
+            return null;
+        }
+
+        return SubmissionForm::query()
+            ->where('is_active', true)
+            ->where('is_published', true)
+            ->where('form_type', 'template')
+            ->where(function ($q): void {
+                $q->where('document_code', 'like', 'TRF%')
+                    ->orWhereRaw('lower(name) like ?', ['%test request form%']);
+            })
+            ->whereHas('sampleTypeCategories', function ($query) use ($categoryId): void {
+                $query->where('sample_type_categories.id', $categoryId);
+            })
+            ->with(['sections.elementHolders.elements'])
+            ->orderBy('name')
+            ->first();
+    }
+
     private function initializeFormDataFromSubmissionForm(SubmissionForm $submissionForm): void
     {
         $this->formData = [];
@@ -279,6 +302,7 @@ class ReceiveSampleRequest extends Component
                     $this->formData[$element->name] = [$this->defaultValueForElement($element)];
                 }
                 $this->ensureWalkInCanonicalQtyFields(1);
+                $this->ensureWalkInSampleTypeField(1);
 
                 continue;
             }
@@ -804,6 +828,7 @@ class ReceiveSampleRequest extends Component
 
         $this->selectedSubmissionFormId = $submissionFormId;
         $this->selectedSampleTypeId = null;
+        $this->selectedSampleTypeCategoryId = null;
         $form = SubmissionForm::query()
             ->with(['sections.elementHolders.elements'])
             ->find($submissionFormId);
@@ -850,6 +875,7 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->selectedSampleTypeId = null;
+        $this->selectedSampleTypeCategoryId = null;
         $this->lastSelectedSampleTypeId = null;
         $this->selectedSubmissionFormId = null;
         $this->selectedScheduleId = null;
@@ -1470,6 +1496,9 @@ class ReceiveSampleRequest extends Component
         };
 
         $sampleTypeColumn = $take($findByNames(['sample_type_id', 'sample_type']));
+        if ($sampleTypeColumn === null) {
+            $sampleTypeColumn = $take($this->syntheticSampleTypeColumn());
+        }
         $analysisTypeColumn = $take($findByNames(['analysis_type_id', 'analysis_type', 'analysis_types']));
 
         if ($this->usesWaterSampleCardLayout()) {
@@ -1906,6 +1935,15 @@ class ReceiveSampleRequest extends Component
      */
     public function getWalkInSampleTypeOptionsProperty(): \Illuminate\Support\Collection
     {
+        $categoryId = trim((string) ($this->selectedSampleTypeCategoryId ?? ''));
+        if ($categoryId !== '') {
+            return \App\SampleType::query()
+                ->where('active', true)
+                ->where('sample_type_category', $categoryId)
+                ->orderBy('name')
+                ->get();
+        }
+
         $form = $this->submissionForm;
 
         if ($form !== null && \Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories')) {
@@ -1922,6 +1960,17 @@ class ReceiveSampleRequest extends Component
         }
 
         return collect($this->sampleTypes);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, \App\SampleTypeCategory>
+     */
+    public function getSampleTypeCategoriesProperty(): \Illuminate\Support\Collection
+    {
+        return \App\SampleTypeCategory::query()
+            ->where('active', 1)
+            ->orderBy('sample_type_category')
+            ->get();
     }
 
     public function addSchemaRow(string $sectionId): void
@@ -1946,6 +1995,7 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->ensureWalkInCanonicalQtyFields($this->schemaRowCount());
+        $this->ensureWalkInSampleTypeField($this->schemaRowCount());
         $this->appendWaterTrfSyntheticRowDefaults();
 
         $this->dispatch('trf-reinit-parameter-selects');
@@ -2002,6 +2052,29 @@ class ReceiveSampleRequest extends Component
     /**
      * @return array{type: string, label: string, class: string, element: SubmissionFormElement, field: array<string, mixed>}
      */
+    private function syntheticSampleTypeColumn(): array
+    {
+        $element = new SubmissionFormElement([
+            'name' => 'sample_type_id',
+            'label' => 'Sample type',
+            'element_type' => 'sample_type_select',
+            'required' => true,
+        ]);
+
+        return [
+            'type' => 'field',
+            'label' => 'Sample type',
+            'class' => 'walk-in-trf-col-default',
+            'element' => $element,
+            'field' => [
+                'name' => 'sample_type_id',
+                'label' => 'Sample type',
+                'type' => 'sample_type_select',
+                'required' => true,
+            ],
+        ];
+    }
+
     private function waterTestRequirementsFallbackColumn(): array
     {
         $element = new SubmissionFormElement([
@@ -2110,6 +2183,10 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
+        if ($normalizedValue !== null) {
+            $this->selectedSampleTypeCategoryId = null;
+        }
+
         // RFT fill by document code: sample types are chosen per sample row only.
         if ($this->pageMode && $this->wizardOnly && filled($this->selectedSubmissionFormId)) {
             $this->lastSelectedSampleTypeId = $normalizedValue;
@@ -2130,6 +2207,31 @@ class ReceiveSampleRequest extends Component
                 if ($firstInstance) {
                     $this->loadFormDataFromInstance($firstInstance);
                 }
+            }
+        }
+
+        $this->dispatch('submission-form-reinit-signatures');
+        $this->dispatch('trf-reinit-signatures');
+        $this->dispatch('trf-reset-all-parameter-selects');
+    }
+
+    public function updatedSelectedSampleTypeCategoryId($value): void
+    {
+        $normalizedValue = $value !== null && $value !== '' ? (string) $value : null;
+
+        $this->selectedSampleTypeCategoryId = $normalizedValue;
+        $this->selectedSampleTypeId = null;
+        $this->lastSelectedSampleTypeId = null;
+        $this->selectedSubmissionFormId = null;
+        $this->formData = [];
+        $this->selectedCrmCustomerId = null;
+        $this->walkInActiveStepIndex = 0;
+
+        if ($normalizedValue !== null) {
+            $submissionForm = $this->resolveSubmissionFormForSampleTypeCategory($normalizedValue);
+            if ($submissionForm !== null) {
+                $this->selectedSubmissionFormId = (string) $submissionForm->id;
+                $this->initializeFormDataFromSubmissionForm($submissionForm);
             }
         }
 
@@ -2963,6 +3065,7 @@ class ReceiveSampleRequest extends Component
             $this->remarks = '';
             $this->checkInTrfFields = [];
             $this->selectedSampleTypeId = null;
+            $this->selectedSampleTypeCategoryId = null;
             $this->lastSelectedSampleTypeId = null;
             $this->formData = [];
             $this->selectedCrmCustomerId = null;
@@ -2996,6 +3099,7 @@ class ReceiveSampleRequest extends Component
         $this->intakeChannel = CommercialEnquirySyncService::SOURCE_OFFLINE;
         $this->selectedFormInstanceIds = [];
         $this->selectedSampleTypeId = null;
+        $this->selectedSampleTypeCategoryId = null;
         $this->walkInActiveStepIndex = 0;
         $this->handleReceiveModalOpen([], []);
     }
@@ -3277,7 +3381,7 @@ class ReceiveSampleRequest extends Component
         }
 
         if ($this->isOfflineIntake()) {
-            return 'Could not submit the paper test request. Check the customer, sample type, and sample rows, then try again.';
+            return 'Could not submit the paper test request. Check the customer, sample type category, and sample rows, then try again.';
         }
 
         return 'Could not submit the walk-in request. Please try again.';
@@ -3287,11 +3391,19 @@ class ReceiveSampleRequest extends Component
     {
         $this->syncSelectedSampleTypeFromFormData();
 
-        $this->validate([
-            'selectedSampleTypeId' => 'required|exists:sample_types,id',
-        ], [
-            'selectedSampleTypeId.required' => 'Please select a Sample Type (link the form to a sample type, or add a Sample type field on the form).',
-        ]);
+        if ($this->isOfflineIntake()) {
+            $this->validate([
+                'selectedSampleTypeCategoryId' => 'required|exists:sample_type_categories,id',
+            ], [
+                'selectedSampleTypeCategoryId.required' => 'Please select a Sample Type Category.',
+            ]);
+        } else {
+            $this->validate([
+                'selectedSampleTypeId' => 'required|exists:sample_types,id',
+            ], [
+                'selectedSampleTypeId.required' => 'Please select a Sample Type (link the form to a sample type, or add a Sample type field on the form).',
+            ]);
+        }
 
         $submissionForm = $this->submissionForm;
         if ($submissionForm === null) {
@@ -3325,6 +3437,10 @@ class ReceiveSampleRequest extends Component
      */
     private function syncSelectedSampleTypeFromFormData(): void
     {
+        if ($this->isOfflineIntake() && filled($this->selectedSampleTypeCategoryId)) {
+            return;
+        }
+
         if (filled($this->selectedSampleTypeId)) {
             return;
         }
@@ -3571,10 +3687,25 @@ class ReceiveSampleRequest extends Component
         }
     }
 
+    private function ensureWalkInSampleTypeField(int $rowCount): void
+    {
+        $rowCount = max(1, $rowCount);
+        $existing = $this->formData['sample_type_id'] ?? [];
+        if (! is_array($existing)) {
+            $existing = filled($existing) ? [(string) $existing] : [];
+        }
+
+        while (count($existing) < $rowCount) {
+            $existing[] = [];
+        }
+
+        $this->formData['sample_type_id'] = $existing;
+    }
+
     private function schemaRowCount(): int
     {
         $count = 0;
-        foreach (array_merge($this->schemaRowFieldNames(), ['sample_quantity', 'sample_quantity_unit']) as $name) {
+        foreach (array_merge($this->schemaRowFieldNames(), ['sample_quantity', 'sample_quantity_unit', 'sample_type_id']) as $name) {
             if (isset($this->formData[$name]) && is_array($this->formData[$name])) {
                 $count = max($count, count($this->formData[$name]));
             }

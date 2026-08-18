@@ -19,7 +19,7 @@
 @endphp
 
 <div x-data="investigationTab" x-init="init()">
-    <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
+    <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
         <div class="d-flex align-items-center">
             <div class="mr-3 d-flex align-items-center justify-content-center rounded-circle" style="width:40px;height:40px;background:var(--crm-success-light);color:var(--crm-success);">
                 <i class="mdi mdi-briefcase-search-outline" style="font-size:1.25rem;"></i>
@@ -66,9 +66,9 @@
     </div>
 
     {{-- Stepper Progress Header --}}
-    <div class="investigation-stepper mb-5 card shadow-sm py-4 border-0" style="background: var(--crm-neutral-50); border-radius: var(--crm-radius-lg);">
+    <div class="investigation-stepper mb-4 card shadow-sm py-3 border-0">
         
-        <div class="d-flex justify-content-between align-items-center w-100 px-4 position-relative">
+        <div class="d-flex justify-content-between align-items-center w-100 px-3 px-md-4 position-relative">
             {{-- Connecting line --}}
             <div class="position-absolute" style="top: 19px; left: 40px; right: 40px; height: 2px; background: var(--crm-neutral-200); z-index: 1;"></div>
 
@@ -78,7 +78,7 @@
                 @endphp
                 <div class="step-item {{ $currentStep == $s['step'] ? 'active' : ($currentStep > $s['step'] ? 'completed' : '') }}"
                      @if(!$isLocked) wire:click="goToStep({{ $s['step'] }})" @endif
-                     style="cursor: {{ $isLocked ? 'not-allowed' : 'pointer' }}; z-index: 2; transition: all 0.3s ease; opacity: {{ $isLocked ? '0.5' : '1' }};"
+                     style="cursor: {{ $isLocked ? 'not-allowed' : 'pointer' }}; z-index: 2; transition: all 0.3s ease; opacity: {{ $isLocked ? '0.45' : '1' }};"
                      @if($isLocked) title="Complete Step 1 decision to unlock" @endif>
                     <div class="step-circle shadow-sm">
                         @if($currentStep > $s['step'])
@@ -111,7 +111,7 @@
         
         @if($currentStep == 1)
             <!-- Phase 1: Cause & Observations -->
-            <div class="lab-ledger-card {{ $isEditing ? 'border-primary' : '' }}" wire:key="investigation-step-1">
+            <div class="lab-ledger-card {{ $isEditing ? 'active-edit-card' : '' }}" wire:key="investigation-step-1">
                 <div class="lab-ledger-header crm-glass">
                     <span class="font-weight-bold text-dark">
                         <i class="mdi mdi-magnify mr-2 text-warning"></i>
@@ -121,7 +121,7 @@
                 <div class="lab-ledger-body">
                     <p class="text-muted small mb-3">Detail the findings to determine the root cause of the complaint.</p>
                     @if($isEditing && $currentStep == 1)
-                        <div class="col-md-12" wire:ignore wire:key="cause-editor-container">
+                        <div class="col-md-12 px-0" wire:ignore wire:key="cause-editor-container">
                             <textarea id="cause_editor" class="investigation-editor" wire:key="cause_editor_area" x-init="initEditor($el, 'cause_of_complaint')" data-height="300">{{ $cause_of_complaint }}</textarea>
                         </div>
                         <div class="row mt-2">
@@ -197,7 +197,7 @@
             <!-- Phase 2: No-CAR Content (Containment & Corrective) -->
             <div wire:key="phase-nocar-wrapper-2">
                 <div class="no-car-content animate__animated animate__fadeIn">
-                <div class="lab-ledger-card mb-4 {{ $isEditing ? 'border-success' : '' }}">
+            <div class="lab-ledger-card mb-4 {{ $isEditing ? 'active-edit-card' : '' }}">
                     <div class="lab-ledger-header crm-glass">
                         <span class="font-weight-bold text-dark">
                             <i class="mdi mdi-flash-outline mr-2 text-success"></i>
@@ -248,7 +248,7 @@
                 </div>
             </div>
 
-            <div class="lab-ledger-card {{ $isEditing ? 'border-primary' : '' }}">
+            <div class="lab-ledger-card {{ $isEditing ? 'active-edit-card' : '' }}">
                 <div class="lab-ledger-header crm-glass">
                     <span class="font-weight-bold text-dark">
                         <i class="mdi mdi-tools mr-2 text-primary"></i>
@@ -806,8 +806,11 @@
         .investigation-stepper {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 2rem;
+            margin-bottom: 1.25rem;
             position: relative;
+            background: #fff;
+            border: 1px solid var(--crm-neutral-200);
+            border-radius: var(--crm-radius-lg);
         }
         .step-item {
             position: relative;
@@ -816,11 +819,12 @@
             flex-direction: column;
             align-items: center;
             cursor: pointer;
-            width: 80px;
+            width: 140px;
+            padding: 0 6px;
         }
         .step-circle {
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: #fff;
             border: 2px solid var(--crm-neutral-200);
@@ -844,19 +848,38 @@
             color: #fff;
         }
         .step-label {
-            font-size: 0.68rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: none;
+            letter-spacing: 0;
             color: var(--crm-neutral-500);
             text-align: center;
+            line-height: 1.2;
         }
         .step-item.active .step-label  { color: var(--crm-primary); }
         .step-item.completed .step-label { color: var(--crm-success); }
 
-        .lab-ledger-card.border-primary {
-            border: 2px solid var(--crm-primary) !important;
-            box-shadow: 0 0 15px var(--crm-primary-light);
+        .active-edit-card {
+            border: 1px solid #c7d2fe !important;
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.08);
+            background: #fff;
+        }
+
+        .lab-ledger-card .lab-ledger-header {
+            border-bottom: 1px solid var(--crm-neutral-200);
+        }
+
+        .lab-ledger-card .lab-ledger-body {
+            padding: 16px;
+        }
+
+        @media (max-width: 992px) {
+            .step-item {
+                width: 96px;
+            }
+            .step-label {
+                font-size: 0.68rem;
+            }
         }
 
         /* Decision option cards */

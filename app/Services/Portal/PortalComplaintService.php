@@ -8,6 +8,7 @@ use App\Models\CRM\Complaint;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
 use App\Repositories\PortalCrmRepository;
+use App\Services\CRM\ComplaintReferenceService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,7 @@ class PortalComplaintService
 {
     public function __construct(
         private readonly PortalCrmRepository $repository,
+        private readonly ComplaintReferenceService $referenceService,
     ) {}
 
     /**
@@ -25,7 +27,7 @@ class PortalComplaintService
     {
         return DB::transaction(function () use ($customerId, $data, $portalAccountId): CreatedComplaintDTO {
             $complaint = new Complaint();
-            $complaint->complaint_id = $this->generateComplaintNumber();
+            $complaint->complaint_id = $this->referenceService->generate();
             $complaint->description = (string) $data['description'];
             $complaint->priority = (string) $data['priority'];
             $complaint->type = (string) $data['type'];
@@ -85,13 +87,6 @@ class PortalComplaintService
     public function types(): array
     {
         return $this->repository->activeComplaintTypes();
-    }
-
-    private function generateComplaintNumber(): string
-    {
-        $total = Complaint::query()->count() + 1;
-
-        return 'COMP/'.$total;
     }
 
     private function notifyPersonnel(Complaint $complaint): void

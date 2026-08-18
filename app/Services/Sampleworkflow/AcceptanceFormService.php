@@ -175,7 +175,7 @@ class AcceptanceFormService
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
                     : null,
-                'is_shelf_life' => $this->resolveInLabShelfLifeFlag($header, $lines),
+                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
                 'created_by' => $createdBy,
             ]);
 
@@ -219,8 +219,7 @@ class AcceptanceFormService
     /**
      * Accept samples with receiving personnel and customer contact signatures in one step.
      *
-     * Creates the acceptance form, batch/job, samples, and routes to Samples In Lab
-     * or the Shelf Life Study module when flagged.
+     * Creates the acceptance form, batch/job, samples, and routes to Samples In Lab.
      *
      * @param  array<string, mixed>  $header
      * @param  list<array<string, mixed>>  $lines
@@ -303,7 +302,7 @@ class AcceptanceFormService
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
                     : null,
-                'is_shelf_life' => $this->resolveInLabShelfLifeFlag($header, $lines),
+                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
                 'created_by' => $createdBy,
             ]);
 
@@ -453,7 +452,7 @@ class AcceptanceFormService
             'sample_configuration_payload' => $normalizedConfigs,
             'lab_capable' => true,
             'client_instruction_clear' => true,
-            'is_shelf_life' => $isShelfLife || $this->payloadIndicatesInLabShelfLife($lines, $normalizedConfigs),
+            'is_shelf_life' => $isShelfLife,
             'assigned_analyst_ids' => $assignedAnalystIds,
             'lead_analyst_id' => $leadAnalystId,
             'analyst_lab_section_assignments' => $analystSectionAssignments,
@@ -508,7 +507,7 @@ class AcceptanceFormService
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
                     : null,
-                'is_shelf_life' => $this->resolveInLabShelfLifeFlag($header, $lines),
+                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
                 'created_by' => $createdBy,
             ]);
 
@@ -755,88 +754,6 @@ class AcceptanceFormService
         $value = trim((string) $value);
 
         return $value !== '' && Str::isUuid($value) ? $value : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $header
-     * @param  list<array<string, mixed>>  $lines
-     */
-    private function resolveInLabShelfLifeFlag(array $header, array $lines): bool
-    {
-        if ((bool) ($header['is_shelf_life'] ?? false)) {
-            return true;
-        }
-
-        $configs = is_array($header['sample_configuration_payload'] ?? null)
-            ? $header['sample_configuration_payload']
-            : [];
-
-        return $this->payloadIndicatesInLabShelfLife($lines, $configs);
-    }
-
-    /**
-     * Shelf-life analysis stays on the Samples In Lab job (batch flag + sample conditions).
-     *
-     * @param  list<array<string, mixed>>  $lines
-     * @param  list<array<string, mixed>>  $configs
-     */
-    private function payloadIndicatesInLabShelfLife(array $lines, array $configs = []): bool
-    {
-        $texts = [];
-        $analysisTypeIds = [];
-
-        foreach (array_merge($lines, $configs) as $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-
-            foreach (['analysis_type_name', 'parameter_label'] as $key) {
-                $texts[] = (string) ($row[$key] ?? '');
-            }
-
-            $named = $row['analysis_type_names'] ?? null;
-            if (is_array($named)) {
-                foreach ($named as $name) {
-                    $texts[] = (string) $name;
-                }
-            }
-
-            foreach (['analysis_type_id', 'analysis_type_ids'] as $key) {
-                $value = $row[$key] ?? null;
-                if (is_array($value)) {
-                    foreach ($value as $id) {
-                        $analysisTypeIds[] = (string) $id;
-                    }
-                } elseif (is_string($value) && $value !== '') {
-                    $analysisTypeIds[] = $value;
-                }
-            }
-        }
-
-        foreach ($texts as $text) {
-            $normalized = strtolower($text);
-            if (str_contains($normalized, 'shelf life') || str_contains($normalized, 'shelf-life')) {
-                return true;
-            }
-        }
-
-        $analysisTypeIds = array_values(array_unique(array_filter(
-            $analysisTypeIds,
-            static fn (string $id): bool => Str::isUuid($id)
-        )));
-
-        if ($analysisTypeIds === []) {
-            return false;
-        }
-
-        return AnalysisType::query()
-            ->whereIn('id', $analysisTypeIds)
-            ->get(['name'])
-            ->contains(static function (AnalysisType $type): bool {
-                $name = strtolower((string) $type->name);
-
-                return str_contains($name, 'shelf life') || str_contains($name, 'shelf-life');
-            });
     }
 
     /**

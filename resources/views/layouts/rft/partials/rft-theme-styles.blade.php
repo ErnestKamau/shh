@@ -1530,7 +1530,8 @@
 	.rft-tests-modal {
 		position: fixed;
 		inset: 0;
-		z-index: 1080;
+		/* Above layouts/app.blade.php `.modal.fade.show` (2000) and `.modal-dialog` (2001). */
+		z-index: 2100;
 		display: flex;
 		align-items: center;
 		justify-content: center;

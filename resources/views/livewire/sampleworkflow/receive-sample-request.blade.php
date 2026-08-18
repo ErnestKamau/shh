@@ -859,14 +859,14 @@
                 @if($this->isOfflineIntake())
                     <div class="paper-trf-intake__meta">
                         <div class="form-group receive-sample-type-field">
-                            <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample type <span class="text-danger">*</span></label>
-                            <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
-                                <option value="">-- Select Sample Type --</option>
-                                @foreach($sampleTypes as $st)
-                                    <option value="{{ $st->id }}">{{ $st->name }}</option>
+                            <label for="selectedSampleTypeCategoryId" class="font-weight-bold text-dark">Sample type category <span class="text-danger">*</span></label>
+                            <select id="selectedSampleTypeCategoryId" wire:model.live="selectedSampleTypeCategoryId" class="form-control form-control-sm @error('selectedSampleTypeCategoryId') is-invalid @enderror">
+                                <option value="">-- Select Sample Type Category --</option>
+                                @foreach($this->sampleTypeCategories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->sample_type_category }}</option>
                                 @endforeach
                             </select>
-                            @error('selectedSampleTypeId')
+                            @error('selectedSampleTypeCategoryId')
                                 <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
                             @enderror
                         </div>
@@ -898,7 +898,7 @@
                     </div>
                 @endif
 
-            @if($selectedSampleTypeId && $submissionForm)
+            @if(($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm)
                 @include('livewire.partials.walk-in-trf-wizard-styles')
                 <div class="walk-in-trf-wizard-shell {{ $this->isOfflineIntake() ? 'mb-0' : 'mb-3' }}">
                     @unless($this->isOfflineIntake())
@@ -911,9 +911,9 @@
                         'walkInActiveStepIndex' => $walkInActiveStepIndex,
                     ])
                 </div>
-            @elseif($selectedSampleTypeId)
+            @elseif($selectedSampleTypeId || $selectedSubmissionFormId)
                 <div class="alert alert-warning py-2 px-3 mb-0 small">
-                    No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
+                    No active Test Request Form template is linked to this selection. Link a TRF template in Submission Forms, then try again.
                 </div>
             @endif
             </div>
@@ -1121,7 +1121,7 @@
         @endif
     @elseif (! $showPhysicalConfirmModal)
         <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3 flex-wrap rft-gap">
-            @if ($selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0 && ! $this->isOfflineIntake())
+            @if (($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm && $this->walkInTotalSteps > 0 && ! $this->isOfflineIntake())
                 <span class="walk-in-trf-wizard__step-hint mb-0" aria-live="polite">
                     Step {{ $walkInActiveStepIndex + 1 }} of {{ $this->walkInTotalSteps }}
                     · {{ $this->walkInWizardSteps[$walkInActiveStepIndex]['title'] ?? '' }}
@@ -1131,7 +1131,7 @@
             @endif
 
             <div class="d-flex align-items-center rft-gap">
-                @if ($selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+                @if (($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm && $this->walkInTotalSteps > 0)
                     @include('livewire.partials.walk-in-trf-wizard-nav')
                 @else
                     <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
@@ -1142,7 +1142,7 @@
                         wire:loading.attr="disabled"
                         wire:target="confirmReceive"
                         onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
-                        @if (! $selectedSampleTypeId) disabled @endif
+                        @if (!($selectedSampleTypeId || $selectedSubmissionFormId)) disabled @endif
                     >
                         <span wire:loading.remove wire:target="confirmReceive">
                             <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
