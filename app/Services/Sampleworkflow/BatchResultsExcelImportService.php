@@ -5,6 +5,7 @@ namespace App\Services\Sampleworkflow;
 use App\CapturedResult;
 use App\Exports\Sampleworkflow\BatchResultsTemplateExport;
 use App\SampleHeader;
+use App\Services\ResultRemarkService;
 use App\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ final class BatchResultsExcelImportService
         private readonly CapturedResultCaptureService $captureService,
         private readonly LabSectionResultAccess $labSectionAccess,
         private readonly RequestTestExportDataService $dataService,
+        private readonly ResultRemarkService $remarkService,
     ) {}
 
     public function downloadTemplate(SampleHeader $batch)
@@ -179,9 +181,15 @@ final class BatchResultsExcelImportService
 
         DB::transaction(function () use ($pending, $actingUserId): void {
             foreach ($pending as $item) {
+                $attributes = ['result' => $item['result']];
+                $remark = $this->remarkService->autoRemarkForCapturedResult($item['captured'], $item['result']);
+                if ($remark !== null) {
+                    $attributes['remark'] = $remark;
+                }
+
                 $this->captureService->applyOnSave(
                     $item['captured'],
-                    ['result' => $item['result']],
+                    $attributes,
                     $actingUserId
                 );
             }

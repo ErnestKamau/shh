@@ -13,7 +13,7 @@ final class AnalysisReferenceLabelResolver
     {
         $token = trim($this->decryptIfNeeded($token));
 
-        if ($token === '' || (! ctype_digit($token) && ! Str::isUuid($token))) {
+        if ($token === '' || ! Str::isUuid($token)) {
             return $token;
         }
 

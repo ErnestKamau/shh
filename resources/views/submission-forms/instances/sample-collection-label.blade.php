@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         @if(($labelType ?? 'collection') === 'registration')
-            Registration Label
+            Lab sample labels
         @else
             Sample Collection Label
         @endif
@@ -304,23 +304,23 @@
                 @endif
             </section>
         @else
-            <section class="label-card" aria-label="Registration Label">
+            <section class="label-card" aria-label="Lab sample label">
                 <header class="label-head">
                     <div class="label-head-logo">
                         @if ($logoSrc)
                             <img src="{{ $logoSrc }}" alt="Company logo">
                         @endif
                     </div>
-                    <div class="label-head-title">Registration Label with barcode</div>
+                    <div class="label-head-title">Lab sample label with barcode</div>
                 </header>
 
                 <table class="label-table" role="presentation">
                     <tr>
-                        <td>Job ID</td>
-                        <td class="wide-cell">{{ $jobNumber }}</td>
+                        <td>Lab No.</td>
+                        <td class="wide-cell">{{ $jobNumber !== '' ? $jobNumber : 'N/A' }}</td>
                     </tr>
                     <tr>
-                        <td>Sample ID</td>
+                        <td>Sample No.</td>
                         <td class="wide-cell">{{ $sampleId }}</td>
                     </tr>
                     <tr>

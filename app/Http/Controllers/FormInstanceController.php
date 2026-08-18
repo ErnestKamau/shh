@@ -1967,9 +1967,9 @@ class FormInstanceController extends Controller
         $samplingPoint = $siteLocation;
 
         $samplingDate = $this->plainLabelText(
-            (string) ($formData['date_of_sampling'] ?? $formData['sampling_date'] ?? $formData['collection_date'] ?? now()->format('Y-m-d'))
+            (string) ($formData['date_of_sampling'] ?? $formData['sampling_date'] ?? $formData['collection_date'] ?? '')
         );
-        $dateTimeOfCollection = $this->resolveCollectionDateTime($formData);
+        $dateTimeOfCollection = $this->resolveCollectionDateTime($instance, $sampleLines, $formData, $submissionRequest);
 
         $batchNumberFromForm = $this->firstResolvedLabelValue(
             $instance,
@@ -2163,25 +2163,6 @@ class FormInstanceController extends Controller
         array $sampleLines,
         array $formData
     ): string {
-        $fromLines = collect($sampleLines)
-            ->map(fn (array $line): string => $this->plainLabelText((string) ($line['customer_sample_id'] ?? '')))
-            ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
-            ->unique()
-            ->values();
-
-        if ($fromLines->isNotEmpty()) {
-            return $fromLines->implode(', ');
-        }
-
-        $fromForm = $this->firstResolvedLabelValue(
-            $instance,
-            ['customer_sample_id', 'client_sample_id', 'sample_id'],
-            (string) ($formData['customer_sample_id'] ?? $formData['client_sample_id'] ?? $formData['sample_id'] ?? '')
-        );
-        if (! $this->isBlankLabelValue($fromForm) && ! $this->isUuidLike($fromForm)) {
-            return $fromForm;
-        }
-
         $sampleCodes = collect()
             ->merge($instance->batches)
             ->merge($instance->sampleSubmissionRequest?->batch ? [$instance->sampleSubmissionRequest->batch] : [])
@@ -2207,12 +2188,35 @@ class FormInstanceController extends Controller
         array $sampleLines,
         array $formData
     ): string {
+        $resolver = new \App\Services\Lab\AnalysisReferenceLabelResolver();
+
         $fromLines = collect($sampleLines)
-            ->map(fn (array $line): string => $this->plainLabelText((string) ($line['parameter_label'] ?? '')))
-            ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
-            ->flatMap(fn (string $value) => preg_split('/\s*,\s*/', $value) ?: [])
-            ->map(fn (string $value): string => trim($value))
-            ->reject(fn (string $value): bool => $value === '')
+            ->flatMap(function (array $line) use ($resolver): array {
+                $candidates = [
+                    $line['parameter_label'] ?? null,
+                    $line['analysis_element_id'] ?? null,
+                    $line['analysis_type_name'] ?? null,
+                    is_array($line['attributes'] ?? null) ? ($line['attributes']['analysis_element_ids'] ?? null) : null,
+                    is_array($line['attributes'] ?? null) ? ($line['attributes']['parameters'] ?? null) : null,
+                    is_array($line['attributes'] ?? null) ? ($line['attributes']['test_requirements'] ?? null) : null,
+                ];
+
+                $labels = [];
+                foreach ($candidates as $candidate) {
+                    $resolved = $this->plainLabelText($resolver->resolveMixed($candidate));
+                    if ($this->isBlankLabelValue($resolved)) {
+                        continue;
+                    }
+                    foreach (preg_split('/\s*,\s*/', $resolved) ?: [] as $token) {
+                        $token = trim((string) $token);
+                        if ($token !== '' && ! $this->isUuidLike($token)) {
+                            $labels[] = $token;
+                        }
+                    }
+                }
+
+                return $labels;
+            })
             ->unique()
             ->values();
 
@@ -2220,9 +2224,14 @@ class FormInstanceController extends Controller
             return $fromLines->implode(', ');
         }
 
-        $rawParameters = $this->plainLabelText((string) ($formData['parameters'] ?? ''));
-        if (! $this->isBlankLabelValue($rawParameters) && ! $this->isUuidLike($rawParameters)) {
-            $tokens = collect(preg_split('/\s*,\s*/', $rawParameters) ?: [])
+        foreach (['parameters', 'test_requirements', 'analysis_elements_select', 'parameter_requested', 'test_requirement', 'tests_required'] as $fieldName) {
+            $resolved = $this->plainLabelText($resolver->resolveMixed($formData[$fieldName] ?? null));
+            if ($this->isBlankLabelValue($resolved)) {
+                $display = $instance->resolveDisplayValueByName($fieldName);
+                $resolved = $this->plainLabelText($resolver->resolveMixed($display));
+            }
+
+            $tokens = collect(preg_split('/\s*,\s*/', $resolved) ?: [])
                 ->map(fn (string $token): string => trim($token))
                 ->reject(fn (string $token): bool => $token === '' || $this->isUuidLike($token))
                 ->unique()
@@ -2235,18 +2244,79 @@ class FormInstanceController extends Controller
 
         return $this->firstResolvedLabelValue(
             $instance,
-            ['parameters', 'parameter_requested', 'test_requirement', 'tests_required', 'analysis_elements_select'],
+            ['parameters', 'parameter_requested', 'test_requirement', 'test_requirements', 'tests_required', 'analysis_elements_select'],
             (string) ($formData['parameter_requested'] ?? $formData['test_requirement'] ?? '')
         );
     }
 
     /**
+     * @param  list<array<string, mixed>>  $sampleLines
      * @param  array<string, mixed>  $formData
      */
-    private function resolveCollectionDateTime(array $formData): string
-    {
-        $date = trim((string) ($formData['date_of_sampling'] ?? $formData['sampling_date'] ?? $formData['collection_date'] ?? ''));
-        $time = trim((string) ($formData['sampling_time'] ?? $formData['collection_time'] ?? ''));
+    private function resolveCollectionDateTime(
+        SubmissionFormInstance $instance,
+        array $sampleLines,
+        array $formData,
+        ?SampleSubmissionRequest $enquiry = null,
+    ): string {
+        $collectionData = is_array($enquiry?->collection_data) ? $enquiry->collection_data : [];
+
+        $date = $this->firstResolvedLabelValue(
+            $instance,
+            ['sampling_date', 'date_of_sampling', 'collection_date', 'date_collected'],
+            (string) (
+                $formData['sampling_date']
+                ?? $formData['date_of_sampling']
+                ?? $formData['collection_date']
+                ?? $collectionData['sampling_date']
+                ?? $enquiry?->date_of_seizure
+                ?? ''
+            )
+        );
+        if ($this->isBlankLabelValue($date) || $this->isUuidLike($date)) {
+            $date = '';
+        }
+
+        $time = $this->firstResolvedLabelValue(
+            $instance,
+            ['sampling_time', 'collection_time', 'time_of_collection', 'time_sampled'],
+            (string) (
+                $formData['sampling_time']
+                ?? $formData['collection_time']
+                ?? $formData['time_of_collection']
+                ?? $collectionData['sampling_time']
+                ?? ''
+            )
+        );
+        if ($this->isBlankLabelValue($time) || $this->isUuidLike($time)) {
+            $time = '';
+        }
+
+        if ($date === '') {
+            foreach ($sampleLines as $line) {
+                $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+                foreach (['sampling_date', 'date_of_sampling', 'collection_date'] as $key) {
+                    $candidate = $this->plainLabelText((string) ($line[$key] ?? $attributes[$key] ?? ''));
+                    if (! $this->isBlankLabelValue($candidate) && ! $this->isUuidLike($candidate)) {
+                        $date = $candidate;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if ($time === '') {
+            foreach ($sampleLines as $line) {
+                $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+                foreach (['sampling_time', 'collection_time', 'time_of_collection'] as $key) {
+                    $candidate = $this->plainLabelText((string) ($line[$key] ?? $attributes[$key] ?? ''));
+                    if (! $this->isBlankLabelValue($candidate) && ! $this->isUuidLike($candidate)) {
+                        $time = $candidate;
+                        break 2;
+                    }
+                }
+            }
+        }
 
         if ($date !== '' && $time !== '') {
             return $date.' '.$time;
@@ -2256,7 +2326,7 @@ class FormInstanceController extends Controller
             return $date;
         }
 
-        return now()->format('Y-m-d H:i');
+        return 'N/A';
     }
 
     private function plainLabelText(?string $value): string

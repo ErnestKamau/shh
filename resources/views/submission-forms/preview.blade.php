@@ -488,8 +488,28 @@ function setupStoreChangeHandlers() {
     });
 }
 
-function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
+function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null, extraAnalysisTypeId = null) {
+    // rows-section calls this as (jQueryEl, id, type, clientId, sampleTypeId, storeId, clientUnitId, analysisTypeId)
+    if (elementId && (elementId.jquery || elementId.nodeType === 1)) {
+        const $el = elementId.jquery ? elementId : $(elementId);
+        const realId = elementType;
+        const realType = clientId;
+        clientId = sampleTypeId;
+        sampleTypeId = storeId;
+        storeId = clientUnitId;
+        clientUnitId = analysisTypeId;
+        analysisTypeId = extraAnalysisTypeId;
+        elementId = realId;
+        elementType = realType;
+        const select = $el;
+        return loadDynamicOptionsFromSelect(select, elementId, elementType, clientId, sampleTypeId, storeId, clientUnitId, analysisTypeId);
+    }
+
     const select = $('#' + elementId);
+    return loadDynamicOptionsFromSelect(select, elementId, elementType, clientId, sampleTypeId, storeId, clientUnitId, analysisTypeId);
+}
+
+function loadDynamicOptionsFromSelect(select, elementId, elementType, clientId, sampleTypeId, storeId, clientUnitId, analysisTypeId) {
     const originalHtml = select.html();
     
     console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId, 'clientUnitId:', clientUnitId, 'analysisTypeId:', analysisTypeId);
@@ -523,7 +543,7 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
                 html += '<option value="">Select...</option>';
             } else {
                 // For non-dependent elements, check if required
-                const elementData = window.customElementsToInit.find(e => e.elementId === elementId);
+                const elementData = (window.customElementsToInit || []).find(e => e.elementId === elementId);
                 if (!elementData || !elementData.isRequired) {
                     const placeholder = elementData ? elementData.placeholder : 'Select...';
                     html += '<option value="">' + placeholder + '</option>';

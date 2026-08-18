@@ -596,9 +596,6 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                         $detailAttributes['photo_url'] = $plan['photo_path'];
                     }
                     $detailAttributes['include_photo_in_report'] = ! empty($plan['include_photo_in_report']);
-                    if (! empty($plan['sample_marking'])) {
-                        $detailAttributes['comments'] = $plan['sample_marking'];
-                    }
                     if (! empty($plan['customer_sample_id'])) {
                         $detailAttributes['barcode'] = $plan['customer_sample_id'];
                         $detailAttributes['customer_sample_id'] = $plan['customer_sample_id'];
@@ -630,6 +627,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                             ['sample_point_id' => $pointId],
                         );
                     }
+                }
+
+                if (empty($detailAttributes['comments']) && ! empty($plan['sample_marking'])) {
+                    $detailAttributes['comments'] = $plan['sample_marking'];
                 }
 
                 $detail = $sampleDetailCreationService->create(

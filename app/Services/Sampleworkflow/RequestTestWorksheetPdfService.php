@@ -62,19 +62,17 @@ final class RequestTestWorksheetPdfService
     }
 
     /**
-     * Serve the stored integrity worksheet PDF inline, rebuilding it from saved
-     * data when no copy exists yet.
+     * Serve the integrity worksheet PDF inline, always rebuilding from current
+     * request data so catalog fields stay in sync with the TRF.
      */
     public function viewStoredIntegrityPdf(SubmissionFormInstance $instance): Response
     {
         $path = $this->integrityStoragePath($instance);
         $disk = Storage::disk('public');
 
-        if (! $disk->exists($path)) {
-            $disk->makeDirectory(dirname($path));
-            $this->makePdf($this->integrityPayloadFromStoredData($instance))
-                ->save($disk->path($path));
-        }
+        $disk->makeDirectory(dirname($path));
+        $this->makePdf($this->integrityPayloadFromStoredData($instance))
+            ->save($disk->path($path));
 
         return response($disk->get($path), 200, [
             'Content-Type' => 'application/pdf',

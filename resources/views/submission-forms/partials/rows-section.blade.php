@@ -39,7 +39,7 @@
       @endphp
       {{-- Add Row Button --}}
       <div class="mb-3">
-        <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}">
+        <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}" data-sf-add-row="{{ $section->id }}">
           <i class="mdi mdi-plus"></i> Add Row
         </button>
       </div>
@@ -132,15 +132,16 @@
   </div>
 </div>
 <script>
-// Wait for jQuery before initializing rows section
-(function initRowsSection_{{ $section->id }}() {
-    if (typeof $ === 'undefined') {
-        setTimeout(initRowsSection_{{ $section->id }}, 50);
+// Wait for jQuery before initializing rows section.
+// Do not embed UUIDs in function names — hyphens make the script a syntax error.
+(function initRowsSection() {
+    if (typeof window.jQuery === 'undefined') {
+        setTimeout(initRowsSection, 50);
         return;
     }
     
-$(document).ready(function() {
-  const sectionId = {{ $section->id }};
+window.jQuery(document).ready(function($) {
+  const sectionId = @json((string) $section->id);
   console.log('Rows initialized for section ' + sectionId);
   // Uncomment the next line to debug if the script is running
   // alert('Rows initialized for section ' + sectionId);
@@ -259,8 +260,8 @@ $(document).ready(function() {
       FormFill.updateProgress();
     }
     
-    // Trigger change event on the form to update submit button state
-    $('#fill-form').trigger('change');
+    // Trigger change event on the form to update submit button / preview JSON
+    $('#fill-form, #preview-form').trigger('change');
     
     // If we have a client_unit from previous row, automatically load dependent selects for new row
     if (previousClientUnitId) {
@@ -750,7 +751,7 @@ $(document).ready(function() {
     if (typeof FormFill !== 'undefined' && FormFill.updateProgress) {
       FormFill.updateProgress();
     }
-    $('#fill-form').trigger('change');
+    $('#fill-form, #preview-form').trigger('change');
   }
 
   function deleteRow($row) {
@@ -763,7 +764,7 @@ $(document).ready(function() {
       }
       
       // Trigger change event on the form to update submit button state
-      $('#fill-form').trigger('change');
+      $('#fill-form, #preview-form').trigger('change');
     }
   }
 
@@ -1061,8 +1062,12 @@ $(document).ready(function() {
       }
 
       var fillForm = document.getElementById('fill-form');
+      var previewForm = document.getElementById('preview-form');
       if (fillForm) {
         fillForm.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (previewForm) {
+        previewForm.dispatchEvent(new Event('change', { bubbles: true }));
       }
       return;
     }
@@ -1080,7 +1085,7 @@ $(document).ready(function() {
     event.preventDefault();
     rowToDelete.remove();
 
-    var formEl = document.getElementById('fill-form');
+    var formEl = document.getElementById('fill-form') || document.getElementById('preview-form');
     if (formEl) {
       formEl.dispatchEvent(new Event('change', { bubbles: true }));
     }

@@ -129,8 +129,39 @@ final class SampleReceivingCheckInService
         }
 
         $instance->markAsReceived($user, $notes);
+        $this->recordReceivingOfficer($user, $instance->fresh() ?? $instance);
 
         return true;
+    }
+
+    /**
+     * Persist the signed-in staff member as Received By on the enquiry
+     * (and instance review fields) so batch info can copy it onto the sample header.
+     */
+    public function recordReceivingOfficer(
+        User $user,
+        SubmissionFormInstance $instance,
+        ?SampleSubmissionRequest $enquiry = null,
+    ): void {
+        $enquiry ??= $instance->sampleSubmissionRequest
+            ?? SampleSubmissionRequest::query()
+                ->where('submission_form_instance_id', (string) $instance->id)
+                ->first();
+
+        if ($enquiry !== null) {
+            $enquiry->received_by_full_name = (string) $user->name;
+            $title = trim((string) ($user->designation ?? $user->position ?? ''));
+            if ($title !== '') {
+                $enquiry->received_by_title = $title;
+            }
+            $enquiry->received_by_date = now()->toDateString();
+            $enquiry->received_by_time = now()->format('H:i');
+            $enquiry->save();
+        }
+
+        $instance->reviewed_by = $user->id;
+        $instance->reviewed_at = $instance->reviewed_at ?? now();
+        $instance->save();
     }
 
     public function canReceiveInstance(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry = null): bool

@@ -251,6 +251,12 @@
         $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
         $includeResult = (bool) ($payload['include_result_column'] ?? false);
         $fieldRows = array_chunk($fields, 2);
+        $catalog = is_array($payload['catalog'] ?? null) ? $payload['catalog'] : null;
+        $isIntegrity = ($payload['context'] ?? '') === 'integrity' && $catalog !== null;
+        $catalogClient = is_array($catalog['client'] ?? null) ? $catalog['client'] : [];
+        $catalogAnalysis = is_array($catalog['analysis'] ?? null) ? $catalog['analysis'] : [];
+        $catalogSamples = is_array($catalog['samples'] ?? null) ? $catalog['samples'] : [];
+        $catalogCollection = is_array($catalog['collection'] ?? null) ? $catalog['collection'] : [];
     @endphp
 
     <table class="document-header">
@@ -273,36 +279,74 @@
         </tr>
     </table>
 
-    <div class="section-title">Part A: Request Information</div>
-    @if($fields === [])
-        <div class="empty-state muted">No request information available.</div>
-    @else
-        <table class="info-grid">
-            @foreach($fieldRows as $fieldRow)
-                <tr>
-                    @foreach($fieldRow as $field)
-                        <td>
-                            <span class="field-label">{{ $field['label'] ?? '' }}</span>
-                            <span class="field-value">{{ $field['value'] ?? '—' }}</span>
-                        </td>
-                    @endforeach
-                    @if(count($fieldRow) === 1)
-                        <td></td>
-                    @endif
-                </tr>
+    @if($isIntegrity)
+        <div class="section-title">1. Client / Customer information</div>
+        @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogClient, 'empty' => 'No client information available.'])
+
+        <div class="section-title">2. Sample details</div>
+        @if($catalogSamples === [])
+            <div class="empty-state muted">No sample details available.</div>
+        @else
+            @foreach($catalogSamples as $catalogSample)
+                <div class="sample-block">
+                    <div class="sample-heading">
+                        Sample: {{ $catalogSample['label'] ?? 'Sample' }}
+                        @if(!empty($catalogSample['customer_sample_id']))
+                            <span class="sample-code">Customer sample ID: {{ $catalogSample['customer_sample_id'] }}</span>
+                        @endif
+                    </div>
+                    @include('sampleworkflow.partials.integrity-pdf-field-grid', [
+                        'fields' => is_array($catalogSample['fields'] ?? null) ? $catalogSample['fields'] : [],
+                        'empty' => 'No sample attributes recorded.',
+                    ])
+                </div>
             @endforeach
-            @if(!empty($remarks))
+        @endif
+
+        <div class="section-title">3. Sample collection information</div>
+        @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogCollection, 'empty' => 'No collection information available.'])
+        @if(!empty($remarks))
+            <table class="info-grid">
                 <tr>
                     <td colspan="2" class="remarks-row">
                         <span class="field-label">Remarks</span>
                         <span class="field-value">{{ $remarks }}</span>
                     </td>
                 </tr>
-            @endif
-        </table>
+            </table>
+        @endif
+    @else
+        <div class="section-title">Part A: Request Information</div>
+        @if($fields === [])
+            <div class="empty-state muted">No request information available.</div>
+        @else
+            <table class="info-grid">
+                @foreach($fieldRows as $fieldRow)
+                    <tr>
+                        @foreach($fieldRow as $field)
+                            <td>
+                                <span class="field-label">{{ $field['label'] ?? '' }}</span>
+                                <span class="field-value">{{ $field['value'] ?? '—' }}</span>
+                            </td>
+                        @endforeach
+                        @if(count($fieldRow) === 1)
+                            <td></td>
+                        @endif
+                    </tr>
+                @endforeach
+                @if(!empty($remarks))
+                    <tr>
+                        <td colspan="2" class="remarks-row">
+                            <span class="field-label">Remarks</span>
+                            <span class="field-value">{{ $remarks }}</span>
+                        </td>
+                    </tr>
+                @endif
+            </table>
+        @endif
     @endif
 
-    <div class="section-title">Part B: Samples and Tests by Laboratory Section</div>
+    <div class="section-title">{{ $isIntegrity ? '4. Samples and tests by laboratory section' : 'Part B: Samples and Tests by Laboratory Section' }}</div>
     @if($sections === [])
         <div class="empty-state muted">No samples or tests found.</div>
     @else

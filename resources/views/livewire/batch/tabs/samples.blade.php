@@ -263,7 +263,7 @@
                             <input type="checkbox" id="select-all-samples" title="Select All">
                         </th>
                         <th style="width: 100px; text-align: center;">Actions</th>
-                        <th style="min-width: 100px;">Code</th>
+                        <th style="min-width: 180px;">Code</th>
                         <th style="min-width: 150px;">Matrix<sup class="text-danger">*</sup></th>
                         <th style="min-width: 150px;">Sample Type</th>
                         <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
@@ -376,11 +376,11 @@
                         </td>
 
                         {{-- Sample Code (readonly) --}}
-                        <td>
+                        <td style="min-width: 180px;">
                             <div class="d-flex align-items-center" style="gap:6px;">
                                 <input type="text" class="form-control form-control-sm"
                                     value="{{ format_sample_code($sampleForm['sample_code']) }}" readonly
-                                    style="background: #f5f5f5; font-weight: bold;{{ !empty($sampleForm['is_ammendment']) ? ' border-color:#f59e0b;' : '' }}">
+                                    style="background: #f5f5f5; font-weight: bold; min-width: 160px;{{ !empty($sampleForm['is_ammendment']) ? ' border-color:#f59e0b;' : '' }}">
                                 @if(!empty($sampleForm['is_ammendment']))
                                     <span class="badge badge-warning" title="Flagged for amendment">
                                         Amend V{{ $sampleForm['ammendment_number'] ?? $batch->amendmentVersion() }}
@@ -573,8 +573,13 @@
                         {{-- Description --}}
                         <td>
                             <div class="d-flex align-items-start gap-2">
-                                <div class="p-2 border rounded flex-grow-1" style="background: #f8f9fa; min-height: 31px; font-size: 0.875rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    {!! $sampleForm['comments'] ?? '<span class="text-muted">No comments</span>' !!}
+                                @php $rowDescription = $this->sampleRowDescription($index); @endphp
+                                <div class="p-2 border rounded flex-grow-1" style="background: #f8f9fa; min-height: 31px; font-size: 0.875rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ $rowDescription }}">
+                                    @if($rowDescription !== '')
+                                        {{ $rowDescription }}
+                                    @else
+                                        <span class="text-muted">No description</span>
+                                    @endif
                                 </div>
                                 @if(!$isReadOnly)
                                 <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openCommentModal({{ $index }})">

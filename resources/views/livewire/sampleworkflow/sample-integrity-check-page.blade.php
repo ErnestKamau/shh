@@ -60,7 +60,7 @@
                         <span wire:loading wire:target="downloadExcel">Downloading…</span>
                     </button>
                     <a href="{{ $this->collectionLabelUrl }}" target="_blank" class="dropdown-item">
-                        <i class="mdi mdi-printer-outline mr-2"></i> Collection label
+                        <i class="mdi mdi-tag-outline mr-2"></i> Collection label
                     </a>
                     <a href="{{ $this->registrationLabelUrl }}" target="_blank" class="dropdown-item">
                         <i class="mdi mdi-barcode mr-2"></i> Lab sample labels
@@ -136,6 +136,9 @@
                                             wire:click="selectSample('{{ $sample['key'] }}')"
                                         >
                                             <div class="font-weight-bold">{{ $sample['label'] }}</div>
+                                            @if(!empty($sample['customer_sample_id']))
+                                                <div class="integrity-sample-customer-id">Customer ID: {{ $sample['customer_sample_id'] }}</div>
+                                            @endif
                                             <div class="integrity-sample-meta">
                                                 {{ $sample['complete'] }}/{{ $sample['total'] }} assigned
                                                 @if($sample['subcontracted'] > 0)
@@ -149,6 +152,16 @@
                                                 ></div>
                                             </div>
                                         </button>
+                                        <a
+                                            href="{{ $this->collectionLabelUrl }}"
+                                            target="_blank"
+                                            class="rv-icon-btn rv-icon-btn--solo integrity-sample-info-btn"
+                                            title="Sample collection label"
+                                            aria-label="Open sample collection label for {{ $sample['label'] }}"
+                                            onclick="event.stopPropagation();"
+                                        >
+                                            <i class="mdi mdi-tag-outline" aria-hidden="true"></i>
+                                        </a>
                                         <button
                                             type="button"
                                             class="rv-icon-btn rv-icon-btn--solo integrity-sample-info-btn"
@@ -843,6 +856,12 @@
 
         .sample-integrity-check-page .integrity-actions-dropdown__menu .dropdown-divider {
             margin: 0.3rem 0;
+        }
+
+        .sample-integrity-check-page .integrity-sample-customer-id {
+            margin-top: 0.1rem;
+            font-size: 0.72rem;
+            color: #64748b;
         }
     </style>
 </div>

@@ -14,6 +14,7 @@ use App\SampleAnalysisStage;
 use App\SampleHeader;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Models\System\SystemConfiguration;
+use App\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -522,6 +523,24 @@ class AcceptanceFormSampleHeaderService
             return [
                 'id' => (string) $reviewedBy->id,
                 'name' => (string) $reviewedBy->name,
+            ];
+        }
+
+        $receivedName = trim((string) ($context['portalRequest']?->received_by_full_name ?? ''));
+        if ($receivedName !== '') {
+            $matched = User::query()->where('name', $receivedName)->first();
+
+            return [
+                'id' => $matched !== null ? (string) $matched->id : null,
+                'name' => $receivedName,
+            ];
+        }
+
+        $authUser = auth()->user();
+        if ($authUser instanceof User) {
+            return [
+                'id' => (string) $authUser->id,
+                'name' => (string) $authUser->name,
             ];
         }
 
