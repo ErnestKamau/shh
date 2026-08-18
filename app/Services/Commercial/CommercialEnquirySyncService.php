@@ -16,7 +16,14 @@ final class CommercialEnquirySyncService
 
     public const SOURCE_SCHEDULED = 'scheduled';
 
+    public const SOURCE_OFFLINE = 'offline';
+
     public const SOURCE_STAFF = 'staff';
+
+    public static function isOfflineChannel(?string $channel): bool
+    {
+        return strtolower(trim((string) $channel)) === self::SOURCE_OFFLINE;
+    }
 
     public function __construct(
         private SubmissionRequestSampleLineService $sampleLineService,
@@ -144,9 +151,11 @@ final class CommercialEnquirySyncService
 
             $asDraft = $status === SampleSubmissionRequest::STATUS_DRAFT;
 
-            if (! $asDraft && $this->contractCustomerService->isScheduledEnquiry($enquiry)) {
+            if (! $asDraft && $this->shouldAutoMarkReadyForReception($enquiry)) {
                 if (! $this->contractCustomerService->hasAssignedPricelist((string) $enquiry->crm_customer_id)) {
-                    $enquiry->pricing_source = 'sampling_contract';
+                    $enquiry->pricing_source = $this->contractCustomerService->isScheduledEnquiry($enquiry)
+                        ? 'sampling_contract'
+                        : ($enquiry->pricing_source ?: 'customer_pricelist');
                     $enquiry->save();
                 }
 
@@ -162,6 +171,12 @@ final class CommercialEnquirySyncService
 
             return $enquiry->fresh(['requestedAnalyses', 'customer', 'submissionFormInstance']);
         });
+    }
+
+    private function shouldAutoMarkReadyForReception(SampleSubmissionRequest $enquiry): bool
+    {
+        return $this->contractCustomerService->isScheduledEnquiry($enquiry)
+            || self::isOfflineChannel((string) ($enquiry->source_channel ?? ''));
     }
 
     private function findOrCreateEnquiry(SubmissionFormInstance $instance): SampleSubmissionRequest

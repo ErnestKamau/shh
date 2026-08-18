@@ -34,6 +34,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 {
@@ -63,12 +64,32 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             ])
             ->find($this->acceptanceFormId);
 
-        if (!$form || $form->sample_header_id) {
+        if ($form === null) {
+            throw new \RuntimeException('Acceptance form was not found when creating the sample batch.');
+        }
+
+        if ($form->sample_header_id) {
             return;
         }
 
+        \App\Models\CRM\CRMCustomer::supportsMainCustomerContactColumn();
+
+        $header = null;
+        $details = collect();
+
         try {
-            DB::transaction(function () use ($form, $sampleHeaderService, $analysisSetupService, $pricingService, $sampleConfigService, $invoiceNumberGenerator, $sampleDetailCreationService, $numberingService) {
+            DB::transaction(function () use (
+                $form,
+                $sampleHeaderService,
+                $analysisSetupService,
+                $pricingService,
+                $sampleConfigService,
+                $invoiceNumberGenerator,
+                $sampleDetailCreationService,
+                $numberingService,
+                &$header,
+                &$details,
+            ) {
                 $approvedLines = $form->lines->where('is_approved', true)->values();
                 if ($approvedLines->isEmpty()) {
                     throw new \RuntimeException('No approved analysis lines on acceptance form.');
@@ -122,8 +143,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                         : null,
                     $instance?->getAttribute('portal_request_id'),
                 ])
-                    ->filter(fn ($id) => !empty($id))
-                    ->map(fn ($id) => (string) $id)
+                    ->map(fn ($id) => trim((string) $id))
+                    ->filter(fn (string $id): bool => $id !== '' && Str::isUuid($id))
                     ->unique()
                     ->values();
 
@@ -210,11 +231,6 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $form->refresh();
                 $sampleHeaderService->applyToBatch($header->fresh(), $form, $primaryZoneId);
                 $sampleHeaderService->syncLinkedSubmissionForm($form);
-
-                $actingUserId = $form->created_by ? (string) $form->created_by : null;
-                $attachmentService = app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class);
-                $attachmentService->attachSamplePhotos($header->fresh(), collect($details), $actingUserId);
-                $attachmentService->attachForAcceptedBatch($header->fresh(), $actingUserId);
             });
         } catch (\Throwable $e) {
             Log::error('CreateSamplesFromAcceptanceFormJob failed', [
@@ -222,14 +238,34 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            AnalysisAcceptanceForm::query()
-                ->where('id', $this->acceptanceFormId)
-                ->update([
-                    'processing_error' => $e->getMessage(),
-                    'status' => AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
-                ]);
+            try {
+                AnalysisAcceptanceForm::query()
+                    ->where('id', $this->acceptanceFormId)
+                    ->update([
+                        'processing_error' => 'Could not create the sample batch.',
+                        'status' => AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+                    ]);
+            } catch (\Throwable) {
+            }
 
             throw $e;
+        }
+
+        if ($header === null) {
+            return;
+        }
+
+        try {
+            $actingUserId = $form->created_by ? (string) $form->created_by : null;
+            $attachmentService = app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class);
+            $attachmentService->attachSamplePhotos($header->fresh() ?? $header, collect($details), $actingUserId);
+            $attachmentService->attachForAcceptedBatch($header->fresh() ?? $header, $actingUserId);
+        } catch (\Throwable $exception) {
+            Log::warning('Post-accept document attach failed after sample batch was created.', [
+                'acceptance_form_id' => $this->acceptanceFormId,
+                'sample_header_id' => $header->id,
+                'message' => $exception->getMessage(),
+            ]);
         }
     }
 
@@ -264,6 +300,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             ->pluck('analysis_type_id')
             ->filter()
             ->map(fn ($id) => (string) $id)
+            ->filter(fn (string $id): bool => Str::isUuid($id))
             ->unique()
             ->values()
             ->all();
@@ -284,6 +321,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             ->pluck('analysis_type_id')
             ->filter()
             ->map(fn ($id) => (string) $id)
+            ->filter(fn (string $id): bool => Str::isUuid($id))
             ->unique()
             ->values()
             ->all();
@@ -302,6 +340,11 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         $instance = $this->resolveLinkedSubmissionFormInstance($form);
         if ($instance !== null) {
             $instance->loadMissing(['values.element', 'submissionForm.sampleTypeCategories', 'batches']);
+
+            $fromSelectedType = trim((string) ($instance->getAttribute('selected_sample_type_id') ?? ''));
+            if ($fromSelectedType !== '') {
+                return $fromSelectedType;
+            }
 
             $fromBatch = trim((string) ($instance->batches->first()?->sample_type_id ?? ''));
             if ($fromBatch !== '') {

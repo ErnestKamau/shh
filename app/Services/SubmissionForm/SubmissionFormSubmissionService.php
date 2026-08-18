@@ -413,7 +413,7 @@ class SubmissionFormSubmissionService
         string $sourceChannel = CommercialEnquirySyncService::SOURCE_WALK_IN,
         ?string $samplingScheduleId = null,
     ): SubmissionFormInstance {
-        return DB::transaction(function () use ($submissionForm, $fieldValues, $crmCustomerId, $sampleTypeId, $sourceChannel, $samplingScheduleId): SubmissionFormInstance {
+        $instance = DB::transaction(function () use ($submissionForm, $fieldValues, $crmCustomerId, $sampleTypeId, $sourceChannel, $samplingScheduleId): SubmissionFormInstance {
             if ($sourceChannel === CommercialEnquirySyncService::SOURCE_SCHEDULED) {
                 $samplingScheduleId = trim((string) ($samplingScheduleId ?? ''));
                 if ($samplingScheduleId === '') {
@@ -456,22 +456,17 @@ class SubmissionFormSubmissionService
             $this->assignFormNumberWithRetry($instance, $submissionForm);
             $instance->refresh();
 
-            $this->syncCommercialPipelineIfApplicable($instance->fresh(['values.element']), $submissionForm);
-
-            $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
-            if (class_exists($labIntakeCaseServiceClass)) {
-                try {
-                    app($labIntakeCaseServiceClass)->syncFromSubmission($instance->fresh(), null);
-                } catch (\Throwable $th) {
-                    Log::warning('Lab intake case sync failed after walk-in form submit.', [
-                        'instance_id' => $instance->id,
-                        'message' => $th->getMessage(),
-                    ]);
-                }
-            }
+            $this->syncCommercialEnquiryAfterSubmit(
+                $instance->fresh(['values.element', 'submissionForm', 'crmCustomer'])
+            );
 
             return $instance->fresh(['submissionForm', 'values.element']);
         });
+
+        $this->runPostSubmitDocumentSideEffects($instance);
+        $this->runPostSubmitLabIntakeSync($instance);
+
+        return $instance->fresh(['submissionForm', 'values.element']) ?? $instance;
     }
 
     private function supportsSelectedSampleTypeColumn(): bool
@@ -489,22 +484,47 @@ class SubmissionFormSubmissionService
     ): void {
         unset($submissionForm);
 
+        $this->syncCommercialEnquiryAfterSubmit(
+            $instance->fresh(['values.element', 'submissionForm', 'crmCustomer'])
+        );
+        $this->runPostSubmitDocumentSideEffects($instance);
+    }
+
+    private function syncCommercialEnquiryAfterSubmit(SubmissionFormInstance $instance): void
+    {
         $syncService = app(CommercialEnquirySyncService::class);
         if (! $syncService->isCommercialTestRequestForm($instance)) {
             return;
         }
 
+        $sourceChannel = strtolower(trim((string) ($instance->source_channel ?? '')));
+        $required = CommercialEnquirySyncService::isOfflineChannel($sourceChannel)
+            || $sourceChannel === CommercialEnquirySyncService::SOURCE_SCHEDULED;
+
+        if ($required) {
+            $syncService->syncFromSubmittedInstance($instance);
+
+            return;
+        }
+
         try {
-            $syncService->syncFromSubmittedInstance($instance->fresh(['values.element', 'submissionForm', 'crmCustomer']));
+            DB::transaction(function () use ($syncService, $instance): void {
+                $syncService->syncFromSubmittedInstance($instance);
+            });
         } catch (\Throwable $exception) {
             Log::warning('Commercial enquiry sync failed after submission form submit.', [
                 'instance_id' => $instance->id,
                 'message' => $exception->getMessage(),
             ]);
         }
+    }
 
+    private function runPostSubmitDocumentSideEffects(SubmissionFormInstance $instance): void
+    {
         try {
-            app(TestRequestFormPdfService::class)->generateAndStore($instance->fresh(['values.element', 'submissionForm']));
+            app(TestRequestFormPdfService::class)->generateAndStore(
+                $instance->fresh(['values.element', 'submissionForm'])
+            );
         } catch (\Throwable $exception) {
             Log::warning('Test Request Form PDF generation failed after submission.', [
                 'instance_id' => $instance->id,
@@ -522,6 +542,23 @@ class SubmissionFormSubmissionService
             Log::warning('Test Request Form attachment sync failed after submission.', [
                 'instance_id' => $instance->id,
                 'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function runPostSubmitLabIntakeSync(SubmissionFormInstance $instance): void
+    {
+        $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
+        if (! class_exists($labIntakeCaseServiceClass)) {
+            return;
+        }
+
+        try {
+            app($labIntakeCaseServiceClass)->syncFromSubmission($instance->fresh(), null);
+        } catch (\Throwable $th) {
+            Log::warning('Lab intake case sync failed after walk-in form submit.', [
+                'instance_id' => $instance->id,
+                'message' => $th->getMessage(),
             ]);
         }
     }

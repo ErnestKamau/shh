@@ -58,7 +58,7 @@
             >
                 <span wire:loading.remove wire:target="confirmReceive">
                     <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                    {{ ($plannerMode ?? false) ? 'Submit sampling form' : 'Submit' }}
+                    {{ ($plannerMode ?? false) ? 'Submit sampling form' : ($this->isOfflineIntake() ? 'Submit paper TRF' : 'Submit') }}
                 </span>
                 <span wire:loading wire:target="confirmReceive">
                     <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

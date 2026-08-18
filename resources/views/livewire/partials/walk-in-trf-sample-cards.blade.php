@@ -1,10 +1,25 @@
 @php
     $cardLayout = $this->walkInSampleCardLayout($tableColumns, $hiddenWalkInTrfFields);
+    $expandAllSampleCards = (bool) ($expandAllSampleCards ?? false);
 @endphp
 
 <div class="rft-sample-cards" x-data="{
-    openRow: 0,
+    expandAll: {{ $expandAllSampleCards ? 'true' : 'false' }},
+    openRow: {{ $expandAllSampleCards ? -1 : 0 }},
+    init() {
+        if (! this.expandAll) {
+            return;
+        }
+        this.$nextTick(() => {
+            for (let i = 0; i < {{ (int) $rowCount }}; i++) {
+                this.$dispatch('rft-sample-card-shown', { row: i });
+            }
+        });
+    },
     setOpenRow(row) {
+        if (this.expandAll) {
+            return;
+        }
         const previous = this.openRow;
         this.openRow = this.openRow === row ? -1 : row;
         if (previous >= 0 && previous !== this.openRow) {
@@ -23,7 +38,7 @@
         <article
             class="rft-sample-row-card"
             wire:key="row-card-{{ $activeSection->id }}-{{ $rowIndex }}"
-            :class="{ 'is-open': openRow === {{ $rowIndex }} }"
+            :class="{ 'is-open': expandAll || openRow === {{ $rowIndex }} }"
         >
             <div class="rft-sample-row-card__header">
                 <button
@@ -34,7 +49,7 @@
                     <h6 class="rft-sample-row-card__title mb-1">
                         Sample {{ $rowIndex + 1 }}
                     </h6>
-                    <div class="rft-sample-row-card__summary text-muted small" x-show="openRow !== {{ $rowIndex }}" x-cloak>
+                    <div class="rft-sample-row-card__summary text-muted small" x-show="!expandAll && openRow !== {{ $rowIndex }}" x-cloak>
                         <span>{{ $summary['analysis_label'] !== '' ? $summary['analysis_label'] : 'No analysis' }}</span>
                         <span class="mx-1">·</span>
                         <span>{{ $summary['param_count'] }} parameter{{ $summary['param_count'] === 1 ? '' : 's' }}</span>
@@ -59,6 +74,7 @@
                         type="button"
                         class="rft-sample-row-card__chevron border-0 bg-transparent p-0"
                         @click="setOpenRow({{ $rowIndex }})"
+                        x-show="!expandAll"
                         :aria-expanded="openRow === {{ $rowIndex }} ? 'true' : 'false'"
                         aria-label="Toggle sample {{ $rowIndex + 1 }}"
                     >
@@ -70,7 +86,7 @@
             {{-- x-show keeps parameter picker state; TinyMCE is destroyed/restored via events --}}
             <div
                 class="rft-sample-row-card__body"
-                x-show="openRow === {{ $rowIndex }}"
+                x-show="expandAll || openRow === {{ $rowIndex }}"
                 x-cloak
             >
                     @foreach($cardLayout['grid_rows'] as $gridRow)

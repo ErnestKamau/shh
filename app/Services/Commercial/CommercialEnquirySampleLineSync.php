@@ -330,12 +330,16 @@ final class CommercialEnquirySampleLineSync
 
         $label = $this->referenceLabelResolver->resolveToken($label);
 
+        $analysisTypeId = $this->uuidOrEmpty($analysisTypeId);
+        $elementId = $this->uuidOrEmpty($elementId);
+        $sampleTypeId = $this->uuidOrEmpty($sampleTypeId);
+
         SampleSubmissionRequestRequestedAnalysis::query()->create([
             'sample_submission_request_id' => $enquiry->id,
             'sample_type_id' => $sampleTypeId !== '' ? $sampleTypeId : null,
             'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
             'analysis_element_id' => $elementId !== '' ? $elementId : null,
-            'analysis_key' => $elementId !== '' ? $elementId : $analysisTypeId,
+            'analysis_key' => $elementId !== '' ? $elementId : ($analysisTypeId !== '' ? $analysisTypeId : $label),
             'analysis_label' => $label !== '' ? $label : 'Parameter',
             'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
         ]);
@@ -363,8 +367,8 @@ final class CommercialEnquirySampleLineSync
 
             SampleSubmissionRequestRequestedAnalysis::query()->create([
                 'sample_submission_request_id' => $enquiry->id,
-                'sample_type_id' => ($line['sample_type_id'] ?? null) ?: null,
-                'analysis_type_id' => ($line['analysis_type_id'] ?? null) ?: null,
+                'sample_type_id' => $this->uuidOrNull($line['sample_type_id'] ?? null),
+                'analysis_type_id' => $this->uuidOrNull($line['analysis_type_id'] ?? null),
                 'analysis_element_id' => null,
                 'analysis_key' => $token,
                 'analysis_label' => $resolved,
@@ -404,6 +408,20 @@ final class CommercialEnquirySampleLineSync
         }
 
         return $primary;
+    }
+
+    private function uuidOrEmpty(?string $value): string
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' && Str::isUuid($value) ? $value : '';
+    }
+
+    private function uuidOrNull(mixed $value): ?string
+    {
+        $normalized = $this->uuidOrEmpty($value !== null ? (string) $value : '');
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     private function looksLikeUuidList(string $label): bool

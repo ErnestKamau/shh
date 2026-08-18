@@ -56,7 +56,12 @@
         @endteleport
     @endif
 
+    @include('layouts.rft.partials.rft-theme-styles')
     <style>
+        .receive-sample-modal-body {
+            --workflow-accent: var(--color-primary, #3b5fc0);
+            --workflow-accent-soft: var(--color-primary-soft, #eef2ff);
+        }
         .receive-sample-modal-body .check-in-trf-metadata {
             margin-top: 1rem;
             padding: 1rem 1.25rem;
@@ -747,11 +752,21 @@
         @endif
 
         @unless($this->isPhysicalCheckIn)
-        @if ($errors->any())
+        @php
+            $fieldErrors = collect($errors->keys())
+                ->reject(fn (string $key): bool => $key === 'selection')
+                ->flatMap(fn (string $key) => $errors->get($key))
+                ->unique()
+                ->values();
+        @endphp
+        @error('selection')
+            <div class="alert alert-danger py-2 px-3 mb-3 small" role="alert">{{ $message }}</div>
+        @enderror
+        @if ($fieldErrors->isNotEmpty())
             <div class="alert alert-danger py-2 px-3 mb-3 small" role="alert">
                 <strong class="d-block mb-1">Please fix the following before submitting:</strong>
                 <ul class="mb-0 pl-3">
-                    @foreach ($errors->all() as $error)
+                    @foreach ($fieldErrors as $error)
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
@@ -840,23 +855,55 @@
             @endif
         @else
             <!-- Walk-in only: Sample Type + TRF (modal) -->
-            <div class="form-group mb-4 receive-sample-type-field">
-                <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample type <span class="text-danger">*</span></label>
-                <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
-                    <option value="">-- Select Sample Type --</option>
-                    @foreach($sampleTypes as $st)
-                        <option value="{{ $st->id }}">{{ $st->name }}</option>
-                    @endforeach
-                </select>
-                @error('selectedSampleTypeId')
-                    <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
-                @enderror
-            </div>
+            <div class="{{ $this->isOfflineIntake() ? 'paper-trf-intake' : '' }}">
+                @if($this->isOfflineIntake())
+                    <div class="paper-trf-intake__meta">
+                        <div class="form-group receive-sample-type-field">
+                            <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample type <span class="text-danger">*</span></label>
+                            <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
+                                <option value="">-- Select Sample Type --</option>
+                                @foreach($sampleTypes as $st)
+                                    <option value="{{ $st->id }}">{{ $st->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('selectedSampleTypeId')
+                                <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="form-group">
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => [
+                                    'name' => 'customer_name',
+                                    'label' => 'Customer',
+                                    'type' => 'client_select',
+                                    'required' => true,
+                                    'readonly' => false,
+                                    'options' => [],
+                                ],
+                            ])
+                        </div>
+                    </div>
+                @else
+                    <div class="form-group mb-4 receive-sample-type-field">
+                        <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample type <span class="text-danger">*</span></label>
+                        <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
+                            <option value="">-- Select Sample Type --</option>
+                            @foreach($sampleTypes as $st)
+                                <option value="{{ $st->id }}">{{ $st->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('selectedSampleTypeId')
+                            <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
+                        @enderror
+                    </div>
+                @endif
 
             @if($selectedSampleTypeId && $submissionForm)
                 @include('livewire.partials.walk-in-trf-wizard-styles')
-                <div class="walk-in-trf-wizard-shell mb-3">
-                    @include('livewire.partials.walk-in-trf-wizard-stepper')
+                <div class="walk-in-trf-wizard-shell {{ $this->isOfflineIntake() ? 'mb-0' : 'mb-3' }}">
+                    @unless($this->isOfflineIntake())
+                        @include('livewire.partials.walk-in-trf-wizard-stepper')
+                    @endunless
                     @include('livewire.partials.walk-in-trf-capture-sections', [
                         'submissionForm' => $submissionForm,
                         'formData' => $formData,
@@ -869,14 +916,11 @@
                     No active Test Request Form template is linked to this sample type. Link a TRF template to the sample type in Submission Forms, then try again.
                 </div>
             @endif
+            </div>
         @endif
         @endunless
 
         {{-- Remarks / reception notes removed for physical check-in; now a simple confirmation. --}}
-
-    @error('selection')
-        <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>
-    @enderror
 
     @if($showWalkInAddCustomerModal)
         <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="walk-in-add-customer-title">
@@ -1077,7 +1121,7 @@
         @endif
     @elseif (! $showPhysicalConfirmModal)
         <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3 flex-wrap rft-gap">
-            @if ($selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0)
+            @if ($selectedSampleTypeId && $submissionForm && $this->walkInTotalSteps > 0 && ! $this->isOfflineIntake())
                 <span class="walk-in-trf-wizard__step-hint mb-0" aria-live="polite">
                     Step {{ $walkInActiveStepIndex + 1 }} of {{ $this->walkInTotalSteps }}
                     · {{ $this->walkInWizardSteps[$walkInActiveStepIndex]['title'] ?? '' }}
@@ -1102,7 +1146,7 @@
                     >
                         <span wire:loading.remove wire:target="confirmReceive">
                             <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                            Submit walk-in request
+                            {{ $this->isOfflineIntake() ? 'Submit paper TRF' : 'Submit walk-in request' }}
                         </span>
                         <span wire:loading wire:target="confirmReceive">
                             <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

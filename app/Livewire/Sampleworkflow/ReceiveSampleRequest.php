@@ -118,6 +118,9 @@ class ReceiveSampleRequest extends Component
     /** Resolved CRM customer for walk-in contact/point actions (avoids fragile name-only matching). */
     public ?string $selectedCrmCustomerId = null;
 
+    /** Request origin for staff capture: walk_in (default) or offline paper TRF. */
+    public string $intakeChannel = CommercialEnquirySyncService::SOURCE_WALK_IN;
+
     /** Open Drafts / Today tab on the RFT list page (or pending/filled for planner). */
     public string $rftInstancesTab = 'today';
 
@@ -296,10 +299,20 @@ class ReceiveSampleRequest extends Component
             return collect();
         }
 
-        return app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
+        $sections = app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
             ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage')
-            ->reject(fn ($section) => SubmissionFormSchemaHelper::isBuilderHiddenSection($section))
-            ->values();
+            ->reject(fn ($section) => SubmissionFormSchemaHelper::isBuilderHiddenSection($section));
+
+        if ($this->isOfflineIntake()) {
+            $sampleSections = $sections->filter(
+                fn ($section): bool => $this->walkInSectionUsesSampleCards($section)
+            );
+            if ($sampleSections->isNotEmpty()) {
+                $sections = $sampleSections;
+            }
+        }
+
+        return $sections->values();
     }
 
     /** @return list<array{index: int, key: string, label: string, title: string, is_rows: bool}> */
@@ -2955,6 +2968,9 @@ class ReceiveSampleRequest extends Component
             $this->selectedCrmCustomerId = null;
             $this->walkInActiveStepIndex = 0;
             $this->resetValidation();
+            if ($normalizedInstanceIds !== []) {
+                $this->intakeChannel = CommercialEnquirySyncService::SOURCE_WALK_IN;
+            }
         }
 
         $this->selectedFormInstanceIds = $normalizedInstanceIds;
@@ -2968,7 +2984,38 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->showPhysicalConfirmModal = false;
-        $this->dispatch('show-receive-sample-modal', physicalCheckIn: false);
+        $this->dispatch(
+            'show-receive-sample-modal',
+            physicalCheckIn: false,
+            intakeChannel: $this->intakeChannel,
+        );
+    }
+
+    public function openOfflinePaperTrfCapture(): void
+    {
+        $this->intakeChannel = CommercialEnquirySyncService::SOURCE_OFFLINE;
+        $this->selectedFormInstanceIds = [];
+        $this->selectedSampleTypeId = null;
+        $this->walkInActiveStepIndex = 0;
+        $this->handleReceiveModalOpen([], []);
+    }
+
+    public function isOfflineIntake(): bool
+    {
+        return $this->intakeChannel === CommercialEnquirySyncService::SOURCE_OFFLINE;
+    }
+
+    private function walkInSourceChannel(): string
+    {
+        if ($this->plannerMode) {
+            return CommercialEnquirySyncService::SOURCE_SCHEDULED;
+        }
+
+        if ($this->isOfflineIntake()) {
+            return CommercialEnquirySyncService::SOURCE_OFFLINE;
+        }
+
+        return CommercialEnquirySyncService::SOURCE_WALK_IN;
     }
 
     public function closePhysicalConfirmModal(): void
@@ -2983,6 +3030,9 @@ class ReceiveSampleRequest extends Component
     public function onHideReceiveSampleModal(): void
     {
         $this->showPhysicalConfirmModal = false;
+        if (! $this->isPhysicalCheckIn) {
+            $this->intakeChannel = CommercialEnquirySyncService::SOURCE_WALK_IN;
+        }
     }
 
     protected function getListeners(): array
@@ -2990,6 +3040,7 @@ class ReceiveSampleRequest extends Component
         return [
             'receive-modal-open' => 'handleReceiveModalOpen',
             'hide-receive-sample-modal' => 'onHideReceiveSampleModal',
+            'open-offline-paper-trf' => 'openOfflinePaperTrfCapture',
         ];
     }
 
@@ -3155,16 +3206,12 @@ class ReceiveSampleRequest extends Component
         }
 
         try {
-            DB::beginTransaction();
-
             $instance = app(SubmissionFormSubmissionService::class)->submitWalkInInstance(
                 $submissionForm,
                 $payload,
                 $crmCustomerId !== null ? (string) $crmCustomerId : null,
                 (string) $this->selectedSampleTypeId,
-                $this->plannerMode
-                    ? CommercialEnquirySyncService::SOURCE_SCHEDULED
-                    : CommercialEnquirySyncService::SOURCE_WALK_IN,
+                $this->walkInSourceChannel(),
                 $schedule?->id !== null ? (string) $schedule->id : null,
             );
 
@@ -3173,16 +3220,10 @@ class ReceiveSampleRequest extends Component
                 $schedule->load('submissionFormInstances.values.element');
                 $progress = app(SamplingScheduleCollectionProgress::class)->refresh($schedule);
             }
-
-            DB::commit();
         } catch (\Throwable $exception) {
-            DB::rollBack();
             report($exception);
-            $message = $this->plannerMode
-                ? 'Could not submit sampling form. '.$exception->getMessage()
-                : 'Could not submit walk-in request. '.$exception->getMessage();
+            $message = $this->walkInSubmitFailureMessage($exception);
             $this->addError('selection', $message);
-            $this->dispatch('notify', type: 'error', message: $message);
 
             return;
         }
@@ -3191,7 +3232,9 @@ class ReceiveSampleRequest extends Component
 
         $successMessage = $this->plannerMode
             ? 'Sampling form submitted and linked to the schedule successfully.'
-            : 'Walk-in test request submitted successfully.';
+            : ($this->isOfflineIntake()
+                ? 'Paper test request submitted. It is now Ready for Reception.'
+                : 'Walk-in test request submitted successfully.');
         if ($this->plannerMode && isset($progress)) {
             $successMessage = $progress['is_complete']
                 ? 'Sampling form submitted. All '.$progress['scheduled'].' scheduled sample(s) are now collected.'
@@ -3211,12 +3254,33 @@ class ReceiveSampleRequest extends Component
                 return;
             }
 
-            $this->redirect(route('sample-workflow', ['status' => 'Samples Receiving']).'?tab=submitted', navigate: false);
+            $this->redirect(
+                route('sample-workflow', ['status' => 'Samples Receiving']).($this->isOfflineIntake()
+                    ? '?tab=ready_for_reception'
+                    : '?tab=submitted'),
+                navigate: false
+            );
 
             return;
         }
 
+        $this->dispatch('notify', type: 'success', message: $successMessage);
         $this->dispatch('hide-receive-sample-modal');
+    }
+
+    private function walkInSubmitFailureMessage(\Throwable $exception): string
+    {
+        unset($exception);
+
+        if ($this->plannerMode) {
+            return 'Could not submit the sampling form. Please try again.';
+        }
+
+        if ($this->isOfflineIntake()) {
+            return 'Could not submit the paper test request. Check the customer, sample type, and sample rows, then try again.';
+        }
+
+        return 'Could not submit the walk-in request. Please try again.';
     }
 
     private function runWalkInCaptureValidations(): void
@@ -3236,6 +3300,13 @@ class ReceiveSampleRequest extends Component
             $this->dispatch('notify', type: 'error', message: $message);
 
             return;
+        }
+
+        if ($this->isOfflineIntake()) {
+            $this->validateWalkInCustomerInfo();
+            if ($this->getErrorBag()->isNotEmpty()) {
+                throw ValidationException::withMessages($this->getErrorBag()->toArray());
+            }
         }
 
         foreach ($this->walkInSections->values() as $stepIndex => $section) {
@@ -3302,7 +3373,8 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        if (($section->section_type ?? '') === 'rows_section') {
+        if ($this->walkInSectionUsesSampleCards($section)
+            || ($section->section_type ?? '') === 'rows_section') {
             $this->validateWalkInSchemaRows($section);
 
             return;
@@ -3331,8 +3403,17 @@ class ReceiveSampleRequest extends Component
             }
         }
 
-        if ($customerName === '') {
-            $this->addError('formData.customer_name', 'Customer name is required in Customer details.');
+        if ($customerName === '' && $this->resolveSelectedCustomerId() === null) {
+            $this->addError(
+                'formData.customer_name',
+                $this->isOfflineIntake()
+                    ? 'Select a customer.'
+                    : 'Customer name is required in Customer details.',
+            );
+        }
+
+        if ($this->isOfflineIntake()) {
+            return;
         }
 
         if (array_key_exists('contact_person', $this->formData)
@@ -3360,7 +3441,9 @@ class ReceiveSampleRequest extends Component
         $this->dispatch(
             'notify',
             type: 'error',
-            message: 'Could not submit walk-in request. Please complete the required fields below.',
+            message: $this->isOfflineIntake()
+                ? 'Could not submit paper test request. Please complete the required fields below.'
+                : 'Could not submit walk-in request. Please complete the required fields below.',
         );
 
         foreach (array_slice($messages, 0, 4) as $message) {

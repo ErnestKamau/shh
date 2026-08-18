@@ -310,7 +310,7 @@ class SampleSubmissionRequest extends Model
     public function isCommercialEnquiry(): bool
     {
         return in_array((string) $this->status, self::COMMERCIAL_PIPELINE_STATUSES, true)
-            || in_array((string) $this->source_channel, ['portal', 'walk_in'], true);
+            || in_array((string) $this->source_channel, ['portal', 'walk_in', 'offline', 'scheduled'], true);
     }
 
     public function isReadyForPhysicalReception(): bool

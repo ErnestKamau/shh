@@ -41,8 +41,6 @@ class AcceptanceFormWizard extends Component
 
     public string $modeOfWork = 'Normal';
 
-    public bool $isShelfLifeTesting = false;
-
     public ?string $dateOfSampling = null;
 
     /** @var list<array<string, mixed>> */
@@ -500,7 +498,6 @@ class AcceptanceFormWizard extends Component
             'sample_configuration_payload' => $normalizedConfigs,
             'lab_capable' => $this->labCapable,
             'client_instruction_clear' => $this->clientInstructionClear,
-            'is_shelf_life' => $this->isShelfLifeTesting,
             'assigned_analyst_ids' => $assignedAnalystIds,
             'lead_analyst_id' => $leadAnalystId,
             'analyst_lab_section_assignments' => $analystSectionAssignments,
@@ -544,22 +541,6 @@ class AcceptanceFormWizard extends Component
 
         $batch = \App\SampleHeader::query()->find($batchId);
         $batchCode = (string) ($batch?->batch_code ?? '');
-        $isShelfLife = (bool) ($batch?->is_shelf_life ?? $this->isShelfLifeTesting);
-
-        if ($isShelfLife) {
-            $studyId = \App\Models\ShelfLife\ShelfLifeStudy::query()
-                ->where('sample_header_id', $batchId)
-                ->value('id');
-
-            $redirectUrl = $studyId
-                ? route('shelf-life.studies.show', ['study' => $studyId])
-                : route('shelf-life.studies.index');
-
-            $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
-            session()->flash('success', "Samples accepted as shelf-life testing. Job number {$batchCode} sent to Shelf Life Studies.");
-
-            return;
-        }
 
         $redirectUrl = route('view-batch-details', [
             'batch' => $batchId,
@@ -724,7 +705,6 @@ class AcceptanceFormWizard extends Component
         $this->customerName = '';
         $this->numberOfSamples = 1;
         $this->modeOfWork = 'Normal';
-        $this->isShelfLifeTesting = false;
         $this->dateOfSampling = null;
         $this->requestDate = now()->format('Y-m-d');
         $this->receivingPersonName = (string) (Auth::user()->name ?? '');

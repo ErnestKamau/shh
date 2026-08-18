@@ -24,8 +24,16 @@ final class BatchResultsExcelImportService
         $payload = $this->dataService->buildFromBatch($batch, includeResultColumn: true);
         $filename = 'batch-results-'.$this->safeFilename((string) ($batch->batch_code ?? $batch->id)).'.xlsx';
 
+        return $this->downloadTemplateFromIntegrityRows($payload['flat_rows'], $filename);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $flatRows
+     */
+    public function downloadTemplateFromIntegrityRows(array $flatRows, string $filename): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
         return Excel::download(
-            new BatchResultsTemplateExport($payload['flat_rows'], 'Results'),
+            new BatchResultsTemplateExport($flatRows, 'Results'),
             $filename
         );
     }

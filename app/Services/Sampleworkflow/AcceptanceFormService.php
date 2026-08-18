@@ -17,6 +17,7 @@ use App\SampleAnalysisStage;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\AcceptanceFormPdfService;
 use App\Services\ShelfLife\ShelfLifeStudyBootstrapService;
+use App\Models\ShelfLife\ShelfLifeStudy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -174,7 +175,7 @@ class AcceptanceFormService
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
                     : null,
-                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
+                'is_shelf_life' => $this->resolveInLabShelfLifeFlag($header, $lines),
                 'created_by' => $createdBy,
             ]);
 
@@ -302,7 +303,7 @@ class AcceptanceFormService
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
                     : null,
-                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
+                'is_shelf_life' => $this->resolveInLabShelfLifeFlag($header, $lines),
                 'created_by' => $createdBy,
             ]);
 
@@ -452,13 +453,13 @@ class AcceptanceFormService
             'sample_configuration_payload' => $normalizedConfigs,
             'lab_capable' => true,
             'client_instruction_clear' => true,
-            'is_shelf_life' => $isShelfLife,
+            'is_shelf_life' => $isShelfLife || $this->payloadIndicatesInLabShelfLife($lines, $normalizedConfigs),
             'assigned_analyst_ids' => $assignedAnalystIds,
             'lead_analyst_id' => $leadAnalystId,
             'analyst_lab_section_assignments' => $analystSectionAssignments,
         ];
 
-        return DB::transaction(function () use (
+        $form = DB::transaction(function () use (
             $submissionFormInstanceId,
             $submissionRequestId,
             $header,
@@ -507,44 +508,21 @@ class AcceptanceFormService
                 'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
                     ? $header['sample_configuration_payload']
                     : null,
-                'is_shelf_life' => (bool) ($header['is_shelf_life'] ?? false),
+                'is_shelf_life' => $this->resolveInLabShelfLifeFlag($header, $lines),
                 'created_by' => $createdBy,
             ]);
 
             $this->syncLines($form, $lines, $pricelist);
             $form->recalculateTotal();
 
-            $this->dispatchSampleCreationJob((string) $form->id);
-
-            $completed = $this->ensureSampleBatchForManagerApproval(
-                $form->fresh(['lines', 'sampleHeader'])
-            )->fresh(['lines', 'sampleHeader']);
-
-            if ($completed->sample_header_id) {
-                $assignedAnalystIds = array_values(array_filter(
-                    (array) ($header['assigned_analyst_ids'] ?? [])
-                ));
-                $leadAnalystId = isset($header['lead_analyst_id']) && is_string($header['lead_analyst_id'])
-                    ? $header['lead_analyst_id']
-                    : null;
-                $analystSectionAssignments = is_array($header['analyst_lab_section_assignments'] ?? null)
-                    ? $header['analyst_lab_section_assignments']
-                    : [];
-
-                $this->routeAcceptedBatch(
-                    $completed,
-                    $leadAnalystId,
-                    null,
-                    $assignedAnalystIds,
-                    $analystSectionAssignments,
-                );
-                $completed = $completed->fresh(['lines', 'sampleHeader']);
-            }
-
-            \App\Jobs\Sampleworkflow\GenerateAcceptanceFormPdfJob::dispatch((string) $completed->id);
-
-            return $completed;
+            return $form;
         });
+
+        $completed = $this->completeIntegrityAcceptance($form, $header);
+
+        \App\Jobs\Sampleworkflow\GenerateAcceptanceFormPdfJob::dispatch((string) $completed->id);
+
+        return $completed;
     }
 
     private function dispatchSampleCreationJob(string $acceptanceFormId): void
@@ -632,8 +610,7 @@ class AcceptanceFormService
 
         $analysisTypeIds = collect($lines)
             ->pluck('analysis_type_id')
-            ->filter()
-            ->map(fn ($id) => (string) $id)
+            ->filter(fn ($id) => is_string($id) && $id !== '' && Str::isUuid($id))
             ->unique()
             ->values()
             ->all();
@@ -645,9 +622,9 @@ class AcceptanceFormService
                 ->pluck('sample_type_id', 'id');
 
         foreach (array_values($lines) as $index => $line) {
-            $sampleTypeId = $line['sample_type_id'] ?? null;
-            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
-            $analysisElementId = $line['analysis_element_id'] ?? null;
+            $sampleTypeId = $this->uuidOrNull($line['sample_type_id'] ?? null);
+            $analysisTypeId = (string) ($this->uuidOrNull($line['analysis_type_id'] ?? null) ?? '');
+            $analysisElementId = $this->uuidOrNull($line['analysis_element_id'] ?? null);
 
             if (($sampleTypeId === null || $sampleTypeId === '') && $analysisTypeId !== '') {
                 $resolved = $sampleTypeByAnalysisType->get($analysisTypeId);
@@ -693,16 +670,15 @@ class AcceptanceFormService
 
         try {
             CreateSamplesFromAcceptanceFormJob::dispatchSync((string) $form->id);
-        } catch (\Throwable) {
-            // Job logs processing_error on the form.
+        } catch (\Throwable $exception) {
+            throw $this->userFacingBatchCreationFailure($exception);
         }
 
         $refreshed = $form->fresh(['sampleHeader']);
 
         if (! $refreshed?->sample_header_id) {
             throw new \RuntimeException(
-                'Sample batch has not been created yet. '
-                . ($refreshed?->processing_error ?: 'Ask the customer to sign the acceptance form first, or retry after batch creation completes.')
+                'Could not create the sample batch. Check that each sample has a sample type and tests, then try again.'
             );
         }
 
@@ -710,7 +686,161 @@ class AcceptanceFormService
     }
 
     /**
-     * Route a newly accepted batch into the normal lab workflow or Shelf Life module.
+     * @param  array<string, mixed>  $header
+     */
+    private function completeIntegrityAcceptance(AnalysisAcceptanceForm $form, array $header): AnalysisAcceptanceForm
+    {
+        try {
+            CreateSamplesFromAcceptanceFormJob::dispatchSync((string) $form->getKey());
+        } catch (\Throwable $exception) {
+            throw $this->userFacingBatchCreationFailure($exception);
+        }
+
+        $completed = $form->fresh(['lines', 'sampleHeader']);
+        if ($completed === null || ! $completed->sample_header_id) {
+            $detail = trim((string) ($completed?->processing_error ?? ''));
+            throw new \RuntimeException(
+                $detail !== '' && ! str_contains(strtolower($detail), 'sqlstate')
+                    ? $detail
+                    : 'Could not create the sample batch. Check that each sample has a sample type and tests, then try again.'
+            );
+        }
+
+        $assignedAnalystIds = array_values(array_filter(
+            (array) ($header['assigned_analyst_ids'] ?? [])
+        ));
+        $leadAnalystId = isset($header['lead_analyst_id']) && is_string($header['lead_analyst_id'])
+            ? $header['lead_analyst_id']
+            : null;
+        $analystSectionAssignments = is_array($header['analyst_lab_section_assignments'] ?? null)
+            ? $header['analyst_lab_section_assignments']
+            : [];
+
+        $this->routeAcceptedBatch(
+            $completed,
+            $leadAnalystId,
+            null,
+            $assignedAnalystIds,
+            $analystSectionAssignments,
+        );
+
+        return $completed->fresh(['lines', 'sampleHeader']) ?? $completed;
+    }
+
+    private function userFacingBatchCreationFailure(\Throwable $exception): \RuntimeException
+    {
+        report($exception);
+
+        $message = trim($exception->getMessage());
+        $lower = strtolower($message);
+        if (
+            $exception instanceof \RuntimeException
+            && $message !== ''
+            && ! str_contains($lower, 'sqlstate')
+            && ! str_contains($lower, 'pgsql')
+            && ! str_contains($lower, 'connection:')
+        ) {
+            return $exception;
+        }
+
+        return new \RuntimeException(
+            'Could not create the sample batch. Check that each sample has a sample type and tests, then try again.',
+            0,
+            $exception,
+        );
+    }
+
+    private function uuidOrNull(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' && Str::isUuid($value) ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $header
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function resolveInLabShelfLifeFlag(array $header, array $lines): bool
+    {
+        if ((bool) ($header['is_shelf_life'] ?? false)) {
+            return true;
+        }
+
+        $configs = is_array($header['sample_configuration_payload'] ?? null)
+            ? $header['sample_configuration_payload']
+            : [];
+
+        return $this->payloadIndicatesInLabShelfLife($lines, $configs);
+    }
+
+    /**
+     * Shelf-life analysis stays on the Samples In Lab job (batch flag + sample conditions).
+     *
+     * @param  list<array<string, mixed>>  $lines
+     * @param  list<array<string, mixed>>  $configs
+     */
+    private function payloadIndicatesInLabShelfLife(array $lines, array $configs = []): bool
+    {
+        $texts = [];
+        $analysisTypeIds = [];
+
+        foreach (array_merge($lines, $configs) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            foreach (['analysis_type_name', 'parameter_label'] as $key) {
+                $texts[] = (string) ($row[$key] ?? '');
+            }
+
+            $named = $row['analysis_type_names'] ?? null;
+            if (is_array($named)) {
+                foreach ($named as $name) {
+                    $texts[] = (string) $name;
+                }
+            }
+
+            foreach (['analysis_type_id', 'analysis_type_ids'] as $key) {
+                $value = $row[$key] ?? null;
+                if (is_array($value)) {
+                    foreach ($value as $id) {
+                        $analysisTypeIds[] = (string) $id;
+                    }
+                } elseif (is_string($value) && $value !== '') {
+                    $analysisTypeIds[] = $value;
+                }
+            }
+        }
+
+        foreach ($texts as $text) {
+            $normalized = strtolower($text);
+            if (str_contains($normalized, 'shelf life') || str_contains($normalized, 'shelf-life')) {
+                return true;
+            }
+        }
+
+        $analysisTypeIds = array_values(array_unique(array_filter(
+            $analysisTypeIds,
+            static fn (string $id): bool => Str::isUuid($id)
+        )));
+
+        if ($analysisTypeIds === []) {
+            return false;
+        }
+
+        return AnalysisType::query()
+            ->whereIn('id', $analysisTypeIds)
+            ->get(['name'])
+            ->contains(static function (AnalysisType $type): bool {
+                $name = strtolower((string) $type->name);
+
+                return str_contains($name, 'shelf life') || str_contains($name, 'shelf-life');
+            });
+    }
+
+    /**
+     * Route a newly accepted batch into Samples In Lab.
      *
      * @param  list<string>  $assignedAnalystIds
      */
@@ -721,12 +851,6 @@ class AcceptanceFormService
         array $assignedAnalystIds = [],
         array $analystLabSectionAssignments = [],
     ): void {
-        if ($this->isShelfLifeAcceptance($form)) {
-            $this->transitionBatchToShelfLifeStudy($form);
-
-            return;
-        }
-
         $this->transitionBatchToSamplesInLab(
             $form,
             $leadAnalystId,
@@ -734,6 +858,30 @@ class AcceptanceFormService
             $assignedAnalystIds,
             $analystLabSectionAssignments,
         );
+    }
+
+    private function clearShelfLifeDivertFlags(AnalysisAcceptanceForm $form): void
+    {
+        if (Schema::hasColumn('analysis_acceptance_forms', 'is_shelf_life') && (bool) ($form->is_shelf_life ?? false)) {
+            $form->is_shelf_life = false;
+            $form->save();
+        }
+
+        $batchId = trim((string) ($form->sample_header_id ?? ''));
+        if ($batchId === '') {
+            return;
+        }
+
+        $batch = SampleHeader::query()->find($batchId);
+        if ($batch && Schema::hasColumn('sample_headers', 'is_shelf_life') && (bool) ($batch->is_shelf_life ?? false)) {
+            $batch->is_shelf_life = false;
+            $batch->save();
+        }
+
+        ShelfLifeStudy::query()
+            ->where('sample_header_id', $batchId)
+            ->where('status', ShelfLifeStudy::STATUS_DRAFT)
+            ->delete();
     }
 
     private function isShelfLifeAcceptance(AnalysisAcceptanceForm $form): bool

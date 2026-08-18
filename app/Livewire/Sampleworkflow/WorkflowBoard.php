@@ -3195,6 +3195,12 @@ SQL);
     }
 
     #[Renderless]
+    public function openOfflinePaperTrfCapture(): void
+    {
+        $this->dispatch('open-offline-paper-trf')->to(ReceiveSampleRequest::class);
+    }
+
+    #[Renderless]
     public function openAcceptSampleWizardFromSelection(array|string $ids = []): void
     {
         if (is_string($ids)) {
