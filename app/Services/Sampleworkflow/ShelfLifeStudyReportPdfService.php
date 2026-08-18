@@ -154,6 +154,11 @@ class ShelfLifeStudyReportPdfService
             'pt' => 'Amostra entregue por',
             default => 'Sample Delivered By',
         };
+        $base['lot_no'] = match ($language) {
+            'ar' => 'رقم دفعة التشغيلة',
+            'pt' => 'N.º de Lote do Batch',
+            default => 'Batch Lot No.',
+        };
         $base['accelerated_conditions'] = match ($language) {
             'ar' => 'ظروف دراسة مدة الصلاحية المعجّلة',
             'pt' => 'Condições do estudo acelerado de prazo de validade',
