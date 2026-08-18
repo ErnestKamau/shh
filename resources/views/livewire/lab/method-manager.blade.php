@@ -12,9 +12,14 @@
                             </h2>
                             <p class="text-muted mb-0">Manage analysis methods for laboratory testing</p>
                         </div>
-                        <button wire:click="showCreateMethodModal" class="btn btn-outline-primary method-add-btn">
-                            <i class="mdi mdi-plus"></i> Add Method
-                        </button>
+                        <div class="d-flex align-items-center" style="gap: .5rem;">
+                            <button type="button" wire:click="openBulkImportModal" class="btn btn-outline-secondary method-add-btn">
+                                <i class="mdi mdi-file-excel"></i> Bulk Upload
+                            </button>
+                            <button wire:click="showCreateMethodModal" class="btn btn-outline-primary method-add-btn">
+                                <i class="mdi mdi-plus"></i> Add Method
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -23,7 +28,14 @@
 
     <!-- Message Alert -->
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        @php
+            $methodAlertClass = match ($messageType) {
+                'success' => 'success',
+                'warning' => 'warning',
+                default => 'danger',
+            };
+        @endphp
+        <div class="alert alert-{{ $methodAlertClass }} alert-dismissible fade show" role="alert">
             {{ $message }}
             <button type="button" class="btn-close" wire:click="dismissMessage"></button>
         </div>
@@ -402,6 +414,9 @@
             </div>
         </div>
     @endif
+
+    @include('livewire.partials.analysis-method-bulk-import-modal')
+
     <style>
         .method-add-btn {
             border-radius: 8px;

@@ -101,6 +101,8 @@
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Analyte</th>
+                                        <th>Method</th>
+                                        <th>Reporting Unit</th>
                                         <th>Specification Value</th>
                                         <th>Type</th>
                                         <th>Range/Value</th>
@@ -117,6 +119,12 @@
                                             <td>
                                                 <strong>{{ $standardAnalyte->analyte->name ?? 'N/A' }}</strong>
                                                 <br><small class="text-muted">{{ $standardAnalyte->analyte->code ?? '' }}</small>
+                                            </td>
+                                            <td>
+                                                {{ $standardAnalyte->analyte?->analysisMethods?->pluck('name')->filter()->join(', ') ?: '—' }}
+                                            </td>
+                                            <td>
+                                                {{ $standardAnalyte->analyte?->reporting_unit ?: '—' }}
                                             </td>
                                             <td>
                                                 {{ $standardAnalyte->standardValue->name ?? 'N/A' }}
@@ -237,6 +245,88 @@
                                             @endif
                                         </div>
                                         @error('standardAnalyteForm.analyte_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-test-tube text-success me-1"></i>Method
+                                        </label>
+                                        <div class="tag-select-container"
+                                             wire:click="openMethodDropdown"
+                                             wire:click.outside="closeMethodDropdown">
+                                            <div class="tag-select-input">
+                                                @foreach($this->selectedMethods as $method)
+                                                    <span class="tag-badge" wire:key="selected-method-{{ $method->id }}">
+                                                        {{ $method->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="removeMethod(@js($method->id))"></i>
+                                                    </span>
+                                                @endforeach
+                                                <input type="text"
+                                                       wire:model.live.debounce.200ms="methodSearch"
+                                                       class="tag-input"
+                                                       placeholder="{{ count($this->selectedMethods) > 0 ? '' : 'Search methods...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showMethodDropdown)
+                                                <div class="tag-dropdown">
+                                                    @forelse($this->filteredMethods as $method)
+                                                        <div class="tag-dropdown-item" wire:click.stop="addMethod(@js($method->id))">
+                                                            {{ $method->name }}
+                                                            @if($method->code)
+                                                                <small class="text-muted ms-1">({{ $method->code }})</small>
+                                                            @endif
+                                                        </div>
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No matching methods found</div>
+                                                    @endforelse
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @if($standardAnalyteForm['analyte_id'] && count($this->selectedMethods) === 0)
+                                            <small class="text-muted">Not set on this analyte — choose a method to backfill it.</small>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-ruler text-info me-1"></i>Reporting Unit
+                                        </label>
+                                        <div class="tag-select-container"
+                                             wire:click="openReportingUnitDropdown"
+                                             wire:click.outside="closeReportingUnitDropdown">
+                                            <div class="tag-select-input">
+                                                @if(!empty($standardAnalyteForm['reporting_unit']))
+                                                    <span class="tag-badge">
+                                                        {{ $standardAnalyteForm['reporting_unit'] }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearReportingUnit"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text"
+                                                       wire:model.live.debounce.200ms="reportingUnitSearch"
+                                                       class="tag-input"
+                                                       placeholder="{{ !empty($standardAnalyteForm['reporting_unit']) ? '' : 'Search units...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showReportingUnitDropdown)
+                                                <div class="tag-dropdown">
+                                                    @forelse($this->filteredReportingUnits as $unit)
+                                                        <div class="tag-dropdown-item" wire:key="reporting-unit-{{ $unit->id }}" wire:click.stop="selectReportingUnit(@js($unit->name))">
+                                                            {{ $unit->name }}
+                                                        </div>
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No reporting units found</div>
+                                                    @endforelse
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @if($standardAnalyteForm['analyte_id'] && empty($standardAnalyteForm['reporting_unit']))
+                                            <small class="text-muted">Not set on this analyte — choose a unit to backfill it.</small>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -587,7 +677,7 @@
         // Close searchable dropdowns when clicking outside
         document.addEventListener('click', function (e) {
             if (!e.target.closest('.tag-select-container')) {
-                if (@this.get('showAnalyteDropdown') || @this.get('showStandardValueDropdown')) {
+                if (@this.get('showAnalyteDropdown') || @this.get('showStandardValueDropdown') || @this.get('showMethodDropdown') || @this.get('showReportingUnitDropdown')) {
                     @this.call('closeAllDropdowns');
                 }
             }
