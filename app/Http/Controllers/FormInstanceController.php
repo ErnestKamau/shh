@@ -2163,25 +2163,6 @@ class FormInstanceController extends Controller
         array $sampleLines,
         array $formData
     ): string {
-        $fromLines = collect($sampleLines)
-            ->map(fn (array $line): string => $this->plainLabelText((string) ($line['customer_sample_id'] ?? '')))
-            ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
-            ->unique()
-            ->values();
-
-        if ($fromLines->isNotEmpty()) {
-            return $fromLines->implode(', ');
-        }
-
-        $fromForm = $this->firstResolvedLabelValue(
-            $instance,
-            ['customer_sample_id', 'client_sample_id', 'sample_id'],
-            (string) ($formData['customer_sample_id'] ?? $formData['client_sample_id'] ?? $formData['sample_id'] ?? '')
-        );
-        if (! $this->isBlankLabelValue($fromForm) && ! $this->isUuidLike($fromForm)) {
-            return $fromForm;
-        }
-
         $sampleCodes = collect()
             ->merge($instance->batches)
             ->merge($instance->sampleSubmissionRequest?->batch ? [$instance->sampleSubmissionRequest->batch] : [])
@@ -2207,7 +2188,7 @@ class FormInstanceController extends Controller
         array $sampleLines,
         array $formData
     ): string {
-        $resolver = app(AnalysisReferenceLabelResolver::class);
+        $resolver = new \App\Services\Lab\AnalysisReferenceLabelResolver();
 
         $fromLines = collect($sampleLines)
             ->flatMap(function (array $line) use ($resolver): array {

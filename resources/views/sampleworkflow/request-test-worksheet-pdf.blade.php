@@ -283,10 +283,7 @@
         <div class="section-title">1. Client / Customer information</div>
         @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogClient, 'empty' => 'No client information available.'])
 
-        <div class="section-title">2. Sample type, analysis type &amp; test category</div>
-        @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogAnalysis, 'empty' => 'No analysis information available.'])
-
-        <div class="section-title">3. Sample details</div>
+        <div class="section-title">2. Sample details</div>
         @if($catalogSamples === [])
             <div class="empty-state muted">No sample details available.</div>
         @else
@@ -306,7 +303,7 @@
             @endforeach
         @endif
 
-        <div class="section-title">4. Sample collection information</div>
+        <div class="section-title">3. Sample collection information</div>
         @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogCollection, 'empty' => 'No collection information available.'])
         @if(!empty($remarks))
             <table class="info-grid">
@@ -349,7 +346,7 @@
         @endif
     @endif
 
-    <div class="section-title">{{ $isIntegrity ? '5. Samples and tests by laboratory section' : 'Part B: Samples and Tests by Laboratory Section' }}</div>
+    <div class="section-title">{{ $isIntegrity ? '4. Samples and tests by laboratory section' : 'Part B: Samples and Tests by Laboratory Section' }}</div>
     @if($sections === [])
         <div class="empty-state muted">No samples or tests found.</div>
     @else

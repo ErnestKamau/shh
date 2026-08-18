@@ -6,6 +6,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\AnalysisElements;
 use App\Services\SubmissionForm\RequestViewPagePresenter;
+use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Support\Str;
 
@@ -559,43 +560,6 @@ final class SampleIntegrityCheckService
             ['label' => 'Customer contact phone', 'value' => $fieldsByName['contact_phone'] ?? ''],
         ]);
 
-        $sampleTypes = [];
-        $analysisTypes = [];
-        $testCategories = [];
-        $testRequirements = [];
-        foreach ($testSamples['samples'] as $sample) {
-            $type = trim((string) ($sample['sample_type'] ?? ''));
-            if ($type !== '' && $type !== '—' && ! in_array($type, $sampleTypes, true)) {
-                $sampleTypes[] = $type;
-            }
-            foreach ((is_array($sample['analysis_types'] ?? null) ? $sample['analysis_types'] : []) as $analysisType) {
-                $analysisType = trim((string) $analysisType);
-                if ($analysisType !== '' && $analysisType !== '—' && ! in_array($analysisType, $analysisTypes, true)) {
-                    $analysisTypes[] = $analysisType;
-                }
-            }
-            $category = trim((string) ($sample['test_category'] ?? ''));
-            if ($category !== '' && $category !== '—' && ! in_array($category, $testCategories, true)) {
-                $testCategories[] = $category;
-            }
-            foreach ((is_array($sample['test_codes'] ?? null) ? $sample['test_codes'] : []) as $code) {
-                $code = trim((string) $code);
-                if ($code !== '' && $code !== '—' && ! Str::isUuid($code) && ! in_array($code, $testRequirements, true)) {
-                    $testRequirements[] = $code;
-                }
-            }
-        }
-
-        $analysis = $this->catalogFields([
-            ['label' => 'Sample type', 'value' => implode(', ', $sampleTypes)],
-            ['label' => 'Analysis type', 'value' => implode(', ', $analysisTypes)],
-            ['label' => 'Test category / requirement', 'value' => implode(', ', array_values(array_unique([
-                ...$testCategories,
-                ...$testRequirements,
-            ])))],
-            ['label' => 'Number of samples', 'value' => $fieldsByName['number_of_samples'] ?? (string) count($testSamples['samples'])],
-        ]);
-
         $samples = [];
         foreach ($testSamples['samples'] as $index => $sample) {
             $customerSampleId = trim((string) ($sample['customer_sample_id'] ?? ''));
@@ -603,10 +567,20 @@ final class SampleIntegrityCheckService
                 $customerSampleId = '';
             }
 
+            $analysisTypesForSample = is_array($sample['analysis_types'] ?? null)
+                ? array_values(array_filter(array_map('strval', $sample['analysis_types'])))
+                : [];
+            $analysisType = $analysisTypesForSample !== []
+                ? implode(', ', $analysisTypesForSample)
+                : (string) ($sample['analysis_type'] ?? '');
+
             $samples[] = [
                 'label' => 'S'.($index + 1),
                 'customer_sample_id' => $customerSampleId,
                 'fields' => $this->catalogFields([
+                    ['label' => 'Sample type', 'value' => (string) ($sample['sample_type'] ?? '')],
+                    ['label' => 'Analysis type', 'value' => $analysisType],
+                    ['label' => 'Test category / requirement', 'value' => $this->pdfTestCategoryRequirement($sample)],
                     ['label' => 'Qty / unit', 'value' => (string) ($sample['sample_quantity'] ?? '')],
                     ['label' => 'Batch number', 'value' => (string) ($sample['batch_number'] ?? '')],
                     ['label' => 'Production date', 'value' => (string) ($sample['production_date'] ?? '')],
@@ -632,10 +606,26 @@ final class SampleIntegrityCheckService
 
         return [
             'client' => $client,
-            'analysis' => $analysis,
+            'analysis' => [],
             'samples' => $samples,
             'collection' => $collection,
         ];
+    }
+
+    /**
+     * Categories/requirements only — never analyte or parameter names.
+     *
+     * @param  array<string, mixed>  $sample
+     */
+    private function pdfTestCategoryRequirement(array $sample): string
+    {
+        $allowed = ['chemistry', 'microbiology', 'legionella'];
+        $tokens = array_values(array_filter(
+            SubmissionFormSchemaHelper::testCategoryTokens($sample['test_category'] ?? null),
+            static fn (string $token): bool => in_array($token, $allowed, true),
+        ));
+
+        return SubmissionFormSchemaHelper::testCategoryLabel(implode(',', $tokens));
     }
 
     /**

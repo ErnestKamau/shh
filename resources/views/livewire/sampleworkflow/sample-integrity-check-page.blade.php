@@ -25,13 +25,6 @@
             </p>
         </div>
         <div class="d-flex flex-wrap align-items-center" style="gap: 0.5rem;">
-            <a href="{{ $this->collectionLabelUrl }}"
-               target="_blank"
-               class="btn btn-sm btn-outline-secondary"
-               title="Sample collection label"
-               aria-label="Open sample collection label">
-                <i class="mdi mdi-tag-outline"></i>
-            </a>
             <div class="btn-group integrity-actions-dropdown"
                  x-data="{ open: false }"
                  @click.outside="open = false">
@@ -68,9 +61,6 @@
                     </button>
                     <a href="{{ $this->collectionLabelUrl }}" target="_blank" class="dropdown-item">
                         <i class="mdi mdi-tag-outline mr-2"></i> Collection label
-                    </a>
-                    <a href="{{ $this->registrationLabelUrl }}" target="_blank" class="dropdown-item">
-                        <i class="mdi mdi-barcode mr-2"></i> Registration label
                     </a>
                     <a href="{{ $this->registrationLabelUrl }}" target="_blank" class="dropdown-item">
                         <i class="mdi mdi-barcode mr-2"></i> Lab sample labels

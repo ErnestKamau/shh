@@ -26,6 +26,9 @@ use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\Services\Sampleworkflow\SubcontractingAssignmentService;
+use App\Services\Sampleworkflow\TrfSampleFieldMapper;
+use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
+use App\Models\SubmissionFormInstance;
 use App\Services\ResultRemarkService;
 use App\Models\SampleShelfLifeCondition;
 use Livewire\Component;
@@ -512,6 +515,8 @@ class Samples extends Component
         try {
             $this->batch->unsetRelation('samples');
             $samples = $this->batch->samples;
+            $trfDescriptions = $this->trfSampleDescriptionsByIndex();
+            $batchDescription = $this->plainSampleDescription($this->batch->description ?? '');
 
             $this->sampleForms = [];
             foreach ($samples as $index => $sample) {
@@ -529,6 +534,7 @@ class Samples extends Component
                     'sample_type_id' => $sample->sample_type_id ? (string) $sample->sample_type_id : '',
                     'customer_sample_id' => $this->resolveCustomerSampleId($sample),
                     'comments' => $sample->comments ?? '',
+                    'trf_sample_description' => $trfDescriptions[$index] ?? $batchDescription,
                     'header_body' => $sample->header_body ?? '',
                     'main_body' => $sample->main_body ?? '',
                     'notes_body' => $sample->notes_body ?? '',
@@ -555,6 +561,70 @@ class Samples extends Component
     private function resolveCustomerSampleId(SampleDetails $sample): string
     {
         return trim((string) ($sample->customer_sample_id ?? $sample->file_no ?? $sample->barcode ?? ''));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function trfSampleDescriptionsByIndex(): array
+    {
+        $instanceId = $this->batch->submission_form_instance_id ?? null;
+        if ($instanceId === null || $instanceId === '') {
+            return [];
+        }
+
+        $instance = SubmissionFormInstance::query()->with('values.element')->find($instanceId);
+        if ($instance === null) {
+            return [];
+        }
+
+        $formData = app(SubmissionFormValueNormalizer::class)->valuesMapFromInstance($instance);
+        $rows = app(TrfSampleFieldMapper::class)->sampleRowsFromFormData($formData);
+        $descriptions = [];
+
+        foreach ($rows as $index => $row) {
+            $text = $this->plainSampleDescription($row['sample_description'] ?? '');
+            if ($text !== '') {
+                $descriptions[$index] = $text;
+            }
+        }
+
+        return $descriptions;
+    }
+
+    private function plainSampleDescription(mixed $value): string
+    {
+        if (is_array($value)) {
+            $value = $value['text'] ?? $value['html'] ?? $value[0] ?? '';
+        }
+
+        return trim(html_entity_decode(strip_tags((string) $value), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    public function sampleRowDescription(int $index): string
+    {
+        $sampleForm = $this->sampleForms[$index] ?? [];
+        $sampleCode = trim((string) ($sampleForm['sample_code'] ?? ''));
+        $formattedCode = $sampleCode !== '' ? format_sample_code($sampleCode) : '';
+
+        $candidates = [
+            $this->plainSampleDescription($sampleForm['trf_sample_description'] ?? ''),
+            $this->plainSampleDescription($sampleForm['comments'] ?? ''),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+
+            if ($sampleCode !== '' && ($candidate === $sampleCode || $candidate === $formattedCode)) {
+                continue;
+            }
+
+            return $candidate;
+        }
+
+        return '';
     }
 
     private function applyCustomerSampleId(SampleDetails $sample, mixed $value): void
@@ -1697,6 +1767,7 @@ class Samples extends Component
             'sample_type_id' => '',
             'customer_sample_id' => '',
             'comments' => '',
+            'trf_sample_description' => '',
             'header_body' => '',
             'main_body' => '',
             'notes_body' => '',

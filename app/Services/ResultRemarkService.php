@@ -133,6 +133,46 @@ class ResultRemarkService
         return $remarks[0] ?? null;
     }
 
+    /**
+     * Auto-calculated PASS/FAIL for a captured result. Returns null when the
+     * remark is manual or no numeric/spec comparison is possible.
+     */
+    public function autoRemarkForCapturedResult(CapturedResult $capturedResult, ?string $resultValue): ?string
+    {
+        if ((int) ($capturedResult->remark_is_manual ?? 0) === 1) {
+            return null;
+        }
+
+        $capturedResult->loadMissing(['sample', 'my_analyte']);
+
+        $reportingSymbol = $capturedResult->result_reporting_symbol
+            ?? $capturedResult->reporting_symbol
+            ?? null;
+
+        $remark = $this->calculateRemark(
+            $capturedResult,
+            $resultValue,
+            null,
+            null,
+            $reportingSymbol,
+        );
+
+        if (! in_array($remark, ['PASS', 'FAIL'], true)) {
+            $fallbackLimit = $this->normalizeString($capturedResult->main_value);
+            if ($fallbackLimit !== null) {
+                $remark = $this->calculateRemark(
+                    null,
+                    $resultValue,
+                    null,
+                    $fallbackLimit,
+                    $reportingSymbol,
+                );
+            }
+        }
+
+        return in_array($remark, ['PASS', 'FAIL'], true) ? $remark : null;
+    }
+
     protected function getResultRemarkForStandard(string|int $standardId, string|int $analyteId, string $result, ?string $reportingSymbol): ?string
     {
         $analyteGuide = StandardAnalytes::where('analyte_id', $analyteId)

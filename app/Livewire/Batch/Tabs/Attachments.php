@@ -14,12 +14,15 @@ use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class Attachments extends Component
 {
     use InteractsWithCaseFileReviewForm;
+    use WithFileUploads;
     use WithPagination;
 
     protected ?bool $hasCapturedResultAttachmentColumn = null;
@@ -30,6 +33,20 @@ class Attachments extends Component
     public ?int $newAttachmentTypeId = null;
     public string $newAttachmentTypeName = '';
     public ?int $selectedAttachmentTypeId = null;
+
+    public bool $showEditAttachmentModal = false;
+
+    public ?string $editingAttachmentId = null;
+
+    public string $editAttachmentTitle = '';
+
+    public $editAttachmentTypeId = null;
+
+    public bool $editAttachmentIsInternal = false;
+
+    public $editAttachmentFile = null;
+
+    public string $activeAttachmentPane = 'request-attachments';
 
     // Case File Review Form state
     public bool $showCaseFileModal = false;
@@ -359,6 +376,105 @@ class Attachments extends Component
             session()->flash('success', 'Attachment deleted successfully!');
         } else {
             session()->flash('error', 'Attachment not found.');
+        }
+    }
+
+    public function editAttachment(string $attachmentId): void
+    {
+        $attachment = BatchAttachment::query()
+            ->where('batch_id', $this->batch->id)
+            ->find($attachmentId);
+
+        if (! $attachment) {
+            session()->flash('error', 'Attachment not found.');
+
+            return;
+        }
+
+        $this->editingAttachmentId = (string) $attachment->id;
+        $this->editAttachmentTitle = (string) ($attachment->title ?? '');
+        $this->editAttachmentTypeId = $attachment->attachment_type !== null
+            ? (string) $attachment->attachment_type
+            : null;
+        $this->editAttachmentIsInternal = (int) ($attachment->is_internal ?? 0) === 1;
+        $this->editAttachmentFile = null;
+        $this->resetErrorBag();
+        $this->activeAttachmentPane = 'sample-attachments';
+        $this->showEditAttachmentModal = true;
+    }
+
+    public function setActiveAttachmentPane(string $pane): void
+    {
+        if (! in_array($pane, ['request-attachments', 'sample-attachments', 'reports'], true)) {
+            return;
+        }
+
+        $this->activeAttachmentPane = $pane;
+    }
+
+    public function closeEditAttachmentModal(): void
+    {
+        $this->showEditAttachmentModal = false;
+        $this->editingAttachmentId = null;
+        $this->editAttachmentTitle = '';
+        $this->editAttachmentTypeId = null;
+        $this->editAttachmentIsInternal = false;
+        $this->editAttachmentFile = null;
+        $this->resetErrorBag();
+    }
+
+    public function updateAttachment(): void
+    {
+        $this->validate([
+            'editAttachmentTitle' => 'required|string|max:255',
+            'editAttachmentTypeId' => 'required',
+            'editAttachmentFile' => 'nullable|file|max:10240',
+        ], [
+            'editAttachmentTitle.required' => 'Title is required.',
+            'editAttachmentTypeId.required' => 'Attachment type is required.',
+        ]);
+
+        $attachment = BatchAttachment::query()
+            ->where('batch_id', $this->batch->id)
+            ->find($this->editingAttachmentId);
+
+        if (! $attachment) {
+            session()->flash('error', 'Attachment not found.');
+            $this->closeEditAttachmentModal();
+
+            return;
+        }
+
+        $attachment->title = $this->editAttachmentTitle;
+        $attachment->attachment_type = $this->editAttachmentTypeId;
+        $attachment->is_internal = $this->editAttachmentIsInternal ? 1 : 0;
+
+        if ($this->editAttachmentFile) {
+            $storedPath = $this->editAttachmentFile->store('batch-attachments', 'public');
+            $this->deleteStoredAttachmentFile((string) $attachment->attachment_url);
+            $attachment->attachment_url = '/storage/'.$storedPath;
+        }
+
+        $attachment->save();
+
+        $this->closeEditAttachmentModal();
+        $this->dispatch('attachmentsUpdated');
+        session()->flash('success', 'Attachment updated successfully.');
+    }
+
+    private function deleteStoredAttachmentFile(string $url): void
+    {
+        $relativePath = ltrim(urldecode($url), '/');
+        if (str_starts_with($relativePath, 'storage/')) {
+            $relativePath = substr($relativePath, strlen('storage/'));
+        }
+
+        if ($relativePath === '' || str_contains($relativePath, '..')) {
+            return;
+        }
+
+        if (Storage::disk('public')->exists($relativePath)) {
+            Storage::disk('public')->delete($relativePath);
         }
     }
 

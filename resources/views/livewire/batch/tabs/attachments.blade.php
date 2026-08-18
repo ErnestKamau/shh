@@ -58,6 +58,18 @@
             </div>
         </div>
         <div class="workflow-board-panel-body flush-top">
+            @if (session()->has('success'))
+            <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                <i class="mdi mdi-check-circle"></i> {{ session('success') }}
+                <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+            </div>
+            @endif
+            @if (session()->has('error'))
+            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
+                <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+            </div>
+            @endif
             <!-- Search Input -->
             <div class="mb-3">
                 <input type="text" wire:model.live.debounce.300ms="search" class="form-control"
@@ -66,17 +78,26 @@
 
             <ul class="nav nav-tabs nav-tabs-custom nav-justified mb-4" role="tablist" style="border-radius: 10px; background: #f8f9fa; padding: 5px;">
                 <li class="nav-item">
-                    <a class="nav-link active font-weight-bold" data-toggle="tab" href="#request-attachments" role="tab" style="border-radius: 8px;">
+                    <a class="nav-link font-weight-bold {{ $activeAttachmentPane === 'request-attachments' ? 'active' : '' }}"
+                       href="#request-attachments" role="tab"
+                       wire:click.prevent="setActiveAttachmentPane('request-attachments')"
+                       style="border-radius: 8px;">
                         <i class="mdi mdi-file-document-box text-primary mr-1"></i> Request Attachments
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link font-weight-bold" data-toggle="tab" href="#sample-attachments" role="tab" style="border-radius: 8px;">
+                    <a class="nav-link font-weight-bold {{ $activeAttachmentPane === 'sample-attachments' ? 'active' : '' }}"
+                       href="#sample-attachments" role="tab"
+                       wire:click.prevent="setActiveAttachmentPane('sample-attachments')"
+                       style="border-radius: 8px;">
                         <i class="mdi mdi-test-tube text-info mr-1"></i> Sample Attachments
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link font-weight-bold" data-toggle="tab" href="#reports" role="tab" style="border-radius: 8px;">
+                    <a class="nav-link font-weight-bold {{ $activeAttachmentPane === 'reports' ? 'active' : '' }}"
+                       href="#reports" role="tab"
+                       wire:click.prevent="setActiveAttachmentPane('reports')"
+                       style="border-radius: 8px;">
                         <i class="mdi mdi-file-chart text-success mr-1"></i> Reports
                     </a>
                 </li>
@@ -86,7 +107,7 @@
                 <!-- ============================================== -->
                 <!-- 1. REQUEST ATTACHMENTS TAB -->
                 <!-- ============================================== -->
-                <div class="tab-pane active" id="request-attachments" role="tabpanel">
+                <div class="tab-pane {{ $activeAttachmentPane === 'request-attachments' ? 'active show' : '' }}" id="request-attachments" role="tabpanel">
                     <div class="mb-4">
                         <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Workflow Documents</h6>
                         <div class="workflow-doc-cards">
@@ -199,7 +220,7 @@
                 <!-- ============================================== -->
                 <!-- 2. SAMPLE ATTACHMENTS TAB -->
                 <!-- ============================================== -->
-                <div class="tab-pane" id="sample-attachments" role="tabpanel">
+                <div class="tab-pane {{ $activeAttachmentPane === 'sample-attachments' ? 'active show' : '' }}" id="sample-attachments" role="tabpanel">
                     <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e0e6ed;">
                         <table class="table table-hover workflow-table mb-0" id="attachments-table">
                             <thead style="background: #f8f9fa;">
@@ -250,6 +271,11 @@
                                                 </div>
                                             </td>
                                             <td class="text-center align-middle">
+                                                @if(Auth::user()->is_client == 0)
+                                                <button type="button" wire:click="editAttachment('{{ $a->id }}')" class="btn btn-sm btn-light border text-primary" data-toggle="tooltip" title="Edit">
+                                                    <i class="mdi mdi-pencil"></i>
+                                                </button>
+                                                @endif
                                                 <button type="button" wire:click="deleteAttachment({{$a->id}})" wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?" class="btn btn-sm btn-light border text-danger" data-toggle="tooltip" title="Delete">
                                                     <i class="mdi mdi-delete-empty"></i>
                                                 </button>
@@ -274,7 +300,7 @@
                 <!-- ============================================== -->
                 <!-- 3. REPORTS TAB -->
                 <!-- ============================================== -->
-                <div class="tab-pane" id="reports" role="tabpanel">
+                <div class="tab-pane {{ $activeAttachmentPane === 'reports' ? 'active show' : '' }}" id="reports" role="tabpanel">
                     <div>
                         <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Uploaded Reports</h6>
                         <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e0e6ed;">
@@ -610,6 +636,62 @@
         </div>
     </div>
     </div>
+
+    @if($showEditAttachmentModal)
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content" style="border-radius: 16px; border: none;">
+                <div class="modal-header" style="border-bottom: 1.5px solid #e7eaf0; background: #f3f4f7; border-radius: 16px 16px 0 0;">
+                    <h5 class="modal-title font-weight-bold">Edit Attachment</h5>
+                    <button type="button" class="close" wire:click="closeEditAttachmentModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form wire:submit.prevent="updateAttachment">
+                    <div class="modal-body px-4 py-4">
+                        <div class="form-group mb-3">
+                            <label class="control-label font-weight-bold text-muted text-uppercase small">Title</label>
+                            <input type="text" class="form-control" wire:model="editAttachmentTitle" placeholder="Attachment title">
+                            @error('editAttachmentTitle') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="control-label font-weight-bold text-muted text-uppercase small">Attachment Type</label>
+                            <select class="form-control no-select2" wire:model="editAttachmentTypeId">
+                                <option value="">Choose Attachment Type ...</option>
+                                @foreach($attachmentTypes as $aType)
+                                <option value="{{ $aType->id }}">{{ $aType->value }}</option>
+                                @endforeach
+                            </select>
+                            @error('editAttachmentTypeId') <small class="text-danger">{{ $message }}</small> @enderror
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="control-label font-weight-bold text-muted text-uppercase small">Replace File</label>
+                            <input type="file" class="form-control-file" wire:model="editAttachmentFile" accept="image/*,.pdf,application/pdf">
+                            <small class="text-muted d-block mt-1">Leave empty to keep the current file. Images and PDFs are allowed.</small>
+                            @error('editAttachmentFile') <small class="text-danger">{{ $message }}</small> @enderror
+                            <div wire:loading wire:target="editAttachmentFile" class="text-muted small mt-1">
+                                <i class="mdi mdi-loading mdi-spin"></i> Uploading...
+                            </div>
+                        </div>
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="editAttachmentInternal" wire:model="editAttachmentIsInternal">
+                            <label class="custom-control-label font-weight-bold text-muted small" for="editAttachmentInternal">
+                                For Internal Use Only
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="border-top: 1.5px solid #e7eaf0; background: #f3f4f7; border-radius: 0 0 16px 16px;">
+                        <button type="button" class="btn btn-light btn-sm" wire:click="closeEditAttachmentModal">Close</button>
+                        <button type="submit" class="btn btn-success btn-sm" wire:loading.attr="disabled" wire:target="updateAttachment,editAttachmentFile">
+                            <span wire:loading.remove wire:target="updateAttachment"><i class="mdi mdi-content-save"></i> Save</span>
+                            <span wire:loading wire:target="updateAttachment"><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- Add Attachment Type Modal -->
     <div wire:ignore>

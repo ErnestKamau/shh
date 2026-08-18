@@ -306,6 +306,11 @@ class AcceptanceFormSampleConfigService
             if ($customerSampleId !== '' && trim((string) ($buckets[$key]['customer_sample_id'] ?? '')) === '') {
                 $buckets[$key]['customer_sample_id'] = $customerSampleId;
             }
+
+            $sampleDescription = trim(html_entity_decode(strip_tags((string) ($line['sample_description'] ?? '')), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if ($sampleDescription !== '' && trim((string) ($buckets[$key]['sample_marking'] ?? '')) === '') {
+                $buckets[$key]['sample_marking'] = $sampleDescription;
+            }
         }
 
         $configs = $this->explodeBucketedConfigsToPerSample(array_values($buckets));
@@ -1268,7 +1273,9 @@ class AcceptanceFormSampleConfigService
                 $split['number_of_samples'] = 1;
                 $split = $this->mergeSampleDetailsIntoConfig($split, [
                     'customer_sample_id' => $normalizedInstances[$i]['customer_sample_id'] ?? '',
-                    'sample_marking' => $normalizedInstances[$i]['sample_marking'] ?? '',
+                    'sample_marking' => trim((string) ($normalizedInstances[$i]['sample_marking'] ?? '')) !== ''
+                        ? $normalizedInstances[$i]['sample_marking']
+                        : ($rootDetails['sample_marking'] ?? ''),
                     'disposal_date' => $normalizedInstances[$i]['disposal_date'] ?? '',
                     'photo_path' => $normalizedInstances[$i]['photo_path'] ?? '',
                     'include_photo_in_report' => (bool) ($normalizedInstances[$i]['include_photo_in_report'] ?? false),
@@ -2820,6 +2827,7 @@ class AcceptanceFormSampleConfigService
                 'parameter_label' => $line['parameter_label'] ?? 'Parameter',
                 'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? $enquiry->number_of_samples ?? 1)),
                 'customer_sample_id' => $line['sample_id'] ?? $line['customer_sample_id'] ?? null,
+                'sample_description' => $line['sample_description'] ?? null,
                 'sample_condition' => $line['sample_condition'] ?? null,
                 'sample_condition_id' => $line['sample_condition_id'] ?? null,
                 'attributes' => $attributes,
@@ -2970,7 +2978,9 @@ class AcceptanceFormSampleConfigService
                 $split['number_of_samples'] = 1;
                 $split = $this->mergeSampleDetailsIntoConfig($split, [
                     'customer_sample_id' => $normalizedInstances[$i]['customer_sample_id'] ?? '',
-                    'sample_marking' => $normalizedInstances[$i]['sample_marking'] ?? '',
+                    'sample_marking' => trim((string) ($normalizedInstances[$i]['sample_marking'] ?? '')) !== ''
+                        ? $normalizedInstances[$i]['sample_marking']
+                        : ($rootDetails['sample_marking'] ?? ''),
                     'disposal_date' => $normalizedInstances[$i]['disposal_date'] ?? '',
                     'photo_path' => $normalizedInstances[$i]['photo_path'] ?? '',
                     'include_photo_in_report' => (bool) ($normalizedInstances[$i]['include_photo_in_report'] ?? false),

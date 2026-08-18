@@ -103,7 +103,7 @@ class TrfSampleFieldMapper
         if (is_array($rows) && $rows !== []) {
             $firstRow = reset($rows);
             if (is_array($firstRow)) {
-                $description = $this->scalar($firstRow['sample_description'] ?? null);
+                $description = $this->plainText($firstRow['sample_description'] ?? null);
                 if ($description !== null) {
                     $mapped['description'] = $description;
                 }
@@ -136,7 +136,7 @@ class TrfSampleFieldMapper
     ): array {
         $mapped = [];
 
-        $description = $this->scalar($row['sample_description'] ?? null);
+        $description = $this->plainText($row['sample_description'] ?? null);
         if ($description !== null) {
             $mapped['comments'] = $description;
         }
@@ -340,6 +340,22 @@ class TrfSampleFieldMapper
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function plainText(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            $value = $value['text'] ?? $value['html'] ?? $value[0] ?? null;
+        }
+
+        $scalar = $this->scalar($value);
+        if ($scalar === null) {
+            return null;
+        }
+
+        $plain = trim(html_entity_decode(strip_tags($scalar), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        return $plain !== '' ? $plain : null;
     }
 
     private function scalar(mixed ...$candidates): ?string
