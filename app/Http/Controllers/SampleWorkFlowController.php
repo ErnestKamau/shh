@@ -652,44 +652,52 @@ class SampleWorkFlowController extends Controller
             }
         }
         $selectedSampleType = SampleType::find($request->sample_type_id);
-        $batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
-        if (!isset($batch_config->id)) {
-            return redirect()->back()->with('error', 'Kindly add batch_code_config configuration');
-        }
-
-        $cust_code = str_split($selectedCustomer->code);
-        $code = [];
-        $loop = 0;
-        $cont = [];
-        foreach ($cust_code as $cc) {
-            if ((int) $cc > 0) {
-                array_push($cont, $loop);
-            } elseif (is_string($cc) && $cc != '0') {
-                array_push($code, $cc);
-            }
-            ++$loop;
-        }
-        $tt = sizeof($cust_code) - 1;
-
-        $ranges = range($cont[0], $tt);
-        $values = [];
-        if (sizeof($cont) < 2) {
-            array_push($values, '0');
-            array_push($values, $cust_code[$cont[0]]);
-        } else {
-            foreach ($ranges as $r) {
-                array_push($values, $cust_code[$r]);
-            }
-        }
-
-        $cP = 'BA' . $batch_config->value . implode('', $values) . $selectedSampleType->code;
         $isNew = false;
         $isInReception = false;
         $header = SampleHeader::find($batch) ?? new SampleHeader();
         if (!isset($header->batch_code)) {
+            $batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
+            if (!isset($batch_config->id)) {
+                return redirect()->back()->with('error', 'Kindly add batch_code_config configuration');
+            }
+            if ($selectedSampleType === null) {
+                return redirect()->back()->with('error', 'Kindly select a valid sample type');
+            }
+
+            $cust_code = str_split((string) $selectedCustomer->code);
+            $code = [];
+            $loop = 0;
+            $cont = [];
+            foreach ($cust_code as $cc) {
+                if ((int) $cc > 0) {
+                    array_push($cont, $loop);
+                } elseif (is_string($cc) && $cc != '0') {
+                    array_push($code, $cc);
+                }
+                ++$loop;
+            }
+            if ($cont === []) {
+                return redirect()->back()->with(
+                    'error',
+                    'Customer code must contain a number to generate a batch code'
+                );
+            }
+            $tt = sizeof($cust_code) - 1;
+
+            $ranges = range($cont[0], $tt);
+            $values = [];
+            if (sizeof($cont) < 2) {
+                array_push($values, '0');
+                array_push($values, $cust_code[$cont[0]]);
+            } else {
+                foreach ($ranges as $r) {
+                    array_push($values, $cust_code[$r]);
+                }
+            }
+
+            $cP = 'BA' . $batch_config->value . implode('', $values) . $selectedSampleType->code;
             $isNew = true;
             $isInReception = true;
-            // return response()->json($cP);
             $config_batch_no = SystemConfiguration::where('key', 'batch_start_no')->first();
             if (!isset($config_batch_no->id)) {
                 return redirect()->back()->with('error', 'Kindly set the start batch no');

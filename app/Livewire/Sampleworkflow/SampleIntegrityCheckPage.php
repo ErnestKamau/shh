@@ -1003,6 +1003,7 @@ class SampleIntegrityCheckPage extends Component
      * @return list<array{
      *     key: string,
      *     label: string,
+     *     customer_sample_id: string,
      *     total: int,
      *     complete: int,
      *     incomplete: int,
@@ -1023,6 +1024,7 @@ class SampleIntegrityCheckPage extends Component
                 $groups[$key] = [
                     'key' => $key,
                     'label' => (string) ($row['sample_label'] ?? 'Sample'),
+                    'customer_sample_id' => (string) ($row['customer_sample_id'] ?? ''),
                     'total' => 0,
                     'complete' => 0,
                     'incomplete' => 0,

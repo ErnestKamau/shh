@@ -42,6 +42,7 @@ final class RequestTestExportDataService
         array $analystNamesById = [],
     ): array {
         $requestInfo = $this->integrityCheckService->requestInfoCard($instance, $enquiry);
+        $catalog = $this->integrityCheckService->integrityPdfCatalog($instance, $enquiry);
         $reference = trim((string) ($enquiry?->formatted_number
             ?? $enquiry?->request_number
             ?? $instance->code
@@ -101,6 +102,7 @@ final class RequestTestExportDataService
             includeResultColumn: false,
             requestInfo: $requestInfo,
             flatRows: $flatRows,
+            catalog: $catalog,
         );
     }
 
@@ -219,12 +221,14 @@ final class RequestTestExportDataService
     /**
      * @param  list<array<string, mixed>>  $flatRows
      * @param  array{fields: list<array{label: string, value: string, name: ?string}>, remarks: ?string}  $requestInfo
+     * @param  array<string, mixed>|null  $catalog
      * @return array{
      *     title: string,
      *     reference: string,
      *     context: string,
      *     include_result_column: bool,
      *     request_info: array{fields: list<array{label: string, value: string, name: ?string}>, remarks: ?string},
+     *     catalog: array<string, mixed>|null,
      *     sections: list<array{lab_section_id: string, lab_section_name: string, samples: list<array<string, mixed>>}>,
      *     flat_rows: list<array<string, mixed>>
      * }
@@ -236,6 +240,7 @@ final class RequestTestExportDataService
         bool $includeResultColumn,
         array $requestInfo,
         array $flatRows,
+        ?array $catalog = null,
     ): array {
         $sectionsMap = [];
 
@@ -299,6 +304,7 @@ final class RequestTestExportDataService
             'context' => $context,
             'include_result_column' => $includeResultColumn,
             'request_info' => $requestInfo,
+            'catalog' => $catalog,
             'sections' => $sections,
             'flat_rows' => array_values($flatRows),
         ];

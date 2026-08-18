@@ -14,6 +14,8 @@ use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
 use App\Services\Sampleworkflow\CustomerContactVerificationService;
+use App\Services\Sampleworkflow\SampleReceivingCheckInService;
+use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
@@ -598,6 +600,22 @@ class AcceptanceFormWizard extends Component
 
         $enquiry->enquiry_sample_configuration = $normalizedConfigs;
         $enquiry->save();
+
+        $user = Auth::user();
+        if ($user instanceof User) {
+            $instance = $this->submissionFormInstanceId
+                ? SubmissionFormInstance::query()->find($this->submissionFormInstanceId)
+                : $enquiry->submissionFormInstance;
+
+            if ($instance !== null) {
+                app(SampleReceivingCheckInService::class)->recordReceivingOfficer($user, $instance, $enquiry);
+            } else {
+                $enquiry->received_by_full_name = (string) $user->name;
+                $enquiry->received_by_date = now()->toDateString();
+                $enquiry->received_by_time = now()->format('H:i');
+                $enquiry->save();
+            }
+        }
 
         app(EnquiryReceptionReadinessService::class)->markSampleIntegrityCheck($enquiry);
 

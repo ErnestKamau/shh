@@ -115,6 +115,7 @@ final class SampleIntegrityCheckService
                     'row_key' => $configId.'|'.$elementId,
                     'config_id' => $configId,
                     'sample_label' => $sampleLabel,
+                    'customer_sample_id' => trim((string) ($config['customer_sample_id'] ?? '')),
                     'element_id' => $elementId,
                     'test_label' => $testLabel !== '' ? $testLabel : 'Parameter',
                     'lab_section_ids' => $sectionIds,
@@ -508,20 +509,230 @@ final class SampleIntegrityCheckService
     }
 
     /**
+     * Categorized header sections for the integrity-check PDF.
+     *
+     * @return array{
+     *     client: list<array{label: string, value: string}>,
+     *     analysis: list<array{label: string, value: string}>,
+     *     samples: list<array{label: string, customer_sample_id: string, fields: list<array{label: string, value: string}>}>,
+     *     collection: list<array{label: string, value: string}>
+     * }
+     */
+    public function integrityPdfCatalog(SubmissionFormInstance $instance, ?SampleSubmissionRequest $enquiry): array
+    {
+        $instance->loadMissing(['submissionForm', 'crmCustomer', 'values.element', 'crmCustomer']);
+        $formData = $instance->getFormDataForDisplay();
+        if (! is_array($formData)) {
+            $formData = [];
+        }
+
+        $sampleLines = $this->sampleLineService->linesForInstance($instance);
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $instance->submissionForm,
+            commercialEnquiry: $enquiry,
+            trfPdfUrl: null,
+            canCreateSamples: false,
+            linkedBatchesOutOfSyncWithForm: false,
+            showSampleCollectionLabel: false,
+            isTrfForm: false,
+        );
+
+        $requestInfo = $presenter->requestInfoCard($formData, is_array($sampleLines) ? $sampleLines : []);
+        $testSamples = $presenter->testSamplesCard($sampleLines);
+        $fieldsByName = [];
+        foreach ($requestInfo['fields'] as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name !== '') {
+                $fieldsByName[$name] = (string) ($field['value'] ?? '');
+            }
+        }
+
+        $client = $this->catalogFields([
+            ['label' => 'Client name', 'value' => $fieldsByName['client_name'] ?? (string) ($instance->crmCustomer?->name ?? $enquiry?->customer?->name ?? '')],
+            ['label' => 'Address', 'value' => $fieldsByName['address'] ?? ''],
+            ['label' => 'Tel / Fax no.', 'value' => $fieldsByName['tel_fax'] ?? ''],
+            ['label' => 'Mobile number', 'value' => $fieldsByName['mobile'] ?? ''],
+            ['label' => 'Email', 'value' => $fieldsByName['email'] ?? ''],
+            ['label' => 'Customer contact name', 'value' => $fieldsByName['contact_name'] ?? ''],
+            ['label' => 'Customer contact email', 'value' => $fieldsByName['contact_email'] ?? ''],
+            ['label' => 'Customer contact phone', 'value' => $fieldsByName['contact_phone'] ?? ''],
+        ]);
+
+        $sampleTypes = [];
+        $analysisTypes = [];
+        $testCategories = [];
+        $testRequirements = [];
+        foreach ($testSamples['samples'] as $sample) {
+            $type = trim((string) ($sample['sample_type'] ?? ''));
+            if ($type !== '' && $type !== '—' && ! in_array($type, $sampleTypes, true)) {
+                $sampleTypes[] = $type;
+            }
+            foreach ((is_array($sample['analysis_types'] ?? null) ? $sample['analysis_types'] : []) as $analysisType) {
+                $analysisType = trim((string) $analysisType);
+                if ($analysisType !== '' && $analysisType !== '—' && ! in_array($analysisType, $analysisTypes, true)) {
+                    $analysisTypes[] = $analysisType;
+                }
+            }
+            $category = trim((string) ($sample['test_category'] ?? ''));
+            if ($category !== '' && $category !== '—' && ! in_array($category, $testCategories, true)) {
+                $testCategories[] = $category;
+            }
+            foreach ((is_array($sample['test_codes'] ?? null) ? $sample['test_codes'] : []) as $code) {
+                $code = trim((string) $code);
+                if ($code !== '' && $code !== '—' && ! Str::isUuid($code) && ! in_array($code, $testRequirements, true)) {
+                    $testRequirements[] = $code;
+                }
+            }
+        }
+
+        $analysis = $this->catalogFields([
+            ['label' => 'Sample type', 'value' => implode(', ', $sampleTypes)],
+            ['label' => 'Analysis type', 'value' => implode(', ', $analysisTypes)],
+            ['label' => 'Test category / requirement', 'value' => implode(', ', array_values(array_unique([
+                ...$testCategories,
+                ...$testRequirements,
+            ])))],
+            ['label' => 'Number of samples', 'value' => $fieldsByName['number_of_samples'] ?? (string) count($testSamples['samples'])],
+        ]);
+
+        $samples = [];
+        foreach ($testSamples['samples'] as $index => $sample) {
+            $customerSampleId = trim((string) ($sample['customer_sample_id'] ?? ''));
+            if ($customerSampleId === '—') {
+                $customerSampleId = '';
+            }
+
+            $samples[] = [
+                'label' => 'S'.($index + 1),
+                'customer_sample_id' => $customerSampleId,
+                'fields' => $this->catalogFields([
+                    ['label' => 'Qty / unit', 'value' => (string) ($sample['sample_quantity'] ?? '')],
+                    ['label' => 'Batch number', 'value' => (string) ($sample['batch_number'] ?? '')],
+                    ['label' => 'Production date', 'value' => (string) ($sample['production_date'] ?? '')],
+                    ['label' => 'Expiration date', 'value' => (string) ($sample['expiry_date'] ?? '')],
+                    ['label' => 'Sampling point', 'value' => (string) ($sample['sampling_point'] ?? '')],
+                    ['label' => 'State of sample', 'value' => $this->stateOfSampleFromDetails($sample)],
+                ]),
+            ];
+        }
+
+        $collectionData = is_array($enquiry?->collection_data) ? $enquiry->collection_data : [];
+        $collection = $this->catalogFields([
+            ['label' => 'Sampling date', 'value' => $this->firstDisplayValue($instance, ['sampling_date', 'date_of_sampling', 'collection_date'], $collectionData['sampling_date'] ?? '')],
+            ['label' => 'Sampling time', 'value' => $this->firstDisplayValue($instance, ['sampling_time', 'collection_time', 'time_of_collection'], $collectionData['sampling_time'] ?? '')],
+            ['label' => 'Sampling location', 'value' => $this->firstDisplayValue($instance, ['sampling_location', 'sampling_point', 'location'], $collectionData['sampling_location'] ?? '')],
+            ['label' => 'Method of sampling', 'value' => $this->stringifyMixed($collectionData['method_of_sampling'] ?? $this->firstDisplayValue($instance, ['method_of_sampling']))],
+            ['label' => 'Reason of collection', 'value' => $this->stringifyMixed($collectionData['reason_of_collection'] ?? $this->firstDisplayValue($instance, ['reason_of_collection']))],
+            ['label' => 'Transport condition', 'value' => $this->stringifyMixed($collectionData['transport_condition'] ?? $this->firstDisplayValue($instance, ['transport_condition']))],
+            ['label' => 'Sampling apparatus', 'value' => $this->stringifyMixed($collectionData['sampling_apparatus'] ?? $this->firstDisplayValue($instance, ['sampling_apparatus']))],
+            ['label' => 'Collected by', 'value' => $this->firstDisplayValue($instance, ['collected_by', 'sampled_by'])],
+            ['label' => 'Received by', 'value' => $fieldsByName['received_by'] ?? (string) ($enquiry?->received_by_full_name ?? '')],
+        ]);
+
+        return [
+            'client' => $client,
+            'analysis' => $analysis,
+            'samples' => $samples,
+            'collection' => $collection,
+        ];
+    }
+
+    /**
+     * @param  list<array{label: string, value: string}>  $fields
+     * @return list<array{label: string, value: string}>
+     */
+    private function catalogFields(array $fields): array
+    {
+        $out = [];
+        foreach ($fields as $field) {
+            $value = trim((string) ($field['value'] ?? ''));
+            if ($value === '' || strcasecmp($value, '—') === 0 || strcasecmp($value, 'N/A') === 0) {
+                continue;
+            }
+            if (Str::isUuid($value)) {
+                continue;
+            }
+            $out[] = [
+                'label' => (string) $field['label'],
+                'value' => $value,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<string>  $elementNames
+     */
+    private function firstDisplayValue(SubmissionFormInstance $instance, array $elementNames, mixed $fallback = ''): string
+    {
+        foreach ($elementNames as $elementName) {
+            $display = $instance->resolveDisplayValueByName($elementName);
+            $plain = $this->stringifyMixed($display);
+            if ($plain !== '' && ! Str::isUuid($plain)) {
+                return $plain;
+            }
+        }
+
+        return $this->stringifyMixed($fallback);
+    }
+
+    private function stringifyMixed(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value)) {
+            $labels = [];
+            foreach ($value as $key => $item) {
+                if (is_bool($item)) {
+                    if ($item) {
+                        $labels[] = ucwords(str_replace('_', ' ', (string) $key));
+                    }
+                    continue;
+                }
+                $text = trim((string) (is_scalar($item) ? $item : ''));
+                if ($text !== '' && ! Str::isUuid($text)) {
+                    $labels[] = $text;
+                }
+            }
+
+            return implode(', ', array_values(array_unique($labels)));
+        }
+
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $value)) ?? '');
+
+        return Str::isUuid($plain) ? '' : $plain;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sample
+     */
+    private function stateOfSampleFromDetails(array $sample): string
+    {
+        foreach ((is_array($sample['details'] ?? null) ? $sample['details'] : []) as $field) {
+            if (mb_strtolower(trim((string) ($field['label'] ?? ''))) === 'state of sample') {
+                return trim((string) ($field['value'] ?? ''));
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Placeholder sample index (S1, S2, …) until Accept generates lab sample numbers.
+     * Customer sample IDs are kept separately and must not be shown as the lab sample number.
+     *
      * @param  array<string, mixed>  $config
      */
     private function sampleLabelForConfig(array $config, int $index): string
     {
-        $customerSampleId = trim((string) ($config['customer_sample_id'] ?? ''));
-        if ($customerSampleId !== '') {
-            return $customerSampleId;
-        }
-
-        $marking = trim((string) ($config['sample_marking'] ?? ''));
-        if ($marking !== '') {
-            return $marking;
-        }
-
         return 'S'.($index + 1);
     }
 }
