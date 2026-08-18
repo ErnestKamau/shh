@@ -371,7 +371,7 @@ final class QuotationFromEnquiryService
             AmSpecQuotationNumberGenerator::assignIfMissing($header);
 
             $lines = $this->buildInlineLines($enquiry);
-            $this->persistInlineLines($header, $lines);
+            $this->persistInlineLines($header, $lines, $enquiry);
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->accepted_quotation_header_id = (string) $header->id;
@@ -627,7 +627,11 @@ final class QuotationFromEnquiryService
                 'is_package' => $isPackage,
             ]);
 
-            if ($analysisTypeId !== '') {
+            if (
+                $analysisTypeId !== ''
+                && Str::isUuid($analysisTypeId)
+                && AnalysisType::query()->whereKey($analysisTypeId)->exists()
+            ) {
                 QuotationDetailAnalysisSplit::query()->create([
                     'quotation_detail_id' => $detail->id,
                     'analysis_type_id' => $analysisTypeId,

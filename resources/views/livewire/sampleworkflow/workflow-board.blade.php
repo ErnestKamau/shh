@@ -708,6 +708,15 @@
 		}
 	}
 
+	#receive-sample-modal.receive-sample-modal--paper-trf .receive-sample-modal-header {
+		align-items: flex-start;
+		padding-bottom: 0.65rem;
+	}
+
+	#receive-sample-modal.receive-sample-modal--paper-trf .receive-sample-modal-header .modal-title {
+		font-weight: 700;
+	}
+
 	#receive-sample-modal .modal-content,
 	#request-additional-info-modal .modal-content,
 	#send-for-analyst-review-modal .modal-content,
@@ -1430,6 +1439,17 @@
 							</h5>
 							@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
 								<div class="d-flex align-items-center flex-wrap workflow-panel-selection-actions ml-auto"
+									style="gap: 8px;">
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											data-sf-trigger="workflow-enter-paper-trf"
+											wire:click="openOfflinePaperTrfCapture"
+											title="Transcribe a paper test request form">
+											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Enter paper TRF
+										</button>
+									@endif
+								<div class="d-flex align-items-center flex-wrap"
 									style="gap: 8px;"
 									x-show="selectedCount > 0"
 									x-cloak>
@@ -1511,6 +1531,7 @@
 											<i class="mdi mdi-backup-restore mr-1"></i> Resume Ready for Reception
 										</button>
 									@endif
+								</div>
 								</div>
 							@endif
 							@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review' && $status !== 'All Samples')
@@ -2734,6 +2755,8 @@
 																	<span class="badge badge-primary"><i class="mdi mdi-web mr-1"></i> Portal</span>
 																@elseif($originChannel === 'walk_in')
 																	<span class="badge badge-info"><i class="mdi mdi-walk mr-1"></i> Walk-in</span>
+																@elseif($originChannel === 'offline')
+																	<span class="badge badge-secondary"><i class="mdi mdi-file-edit-outline mr-1"></i> Offline</span>
 																@elseif($originChannel === 'scheduled')
 																	<span class="badge badge-success"><i class="mdi mdi-calendar-clock mr-1"></i> Scheduled</span>
 																	<span class="badge badge-light border text-dark ml-1">Sampling contract</span>
@@ -6576,19 +6599,30 @@
 				const titleEl = document.getElementById('receive-sample-modal-title-text');
 				const iconEl = document.getElementById('receive-sample-modal-icon');
 				const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
+				const intakeChannel = data.intakeChannel ?? '';
 
 				if (modalEl) {
 					modalEl.classList.remove('receive-sample-modal--compact');
+					modalEl.classList.toggle('receive-sample-modal--paper-trf', intakeChannel === 'offline');
 				}
 				if (dialogEl) {
 					dialogEl.classList.add('modal-xl', 'modal-dialog-scrollable');
 				}
 				if (titleEl && iconEl) {
-					titleEl.textContent = 'Test Request Form';
-					iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
-					if (subtitleEl) {
-						subtitleEl.textContent = '';
-						subtitleEl.classList.add('d-none');
+					if (intakeChannel === 'offline') {
+						titleEl.textContent = 'Paper test request';
+						iconEl.className = 'mdi mdi-file-document-edit-outline text-primary mr-2';
+						if (subtitleEl) {
+							subtitleEl.textContent = 'Enter batch and sample details from the paper TRF.';
+							subtitleEl.classList.remove('d-none');
+						}
+					} else {
+						titleEl.textContent = 'Test Request Form';
+						iconEl.className = 'mdi mdi-clipboard-text text-primary mr-2';
+						if (subtitleEl) {
+							subtitleEl.textContent = '';
+							subtitleEl.classList.add('d-none');
+						}
 					}
 				}
 				$('#receive-sample-modal').modal('show');
@@ -6668,7 +6702,7 @@
 				const modalEl = document.getElementById('receive-sample-modal');
 				const dialogEl = document.getElementById('receive-sample-modal-dialog');
 				if (modalEl) {
-					modalEl.classList.remove('receive-sample-modal--compact');
+					modalEl.classList.remove('receive-sample-modal--compact', 'receive-sample-modal--paper-trf');
 				}
 				if (dialogEl) {
 					dialogEl.classList.add('modal-xl', 'modal-dialog-scrollable');

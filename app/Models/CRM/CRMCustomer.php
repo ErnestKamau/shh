@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\ModulePreConfigs;
 use App\ZohoCustomers;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Schema;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class CRMCustomer extends Model implements Auditable
@@ -91,11 +93,27 @@ class CRMCustomer extends Model implements Auditable
     return $this->hasMany('App\Models\CRM\CustomerContact', 'crm_customer_id')->where('active',1);
   }
 
-  public function mainContact(): \Illuminate\Database\Eloquent\Relations\HasOne
+  public function mainContact(): HasOne
   {
-      return $this->hasOne(\App\Models\CRM\CustomerContact::class, 'crm_customer_id')
-          ->where('active', 1)
-          ->where('is_main_customer_contact', true);
+      $relation = $this->hasOne(\App\Models\CRM\CustomerContact::class, 'crm_customer_id')
+          ->where('active', 1);
+
+      if (self::supportsMainCustomerContactColumn()) {
+          $relation->where('is_main_customer_contact', true);
+      }
+
+      return $relation;
+  }
+
+  public static function supportsMainCustomerContactColumn(): bool
+  {
+      static $hasColumn = null;
+
+      if ($hasColumn === null) {
+          $hasColumn = Schema::hasColumn('crm_customer_contacts', 'is_main_customer_contact');
+      }
+
+      return $hasColumn;
   }
   public function quotes(){
     return $this->hasMany('App\QuotationHeader','crm_customer_id');

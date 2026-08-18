@@ -16,6 +16,8 @@
     'options' => $this->walkInSampleTypeOptions ?? collect(),
     'selected' => $selectedIds,
     'placeholder' => 'Choose sample type…',
-    'emptyHint' => 'No sample types available for the selected form.',
+    'emptyHint' => filled($this->selectedSampleTypeCategoryId ?? null)
+        ? 'No sample types in this category.'
+        : 'No sample types available for the selected form.',
     'searchPlaceholder' => 'Search sample types...',
 ])

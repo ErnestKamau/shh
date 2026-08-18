@@ -99,7 +99,7 @@ final class RequestTestExportDataService
             title: 'Sample Integrity & Acceptance Check',
             reference: $reference !== '' ? $reference : (string) $instance->id,
             context: 'integrity',
-            includeResultColumn: false,
+            includeResultColumn: true,
             requestInfo: $requestInfo,
             flatRows: $flatRows,
             catalog: $catalog,

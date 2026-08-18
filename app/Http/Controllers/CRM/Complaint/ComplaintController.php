@@ -11,6 +11,7 @@ use App\Models\CRM\Chain_of_Custody_Complaint;
 use App\Models\CRM\Complaint_Type;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
+use App\Services\CRM\ComplaintReferenceService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -25,17 +26,8 @@ class ComplaintController extends Controller
         $new_complaint = new Complaint();
         $config = SystemConfigurationsType::where('configuration_type','Personnel to Recieve Feedback and Complaint Notification')->first();
         
-        $complaints = Complaint::all();
         $user = auth()->user();
-        $complaint_total = count($complaints) + 1;
-        $complaint_totalstr = strval($complaint_total);
-        if(strlen($complaint_totalstr)<4){
-            $diff = 4 - strlen($complaint_totalstr);
-            $zero = str_repeat("0",$diff);
-            $new_complaint->complaint_id = "COMP".$zero.$complaint_totalstr;
-        }else{
-            $new_complaint->complaint_id = "COMP".$complaint_totalstr;
-        }
+        $new_complaint->complaint_id = app(ComplaintReferenceService::class)->generate();
         $new_complaint->description = $request->description;
         $new_complaint->priority = $request->priority;
         $new_complaint->type = $request->type;
@@ -73,17 +65,8 @@ class ComplaintController extends Controller
     public function customer_add(Request $request){
         $new_complaint = new Complaint();
         $customer = CRMCustomer::find(auth()->user()->client_id);
-        $complaints = Complaint::all();
         $user = auth()->user();
-        $complaint_total = count($complaints) + 1;
-        $complaint_totalstr = strval($complaint_total);
-        if(strlen($complaint_totalstr)<4){
-            $diff = 4 - strlen($complaint_totalstr);
-            $zero = str_repeat("0",$diff);
-            $new_complaint->complaint_id = "COMP".$zero.$complaint_totalstr;
-        }else{
-            $new_complaint->complaint_id = "COMP".$complaint_totalstr;
-        }
+        $new_complaint->complaint_id = app(ComplaintReferenceService::class)->generate();
         $new_complaint->description = $request->description;
         $new_complaint->priority = $request->priority;
         $new_complaint->type = $request->type;

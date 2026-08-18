@@ -130,7 +130,29 @@ class ComplaintList extends BaseCrmComponent
         }
 
         // 3. Start the Query
-        $query = Complaint::query();
+        $query = Complaint::query()
+            ->select([
+                'id',
+                'complaint_id',
+                'complaint_workflow',
+                'date',
+                'received_from',
+                'organization_name',
+                'received_from_type',
+                'contact_name',
+                'title_position',
+                'mode_of_delivery',
+                'test_item',
+                'test_item_report_serial_no',
+                'is_lab_related',
+                'date_closed',
+                'priority',
+                'type',
+                'client_id',
+                'closed_by',
+                'is_feedback_related',
+                'description',
+            ]);
 
         // 4. Apply the Filter
         if ($stage_value > 0) {
@@ -164,7 +186,11 @@ class ComplaintList extends BaseCrmComponent
 
     public function getComplaintsProperty()
     {
-        return $this->getBaseQuery()->with(['client', 'closedBy'])->orderBy('id', 'desc')->paginate($this->perPage);
+        return $this->getBaseQuery()
+            ->with(['client:id,name', 'closedBy:id,name'])
+            ->orderByDesc('date')
+            ->orderByDesc('created_at')
+            ->paginate($this->perPage);
     }
 
     public function getHighPriorityCountProperty()

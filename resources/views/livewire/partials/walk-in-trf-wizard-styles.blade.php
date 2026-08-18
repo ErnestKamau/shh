@@ -224,7 +224,42 @@
         color: var(--trf-wizard-muted);
     }
 
+    .paper-trf-intake__meta {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+        gap: 0.85rem 1rem;
+        margin-bottom: 1.15rem;
+    }
+
+    .paper-trf-intake__meta .form-group {
+        margin-bottom: 0;
+    }
+
+    .paper-trf-intake .walk-in-trf-wizard-shell {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        padding: 0;
+    }
+
+    .paper-trf-intake .walk-in-trf-wizard__panel {
+        padding: 1rem 1.1rem 1.15rem;
+        min-height: 0;
+    }
+
+    .paper-trf-intake .walk-in-trf-wizard__panel-title {
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #475569;
+        margin-bottom: 0.15rem;
+    }
+
     @media (max-width: 767.98px) {
+        .paper-trf-intake__meta {
+            grid-template-columns: 1fr;
+        }
+
         .walk-in-trf-wizard-shell {
             padding: 0.9rem 0.85rem 1rem;
         }

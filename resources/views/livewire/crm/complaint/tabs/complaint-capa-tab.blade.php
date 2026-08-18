@@ -170,6 +170,44 @@
         .capa-editor-wrapper { min-height: 250px; }
         .bg-indigo.text-white { background: var(--crm-primary) !important; }
 
+        /* Form field normalization for CAPA edit mode */
+        #section_action textarea.capa-editor,
+        #section_ncdetails textarea.capa-editor,
+        #section_closure textarea.capa-editor {
+            width: 100% !important;
+            min-height: 180px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 0.92rem;
+            line-height: 1.45;
+            resize: vertical;
+            background: #fff;
+            box-sizing: border-box;
+        }
+
+        #section_action .form-control,
+        #section_ncdetails .form-control,
+        #section_closure .form-control {
+            min-height: 42px;
+            border-radius: 8px;
+        }
+
+        #section_action .select2-container .select2-selection--multiple,
+        #section_ncdetails .select2-container .select2-selection--multiple,
+        #section_closure .select2-container .select2-selection--multiple {
+            min-height: 42px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 4px 6px;
+        }
+
+        #section_action .select2-container .select2-search--inline .select2-search__field,
+        #section_ncdetails .select2-container .select2-search--inline .select2-search__field,
+        #section_closure .select2-container .select2-search--inline .select2-search__field {
+            margin-top: 4px;
+        }
+
         /* Section Locking */
         .capa-section-locked {
             opacity: 0.5;

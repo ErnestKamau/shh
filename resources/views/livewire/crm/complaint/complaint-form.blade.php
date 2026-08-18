@@ -66,6 +66,7 @@
     <script>
         Alpine.data('complaintFormHandler', () => ({
             _tinyInitialized: false,
+            _tinyRetryTimer: null,
 
             init() {
                 this.$nextTick(() => {
@@ -75,14 +76,41 @@
                 this.initTiny();
                 
                 this.$wire.on('reinit-tinymce', () => {
+                    this._tinyInitialized = false;
                     const ed = tinymce.get('complaint-description');
                     if (ed) {
                         ed.setContent(this.$wire.get('description') || '');
                     } else {
-                        this._tinyInitialized = false;
                         this.initTiny();
                     }
                 });
+
+                this.$watch('$wire.currentStep', (step) => {
+                    if (Number(step) === 3) {
+                        this.ensureTinyMounted();
+                    }
+                });
+            },
+
+            ensureTinyMounted() {
+                if (this._tinyRetryTimer) {
+                    clearTimeout(this._tinyRetryTimer);
+                    this._tinyRetryTimer = null;
+                }
+
+                let tries = 0;
+                const run = () => {
+                    tries++;
+                    this._tinyInitialized = false;
+                    this.initTiny();
+
+                    const mounted = typeof tinymce !== 'undefined' && !!tinymce.get('complaint-description');
+                    if (!mounted && tries < 8 && Number(this.$wire.currentStep) === 3) {
+                        this._tinyRetryTimer = setTimeout(run, 180);
+                    }
+                };
+
+                this.$nextTick(run);
             },
 
             setModalWidth() {
@@ -119,14 +147,15 @@
 
             initTiny() {
                 if (this._tinyInitialized) return;
+                const textarea = document.getElementById('complaint-description');
+                if (!textarea) return;
 
                 if (typeof tinymce === 'undefined') {
                     if (!document.querySelector("script[src='/tinymce/tinymce.min.js']")) {
                         const script = document.createElement('script');
                         script.src = '/tinymce/tinymce.min.js';
                         script.onload = () => {
-                            this._tinyInitialized = false;
-                            this.initTiny();
+                            this.ensureTinyMounted();
                         };
                         document.head.appendChild(script);
                     }
@@ -148,13 +177,13 @@
                         editor.on('init', () => {
                             editor.setContent(this.$wire.get('description') || '');
                         });
-                        editor.on('blur change', () => {
+                        editor.on('keyup blur change', () => {
                             this.$wire.set('description', editor.getContent());
                         });
                     }
                 });
                 
-                this._tinyInitialized = true;
+                this._tinyInitialized = !!tinymce.get('complaint-description');
             }
         }));
     </script>
@@ -174,6 +203,13 @@
         </div>
         <form wire:submit.prevent="save">
             <div class="modal-body">
+                <div class="d-flex align-items-center mb-3" style="gap:8px;">
+                    <span class="badge {{ $currentStep === 1 ? 'badge-primary' : 'badge-light' }}">1. Intake</span>
+                    <i class="mdi mdi-chevron-right text-muted"></i>
+                    <span class="badge {{ $currentStep === 2 ? 'badge-primary' : 'badge-light' }}">2. Logging</span>
+                    <i class="mdi mdi-chevron-right text-muted"></i>
+                    <span class="badge {{ $currentStep === 3 ? 'badge-primary' : 'badge-light' }}">3. Complaint Details</span>
+                </div>
                 @if ($errors->any())
                     <div class="alert alert-danger py-2 mb-3 shadow-sm border-0" style="border-radius: 8px;">
                         <ul class="mb-0 small font-weight-bold">
@@ -184,7 +220,7 @@
                     </div>
                 @endif
                 
-                <!-- SECTION 01: COMPLAINT INFORMATION -->
+                @if($currentStep === 1)
                 <div class="form-section" wire:key="section-01-info">
                     <h6 class="form-section-title"><i class="mdi mdi-domain"></i>01. Complaint Information</h6>
                     
@@ -273,8 +309,9 @@
                         </div>
                     </div>
                 </div>
+                @endif
                 
-                <!-- SECTION 02: LOGGING DETAILS -->
+                @if($currentStep === 2)
                 <div class="form-section shadow-sm" wire:key="section-02-logging">
                     <h6 class="form-section-title"><i class="mdi mdi-calendar-clock"></i>02. Logging Details</h6>
                     
@@ -335,8 +372,9 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
-                <!-- SECTION 03: NATURE OF COMPLAINT -->
+                @if($currentStep === 3)
                 <div class="form-section shadow-sm mb-0" wire:key="section-03-nature">
                     <h6 class="form-section-title"><i class="mdi mdi-alert-circle-outline"></i>03. Nature of Complaint</h6>
                     
@@ -373,21 +411,29 @@
                         </div>
                     @endif
 
-                    <div class="form-group mb-0" wire:ignore wire:key="field-description">
+                    <div class="form-group mb-0" wire:key="field-description">
                         <label class="control-label font-weight-bold">Complaint Details <span class="text-danger">*</span></label>
-                        <textarea id="complaint-description" class="form-control @error('description') is-invalid @enderror" placeholder="Provide full details here..."></textarea>
+                        <textarea id="complaint-description" wire:model.live="description" class="form-control @error('description') is-invalid @enderror" placeholder="Provide full details here...">{{ strip_tags((string) ($description ?? '')) }}</textarea>
                         @error('description') <span class="text-danger small">{{ $message }}</span> @enderror
                     </div>
                 </div>
+                @endif
             </div>
             
             <div class="modal-footer bg-white border-top-0 pb-3 px-4">
                 <button type="button" class="btn btn-light px-4 font-weight-bold" wire:click="close">Close</button>
                 <div class="ml-auto">
+                    @if($currentStep > 1)
+                        <button type="button" class="btn btn-outline-secondary mr-2" wire:click="previousStep">Back</button>
+                    @endif
+                    @if($currentStep < 3)
+                        <button type="button" class="btn btn-primary px-4 shadow-sm font-weight-bold" wire:click="nextStep">Next Step</button>
+                    @else
                     <button type="submit" class="btn btn-primary px-5 shadow-sm font-weight-bold" wire:loading.attr="disabled" wire:target="save">
                         <span wire:loading.remove wire:target="save"><i class="mdi mdi-content-save mr-1"></i> Save Complaint</span>
                         <span wire:loading wire:target="save"><i class="mdi mdi-loading mdi-spin mr-1"></i> Saving...</span>
                     </button>
+                    @endif
                 </div>
             </div>
         </form>

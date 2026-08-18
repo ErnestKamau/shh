@@ -533,6 +533,31 @@
             </div>
         </div>
 
+        <div class="px-4 pb-3">
+            @php
+                $currentFlow = (int) $complaint->complaint_workflow;
+                $steps = [
+                    1 => 'Intake',
+                    2 => 'Triage & Assignment',
+                    4 => 'Resolution Approval',
+                    5 => 'Closure',
+                ];
+            @endphp
+            <div class="d-flex flex-wrap align-items-center" style="gap:8px;">
+                @foreach($steps as $stepId => $stepLabel)
+                    @php
+                        $isDone = $currentFlow > $stepId;
+                        $isCurrent = $currentFlow === $stepId;
+                        $badgeClass = $isCurrent ? 'badge-primary' : ($isDone ? 'badge-success' : 'badge-light');
+                    @endphp
+                    <span class="badge {{ $badgeClass }} px-3 py-2">{{ $stepLabel }}</span>
+                    @if(!$loop->last)
+                        <i class="mdi mdi-chevron-right text-muted"></i>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+
         {{-- Workflow transitions and checkpoints are now handled inside the individual tabs for better context and state-aware logic --}}
 
         <div class="row no-gutters">
@@ -586,7 +611,28 @@
                             </div>
                         @elseif($activeTab == 'workflow')
                             <div class="tab-pane fade show active p-3" id="complaint-workflow" role="tabpanel">
-                                @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintWorkflowTab::class, ['complaintId' => $complaint->id, 'viewMode' => 'tab'], 'workflow-tab-' . $complaint->id)
+                                <x-crm.data-table>
+                                    <x-slot:header>
+                                        <tr>
+                                            <th>Action</th>
+                                            <th>Action Taker</th>
+                                            <th>Workflow Stage</th>
+                                            <th>Comments</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </x-slot:header>
+                                    @forelse($this->chainOfCustodyRecords as $custody)
+                                        <tr>
+                                            <td>{{ strip_tags($custody->action) }}</td>
+                                            <td>{{ $custody->actionTaker->name ?? '-' }}</td>
+                                            <td><span class="badge badge-light">{{ $custody->workflow_stage }}</span></td>
+                                            <td>{!! $custody->comments ?? '-' !!}</td>
+                                            <td>{{ \Carbon\Carbon::parse($custody->move_out_date ?? $custody->created_at)->format('d M Y, H:i') }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="5" class="text-center text-muted">No chain-of-custody records yet.</td></tr>
+                                    @endforelse
+                                </x-crm.data-table>
                             </div>
                         @endif
                     </div>
@@ -594,7 +640,7 @@
             </div>
         </div>
 
-        {{-- Always load workflow component for event handling, outside tab structure --}}
+        {{-- Always load workflow modal handler for workflow actions --}}
         @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintWorkflowTab::class, ['complaintId' => $complaint->id, 'viewMode' => 'modal'], 'workflow-handler-' . $complaint->id)
     </main>
 </div>

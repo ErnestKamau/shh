@@ -20,6 +20,7 @@ class ComplaintShow extends BaseCrmComponent
     public $initialComplaintWorkflow;
     public $initialWorkflowName;
     public $activeTab = 'details';
+    public ?Complaintsresolutions $resolutionRecord = null;
 
     protected $queryString = [
         'activeTab' => ['except' => 'details', 'as' => 'tab'],
@@ -31,7 +32,14 @@ class ComplaintShow extends BaseCrmComponent
         $this->checkPermission(CrmConstants::PERMISSION_COMPLAINT_VIEW);
 
         $this->complaintId = $id;
-        $this->complaint = Complaint::findOrFail($id);
+        $this->complaint = Complaint::with(['client', 'capaRecord', 'resolutions', 'feedback'])
+            ->withCount([
+                'attachments as active_attachments_count' => function ($query) {
+                    $query->where('is_delete', '!=', 1);
+                },
+            ])
+            ->findOrFail($id);
+        $this->resolutionRecord = $this->complaint->resolutions->first();
         $this->initialComplaintWorkflow = $this->complaint->complaint_workflow;
         
         $this->calculateWorkflowStage();
@@ -79,6 +87,13 @@ class ComplaintShow extends BaseCrmComponent
     public function handleWorkflowUpdate($message = 'Task completed.')
     {
         $this->complaint->refresh();
+        $this->complaint->load(['client', 'capaRecord', 'resolutions'])
+            ->loadCount([
+                'attachments as active_attachments_count' => function ($query) {
+                    $query->where('is_delete', '!=', 1);
+                },
+            ]);
+        $this->resolutionRecord = $this->complaint->resolutions->first();
         $this->calculateWorkflowStage();
         
         // Use alert dispatch for consistent UI feedback
@@ -95,6 +110,7 @@ class ComplaintShow extends BaseCrmComponent
     {
         $this->complaint->refresh();
         $this->complaint->load('resolutions');
+        $this->resolutionRecord = $this->complaint->resolutions->first();
         $this->calculateWorkflowStage();
     }
 
@@ -119,27 +135,27 @@ class ComplaintShow extends BaseCrmComponent
 
     public function getAttachmentsCountProperty(): int
     {
-        return $this->complaint->attachments()->where('is_delete', '!=', 1)->count();
+        return (int) ($this->complaint->active_attachments_count ?? 0);
     }
 
     public function getResolutionsCountProperty(): int
     {
-        return $this->complaint->resolutions()->count();
+        return $this->complaint->resolutions->count();
     }
 
     public function getHasCarIssuedProperty(): bool
     {
-        return $this->complaint->resolutions()->where('car_required', true)->exists();
+        return (bool) ($this->resolutionRecord?->car_required);
     }
 
     public function getHasNcrRequiredProperty(): bool
     {
-        return $this->complaint->resolutions()->where('ncr_required', true)->exists();
+        return (bool) ($this->resolutionRecord?->ncr_required);
     }
 
     public function getIsInvestigationCauseRecordedProperty()
     {
-        return !empty($this->complaint->resolutions()->where('complaint_id', $this->complaint->id)->first()?->cause_of_complaint);
+        return !empty($this->resolutionRecord?->cause_of_complaint);
     }
 
     public function getGranularStatusProperty(): string
@@ -148,7 +164,7 @@ class ComplaintShow extends BaseCrmComponent
         
         // If in Resolution stage, check CAPA status for more detail
         if ($this->complaint->complaint_workflow >= 2) {
-            $res = $this->complaint->resolutions()->first();
+            $res = $this->resolutionRecord;
             if ($res && $res->car_required) {
                 $capa = $this->complaint->capaRecord;
                 if ($capa) {
@@ -190,7 +206,7 @@ class ComplaintShow extends BaseCrmComponent
 
         // Stage 2: Resolution (Internal sections)
         if ($workflow >= 2 && $workflow < 4) {
-             $res = $this->complaint->resolutions()->first();
+             $res = $this->resolutionRecord;
              
              // 1. Investigation Findings
              if (!$res || empty($res->cause_of_complaint)) {
@@ -304,7 +320,7 @@ class ComplaintShow extends BaseCrmComponent
 
     public function getIsInvestigationActionsRecordedProperty()
     {
-        $res = $this->complaint->resolutions()->where('complaint_id', $this->complaint->id)->first();
+        $res = $this->resolutionRecord;
         return !empty($res?->action_taken) && !empty($res?->corrective_action_taken);
     }
 
@@ -318,7 +334,7 @@ class ComplaintShow extends BaseCrmComponent
 
     public function getIsCapaCompletedProperty(): bool
     {
-        $res = $this->complaint->resolutions()->first();
+        $res = $this->resolutionRecord;
         if (!$res) return false;
         
         if ($res->car_required) {
@@ -340,7 +356,7 @@ class ComplaintShow extends BaseCrmComponent
             return false;
         }
 
-        $res = $this->complaint->resolutions()->where('complaint_id', $this->complaint->id)->first();
+        $res = $this->resolutionRecord;
         if (!$res) return false;
 
         // 2. Base Investigation - Cause/Nature determines the root
@@ -404,6 +420,15 @@ class ComplaintShow extends BaseCrmComponent
                 'icon' => null
             ]
         ];
+    }
+
+    public function getChainOfCustodyRecordsProperty()
+    {
+        return Chain_of_Custody_Complaint::query()
+            ->with('actionTaker')
+            ->where('complaint_id', $this->complaint->id)
+            ->orderBy('created_at')
+            ->get();
     }
 
     

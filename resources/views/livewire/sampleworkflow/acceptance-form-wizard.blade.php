@@ -71,20 +71,6 @@
                                             <p class="acc-wizard-hint mb-2">
                                                 Confirm condition, specification, and sample details. Lab sections and analysts are assigned on Sample Integrity Check.
                                             </p>
-                                            <div class="custom-control custom-checkbox">
-                                                <input
-                                                    type="checkbox"
-                                                    class="custom-control-input"
-                                                    id="acceptance-shelf-life-testing"
-                                                    wire:model.live="isShelfLifeTesting"
-                                                >
-                                                <label class="custom-control-label font-weight-bold" for="acceptance-shelf-life-testing">
-                                                    Shelf Life Testing
-                                                </label>
-                                            </div>
-                                            <p class="acc-wizard-hint mb-0 mt-1">
-                                                When checked, this job is diverted to the Shelf Life Studies module after acceptance (same physical samples are pulled, tested, and returned at each interval).
-                                            </p>
                                         </div>
                                     </div>
                                 @endif
@@ -107,12 +93,6 @@
                                         <p class="mb-0 font-weight-bold">{{ $modeOfWork }}</p>
                                     </div>
                                 </div>
-                                @if($isShelfLifeTesting)
-                                    <div class="alert alert-info py-2 px-3 mb-0 mt-3">
-                                        <i class="mdi mdi-flask-outline"></i>
-                                        Shelf Life Testing — this job will go to the Shelf Life Studies module (not the normal sample workflow).
-                                    </div>
-                                @endif
                             </section>
 
                             <div class="row">

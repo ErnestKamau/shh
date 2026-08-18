@@ -36,7 +36,7 @@
     );
     $activeSection = $walkInSections->values()->get($walkInActiveStepIndex);
     $isCustomerSection = ($activeSection->title ?? '') === 'Customer details';
-    $useCardRows = (bool) ($this->pageMode ?? false);
+    $useCardRows = (bool) ($this->pageMode ?? false) || $this->isOfflineIntake();
 
     $shouldOmitWalkInElement = static function ($element) use ($activeSection, $hiddenWalkInTrfFields): bool {
         $elementName = (string) ($element->name ?? '');
@@ -57,8 +57,10 @@
         aria-labelledby="walk-in-trf-step-tab-{{ $walkInActiveStepIndex }}"
         wire:key="walk-in-trf-step-{{ $activeSection->id }}-{{ $walkInActiveStepIndex }}"
     >
-        <h6 class="walk-in-trf-wizard__panel-title">{{ $activeSection->title }}</h6>
-        @if(! empty($activeSection->description))
+        <h6 class="walk-in-trf-wizard__panel-title">{{ $this->isOfflineIntake() ? 'Batch and sample details' : $activeSection->title }}</h6>
+        @if($this->isOfflineIntake())
+            <p class="walk-in-trf-wizard__panel-desc">Copy each sample from the paper form. Add a row when the TRF has more samples.</p>
+        @elseif(! empty($activeSection->description))
             <p class="walk-in-trf-wizard__panel-desc">{{ $activeSection->description }}</p>
         @endif
 
@@ -91,6 +93,7 @@
                     'formData' => $formData,
                     'fieldMapper' => $fieldMapper,
                     'hiddenWalkInTrfFields' => $hiddenWalkInTrfFields,
+                    'expandAllSampleCards' => $this->isOfflineIntake(),
                 ])
             @else
                 <div class="table-responsive walk-in-trf-rows-table">

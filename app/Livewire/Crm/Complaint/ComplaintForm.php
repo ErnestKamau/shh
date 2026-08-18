@@ -11,12 +11,14 @@ use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
 use App\SampleType;
 use App\SampleHeader;
+use App\Services\CRM\ComplaintReferenceService;
 use Livewire\Attributes\On;
 use App\Livewire\Crm\BaseCrmComponent;
 use Illuminate\Support\Facades\DB;
 
 class ComplaintForm extends BaseCrmComponent
 {
+    public int $currentStep = 1;
     public $complaintId = null;
     public $customerId = null;
     public $feedback_id = null;
@@ -40,6 +42,21 @@ class ComplaintForm extends BaseCrmComponent
     public $samples = [];
     public $serial_nos = [];
     public $isStandalone = false;
+
+    public function nextStep(): void
+    {
+        $this->validateCurrentStep();
+        $this->currentStep = min(3, $this->currentStep + 1);
+
+        if ($this->currentStep === 3) {
+            $this->dispatch('reinit-tinymce');
+        }
+    }
+
+    public function previousStep(): void
+    {
+        $this->currentStep = max(1, $this->currentStep - 1);
+    }
 
     public function mount($complaintId = null, $customerId = null)
     {
@@ -233,6 +250,7 @@ class ComplaintForm extends BaseCrmComponent
     public function resetForm()
     {
         $this->reset(['complaintId', 'description', 'priority', 'type', 'received_from', 'received_from_type', 'is_lab_related', 'mode_of_delivery', 'nature_of_complaint', 'test_item', 'report_serial_no', 'title_position', 'organization_name', 'contact_name', 'contacts', 'samples', 'serial_nos']);
+        $this->currentStep = 1;
         $this->date = date('Y-m-d');
         $this->received_from_type = 'Customer';
         $this->mode_of_delivery = [];
@@ -317,10 +335,7 @@ class ComplaintForm extends BaseCrmComponent
         } else {
             $this->checkPermission('CRM.components.Open Complaint.Add');
             $complaint = new Complaint();
-            
-            // Generate complaint ID
-            $complaint_total = Complaint::count() + 1;
-            $complaint->complaint_id = "COMP/" . $complaint_total;
+            $complaint->complaint_id = app(ComplaintReferenceService::class)->generate();
             
             $complaint->registered_by = auth()->user()->name;
             $complaint->complaint_workflow = 1;
@@ -403,6 +418,26 @@ class ComplaintForm extends BaseCrmComponent
         }
         
         $this->close();
+    }
+
+    private function validateCurrentStep(): void
+    {
+        if ($this->currentStep === 1) {
+            $this->validate([
+                'received_from_type' => 'required|string',
+                'organization_name' => 'required|string',
+                'contact_name' => 'required',
+            ]);
+        }
+
+        if ($this->currentStep === 2) {
+            $this->validate([
+                'date' => 'required|date',
+                'mode_of_delivery' => 'required|array',
+                'type' => 'required|string',
+                'priority' => 'required|string',
+            ]);
+        }
     }
 
     public function close()

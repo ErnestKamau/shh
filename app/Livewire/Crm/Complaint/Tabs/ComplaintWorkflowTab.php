@@ -4,8 +4,11 @@ namespace App\Livewire\Crm\Complaint\Tabs;
 
 use App\Models\CRM\Complaint;
 use App\Models\CRM\Chain_of_Custody_Complaint;
+use App\Models\CRM\Complaintsresolutions;
 use App\Models\CRM\CustomerContact;
+use App\Jobs\GenerateCloseReports;
 use App\Services\CRM\ComplaintInvestigationReportService;
+use App\Services\CRM\ComplaintWorkflowService;
 use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +45,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
     
     // Contacts
     public $selectedContactIds = [];
+    public ?Complaintsresolutions $resolutionRecord = null;
     
     /**
      * Property to check if interim approval has been recorded in chain of custody.
@@ -66,7 +70,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
      */
     public function getHasClosureRemarksProperty(): bool
     {
-        $res = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+        $res = $this->resolutionRecord;
         return !empty(trim(strip_tags((string)($res->internal_remarks ?? ''))));
     }
 
@@ -82,11 +86,12 @@ class ComplaintWorkflowTab extends BaseCrmComponent
     {
         $this->complaintId = $complaintId;
         $this->complaint = Complaint::find($complaintId);
+        $this->resolutionRecord = Complaintsresolutions::where('complaint_id', $complaintId)->first();
         $this->selectedContactIds = [];
         $this->workflowStages = getComplaintWorkflowStages();
         
         // Load existing remarks if any
-        $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+        $resolution = $this->resolutionRecord;
         if ($resolution) {
             $this->client_remarks = $resolution->client_remarks ?? '';
             $this->complaint_review_remarks = $resolution->internal_remarks ?? '';
@@ -160,7 +165,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         $this->confirmButtonText = '';
         $this->confirmButtonColor = 'btn-primary';
 
-        $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+        $resolution = $this->resolutionRecord;
 
         switch ($action) {
             case 'approveNext':
@@ -282,13 +287,9 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         
         if ($current_stage == 1) {
             // Move from Stage 1 (Open Complaint) to Stage 2 (Complaint Resolution)
-            $this->complaint->complaint_workflow = 2;
-            $this->complaint->save();
-            
-            $action = match($current_stage) {
-                1 => 'Approve & Move to Resolution Stage',
-                default => 'Workflow Advanced'
-            };
+            app(ComplaintWorkflowService::class)->advance($this->complaint, $this->comment, (string) Auth::id());
+            $this->complaint->refresh();
+            $action = 'Approve & Move to Resolution Stage';
             
         } elseif ($current_stage == 2) {
             // New logic: Support optional report notification when moving to Stage 4
@@ -308,8 +309,8 @@ class ComplaintWorkflowTab extends BaseCrmComponent
             }
 
             // Move from Stage 2 (Complaint Resolution) to Stage 4 (Resolution Approval)
-            $this->complaint->complaint_workflow = 4;
-            $this->complaint->save();
+            app(ComplaintWorkflowService::class)->advance($this->complaint, $this->comment, (string) Auth::id());
+            $this->complaint->refresh();
             
             $action = 'Resolution Approved and Advanced to Resolution Approval';
             if ($this->send_to_customer) $action .= ' (Report Sent)';
@@ -318,14 +319,6 @@ class ComplaintWorkflowTab extends BaseCrmComponent
             $this->dispatch('alert', ['type' => 'error', 'message' => 'Invalid workflow stage for approval.']);
             return;
         }
-
-        $chain_custody = new Chain_of_Custody_Complaint();
-        $chain_custody->complaint_id = $this->complaint->id;
-        $chain_custody->action = $action;
-        $chain_custody->action_taker_id = Auth::id();
-        $chain_custody->workflow_stage = $stageName;
-        $chain_custody->move_out_date = getTodayDate();
-        $chain_custody->save();
 
         $this->dispatch('alert', ['type' => 'success', 'message' => $action]);
         $this->dispatch('complaint-workflow-updated', message: $action);
@@ -341,12 +334,13 @@ class ComplaintWorkflowTab extends BaseCrmComponent
             'selectedContactIds.*' => 'string',
         ]);
         
-        $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+        $resolution = $this->resolutionRecord;
         
         if (!$resolution) {
-            $resolution = new \App\Models\CRM\Complaintsresolutions();
+            $resolution = new Complaintsresolutions();
             $resolution->complaint_id = $this->complaint->id;
             $resolution->save();
+            $this->resolutionRecord = $resolution;
         }
 
         $current_stage = $this->complaint->complaint_workflow;
@@ -368,20 +362,12 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         $resolution->save();
 
         // Move complaint from Stage 2 (Complaint Resolution) to Stage 4 (Resolution Approval)
-        $this->complaint->complaint_workflow = 4;
-        $this->complaint->save();
+        app(ComplaintWorkflowService::class)->advance($this->complaint, $this->comment, (string) Auth::id());
+        $this->complaint->refresh();
 
         $actionBase = (!$resolution->car_required) ? 'Resolution Approval' : 'CAPA Approval';
         $action = $actionBase . ' by ' . (Auth::user()?->name ?? 'System') . '. Moved to Resolution Approval.';
         if ($this->send_to_customer) $action .= ' Report sent to client.';
-
-        $chain = new Chain_of_Custody_Complaint();
-        $chain->complaint_id = $this->complaint->id;
-        $chain->action = $action;
-        $chain->action_taker_id = Auth::id();
-        $chain->workflow_stage = $stageName;
-        $chain->move_out_date = getTodayDate();
-        $chain->save();
 
         $this->dispatch('alert', ['type' => 'success', 'message' => 'Resolution approved and advanced successfully.']);
         $this->dispatch('complaint-workflow-updated', message: 'Resolution approved and advanced successfully.');
@@ -391,6 +377,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
     {
         $this->checkPermission('CRM.components.Complaint Pending Closure.Edit');
         
+        $current_stage = (int) $this->complaint->complaint_workflow;
         $chain_custody = new Chain_of_Custody_Complaint();
         $chain_custody->complaint_id = $this->complaint->id;
         $chain_custody->action = "Request Resolution Approval";
@@ -468,12 +455,13 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         ]);
 
         // Update resolution with checkpoint data
-        $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+        $resolution = $this->resolutionRecord;
         if (!$resolution) {
-            $resolution = new \App\Models\CRM\Complaintsresolutions();
+            $resolution = new Complaintsresolutions();
             $resolution->complaint_id = $this->complaint->id;
             $resolution->registered_by = Auth::user()?->name;
             $resolution->save();
+            $this->resolutionRecord = $resolution;
         }
 
         $resolution->car_required = $this->car_required;
@@ -506,7 +494,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         ]);
 
         // Update the resolution with closure remarks
-        $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+        $resolution = $this->resolutionRecord;
         if ($resolution) {
             $resolution->internal_remarks = $this->internal_remarks;
             $resolution->client_remarks = $this->client_remarks;
@@ -603,7 +591,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         ]);
 
         // Save to resolutions table
-        $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+        $resolution = $this->resolutionRecord;
         if ($resolution) {
             $resolution->client_remarks = $this->client_remarks;
             $resolution->save();
@@ -659,7 +647,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
                 'Complaint Closed by ' . (Auth::user()?->name ?? 'System') . '. Final remarks recorded.',
                 $this->complaint_review_remarks,
                 function (): void {
-                    $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+                    $resolution = $this->resolutionRecord;
                     if ($resolution) {
                         $resolution->client_remarks = $this->client_remarks;
                         $resolution->internal_remarks = $this->complaint_review_remarks;
@@ -699,7 +687,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
                 'Complaint Closed by ' . (Auth::user()?->name ?? 'System') . '. Final remarks recorded.',
                 $this->complaint_review_remarks,
                 function (): void {
-                    $resolution = \App\Models\CRM\Complaintsresolutions::where('complaint_id', $this->complaint->id)->first();
+                    $resolution = $this->resolutionRecord;
                     if ($resolution) {
                         $resolution->internal_remarks = $this->complaint_review_remarks;
                         $resolution->client_remarks = $this->client_remarks;
@@ -807,11 +795,9 @@ class ComplaintWorkflowTab extends BaseCrmComponent
             $chain->save();
 
             $this->complaint->refresh();
-
-            app(ComplaintInvestigationReportService::class)
-                ->generateAndAttachCloseReports($this->complaint);
         });
 
+        GenerateCloseReports::dispatch((string) $this->complaint->id);
         $this->dispatch('attachment-added');
     }
 

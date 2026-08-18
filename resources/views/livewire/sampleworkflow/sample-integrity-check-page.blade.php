@@ -9,7 +9,7 @@
     }"
 >
     @if($flashMessage !== '')
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <div class="alert alert-{{ $flashMessageType === 'error' ? 'danger' : ($flashMessageType === 'warning' ? 'warning' : 'info') }} alert-dismissible fade show" role="alert">
             {{ $flashMessage }}
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
@@ -57,15 +57,24 @@
                         <span wire:loading.remove wire:target="generateWorksheetPdf">Generate PDF</span>
                         <span wire:loading wire:target="generateWorksheetPdf">Generating…</span>
                     </button>
+                    <button type="button"
+                        class="dropdown-item"
+                        wire:click="downloadExcel"
+                        wire:loading.attr="disabled"
+                        wire:target="downloadExcel">
+                        <i class="mdi mdi-file-excel-outline mr-2 text-success"></i>
+                        <span wire:loading.remove wire:target="downloadExcel">Download Excel</span>
+                        <span wire:loading wire:target="downloadExcel">Downloading…</span>
+                    </button>
                     <a href="{{ $this->collectionLabelUrl }}" target="_blank" class="dropdown-item">
                         <i class="mdi mdi-tag-outline mr-2"></i> Collection label
                     </a>
                     <a href="{{ $this->registrationLabelUrl }}" target="_blank" class="dropdown-item">
                         <i class="mdi mdi-barcode mr-2"></i> Registration label
                     </a>
-                    <button type="button" class="dropdown-item" id="integrity-lab-sample-labels-btn">
+                    <a href="{{ $this->registrationLabelUrl }}" target="_blank" class="dropdown-item">
                         <i class="mdi mdi-barcode mr-2"></i> Lab sample labels
-                    </button>
+                    </a>
                     <div class="dropdown-divider"></div>
                     <button type="button"
                         class="dropdown-item"
@@ -529,7 +538,10 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <p class="mb-0">
+                        @if($acceptError !== '')
+                            <div class="alert alert-danger py-2 px-3 small" role="alert">{{ $acceptError }}</div>
+                        @endif
+                        <p class="mb-3">
                             Accept these samples?
                         </p>
                     </div>

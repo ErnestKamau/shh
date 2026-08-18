@@ -918,6 +918,7 @@ final class PortalEnquiryFormInstanceSyncService
             CommercialEnquirySyncService::SOURCE_WALK_IN,
             CommercialEnquirySyncService::SOURCE_PORTAL,
             CommercialEnquirySyncService::SOURCE_SCHEDULED,
+            CommercialEnquirySyncService::SOURCE_OFFLINE,
         ], true)) {
             return $channel;
         }

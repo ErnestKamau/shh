@@ -409,7 +409,7 @@ class SubmissionFormInstance extends Model implements Auditable
     }
 
     /**
-     * Origin channel for Samples Receiving lists: portal, walk_in, or scheduled.
+     * Origin channel for Samples Receiving lists: portal, walk_in, offline, or scheduled.
      */
     public function receivingOriginChannel(): string
     {
@@ -419,6 +419,10 @@ class SubmissionFormInstance extends Model implements Auditable
 
         if ($enquiryChannel === 'portal') {
             return 'portal';
+        }
+
+        if ($enquiryChannel === 'offline') {
+            return 'offline';
         }
 
         if (in_array($enquiryChannel, ['scheduled', 'scheduled_sampling'], true)) {
@@ -434,6 +438,10 @@ class SubmissionFormInstance extends Model implements Auditable
             return 'scheduled';
         }
 
+        if ($sourceChannel === 'offline') {
+            return 'offline';
+        }
+
         if ($this->portal_account_id !== null && $this->portal_account_id !== '') {
             return 'portal';
         }
@@ -447,7 +455,7 @@ class SubmissionFormInstance extends Model implements Auditable
             return 'walk_in';
         }
 
-        if (in_array($enquiryChannel, ['portal', 'walk_in', 'scheduled'], true)) {
+        if (in_array($enquiryChannel, ['portal', 'walk_in', 'scheduled', 'offline'], true)) {
             return $enquiryChannel;
         }
 

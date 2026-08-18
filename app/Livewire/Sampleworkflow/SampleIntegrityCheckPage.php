@@ -9,12 +9,15 @@ use App\Models\SubmissionFormInstance;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\BatchResultsExcelImportService;
 use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
+use App\Services\Sampleworkflow\RequestTestExportDataService;
 use App\Services\Sampleworkflow\RequestTestWorksheetPdfService;
 use App\Services\Sampleworkflow\SampleIntegrityCheckService;
 use App\User;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SampleIntegrityCheckPage extends Component
 {
@@ -35,6 +38,8 @@ class SampleIntegrityCheckPage extends Component
 
     public string $flashMessage = '';
 
+    public string $flashMessageType = 'info';
+
     public string $selectedSampleKey = '';
 
     public string $testSearch = '';
@@ -50,6 +55,8 @@ class SampleIntegrityCheckPage extends Component
     public bool $showAcceptConfirmModal = false;
 
     public bool $isAccepting = false;
+
+    public string $acceptError = '';
 
     /** @var list<string> */
     public array $bulkLabSectionIds = [];
@@ -227,23 +234,37 @@ class SampleIntegrityCheckPage extends Component
 
     public function generateWorksheetPdf(): void
     {
-        $analystNamesById = [];
-        foreach ($this->analystsBySection as $sectionAnalysts) {
-            foreach ($sectionAnalysts as $analyst) {
-                $analystNamesById[(string) ($analyst['id'] ?? '')] = (string) ($analyst['name'] ?? '');
-            }
-        }
-
         $url = app(RequestTestWorksheetPdfService::class)->storeIntegrityPdf(
             $this->instance,
             $this->enquiry,
             $this->testRows,
             $this->labSectionNames,
-            $analystNamesById,
+            $this->analystNamesById(),
         );
 
         $this->dispatch('open-integrity-worksheet-pdf', url: $url.'?v='.now()->timestamp);
         $this->setFlashMessage('PDF generated and opened in a new tab.', 'success');
+    }
+
+    public function downloadExcel(): BinaryFileResponse
+    {
+        $payload = app(RequestTestExportDataService::class)->buildFromIntegrityRows(
+            $this->instance,
+            $this->enquiry,
+            $this->testRows,
+            $this->labSectionNames,
+            $this->analystNamesById(),
+        );
+
+        $reference = trim((string) ($this->enquiry?->formatted_number
+            ?? $this->enquiry?->request_number
+            ?? $this->instance->code
+            ?? $this->instance->id));
+
+        return app(BatchResultsExcelImportService::class)->downloadTemplateFromIntegrityRows(
+            $payload['flat_rows'],
+            'integrity-results-'.$this->safeExcelFilename($reference).'.xlsx',
+        );
     }
 
     public function toggleSubcontracted(string $rowKey): void
@@ -674,12 +695,14 @@ class SampleIntegrityCheckPage extends Component
         }
 
         $this->showAcceptConfirmModal = true;
+        $this->acceptError = '';
     }
 
     public function closeAcceptConfirm(): void
     {
         $this->showAcceptConfirmModal = false;
         $this->isAccepting = false;
+        $this->acceptError = '';
     }
 
     public function confirmAcceptSamples(): void
@@ -689,6 +712,7 @@ class SampleIntegrityCheckPage extends Component
         }
 
         $this->isAccepting = true;
+        $this->acceptError = '';
 
         $this->enquiry = app(SampleIntegrityCheckService::class)
             ->persistIntegrityAssignments($this->enquiry, $this->testRows);
@@ -711,12 +735,7 @@ class SampleIntegrityCheckPage extends Component
         } catch (\Throwable $exception) {
             report($exception);
             $this->isAccepting = false;
-            $this->setFlashMessage(
-                $exception->getMessage() !== ''
-                    ? $exception->getMessage()
-                    : 'Could not accept samples. Check the application log for details.',
-                'error'
-            );
+            $this->acceptError = $this->userFacingAcceptFailureMessage($exception);
 
             return;
         }
@@ -734,29 +753,13 @@ class SampleIntegrityCheckPage extends Component
         $this->isAccepting = false;
 
         if ($batchId === '') {
-            $this->setFlashMessage('Samples were accepted but the job number could not be created.', 'error');
+            $this->acceptError = 'Samples were accepted but the job number could not be created.';
 
             return;
         }
 
         $batch = \App\SampleHeader::query()->find($batchId);
         $batchCode = (string) ($batch?->batch_code ?? '');
-        $isShelfLife = (bool) ($batch?->is_shelf_life ?? false);
-
-        if ($isShelfLife) {
-            $studyId = \App\Models\ShelfLife\ShelfLifeStudy::query()
-                ->where('sample_header_id', $batchId)
-                ->value('id');
-
-            $redirectUrl = $studyId
-                ? route('shelf-life.studies.show', ['study' => $studyId])
-                : route('shelf-life.studies.index');
-
-            $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
-            session()->flash('success', "Samples accepted as shelf-life testing. Job number {$batchCode} sent to Shelf Life Studies.");
-
-            return;
-        }
 
         $redirectUrl = route('view-batch-details', [
             'batch' => $batchId,
@@ -842,9 +845,27 @@ class SampleIntegrityCheckPage extends Component
     protected function setFlashMessage(string $message, string $type = 'info'): void
     {
         $this->flashMessage = $message;
-        if ($message !== '') {
+        $this->flashMessageType = $type;
+        if ($message !== '' && $type !== 'error') {
             $this->toast($type, $message);
         }
+    }
+
+    private function userFacingAcceptFailureMessage(\Throwable $exception): string
+    {
+        $message = trim($exception->getMessage());
+        $lower = strtolower($message);
+
+        if (
+            $message !== ''
+            && ! str_contains($lower, 'sqlstate')
+            && ! str_contains($lower, 'pgsql')
+            && ! str_contains($lower, 'connection:')
+        ) {
+            return $message;
+        }
+
+        return 'Could not accept samples. Check that each sample has a sample type and tests, then try again.';
     }
 
     public function getLabSectionsProperty(): array
@@ -1260,7 +1281,6 @@ class SampleIntegrityCheckPage extends Component
         $this->bulkAnalystIdsBySection = $pruned;
     }
 
-
     private function persistAssignments(bool $reload = true): void
     {
         if ($this->enquiry === null) {
@@ -1273,6 +1293,29 @@ class SampleIntegrityCheckPage extends Component
         if ($reload) {
             $this->reloadRows();
         }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function analystNamesById(): array
+    {
+        $analystNamesById = [];
+        foreach ($this->analystsBySection as $sectionAnalysts) {
+            foreach ($sectionAnalysts as $analyst) {
+                $analystNamesById[(string) ($analyst['id'] ?? '')] = (string) ($analyst['name'] ?? '');
+            }
+        }
+
+        return $analystNamesById;
+    }
+
+    private function safeExcelFilename(string $value): string
+    {
+        $safe = preg_replace('/[^A-Za-z0-9_-]+/', '-', $value) ?? 'export';
+        $safe = trim($safe, '-');
+
+        return $safe !== '' ? $safe : 'export';
     }
 
     private function reloadRows(): void
