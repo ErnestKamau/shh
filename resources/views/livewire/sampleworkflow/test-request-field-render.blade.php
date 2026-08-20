@@ -5,6 +5,21 @@
     $fieldName = $field['name'] ?? '';
     $compact = $compact ?? false;
     $hideLabel = $hideLabel ?? false;
+    $optionCols = $optionCols ?? ($field['option_cols'] ?? null);
+    $optionTight = (bool) ($optionTight ?? ($field['option_tight'] ?? false));
+    $optionColClass = match ((int) $optionCols) {
+        4 => 'col-3',
+        3 => 'col-4',
+        2 => 'col-6',
+        default => 'col-6',
+    };
+    $optionRowClass = 'row pt-1';
+    if ($optionCols !== null && (int) $optionCols > 1) {
+        $optionRowClass .= ' rft-option-grid rft-option-grid--cols-'.(int) $optionCols;
+        if ($optionTight) {
+            $optionRowClass .= ' rft-option-grid--tight';
+        }
+    }
     $controlClass = $compact ? 'form-control form-control-xs' : 'form-control form-control-sm';
     $compactStyle = $compact ? 'padding: 2px 5px; height: auto; font-size: 11px;' : '';
 @endphp
@@ -106,29 +121,47 @@
         @if($compactStyle) style="{{ $compactStyle }}" @endif
         @if($field['readonly'] ?? false) readonly @endif></textarea>
 @elseif(($field['type'] ?? '') === 'radio')
-    @foreach(($field['options'] ?? []) as $opt)
-        @php
-            $optValue = is_array($opt) ? ($opt['value'] ?? '') : $opt;
-            $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
-        @endphp
-        <div class="custom-control custom-radio {{ $compact ? 'mb-0' : '' }}">
-            <input type="radio" id="field_{{ $fieldId }}_{{ $loop->index }}" wire:model="{{ $wirePrefix }}"
-                value="{{ $optValue }}" class="custom-control-input @error($wirePrefix) is-invalid @enderror">
-            <label class="custom-control-label {{ $compact ? 'small' : 'small' }}" style="{{ $compact ? 'font-size: 10px;' : '' }}" for="field_{{ $fieldId }}_{{ $loop->index }}">{{ $optLabel }}</label>
+    @if($optionCols !== null && (int) $optionCols > 1)
+        <div class="{{ $optionRowClass }}">
+            @foreach(($field['options'] ?? []) as $opt)
+                @php
+                    $optValue = is_array($opt) ? ($opt['value'] ?? '') : $opt;
+                    $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
+                @endphp
+                <div class="{{ $optionColClass }} mb-1">
+                    <div class="custom-control custom-radio {{ $compact ? 'mb-0' : '' }}">
+                        <input type="radio" id="field_{{ $fieldId }}_{{ $loop->index }}" wire:model="{{ $wirePrefix }}"
+                            value="{{ $optValue }}" class="custom-control-input @error($wirePrefix) is-invalid @enderror">
+                        <label class="custom-control-label {{ $compact ? 'small' : 'small' }}" style="{{ $compact ? 'font-size: 10px;' : '' }}" for="field_{{ $fieldId }}_{{ $loop->index }}">{{ $optLabel }}</label>
+                    </div>
+                </div>
+            @endforeach
         </div>
-    @endforeach
+    @else
+        @foreach(($field['options'] ?? []) as $opt)
+            @php
+                $optValue = is_array($opt) ? ($opt['value'] ?? '') : $opt;
+                $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
+            @endphp
+            <div class="custom-control custom-radio {{ $compact ? 'mb-0' : '' }}">
+                <input type="radio" id="field_{{ $fieldId }}_{{ $loop->index }}" wire:model="{{ $wirePrefix }}"
+                    value="{{ $optValue }}" class="custom-control-input @error($wirePrefix) is-invalid @enderror">
+                <label class="custom-control-label {{ $compact ? 'small' : 'small' }}" style="{{ $compact ? 'font-size: 10px;' : '' }}" for="field_{{ $fieldId }}_{{ $loop->index }}">{{ $optLabel }}</label>
+            </div>
+        @endforeach
+    @endif
 @elseif(($field['type'] ?? '') === 'select')
     @php
         $isMulti = in_array($fieldName, ['sampling_apparatus', 'method_of_sampling', 'reason_of_collection', 'transport_condition', 'sampling_source', 'sample_types_ww', 'sampling_technique', 'field_data_requirements'], true);
     @endphp
     @if($isMulti)
-        <div class="row pt-1">
+        <div class="{{ $optionRowClass }}">
             @foreach(($field['options'] ?? []) as $opt)
                 @php
                     $optValue = is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : $opt;
                     $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
                 @endphp
-                <div class="col-6 mb-1">
+                <div class="{{ $optionColClass }} mb-1">
                     <div class="custom-control custom-checkbox">
                         <input type="checkbox" id="field_{{ $fieldId }}_{{ Str::slug($optValue) }}"
                             wire:model="{{ $wirePrefix }}.{{ $optValue }}" class="custom-control-input">
@@ -153,13 +186,13 @@
     @endif
 @elseif(($field['type'] ?? '') === 'checkbox')
     @if(!empty($field['options']) && is_array($field['options']))
-        <div class="{{ $compact ? '' : 'row pt-1' }}">
+        <div class="{{ $compact ? '' : $optionRowClass }}">
             @foreach($field['options'] as $opt)
                 @php
                     $optValue = is_array($opt) ? ($opt['value'] ?? '') : $opt;
                     $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
                 @endphp
-                <div class="{{ $compact ? 'mb-1' : 'col-6 mb-1' }}">
+                <div class="{{ $compact ? 'mb-1' : $optionColClass . ' mb-1' }}">
                     <div class="custom-control custom-checkbox">
                         <input type="checkbox" id="field_{{ $fieldId }}_{{ Str::slug($optValue) }}"
                             wire:model="{{ $wirePrefix }}.{{ $optValue }}" class="custom-control-input">

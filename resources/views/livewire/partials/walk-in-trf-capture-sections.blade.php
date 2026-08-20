@@ -286,7 +286,79 @@
                 $thermometerElement = $isCollectionSection
                     ? $regularElements->first(fn ($el) => (string) ($el->name ?? '') === 'thermometer_id')
                     : null;
+                $usesFoodCollectionLayout = $isCollectionSection && $this->usesFoodCollectionLayout();
             @endphp
+            @if($usesFoodCollectionLayout)
+                @php
+                    $collectionField = function (string $name) use ($regularElements) {
+                        return $this->walkInCollectionElementByName($regularElements, $name);
+                    };
+                @endphp
+                <div class="row">
+                    <div class="col-md-6 mb-3" wire:key="field-collection-sampling-date">
+                        @php $el = $collectionField('sampling_date'); @endphp
+                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+                    </div>
+                    <div class="col-md-6 mb-3" wire:key="field-collection-sampling-time">
+                        @php $el = $collectionField('sampling_time'); @endphp
+                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3" wire:key="field-collection-sampling-location">
+                        @php $el = $collectionField('sampling_location'); @endphp
+                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+                    </div>
+                    <div class="col-md-6 mb-3" wire:key="field-collection-date-received">
+                        @php $el = $collectionField('date_received'); @endphp
+                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3" wire:key="field-collection-method">
+                        @php $el = $collectionField('method_of_sampling'); @endphp
+                        @if($el)
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => $fieldMapper->toField($el),
+                                'optionCols' => 4,
+                                'optionTight' => true,
+                            ])
+                        @endif
+                    </div>
+                    <div class="col-md-6 mb-3" wire:key="field-collection-reason">
+                        @php $el = $collectionField('reason_of_collection'); @endphp
+                        @if($el)
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => $fieldMapper->toField($el),
+                                'optionCols' => 2,
+                                'optionTight' => true,
+                            ])
+                        @endif
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3" wire:key="field-collection-apparatus">
+                        @php $apparatusEl = $collectionField('sampling_apparatus'); @endphp
+                        @if($apparatusEl)
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => $fieldMapper->toField($apparatusEl),
+                                'optionCols' => 3,
+                            ])
+                            @if($thermometerElement)
+                                <div class="mt-2" wire:key="field-{{ $thermometerElement->id }}-nested">
+                                    @include('livewire.sampleworkflow.test-request-field-render', [
+                                        'field' => $fieldMapper->toField($thermometerElement),
+                                    ])
+                                </div>
+                            @endif
+                        @endif
+                    </div>
+                    <div class="col-md-6 mb-3" wire:key="field-collection-transport">
+                        @php $el = $collectionField('transport_condition'); @endphp
+                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+                    </div>
+                </div>
+            @else
             <div class="row">
                 @foreach($regularElements as $element)
                     @php
@@ -311,6 +383,7 @@
                     @endif
                 @endforeach
             </div>
+            @endif
         @endif
     </div>
 @endif

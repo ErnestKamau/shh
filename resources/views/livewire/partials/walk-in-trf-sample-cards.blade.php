@@ -110,6 +110,7 @@
                                 @foreach($gridColumns as $column)
                                     @php
                                         $fieldColClass = match ($gridCols) {
+                                            1 => 'col-md-12',
                                             2 => 'col-md-6',
                                             default => 'col-md-4',
                                         };
@@ -119,7 +120,7 @@
                                                 ? $column['field']['name']
                                                 : ($column['element']->name ?? ''));
                                         }
-                                        $fieldModifiers = $fieldName === 'test_requirements'
+                                        $fieldModifiers = in_array($fieldName, ['test_requirements', 'test_category'], true)
                                             ? ' rft-sample-field--test-requirements'
                                             : '';
                                     @endphp
@@ -130,6 +131,7 @@
                                             @php
                                                 $element = $column['element'];
                                                 $field = $column['field'] ?? $fieldMapper->toField($element);
+                                                $nestedColumn = $column['nested'] ?? null;
                                             @endphp
                                             <label>
                                                 {{ $column['label'] ?? ($field['label'] ?? $fieldName) }}
@@ -150,7 +152,31 @@
                                                     'rowIndex' => $rowIndex,
                                                     'compact' => false,
                                                     'hideLabel' => true,
+                                                    'optionCols' => $column['option_cols'] ?? ($field['option_cols'] ?? null),
                                                 ])
+                                            @endif
+                                            @if(is_array($nestedColumn) && isset($nestedColumn['element']))
+                                                @php
+                                                    $nestedElement = $nestedColumn['element'];
+                                                    $nestedField = $nestedColumn['field'] ?? $fieldMapper->toField($nestedElement);
+                                                    $nestedName = (string) (($nestedField['name'] ?? '') !== ''
+                                                        ? $nestedField['name']
+                                                        : ($nestedElement->name ?? ''));
+                                                @endphp
+                                                <div class="mt-2 rft-sample-field-nested" wire:key="row-nested-{{ $activeSection->id }}-{{ $rowIndex }}-{{ $nestedElement->id }}">
+                                                    <label>
+                                                        {{ $nestedColumn['label'] ?? ($nestedField['label'] ?? $nestedName) }}
+                                                        @if($nestedField['required'] ?? false)<span class="text-danger">*</span>@endif
+                                                    </label>
+                                                    @include('livewire.sampleworkflow.test-request-field-render', [
+                                                        'field' => $nestedField,
+                                                        'wirePrefix' => 'formData.'.$nestedElement->name.'.'.$rowIndex,
+                                                        'fieldId' => $nestedElement->name.'_'.$rowIndex,
+                                                        'rowIndex' => $rowIndex,
+                                                        'compact' => false,
+                                                        'hideLabel' => true,
+                                                    ])
+                                                </div>
                                             @endif
                                         @endif
                                     </div>
@@ -182,6 +208,27 @@
                                     ])
                                 </div>
                             @endforeach
+                        </div>
+                    @endif
+
+                    @if($cardLayout['analysis_type_column'] ?? null)
+                        @php
+                            $element = $cardLayout['analysis_type_column']['element'];
+                            $field = $cardLayout['analysis_type_column']['field'] ?? $fieldMapper->toField($element);
+                        @endphp
+                        <div class="rft-sample-field rft-sample-field--full">
+                            <label>
+                                {{ $cardLayout['analysis_type_column']['label'] ?? 'Analysis Type' }}
+                                @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
+                            </label>
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => $field,
+                                'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
+                                'fieldId' => $element->name.'_'.$rowIndex,
+                                'rowIndex' => $rowIndex,
+                                'compact' => false,
+                                'hideLabel' => true,
+                            ])
                         </div>
                     @endif
 

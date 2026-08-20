@@ -2,6 +2,8 @@
 
 namespace App\Services\Lab;
 
+use App\Analyte;
+use App\AnalysisElements;
 use App\AnalysisType;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -95,6 +97,63 @@ final class AnalysisReferenceLabelResolver
         $labels = array_map(fn (string $token): string => $this->resolveToken($token), $tokens);
 
         return implode(', ', array_values(array_unique(array_filter($labels, fn (string $label): bool => $label !== ''))));
+    }
+
+    public function resolveReportDisplayToken(string $token): string
+    {
+        $token = trim($this->decryptIfNeeded($token));
+        if ($token === '') {
+            return '';
+        }
+
+        if (! Str::isUuid($token)) {
+            return $token;
+        }
+
+        $analyte = Analyte::query()->find($token);
+        if ($analyte !== null) {
+            $display = $analyte->plainReportDisplay();
+
+            return $display !== '' ? $display : trim((string) ($analyte->name ?? ''));
+        }
+
+        $analysisElementQuery = DB::table('analysis_elements')
+            ->leftJoin('analytes', 'analytes.id', '=', 'analysis_elements.analyte_id');
+
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            $analysisElementQuery->whereRaw('analysis_elements.id::text = ?', [$token]);
+        } else {
+            $analysisElementQuery->where('analysis_elements.id', $token);
+        }
+
+        $row = $analysisElementQuery
+            ->select('analytes.code as analyte_code', 'analytes.name as analyte_name', 'analysis_elements.method as analysis_element_name')
+            ->first();
+
+        if ($row !== null) {
+            $code = trim((string) ($row->analyte_code ?? ''));
+            if ($code !== '') {
+                $fromCode = trim(str_replace('_', ' ', preg_replace('/\s+/', ' ', $code) ?? $code));
+                if ($fromCode !== '') {
+                    if (preg_match('/^[A-Z0-9]+(?: [A-Z0-9]+)*$/', $fromCode) === 1) {
+                        return Str::title(strtolower($fromCode));
+                    }
+
+                    return $fromCode;
+                }
+            }
+
+            $name = trim((string) ($row->analyte_name ?? ''));
+            if ($name !== '') {
+                return $name;
+            }
+
+            return trim((string) ($row->analysis_element_name ?? ''));
+        }
+
+        $analysisType = AnalysisType::query()->find($token);
+
+        return trim((string) ($analysisType?->name ?? ''));
     }
 
     private function decryptIfNeeded(string $value): string

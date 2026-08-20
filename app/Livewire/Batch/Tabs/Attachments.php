@@ -65,6 +65,10 @@ class Attachments extends Component
 
     private function syncMissingWorkflowDocuments(): void
     {
+        if (empty($this->batch->quote_id) && empty($this->batch->submission_form_instance_id)) {
+            return;
+        }
+
         $requiredTitles = [
             BatchWorkflowDocumentAttachmentService::QUOTATION_TITLE,
             TestRequestFormPdfService::ATTACHMENT_TITLE,
@@ -76,16 +80,56 @@ class Attachments extends Component
             ->pluck('title')
             ->all();
 
-        if (count(array_intersect($requiredTitles, $existingTitles)) === count($requiredTitles)) {
+        $hasTrf = in_array(TestRequestFormPdfService::ATTACHMENT_TITLE, $existingTitles, true);
+        $hasAllDocuments = count(array_intersect($requiredTitles, $existingTitles)) === count($requiredTitles);
+        $userId = Auth::id() ? (string) Auth::id() : null;
+        $documentService = app(BatchWorkflowDocumentAttachmentService::class);
+
+        $batchCode = trim((string) ($this->batch->batch_code ?? ''));
+        if ($batchCode !== '' && $this->testRequestFormNeedsLabNumberRefresh($hasTrf)) {
+            try {
+                $documentService->attachTestRequestForm($this->batch, $userId);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to refresh Test Request Form on Attachments tab', [
+                    'batch_id' => $this->batch->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($hasAllDocuments) {
             return;
         }
 
-        if (empty($this->batch->quote_id) && empty($this->batch->submission_form_instance_id)) {
-            return;
+        $documentService->attachForAcceptedBatch($this->batch, $userId);
+    }
+
+    private function testRequestFormNeedsLabNumberRefresh(bool $hasTrf): bool
+    {
+        if (! $hasTrf) {
+            return true;
         }
 
-        app(BatchWorkflowDocumentAttachmentService::class)
-            ->attachForAcceptedBatch($this->batch, Auth::id() ? (string) Auth::id() : null);
+        $attachment = BatchAttachment::query()
+            ->where('batch_id', $this->batch->id)
+            ->where('title', TestRequestFormPdfService::ATTACHMENT_TITLE)
+            ->orderByDesc('updated_at')
+            ->first();
+
+        if ($attachment === null) {
+            return true;
+        }
+
+        $latestSampleAt = SampleDetails::query()
+            ->where('sample_header_id', $this->batch->id)
+            ->max('created_at');
+
+        if ($latestSampleAt === null) {
+            return false;
+        }
+
+        return $attachment->updated_at === null
+            || $attachment->updated_at->lt(\Illuminate\Support\Carbon::parse($latestSampleAt));
     }
 
     private function syncSamplePhotoAttachments(): void

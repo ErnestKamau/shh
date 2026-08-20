@@ -891,26 +891,31 @@
                                         </a>
                                         <div class="dropdown-divider"></div>
                                         <div class="sample-parameters-modal__excel-upload px-3 py-2">
-                                            <form method="POST"
-                                                  action="{{ route('batch.request-test-results-import', ['batch' => $batch->id]) }}"
-                                                  enctype="multipart/form-data"
-                                                  class="mb-0"
-                                                  id="sample-parameters-excel-import-form">
-                                                @csrf
+                                            <div class="mb-0" id="sample-parameters-excel-import-form">
                                                 <label class="small text-muted mb-1 d-block" for="sample-parameters-excel-import-file">
                                                     Upload completed Excel
                                                 </label>
                                                 <input type="file"
                                                        class="form-control-file form-control-sm mb-2"
                                                        id="sample-parameters-excel-import-file"
-                                                       name="import_file"
-                                                       accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                                                       required
-                                                       onchange="if (this.files && this.files.length) { this.form.submit(); }">
-                                                <button type="submit" class="btn btn-sm btn-primary btn-block">
-                                                    <i class="mdi mdi-upload"></i> Import results
+                                                       wire:model="parameterImportFile"
+                                                       accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+                                                @error('parameterImportFile')
+                                                    <div class="text-danger small mb-2">{{ $message }}</div>
+                                                @enderror
+                                                <button type="button"
+                                                        class="btn btn-sm btn-primary btn-block"
+                                                        wire:click="importParameterResults"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="importParameterResults,parameterImportFile,updatedParameterImportFile">
+                                                    <span wire:loading.remove wire:target="importParameterResults,parameterImportFile,updatedParameterImportFile">
+                                                        <i class="mdi mdi-upload"></i> Import results
+                                                    </span>
+                                                    <span wire:loading wire:target="importParameterResults,parameterImportFile,updatedParameterImportFile">
+                                                        <i class="mdi mdi-loading mdi-spin"></i> Importing...
+                                                    </span>
                                                 </button>
-                                            </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -957,17 +962,22 @@
                 @endif
 
                 {{-- Loading Indicator --}}
-                <div wire:loading wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample" class="text-center py-5">
+                <div wire:loading wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample,importParameterResults,parameterImportFile" class="text-center py-5">
                     <div class="spinner-border text-primary" role="status">
                         <span class="sr-only">Loading parameters...</span>
                     </div>
                     <p class="mt-2 text-muted">Loading parameters...</p>
                 </div>
 
-                <div wire:loading.remove wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample" class="modal-body sample-parameters-modal__body">
+                <div wire:loading.remove wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample,importParameterResults,parameterImportFile" class="modal-body sample-parameters-modal__body">
                     @if (session()->has('error'))
                     <div class="alert alert-danger border mb-3">
                         <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
+                    </div>
+                    @endif
+                    @if (session()->has('success'))
+                    <div class="alert alert-success border mb-3">
+                        <i class="mdi mdi-check-circle"></i> {{ session('success') }}
                     </div>
                     @endif
                     @if (session()->has('message'))

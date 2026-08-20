@@ -1231,7 +1231,7 @@ class ReceiveSampleRequest extends Component
     {
         $name = (string) ($element->name ?? '');
 
-        if (in_array($name, ['method_of_sampling', 'test_category'], true)) {
+        if (in_array($name, ['method_of_sampling', 'test_category', 'sample_condition'], true)) {
             return [];
         }
 
@@ -1512,6 +1512,16 @@ class ReceiveSampleRequest extends Component
             );
         }
 
+        if ($this->usesFoodSampleCardLayout()) {
+            return $this->buildFoodSampleCardLayout(
+                $take,
+                $findQty,
+                $findByNames,
+                $sampleTypeColumn,
+                $analysisTypeColumn,
+            );
+        }
+
         $gridRows = [
             [
                 $take($findQty()),
@@ -1576,6 +1586,158 @@ class ReceiveSampleRequest extends Component
         $documentCode = trim((string) ($this->submissionForm?->document_code ?? ''));
 
         return $documentCode === TrfDocumentCodeForSampleType::WATER;
+    }
+
+    private function usesFoodSampleCardLayout(): bool
+    {
+        if ($this->isFood) {
+            return true;
+        }
+
+        $documentCode = trim((string) ($this->submissionForm?->document_code ?? ''));
+
+        return in_array($documentCode, [
+            TrfDocumentCodeForSampleType::FOOD,
+            TrfDocumentCodeForSampleType::FOOD_AND_FEED,
+        ], true);
+    }
+
+    /**
+     * Food TRF sample card: qty/dates, batch/point/type, category/state/condition, analysis, tests, description.
+     *
+     * @return array{
+     *     layout_variant: string,
+     *     grid_rows: list<array<string, mixed>>,
+     *     analysis_type_column: array<string, mixed>|null,
+     *     parameters_column: array<string, mixed>|null,
+     *     description_column: array<string, mixed>|null,
+     *     extra_columns: list<array<string, mixed>>
+     * }
+     */
+    private function buildFoodSampleCardLayout(
+        callable $take,
+        callable $findQty,
+        callable $findByNames,
+        ?array $sampleTypeColumn,
+        ?array $analysisTypeColumn,
+    ): array {
+        $qtyColumn = $take($findQty());
+        if ($qtyColumn !== null) {
+            $qtyColumn['label'] = 'Qty / Unit';
+        }
+
+        $productionDateColumn = $take($findByNames(['production_date']));
+        $expirationDateColumn = $take($findByNames(['expiration_date']));
+        $batchColumn = $take($findByNames(['batch_number']));
+        $samplingPointColumn = $take($findByNames(['sampling_point_manual', 'manual_sampling_point']));
+        if ($samplingPointColumn !== null) {
+            $samplingPointColumn['label'] = 'Sampling Point';
+        }
+
+        $stateColumn = $take($findByNames(['state_of_sample']));
+
+        $testCategoryColumn = $take($findByNames(['test_category', 'test_requirements']));
+        if ($testCategoryColumn === null) {
+            $testCategoryColumn = $take($this->foodTestCategoryFallbackColumn());
+        }
+        if ($testCategoryColumn !== null) {
+            $testCategoryColumn['label'] = 'Test category';
+            $testCategoryColumn['option_cols'] = 2;
+        }
+
+        $sampleConditionColumn = $take($findByNames(['sample_condition']));
+        if ($sampleConditionColumn !== null) {
+            $sampleConditionColumn['label'] = 'Sample condition';
+            $sampleConditionColumn['option_cols'] = 2;
+            $sampleTempColumn = $take($findByNames(['sample_temp', 'field_sample_temp', 'sample_temperature']));
+            if ($sampleTempColumn !== null) {
+                $sampleConditionColumn['nested'] = $sampleTempColumn;
+            }
+        } else {
+            $take($findByNames(['sample_temp', 'field_sample_temp', 'sample_temperature']));
+        }
+
+        if ($analysisTypeColumn !== null) {
+            $analysisTypeColumn['label'] = 'Analysis Type';
+        }
+
+        $parametersColumn = $take($findByNames(['parameters', 'parameter']));
+        if ($parametersColumn !== null) {
+            $parametersColumn['label'] = 'Tests';
+        }
+
+        $descriptionColumn = $take($findByNames(['sample_description']));
+
+        return [
+            'layout_variant' => 'food',
+            'grid_rows' => [
+                [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'columns' => [$qtyColumn, $productionDateColumn, $expirationDateColumn],
+                ],
+                [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'columns' => [$batchColumn, $samplingPointColumn, $sampleTypeColumn],
+                ],
+                [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'columns' => [$testCategoryColumn, $stateColumn, $sampleConditionColumn],
+                ],
+            ],
+            'analysis_type_column' => $analysisTypeColumn,
+            'parameters_column' => $parametersColumn,
+            'description_column' => $descriptionColumn,
+            'extra_columns' => [],
+        ];
+    }
+
+    /**
+     * @return array{type: string, label: string, class: string, element: SubmissionFormElement, field: array<string, mixed>}
+     */
+    private function foodTestCategoryFallbackColumn(): array
+    {
+        $element = new SubmissionFormElement([
+            'name' => 'test_category',
+            'label' => 'Test category',
+            'element_type' => 'checkbox',
+            'options' => [
+                ['value' => 'chemistry', 'label' => 'Chemistry'],
+                ['value' => 'microbiology', 'label' => 'Microbiology'],
+            ],
+        ]);
+
+        return [
+            'type' => 'field',
+            'label' => 'Test category',
+            'class' => 'walk-in-trf-col-radio',
+            'element' => $element,
+            'field' => app(\App\Services\Sampleworkflow\WalkInTrfFieldMapper::class)->toField($element),
+        ];
+    }
+
+    /**
+     * Whether the active walk-in TRF uses the Food collection field pairing layout.
+     */
+    public function usesFoodCollectionLayout(): bool
+    {
+        return $this->usesFoodSampleCardLayout();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, SubmissionFormElement>|\Illuminate\Database\Eloquent\Collection<int, SubmissionFormElement>  $elements
+     */
+    public function walkInCollectionElementByName($elements, string $name): ?SubmissionFormElement
+    {
+        foreach ($elements as $element) {
+            if ((string) ($element->name ?? '') === $name) {
+                return $element;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -3613,6 +3775,8 @@ class ReceiveSampleRequest extends Component
 
         if ($this->isFood) {
             $names[] = 'test_category';
+            $names[] = 'sample_condition';
+            $names[] = 'sample_temp';
         }
 
         return array_values(array_unique(array_filter($names)));

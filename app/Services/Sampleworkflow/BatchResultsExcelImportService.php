@@ -144,6 +144,7 @@ final class BatchResultsExcelImportService
             }
 
             $captured = CapturedResult::query()
+                ->with(['sample', 'my_analyte'])
                 ->whereKey($capturedResultId)
                 ->where('sample_header_id', $batchId)
                 ->first();

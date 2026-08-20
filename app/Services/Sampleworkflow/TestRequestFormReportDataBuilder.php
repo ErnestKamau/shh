@@ -5,13 +5,19 @@ namespace App\Services\Sampleworkflow;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\SamplePoint;
+use App\Models\SamplePoint as MasterSamplePoint;
 use App\Models\System\SystemConfiguration;
 use App\Models\SubmissionFormInstance;
+use App\AnalysisElements;
+use App\SampleHeader;
+use App\SampleType;
 use App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver;
 use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\Services\Lab\AnalysisReferenceLabelResolver;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 
 class TestRequestFormReportDataBuilder
@@ -139,6 +145,10 @@ class TestRequestFormReportDataBuilder
         );
         $labUse = $this->resolveLabUseFields($formData, $submission, $creator);
 
+        $foodSampleTypeColumns = $variant === 'food'
+            ? $this->resolveFoodSampleTypeColumns($formData)
+            : [];
+
         $formTitle = match ($variant) {
             'food' => 'TEST REQUEST FORM - FOOD',
             'waste_water' => 'TEST REQUEST FORM - WASTE WATER',
@@ -164,6 +174,7 @@ class TestRequestFormReportDataBuilder
             'collection' => $collection,
             'collectionGrid' => $collectionGrid,
             'sampleRows' => $sampleRows,
+            'foodSampleTypeColumns' => $foodSampleTypeColumns,
             'wasteWaterFields' => $wasteWaterFields,
             'signatures' => [
                 'statement_of_conformity' => $conformity,
@@ -203,15 +214,75 @@ class TestRequestFormReportDataBuilder
     /**
      * @return array<string, bool>
      */
-    public static function sampleConditionChecks(?string $stored): array
+    public static function sampleConditionChecks(mixed $stored): array
     {
-        $selected = self::normalizeSingleSelect($stored ?? '', self::FOOD_OPTIONS['sample_condition']);
+        $tokens = self::sampleConditionTokens($stored);
 
         return [
-            'Acceptable' => strcasecmp($selected, 'Acceptable') === 0,
-            'Chilled' => strcasecmp($selected, 'Chilled') === 0,
-            'Frozen' => strcasecmp($selected, 'Frozen') === 0,
-            'Ambient' => strcasecmp($selected, 'Ambient') === 0,
+            'Acceptable' => in_array('acceptable', $tokens, true),
+            'Chilled' => in_array('chilled', $tokens, true),
+            'Frozen' => in_array('frozen', $tokens, true),
+            'Ambient' => in_array('ambient', $tokens, true),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function sampleConditionTokens(mixed $stored): array
+    {
+        if (is_array($stored)) {
+            $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($stored);
+            if ($selectedKeys !== null) {
+                $tokens = [];
+                foreach ($stored as $key => $checked) {
+                    if (filter_var($checked, FILTER_VALIDATE_BOOLEAN)) {
+                        $tokens[] = strtolower(trim((string) $key));
+                    }
+                }
+
+                return array_values(array_unique($tokens));
+            }
+
+            $stored = implode(',', array_map('strval', $stored));
+        }
+
+        if ($stored === null || $stored === '') {
+            return [];
+        }
+
+        $tokens = [];
+        foreach (preg_split('/[,;|]+/', (string) $stored) ?: [] as $token) {
+            $token = strtolower(trim($token));
+            if ($token === '') {
+                continue;
+            }
+
+            if (! in_array($token, $tokens, true)) {
+                $tokens[] = $token;
+            }
+        }
+
+        if ($tokens === []) {
+            $selected = self::normalizeSingleSelect((string) $stored, self::FOOD_OPTIONS['sample_condition']);
+            if ($selected !== '') {
+                $tokens[] = strtolower($selected);
+            }
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public static function foodMicroChemChecks(mixed $testCategory): array
+    {
+        $tokens = SubmissionFormSchemaHelper::testCategoryTokens($testCategory);
+
+        return [
+            'Micro' => in_array('microbiology', $tokens, true),
+            'Chem' => in_array('chemistry', $tokens, true),
         ];
     }
 
@@ -422,11 +493,10 @@ class TestRequestFormReportDataBuilder
 
         $candidates = [];
 
-        if ($submission) {
-            $submission->loadMissing('batches');
-            $batchCode = trim((string) ($submission->batches->first()?->batch_code ?? ''));
-            if ($batchCode !== '') {
-                $candidates[] = $batchCode;
+        if ($submission instanceof SubmissionFormInstance) {
+            $labIdentifiers = $this->resolveLabIdentifiersFromLinkedBatches($submission);
+            if ($labIdentifiers['job_number'] !== '') {
+                $candidates[] = $labIdentifiers['job_number'];
             }
         }
 
@@ -434,7 +504,7 @@ class TestRequestFormReportDataBuilder
             $candidates[] = trim((string) $formData['job_number']);
         }
 
-        if ($submission) {
+        if ($submission instanceof SubmissionFormInstance) {
             $value = \App\Models\SubmissionFormInstanceValue::query()
                 ->where('submission_form_instance_id', $submission->id)
                 ->whereHas('element', static fn ($query) => $query->where('name', 'job_number'))
@@ -517,24 +587,26 @@ class TestRequestFormReportDataBuilder
             }
 
             if ($variant === 'food') {
-                $sampleType = self::normalizeSingleSelect($row['sample_type'] ?? '', self::FOOD_OPTIONS['sample_type']);
-                $sampleCondition = self::normalizeSingleSelect($row['sample_condition'] ?? '', self::FOOD_OPTIONS['sample_condition']);
+                $sampleConditionRaw = $row['sample_condition'] ?? '';
+                $sampleConditionTokens = self::sampleConditionTokens($sampleConditionRaw);
+                $sampleConditionLabel = implode(', ', array_map(
+                    static fn (string $token): string => ucfirst($token),
+                    $sampleConditionTokens
+                ));
                 $normalized[] = [
                     'serial' => $index + 1,
                     'sample_no' => (string) ($row['sample_no'] ?? $row['lims_sample_no'] ?? ''),
                     'sample_description' => $this->plainTextField($row['sample_description'] ?? ''),
-                    'sampling_location' => $this->resolveSamplePointLabel((string) ($row['sampling_point'] ?? $row['sampling_location'] ?? '')),
                     'sampling_point' => trim((string) ($row['sampling_point_manual'] ?? $row['manual_sampling_point'] ?? '')),
                     'qty' => $this->formatRowQuantity($row),
-                    'sample_type' => $sampleType,
-                    'sample_type_checks' => self::sampleTypeChecks($sampleType),
-                    'sample_condition' => $sampleCondition,
-                    'sample_condition_checks' => self::sampleConditionChecks($sampleCondition),
-                    'sample_temp' => (string) ($row['sample_temp'] ?? ''),
+                    'sample_condition' => $sampleConditionLabel,
+                    'sample_condition_checks' => self::sampleConditionChecks($sampleConditionRaw),
+                    'sample_temp' => (string) ($row['sample_temp'] ?? $row['field_sample_temp'] ?? ''),
                     'production_date' => $this->formatDate($row['production_date'] ?? ''),
                     'expiration_date' => $this->formatDate($row['expiration_date'] ?? ''),
                     'batch_number' => (string) ($row['batch_number'] ?? ''),
-                    'parameters' => app(AnalysisReferenceLabelResolver::class)->resolveMixed($row['parameters'] ?? ''),
+                    'micro_chem_checks' => self::foodMicroChemChecks($row['test_category'] ?? null),
+                    'tests_by_sample_type' => $this->resolveFoodTestsBySampleType($row),
                     'state_of_sample' => self::stateOfSampleChecks($row['state_of_sample'] ?? null),
                 ];
                 continue;
@@ -633,7 +705,8 @@ class TestRequestFormReportDataBuilder
     }
 
     /**
-     * Fill blank TRF sample_no cells from linked batch sample codes after acceptance.
+     * Fill TRF sample_no cells from linked batch sample codes after acceptance.
+     * Lab sample codes always win once samples exist (customer/placeholder values are replaced).
      *
      * @param  list<array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
@@ -644,31 +717,78 @@ class TestRequestFormReportDataBuilder
             return $rows;
         }
 
-        $labCodes = $submission->batches
-            ->flatMap(static fn ($batch) => $batch->samples ?? collect())
-            ->map(static fn ($detail): string => trim((string) ($detail->sample_code ?? $detail->sample_no ?? '')))
-            ->filter(static fn (string $code): bool => $code !== '')
-            ->values()
-            ->all();
+        $labCodes = $this->resolveLabIdentifiersFromLinkedBatches($submission)['sample_codes'];
 
         if ($labCodes === []) {
             return $rows;
         }
 
-        $codeIndex = 0;
         foreach ($rows as $index => $row) {
-            $existing = trim((string) ($row['sample_no'] ?? ''));
-            if ($existing !== '') {
-                continue;
-            }
-            if (! isset($labCodes[$codeIndex])) {
+            if (! isset($labCodes[$index])) {
                 break;
             }
-            $rows[$index]['sample_no'] = $labCodes[$codeIndex];
-            $codeIndex++;
+            $rows[$index]['sample_no'] = $labCodes[$index];
         }
 
         return $rows;
+    }
+
+    /**
+     * Job / sample numbers assigned at Sample Integrity acceptance.
+     *
+     * @return array{job_number: string, sample_codes: list<string>}
+     */
+    private function resolveLabIdentifiersFromLinkedBatches(SubmissionFormInstance $submission): array
+    {
+        $batches = $this->linkedBatchesWithSamples($submission);
+
+        $jobNumber = '';
+        $sampleCodes = [];
+
+        foreach ($batches as $batch) {
+            $batchCode = trim((string) ($batch->batch_code ?? ''));
+            if ($jobNumber === '' && $batchCode !== '') {
+                $jobNumber = $batchCode;
+            }
+
+            $samples = $batch->relationLoaded('samples')
+                ? $batch->samples
+                : $batch->samples()->orderBy('id')->get();
+
+            foreach ($samples as $detail) {
+                $code = trim((string) ($detail->sample_code ?? ''));
+                if ($code === '') {
+                    $code = trim((string) ($detail->sample_no ?? ''));
+                }
+                if ($code !== '') {
+                    $sampleCodes[] = $code;
+                }
+            }
+        }
+
+        return [
+            'job_number' => $jobNumber,
+            'sample_codes' => $sampleCodes,
+        ];
+    }
+
+    /**
+     * @return Collection<int, SampleHeader>
+     */
+    private function linkedBatchesWithSamples(SubmissionFormInstance $submission): Collection
+    {
+        $submission->loadMissing(['batches.samples']);
+
+        $batches = $submission->batches;
+        if ($batches instanceof Collection && $batches->isNotEmpty()) {
+            return $batches->sortBy('id')->values();
+        }
+
+        return SampleHeader::query()
+            ->with(['samples' => static fn ($query) => $query->orderBy('id')])
+            ->where('submission_form_instance_id', $submission->id)
+            ->orderBy('id')
+            ->get();
     }
 
     /**
@@ -1147,28 +1267,12 @@ class TestRequestFormReportDataBuilder
 
     private function resolveSamplePointLabel(string $value): string
     {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-
-        if (! Str::isUuid($value) && ! ctype_digit($value)) {
-            return $value;
-        }
-
-        $point = SamplePoint::query()->find($value);
-        if ($point === null) {
-            return $value;
-        }
-
-        $name = trim((string) ($point->display_name ?? $point->name ?? ''));
-
-        return $name !== '' ? $name : $value;
+        return $this->resolveSamplePointDisplayLabel($value);
     }
 
     private function resolveSamplePointDisplayLabel(string $value): string
     {
-        $value = trim($value);
+        $value = $this->decryptStoredValue($value);
         if ($value === '') {
             return '';
         }
@@ -1178,18 +1282,136 @@ class TestRequestFormReportDataBuilder
         }
 
         $point = SamplePoint::query()->with('unit')->find($value);
-        if ($point === null) {
+        if ($point !== null) {
+            $pointName = trim((string) ($point->display_name ?? $point->name ?? ''));
+            $unitName = trim((string) ($point->unit?->name ?? ''));
+
+            if ($unitName !== '' && $pointName !== '') {
+                return $unitName.', '.$pointName;
+            }
+
+            if ($pointName !== '') {
+                return $pointName;
+            }
+        }
+
+        $masterPoint = MasterSamplePoint::query()->find($value);
+        if ($masterPoint !== null) {
+            $name = trim((string) ($masterPoint->name ?? ''));
+
+            if ($name !== '') {
+                return $name;
+            }
+        }
+
+        return '';
+    }
+
+    private function decryptStoredValue(mixed $value): string
+    {
+        $value = trim((string) $value);
+        if ($value === '' || ! str_starts_with($value, 'eyJ')) {
             return $value;
         }
 
-        $pointName = trim((string) ($point->display_name ?? $point->name ?? ''));
-        $unitName = trim((string) ($point->unit?->name ?? ''));
+        try {
+            return trim(Crypt::decryptString($value));
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
 
-        if ($unitName !== '' && $pointName !== '') {
-            return $unitName.', '.$pointName;
+    /**
+     * @param  array<string, mixed>  $formData
+     * @return list<array{id: string, name: string}>
+     */
+    private function resolveFoodSampleTypeColumns(array $formData): array
+    {
+        $rows = $formData['sample_rows'] ?? [];
+        if (! is_array($rows) || $rows === []) {
+            return [];
         }
 
-        return $pointName !== '' ? $pointName : $value;
+        $orderedIds = [];
+        foreach (array_values($rows) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            foreach ($this->extractReferenceTokens($row['sample_type_id'] ?? null) as $id) {
+                if (! in_array($id, $orderedIds, true)) {
+                    $orderedIds[] = $id;
+                }
+            }
+        }
+
+        if ($orderedIds === []) {
+            return [];
+        }
+
+        $typesById = SampleType::query()
+            ->whereIn('id', $orderedIds)
+            ->get()
+            ->keyBy(fn (SampleType $type): string => (string) $type->id);
+
+        $columns = [];
+        foreach ($orderedIds as $id) {
+            $type = $typesById->get($id);
+            $columns[] = [
+                'id' => $id,
+                'name' => trim((string) ($type?->name ?? '')),
+            ];
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, string>
+     */
+    private function resolveFoodTestsBySampleType(array $row): array
+    {
+        $resolver = app(AnalysisReferenceLabelResolver::class);
+        $parameterTokens = $resolver->extractTokens($row['parameters'] ?? null);
+        if ($parameterTokens === []) {
+            return [];
+        }
+
+        $elements = AnalysisElements::query()
+            ->whereIn('id', $parameterTokens)
+            ->with(['analysis_type', 'analyte'])
+            ->get();
+
+        $labelsBySampleType = [];
+        foreach ($elements as $element) {
+            $sampleTypeId = trim((string) ($element->analysis_type?->sample_type_id ?? ''));
+            if ($sampleTypeId === '') {
+                continue;
+            }
+
+            $label = $resolver->resolveReportDisplayToken((string) $element->id);
+            if ($label === '') {
+                continue;
+            }
+
+            $labelsBySampleType[$sampleTypeId][] = $label;
+        }
+
+        $result = [];
+        foreach ($labelsBySampleType as $sampleTypeId => $labels) {
+            $result[$sampleTypeId] = implode(', ', array_values(array_unique($labels)));
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function extractReferenceTokens(mixed $raw): array
+    {
+        return app(AnalysisReferenceLabelResolver::class)->extractTokens($raw);
     }
 
     private function resolveCompanyUnitLabel(string $value): string

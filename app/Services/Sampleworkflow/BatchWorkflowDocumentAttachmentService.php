@@ -111,6 +111,20 @@ class BatchWorkflowDocumentAttachmentService
             return null;
         }
 
+        if (empty($batch->submission_form_instance_id)) {
+            $batch->submission_form_instance_id = $instance->id;
+            $batch->save();
+        }
+
+        // Reload so Job No / Sample No enrichment sees accepted batch codes.
+        $instance = $instance->fresh([
+            'values.element',
+            'submissionForm.sampleTypeCategories',
+            'crmCustomer.contacts',
+            'submittedBy',
+            'batches.samples',
+        ]) ?? $instance;
+
         $pdfService = app(TestRequestFormPdfService::class);
         $attachmentUrl = $pdfService->generateAndStore($instance);
 

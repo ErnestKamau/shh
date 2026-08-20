@@ -88,7 +88,18 @@ trait BuildsSubmissionFormTrfSections
             ['text', 'Batch number', 'batch_number', 8],
             ['sample_type_select', 'Sample type', 'sample_type_id', 9, null, true],
             ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 10, null, true],
-            ['analysis_elements_select', 'Tests', 'parameters', 11],
+            ['checkbox', 'Test category', 'test_category', 11, [
+                ['value' => 'chemistry', 'label' => 'Chemistry'],
+                ['value' => 'microbiology', 'label' => 'Microbiology'],
+            ]],
+            ['checkbox', 'Sample condition', 'sample_condition', 12, [
+                ['value' => 'acceptable', 'label' => 'Acceptable'],
+                ['value' => 'chilled', 'label' => 'Chilled'],
+                ['value' => 'frozen', 'label' => 'Frozen'],
+                ['value' => 'ambient', 'label' => 'Ambient'],
+            ]],
+            ['text', 'Sample Temp (°C)', 'sample_temp', 13],
+            ['analysis_elements_select', 'Tests', 'parameters', 14],
         ];
     }
 

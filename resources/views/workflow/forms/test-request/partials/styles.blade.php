@@ -306,17 +306,59 @@
     .trf-check-mini::before { font-size: 5pt; line-height: 1; }
     .trf-state-header { text-align: center; vertical-align: middle; padding: 1px 2px; font-size: 5pt; line-height: 1; font-weight: bold; overflow: hidden; background: #d9d9d9 !important; }
     .trf-state-header .trf-vtext-br { font-size: 5pt; line-height: 1; font-weight: bold; }
-    .trf-food-table col.trf-col-serial { width: 3%; }
-    .trf-food-table col.trf-col-sample-no { width: 6%; }
-    .trf-food-table col.trf-col-desc { width: 18%; }
-    .trf-food-table col.trf-col-location { width: 12%; }
-    .trf-food-table col.trf-col-qty { width: 4%; }
-    .trf-food-table col.trf-col-tick { width: 2.2%; }
-    .trf-food-table col.trf-col-temp { width: 4.6%; }
-    .trf-food-table col.trf-col-date { width: 6%; }
-    .trf-food-table col.trf-col-batch { width: 7%; }
-    .trf-food-table col.trf-col-params { width: 12%; }
-    .trf-food-table col.trf-col-state { width: 6%; }
+    .trf-food-table col.trf-col-serial { width: 2.5%; }
+    .trf-food-table col.trf-col-sample-no { width: 5%; }
+    .trf-food-table col.trf-col-desc { width: 11%; }
+    .trf-food-table col.trf-col-location { width: 7%; }
+    .trf-food-table col.trf-col-qty { width: 3.5%; }
+    .trf-food-table col.trf-col-tick { width: 2%; }
+    .trf-food-table col.trf-col-temp { width: 3.5%; }
+    .trf-food-table col.trf-col-date { width: 5%; }
+    .trf-food-table col.trf-col-batch { width: 5%; }
+    .trf-food-table col.trf-col-sample-type { width: 14%; }
+    .trf-food-table col.trf-col-params { width: 4%; }
+    .trf-food-table col.trf-col-state { width: 9%; }
+    .trf-food-table .trf-data-row td {
+        height: auto;
+        min-height: 28px;
+        overflow: visible;
+        vertical-align: top;
+    }
+    .trf-food-table .trf-data-row {
+        page-break-inside: auto;
+    }
+    .trf-food-table .trf-col-sample-type-cell {
+        font-size: 5.5pt;
+        padding: 2px 3px;
+        text-align: left;
+        vertical-align: top;
+        word-wrap: break-word;
+        line-height: 1.1;
+        page-break-inside: auto;
+    }
+    .trf-food-table .trf-text-cell {
+        vertical-align: top;
+        overflow: visible;
+    }
+    .trf-food-table .trf-state-cell {
+        overflow: visible;
+        vertical-align: middle;
+        padding: 2px 1px;
+    }
+    .trf-food-table .trf-state-header {
+        overflow: visible;
+        font-size: 4.5pt;
+        line-height: 1.05;
+        padding: 2px 2px;
+    }
+    .trf-food-table .trf-state-cell .trf-state-label {
+        font-size: 5pt;
+    }
+    .trf-food-table .trf-tick-cell {
+        overflow: visible;
+        vertical-align: middle;
+        text-align: center;
+    }
     .trf-water-table col.trf-col-serial { width: 3.5%; }
     .trf-water-table col.trf-col-sample-no { width: 6%; }
     .trf-water-table col.trf-col-desc { width: 20%; }

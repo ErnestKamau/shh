@@ -1137,6 +1137,21 @@
 		border-top: 1px solid #e2e8f0;
 	}
 
+	.rft-option-grid--tight {
+		margin-left: -0.25rem !important;
+		margin-right: -0.25rem !important;
+	}
+
+	.rft-option-grid--tight > [class*='col-'] {
+		padding-left: 0.25rem;
+		padding-right: 0.25rem;
+	}
+
+	.rft-option-grid--cols-4.rft-option-grid--tight > [class*='col-'] {
+		padding-left: 0.2rem;
+		padding-right: 0.2rem;
+	}
+
 	.rft-sample-field--test-requirements .row.pt-1 {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

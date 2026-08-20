@@ -157,7 +157,7 @@ class SubmissionFormSubmissionService
             $inputValue = $request->input($fieldName);
             $fileValue = $request->file($fieldName);
 
-            if (in_array((string) $fieldName, ['test_requirements', 'test_category'], true) && is_array($inputValue)) {
+            if (in_array((string) $fieldName, ['test_requirements', 'test_category', 'sample_condition'], true) && is_array($inputValue)) {
                 $this->processArrayField(
                     $instance,
                     $element,
@@ -194,12 +194,19 @@ class SubmissionFormSubmissionService
                     $this->processArrayField($instance, $element, $inputValue ?? [], $request, $fieldName);
                 }
             } else {
-                if (in_array((string) $fieldName, ['test_requirements', 'test_category'], true)
-                    && is_string($inputValue)
-                    && SubmissionFormSchemaHelper::testCategoryTokens($inputValue) !== []) {
-                    $this->saveFieldValue($instance, $element, implode(',', SubmissionFormSchemaHelper::testCategoryTokens($inputValue)), null, 0);
+                if (in_array((string) $fieldName, ['test_requirements', 'test_category', 'sample_condition'], true)
+                    && is_string($inputValue)) {
+                    if ($fieldName === 'sample_condition') {
+                        $tokens = \App\Services\Sampleworkflow\TestRequestFormReportDataBuilder::sampleConditionTokens($inputValue);
+                    } else {
+                        $tokens = SubmissionFormSchemaHelper::testCategoryTokens($inputValue);
+                    }
 
-                    continue;
+                    if ($tokens !== []) {
+                        $this->saveFieldValue($instance, $element, implode(',', $tokens), null, 0);
+
+                        continue;
+                    }
                 }
 
                 $this->processSingleField($instance, $element, $inputValue, $request);
@@ -315,7 +322,7 @@ class SubmissionFormSubmissionService
         $sampleRows = $request->input('sample_rows');
         $sampleRows = is_array($sampleRows) ? array_values($sampleRows) : [];
 
-        foreach (['test_requirements', 'test_category'] as $fieldName) {
+        foreach (['test_requirements', 'test_category', 'sample_condition'] as $fieldName) {
             $element = $byName->get($fieldName);
             if (! $element instanceof SubmissionFormElement) {
                 continue;
@@ -331,7 +338,7 @@ class SubmissionFormSubmissionService
                     continue;
                 }
 
-                if ($this->checkboxRowHasSelection($indexed[$rowIndex] ?? null)) {
+                if ($this->checkboxRowHasSelection($indexed[$rowIndex] ?? null, $fieldName)) {
                     continue;
                 }
 
@@ -341,7 +348,9 @@ class SubmissionFormSubmissionService
             $flattened = $this->flattenPerRowMultiSelectValues($indexed);
 
             foreach ($flattened as $rowIndex => $value) {
-                $tokens = SubmissionFormSchemaHelper::testCategoryTokens($value);
+                $tokens = $fieldName === 'sample_condition'
+                    ? \App\Services\Sampleworkflow\TestRequestFormReportDataBuilder::sampleConditionTokens($value)
+                    : SubmissionFormSchemaHelper::testCategoryTokens($value);
                 if ($tokens === []) {
                     continue;
                 }
@@ -357,8 +366,12 @@ class SubmissionFormSubmissionService
         }
     }
 
-    private function checkboxRowHasSelection(mixed $value): bool
+    private function checkboxRowHasSelection(mixed $value, string $fieldName = ''): bool
     {
+        if ($fieldName === 'sample_condition') {
+            return \App\Services\Sampleworkflow\TestRequestFormReportDataBuilder::sampleConditionTokens($value) !== [];
+        }
+
         return SubmissionFormSchemaHelper::testCategoryTokens($value) !== [];
     }
 

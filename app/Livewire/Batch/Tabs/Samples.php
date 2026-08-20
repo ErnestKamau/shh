@@ -27,18 +27,24 @@ use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Services\Sampleworkflow\TrfSampleFieldMapper;
+use App\Services\Sampleworkflow\BatchResultsExcelImportService;
+use App\Services\Sampleworkflow\CapturedResultCaptureService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\Models\SubmissionFormInstance;
 use App\Services\ResultRemarkService;
+use App\Services\StandardLimitDisplayService;
 use App\Models\SampleShelfLifeCondition;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class Samples extends Component
 {
+    use WithFileUploads;
     public $batchId;
     public SampleHeader $batch;
     public $not_captured = [];
@@ -133,6 +139,7 @@ class Samples extends Component
      * @var array<string, array{parametersForm: array, sampleParameters: array, parameterLabSections: array, dateOfAnalysisBySection: array}>
      */
     public array $parametersDraftBySample = [];
+    public $parameterImportFile = null;
     public $activeField = '';
 
     public $activeRowIndex = null;
@@ -2365,6 +2372,7 @@ class Samples extends Component
                 $this->parametersSectionFiltered = $access->hasLabSectionAssignment($user);
                 $this->uncertaintyRequired = $this->batch->require_mu == 1;
                 $this->showParametersModal = true;
+                $this->evaluateMissingParameterRemarks();
 
                 return;
             }
@@ -2533,6 +2541,8 @@ class Samples extends Component
                 // Get analyte for reporting unit
                 $analyte = \App\Analyte::find($result->analyte_id);
 
+                $standardLimitDisplay = app(StandardLimitDisplayService::class);
+
                 // Use result's standard ID or fallback to sample's standard ID
                 $effectiveMainStandardId = $result->main_standard_id ?: $sample->main_standard;
                 $effectiveSecStandardId = $result->secondary_standard_id ?: $sample->secondary_standard;
@@ -2541,13 +2551,15 @@ class Samples extends Component
                 $standardInfo = $this->getStandardInfoCalculated(
                     $effectiveMainStandardId,
                     $result->analyte_id,
-                    $result->main_value
+                    $result->main_value,
+                    $result->main_standard_id
                 );
 
                 $secStandardInfo = $effectiveSecStandardId ? $this->getStandardInfoCalculated(
                     $effectiveSecStandardId,
                     $result->analyte_id,
-                    $result->secondary_value
+                    $result->secondary_value,
+                    $result->secondary_standard_id
                 ) : null;
 
                 // Fetch limit data for evaluation
@@ -2557,16 +2569,19 @@ class Samples extends Component
                 $valueLimitType = null;
                 $standardLimitValue = null;
 
-                if ($effectiveMainStandardId && $result->analyte_id) {
-                    $stdAnalyte = \App\StandardAnalytes::where('standard_id', $effectiveMainStandardId)
-                        ->where('analyte_id', $result->analyte_id)
-                        ->first();
-                    if ($stdAnalyte) {
-                        $limitType = $stdAnalyte->standard_value_type;
-                        $limitLow = $stdAnalyte->low;
-                        $limitHigh = $stdAnalyte->high;
-                        $valueLimitType = $stdAnalyte->value_type;
-                        $standardLimitValue = $stdAnalyte->standard_is_value;
+                $stdAnalyte = $standardLimitDisplay->findStandardAnalyte(
+                    $effectiveMainStandardId,
+                    $result->analyte_id,
+                    $result->main_standard_id
+                );
+                if ($stdAnalyte) {
+                    $limitType = $stdAnalyte->standard_value_type;
+                    $limitLow = $stdAnalyte->low;
+                    $limitHigh = $stdAnalyte->high;
+                    $valueLimitType = $stdAnalyte->value_type;
+                    $standardLimitValue = $stdAnalyte->standard_is_value;
+                    if ($stdAnalyte->standard_id) {
+                        $effectiveMainStandardId = $stdAnalyte->standard_id;
                     }
                 }
 
@@ -2741,6 +2756,8 @@ class Samples extends Component
 
             $this->sampleParameters = $parameters;
             $this->showParametersModal = true;
+
+            $this->evaluateMissingParameterRemarks();
         } catch (\Exception $e) {
             Log::error('Error loading sample parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to load parameters: ' . $e->getMessage());
@@ -2756,6 +2773,140 @@ class Samples extends Component
         $this->parameterModalSampleCodes = [(string) $sampleCode];
         $this->parameterModalSampleIndex = 0;
         $this->viewParameters($sampleCode);
+    }
+
+    public function updatedParameterImportFile(): void
+    {
+        if ($this->parameterImportFile) {
+            $this->importParameterResults();
+        }
+    }
+
+    public function importParameterResults(): void
+    {
+        if ($this->parametersReadOnly) {
+            session()->flash('error', app(LabSectionResultAccess::class)->denyEditMessage(auth()->user()));
+            $this->parameterImportFile = null;
+
+            return;
+        }
+
+        $this->validate([
+            'parameterImportFile' => 'required|file|mimes:xlsx,xls|max:10240',
+        ], [
+            'parameterImportFile.required' => 'Please choose an Excel file to upload.',
+            'parameterImportFile.mimes' => 'The upload must be an Excel file (.xlsx or .xls).',
+        ]);
+
+        try {
+            $result = app(BatchResultsExcelImportService::class)->import(
+                $this->batch,
+                $this->parameterImportFile,
+                auth()->user(),
+            );
+        } catch (ValidationException $exception) {
+            $this->parameterImportFile = null;
+            $messages = $exception->errors()['importFile'] ?? $exception->errors()['parameterImportFile'] ?? [];
+            if (! is_array($messages)) {
+                $messages = [(string) $messages];
+            }
+            $message = implode(' ', array_map('strval', $messages));
+            session()->flash('error', $message !== '' ? $message : 'The Excel import was rejected.');
+
+            return;
+        } catch (\Exception $exception) {
+            $this->parameterImportFile = null;
+            Log::error('Parameter Excel import failed: '.$exception->getMessage());
+            session()->flash('error', 'Failed to import results: '.$exception->getMessage());
+
+            return;
+        }
+
+        $this->parameterImportFile = null;
+        $this->parametersDraftBySample = [];
+
+        $updated = (int) ($result['updated'] ?? 0);
+        $skipped = (int) ($result['skipped'] ?? 0);
+
+        if ($this->selectedSampleCode) {
+            $this->viewParameters($this->selectedSampleCode);
+            $this->persistEvaluatedParameterRemarks();
+        }
+
+        if ($updated === 0) {
+            session()->flash('error', 'No results were imported. Fill the Result column and upload again. Skipped blank rows: '.$skipped.'.');
+
+            return;
+        }
+
+        session()->flash('message', "Imported {$updated} result(s). Remarks were auto-calculated where a spec limit exists. Blank rows skipped: {$skipped}.");
+    }
+
+    private function evaluateMissingParameterRemarks(): void
+    {
+        foreach (array_keys($this->parametersForm) as $id) {
+            $row = $this->parametersForm[$id] ?? [];
+            if (trim((string) ($row['result'] ?? '')) === '') {
+                continue;
+            }
+
+            if (! empty($row['remark_is_manual']) && (int) $row['remark_is_manual'] === 1) {
+                continue;
+            }
+
+            if (in_array((string) ($row['remark'] ?? ''), ['PASS', 'FAIL'], true)) {
+                continue;
+            }
+
+            $this->evaluateResult($id);
+
+            $remark = $this->parametersForm[$id]['remark'] ?? '';
+            if (! in_array($remark, ['PASS', 'FAIL'], true) || ! $this->userCanEditParameterRow((string) $id)) {
+                continue;
+            }
+
+            $captured = CapturedResult::query()->find($id);
+            if (! $captured || (int) ($captured->remark_is_manual ?? 0) === 1) {
+                continue;
+            }
+
+            if ((string) $captured->remark === $remark) {
+                continue;
+            }
+
+            $captured->remark = $remark;
+            $captured->saveQuietly();
+        }
+    }
+
+    private function persistEvaluatedParameterRemarks(): void
+    {
+        $this->evaluateMissingParameterRemarks();
+
+        $actingUserId = auth()->id() !== null ? (string) auth()->id() : null;
+        $captureService = app(CapturedResultCaptureService::class);
+
+        foreach (array_keys($this->parametersForm) as $id) {
+            if (! $this->userCanEditParameterRow((string) $id)) {
+                continue;
+            }
+
+            $remark = $this->parametersForm[$id]['remark'] ?? '';
+            if (! in_array($remark, ['PASS', 'FAIL'], true)) {
+                continue;
+            }
+
+            $captured = CapturedResult::query()->find($id);
+            if (! $captured || (int) ($captured->remark_is_manual ?? 0) === 1) {
+                continue;
+            }
+
+            if ((string) $captured->remark === $remark) {
+                continue;
+            }
+
+            $captureService->applyOnSave($captured, ['remark' => $remark], $actingUserId);
+        }
     }
 
     /**
@@ -3658,68 +3809,14 @@ class Samples extends Component
     /**
      * Get formatted standard info dynamically calculated from StandardAnalyte
      */
-    private function getStandardInfoCalculated($standardId, $analyteId, $capturedValue = null)
+    private function getStandardInfoCalculated($standardId, $analyteId, $capturedValue = null, $capturedStandardForeignKey = null)
     {
-        if (!$standardId) {
-            return ['display' => $capturedValue ?: 'NS', 'value' => $capturedValue];
-        }
-
-        try {
-            // Try to find the setting in StandardAnalytes
-            $stdAnalyte = \App\StandardAnalytes::where('standard_id', $standardId)
-                ->where('analyte_id', $analyteId)
-                ->first();
-
-            if (!$stdAnalyte) {
-                // If no specific setting, fallback to captured value or NS
-                return ['display' => $capturedValue ?: 'NS', 'value' => $capturedValue];
-            }
-
-            $displayValue = '';
-            $rawValue = '';
-            $limitType = '';
-
-            if ($stdAnalyte->standard_value_type == 'is_range') {
-                $displayValue = $stdAnalyte->low . ' - ' . $stdAnalyte->high;
-                $rawValue = $displayValue;
-            } elseif ($stdAnalyte->standard_value_type == 'is_standard_value') {
-                $sv = \App\StandardValue::find($stdAnalyte->standard_value_id);
-                if ($sv) {
-                    if ($sv->code == 'IsValue') {
-                        $rawValue = $stdAnalyte->standard_is_value;
-                        $limitType = $stdAnalyte->value_type; // Max, Min, <, >, less_than, greater_than
-                    } else {
-                        $rawValue = $sv->code;
-                        $displayValue = $sv->code;
-                    }
-                }
-            }
-
-            // Format display string if not already set by code
-            if (!$displayValue && $rawValue !== '') {
-                if ($limitType == 'less_than' || $limitType == '<') {
-                    $displayValue = '< ' . $rawValue;
-                } elseif ($limitType == 'greater_than' || $limitType == '>') {
-                    $displayValue = '> ' . $rawValue;
-                } elseif ($limitType && $rawValue) {
-                    $displayValue = strtolower($limitType).' '.$rawValue;
-                } else {
-                    $displayValue = $rawValue;
-                }
-            }
-
-            // If we failed to calculate anything, fallback
-            if ($displayValue == '') {
-                $displayValue = 'NS';
-            }
-
-            return [
-                'display' => $displayValue,
-                'value' => $rawValue // This might be used for edits
-            ];
-        } catch (\Exception $e) {
-            return ['display' => $capturedValue ?: '-', 'value' => $capturedValue];
-        }
+        return app(StandardLimitDisplayService::class)->resolve(
+            $standardId,
+            $analyteId,
+            $capturedValue,
+            $capturedStandardForeignKey
+        );
     }
 
     /**
@@ -3899,6 +3996,7 @@ class Samples extends Component
         $this->parameterModalSampleCodes = [];
         $this->parameterModalSampleIndex = 0;
         $this->parametersDraftBySample = [];
+        $this->parameterImportFile = null;
         $this->showChangeSectionPanel = false;
         $this->changeSectionLabSectionId = '';
         $this->changeSectionAffectBatch = false;

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Analyte;
 use App\CapturedResult;
 use App\StandardAnalytes;
 use App\Standards;
@@ -9,6 +10,9 @@ use App\StandardValue;
 
 class StandardLimitDisplayService
 {
+    /** @var array<string, StandardAnalytes|false> */
+    private array $standardAnalyteCache = [];
+
     /**
      * Resolve the display string for a captured result's main standard limit.
      */
@@ -18,7 +22,7 @@ class StandardLimitDisplayService
             ?: $fallbackStandardId
             ?: $captured->sample?->main_standard;
 
-        $fromStandard = $this->format($standardId, $captured->analyte_id);
+        $fromStandard = $this->format($standardId, $captured->analyte_id, null, $captured->main_standard_id);
 
         $mainValue = $captured->main_value;
         if ($mainValue && $mainValue !== 'NS') {
@@ -75,17 +79,18 @@ class StandardLimitDisplayService
     /**
      * @return array{display: string, value: mixed}
      */
-    public function resolve(string|int|null $standardId, string|int|null $analyteId, mixed $capturedValue = null): array
-    {
-        if (! $standardId) {
+    public function resolve(
+        string|int|null $standardId,
+        string|int|null $analyteId,
+        mixed $capturedValue = null,
+        string|int|null $capturedStandardForeignKey = null,
+    ): array {
+        if (! $standardId && ! $capturedStandardForeignKey) {
             return ['display' => $capturedValue ?: 'NS', 'value' => $capturedValue];
         }
 
         try {
-            $stdAnalyte = StandardAnalytes::query()
-                ->where('standard_id', $standardId)
-                ->where('analyte_id', $analyteId)
-                ->first();
+            $stdAnalyte = $this->findStandardAnalyte($standardId, $analyteId, $capturedStandardForeignKey);
 
             if (! $stdAnalyte) {
                 return ['display' => $capturedValue ?: 'NS', 'value' => $capturedValue];
@@ -95,10 +100,12 @@ class StandardLimitDisplayService
             $rawValue = '';
             $limitType = '';
 
-            if ($stdAnalyte->standard_value_type === 'is_range') {
+            $svtCompact = strtolower(preg_replace('/[\s_]+/', '', (string) $stdAnalyte->standard_value_type) ?? '');
+
+            if ($svtCompact === 'isrange') {
                 $displayValue = $stdAnalyte->low.' - '.$stdAnalyte->high;
                 $rawValue = $displayValue;
-            } elseif ($stdAnalyte->standard_value_type === 'is_standard_value') {
+            } elseif ($svtCompact === 'isstandardvalue') {
                 $sv = StandardValue::find($stdAnalyte->standard_value_id);
                 if ($sv) {
                     if ($sv->code === 'IsValue') {
@@ -133,9 +140,13 @@ class StandardLimitDisplayService
         }
     }
 
-    public function format(string|int|null $standardId, string|int|null $analyteId, mixed $capturedValue = null): ?string
-    {
-        $info = $this->resolve($standardId, $analyteId, $capturedValue);
+    public function format(
+        string|int|null $standardId,
+        string|int|null $analyteId,
+        mixed $capturedValue = null,
+        string|int|null $capturedStandardForeignKey = null,
+    ): ?string {
+        $info = $this->resolve($standardId, $analyteId, $capturedValue, $capturedStandardForeignKey);
         $display = $info['display'] ?? null;
 
         if ($display === null || $display === '' || $display === 'NS' || $display === '-') {
@@ -143,6 +154,144 @@ class StandardLimitDisplayService
         }
 
         return (string) $display;
+    }
+
+    /**
+     * Find the specification row for an analyte.
+     *
+     * Captured results sometimes store standards_analytes.id in main_standard_id
+     * (legacy), and specs may be linked to a duplicate analyte with the same name/code.
+     */
+    public function findStandardAnalyte(
+        string|int|null $standardId,
+        string|int|null $analyteId,
+        string|int|null $capturedStandardForeignKey = null,
+    ): ?StandardAnalytes {
+        $analyteKey = $this->nonEmptyId($analyteId);
+        $candidateIds = [];
+        foreach ([$standardId, $capturedStandardForeignKey] as $id) {
+            $normalized = $this->nonEmptyId($id);
+            if ($normalized !== null && ! in_array($normalized, $candidateIds, true)) {
+                $candidateIds[] = $normalized;
+            }
+        }
+
+        if ($candidateIds === []) {
+            return null;
+        }
+
+        $cacheKey = implode('|', $candidateIds).'|'.($analyteKey ?? '');
+        if (array_key_exists($cacheKey, $this->standardAnalyteCache)) {
+            $cached = $this->standardAnalyteCache[$cacheKey];
+
+            return $cached === false ? null : $cached;
+        }
+
+        $resolved = $this->matchStandardAnalyte($candidateIds, $analyteKey);
+        $this->standardAnalyteCache[$cacheKey] = $resolved ?? false;
+
+        return $resolved;
+    }
+
+    /**
+     * @param  list<string>  $candidateIds
+     */
+    private function matchStandardAnalyte(array $candidateIds, ?string $analyteKey): ?StandardAnalytes
+    {
+        if ($analyteKey !== null) {
+            foreach ($candidateIds as $standardId) {
+                $direct = StandardAnalytes::query()
+                    ->where('standard_id', $standardId)
+                    ->where('analyte_id', $analyteKey)
+                    ->first();
+                if ($direct) {
+                    return $direct;
+                }
+            }
+        }
+
+        foreach ($candidateIds as $foreignKey) {
+            $byPrimaryKey = StandardAnalytes::query()->find($foreignKey);
+            if (! $byPrimaryKey) {
+                continue;
+            }
+
+            if ($analyteKey === null || (string) $byPrimaryKey->analyte_id === $analyteKey) {
+                return $byPrimaryKey;
+            }
+
+            $viaRealStandard = StandardAnalytes::query()
+                ->where('standard_id', $byPrimaryKey->standard_id)
+                ->where('analyte_id', $analyteKey)
+                ->first();
+            if ($viaRealStandard) {
+                return $viaRealStandard;
+            }
+        }
+
+        if ($analyteKey === null) {
+            return null;
+        }
+
+        $analyte = Analyte::query()->find($analyteKey);
+        if (! $analyte) {
+            return null;
+        }
+
+        $name = strtolower(trim((string) ($analyte->name ?? '')));
+        $code = strtolower(trim((string) ($analyte->code ?? '')));
+        if ($name === '' && $code === '') {
+            return null;
+        }
+
+        $siblingIds = Analyte::query()
+            ->where(function ($query) use ($name, $code): void {
+                if ($name !== '') {
+                    $query->orWhereRaw('LOWER(TRIM(name)) = ?', [$name]);
+                }
+                if ($code !== '') {
+                    $query->orWhereRaw('LOWER(TRIM(code)) = ?', [$code]);
+                }
+            })
+            ->pluck('id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->all();
+
+        if ($siblingIds === []) {
+            return null;
+        }
+
+        $standardIds = $candidateIds;
+        foreach ($candidateIds as $foreignKey) {
+            $byPrimaryKey = StandardAnalytes::query()->find($foreignKey);
+            if ($byPrimaryKey?->standard_id) {
+                $realId = (string) $byPrimaryKey->standard_id;
+                if (! in_array($realId, $standardIds, true)) {
+                    $standardIds[] = $realId;
+                }
+            }
+        }
+
+        foreach ($standardIds as $standardId) {
+            $match = StandardAnalytes::query()
+                ->where('standard_id', $standardId)
+                ->whereIn('analyte_id', $siblingIds)
+                ->first();
+            if ($match) {
+                return $match;
+            }
+        }
+
+        return null;
+    }
+
+    private function nonEmptyId(string|int|null $value): ?string
+    {
+        if ($value === null || $value === '' || $value === 0 || $value === '0') {
+            return null;
+        }
+
+        return (string) $value;
     }
 
     public function formatMainValueFromEditForm(string $standardValue, string $limitType): string
@@ -312,10 +461,7 @@ class StandardLimitDisplayService
      */
     protected function structuredEditFormFromStandardAnalyte(string|int $standardId, string|int $analyteId): ?array
     {
-        $stdAnalyte = StandardAnalytes::query()
-            ->where('standard_id', $standardId)
-            ->where('analyte_id', $analyteId)
-            ->first();
+        $stdAnalyte = $this->findStandardAnalyte($standardId, $analyteId, $standardId);
 
         if (! $stdAnalyte) {
             return null;

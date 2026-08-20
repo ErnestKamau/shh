@@ -4,12 +4,16 @@ namespace App\Services;
 
 use App\Analyte;
 use App\CapturedResult;
+use App\SampleDetails;
 use App\StandardAnalytes;
 use App\StandardValue;
-use App\Standards;
 
 class ResultRemarkService
 {
+    public function __construct(
+        private readonly StandardLimitDisplayService $standardLimitDisplay,
+    ) {}
+
     public function calculateRemark(?CapturedResult $capturedResult, ?string $resultValue, ?string $providedStandardLimit = null, ?string $defaultStandardLimit = null, ?string $reportingSymbol = null): string
     {
         $normalizedResult = $this->normalizeResult($resultValue);
@@ -54,12 +58,13 @@ class ResultRemarkService
 
     public function calculateUsingCapturedResult(CapturedResult $capturedResult, string $result, ?string $reportingSymbol = null): ?string
     {
-        $sample = $capturedResult->sample;
         $analyte = $this->resolveAnalyteForCapturedResult($capturedResult);
 
-        if (! $sample || ! $analyte) {
+        if (! $analyte) {
             return null;
         }
+
+        $sample = $this->resolveSampleForCapturedResult($capturedResult);
 
         $reportingSymbol = $this->normalizeReportingSymbol($reportingSymbol ?? $capturedResult->result_reporting_symbol ?? $capturedResult->reporting_symbol ?? null);
 
@@ -80,9 +85,12 @@ class ResultRemarkService
         $remarks = [];
 
         $standards = [
-            $sample->main_standard,
-            $sample->secondary_standard,
-            $sample->third_standard_id,
+            $capturedResult->main_standard_id,
+            $capturedResult->secondary_standard_id,
+            $capturedResult->third_standard_id,
+            $sample?->main_standard,
+            $sample?->secondary_standard,
+            $sample?->third_standard_id,
         ];
 
         // Interpret ND/Not Detected/Not Detectable as 0 for numeric comparisons
@@ -93,20 +101,28 @@ class ResultRemarkService
         }
 
         foreach ($standards as $standardId) {
-            if (!$standardId) {
+            if (!$standardId || $standardId === '0' || $standardId === 0) {
                 continue;
             }
 
-            $standard = Standards::find($standardId);
-
-            if (!$standard) {
-                continue;
-            }
-
-            $remark = $this->getResultRemarkForStandard($standard->id, $analyte->id, $effectiveResult, $reportingSymbol);
+            $remark = $this->getResultRemarkForStandard($standardId, $analyte->id, $effectiveResult, $reportingSymbol);
 
             if ($remark !== null && $remark !== '') {
                 $remarks[] = $remark;
+            }
+        }
+
+        if (empty($remarks)) {
+            $guide = $this->standardLimitDisplay->findStandardAnalyte(
+                $capturedResult->main_standard_id ?: $sample?->main_standard,
+                $analyte->id,
+                $capturedResult->main_standard_id,
+            );
+            if ($guide) {
+                $remark = $this->evaluateStandardAnalyteGuide($guide, $effectiveResult, $reportingSymbol);
+                if ($remark !== null && $remark !== '') {
+                    $remarks[] = $remark;
+                }
             }
         }
 
@@ -158,8 +174,42 @@ class ResultRemarkService
         );
 
         if (! in_array($remark, ['PASS', 'FAIL'], true)) {
+            $sample = $this->resolveSampleForCapturedResult($capturedResult);
+            $guide = $this->standardLimitDisplay->findStandardAnalyte(
+                $capturedResult->main_standard_id ?: $sample?->main_standard,
+                $capturedResult->analyte_id,
+                $capturedResult->main_standard_id,
+            );
+
+            if ($guide) {
+                $guideRemark = $this->evaluateStandardAnalyteGuide($guide, (string) $resultValue, $reportingSymbol);
+                if (in_array($guideRemark, ['PASS', 'FAIL'], true)) {
+                    $remark = $guideRemark;
+                } elseif (($guide->standard_value_type ?? '') && strtolower(preg_replace('/[\s_]+/', '', (string) $guide->standard_value_type) ?? '') === 'isrange') {
+                    $remark = $this->calculateRemark(
+                        null,
+                        $resultValue,
+                        null,
+                        trim((string) $guide->low).' - '.trim((string) $guide->high),
+                        $reportingSymbol,
+                    );
+                } elseif ($guide->standard_is_value !== null && trim((string) $guide->standard_is_value) !== '') {
+                    $typedRemark = $this->evaluateTypedLimit(
+                        $resultValue,
+                        (string) $guide->standard_is_value,
+                        (string) $guide->value_type,
+                        $reportingSymbol,
+                    );
+                    if (in_array($typedRemark, ['PASS', 'FAIL'], true)) {
+                        $remark = $typedRemark;
+                    }
+                }
+            }
+        }
+
+        if (! in_array($remark, ['PASS', 'FAIL'], true)) {
             $fallbackLimit = $this->normalizeString($capturedResult->main_value);
-            if ($fallbackLimit !== null) {
+            if ($fallbackLimit !== null && ! in_array($fallbackLimit, ['NS', 'NOT SPECIFIED', '-'], true)) {
                 $remark = $this->calculateRemark(
                     null,
                     $resultValue,
@@ -175,11 +225,18 @@ class ResultRemarkService
 
     protected function getResultRemarkForStandard(string|int $standardId, string|int $analyteId, string $result, ?string $reportingSymbol): ?string
     {
-        $analyteGuide = StandardAnalytes::where('analyte_id', $analyteId)
-            ->where('standard_id', $standardId)
-            ->first();
+        $analyteGuide = $this->standardLimitDisplay->findStandardAnalyte($standardId, $analyteId, $standardId);
 
-        if (!$analyteGuide || !isset($analyteGuide->standard_value_type)) {
+        if (! $analyteGuide) {
+            return null;
+        }
+
+        return $this->evaluateStandardAnalyteGuide($analyteGuide, $result, $reportingSymbol);
+    }
+
+    protected function evaluateStandardAnalyteGuide(StandardAnalytes $analyteGuide, string $result, ?string $reportingSymbol): ?string
+    {
+        if (! isset($analyteGuide->standard_value_type)) {
             return null;
         }
 
@@ -584,5 +641,27 @@ class ResultRemarkService
         }
 
         return null;
+    }
+
+    protected function resolveSampleForCapturedResult(CapturedResult $capturedResult): ?SampleDetails
+    {
+        if ($capturedResult->relationLoaded('sample') && $capturedResult->sample) {
+            return $capturedResult->sample;
+        }
+
+        if ($capturedResult->sample) {
+            return $capturedResult->sample;
+        }
+
+        $sampleCode = trim((string) ($capturedResult->sample_detail_code ?? ''));
+        $batchId = (string) ($capturedResult->sample_header_id ?? '');
+        if ($sampleCode === '' || $batchId === '') {
+            return null;
+        }
+
+        return SampleDetails::query()
+            ->where('sample_code', $sampleCode)
+            ->where('sample_header_id', $batchId)
+            ->first();
     }
 }
