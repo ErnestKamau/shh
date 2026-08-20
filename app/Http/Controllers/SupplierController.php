@@ -129,13 +129,51 @@ class SupplierController extends Controller
 		$all_categories = InventoryCategories::orderBy('name', 'asc')->selectRaw('id,name')->get();
 
 
+		// Drop duplicate category links (same supplier + category), keep oldest row.
+		$duplicateCategoryLinks = \App\SupplierByCategory::where('supplier_id', $id)
+			->selectRaw('category_id, MIN(id::text) as keep_id, COUNT(*) as cnt')
+			->groupBy('category_id')
+			->havingRaw('COUNT(*) > 1')
+			->get();
+
+		foreach ($duplicateCategoryLinks as $dup) {
+			\App\SupplierByCategory::where('supplier_id', $id)
+				->where('category_id', $dup->category_id)
+				->where('id', '!=', $dup->keep_id)
+				->delete();
+		}
+
 		$supplier_categories = \App\SupplierByCategory::join('inventory_categories as ic', 'ic.id', 'supplier_by_categories.category_id')
-			->leftJoin('inventory_sub_categories as isc', 'isc.inventory_category_id', 'ic.id')
-			->selectRaw('supplier_by_categories.id as row_id, ic.name, count(isc.id) as items')
+			->selectRaw('supplier_by_categories.id as row_id, ic.name, (
+				select count(*)
+				from supplier_categories sc
+				inner join inventory_sub_categories isc on isc.id = sc.inventory_sub_category_id
+				where sc.supplier_id = supplier_by_categories.supplier_id
+					and sc.status = true
+					and isc.inventory_category_id = ic.id
+			) as items')
 			->where('supplier_id', $id)
-			->groupBy('supplier_by_categories.id', 'ic.name')
 			->orderBy('ic.name', 'asc')
 			->get();
+
+		// Repair item links if categories exist but supplier items were never created
+		// (e.g. earlier NOT NULL failure on inventory_item_brand_id).
+		$linkedItemCount = \App\SupplierCategory::where('supplier_id', $id)->where('status', true)->count();
+		if ($supplier_categories->isNotEmpty() && $linkedItemCount === 0) {
+			app(\App\Http\Controllers\SupplierByCategoryController::class)->syncSupplierItems((string) $id);
+			$supplier_categories = \App\SupplierByCategory::join('inventory_categories as ic', 'ic.id', 'supplier_by_categories.category_id')
+				->selectRaw('supplier_by_categories.id as row_id, ic.name, (
+					select count(*)
+					from supplier_categories sc
+					inner join inventory_sub_categories isc on isc.id = sc.inventory_sub_category_id
+					where sc.supplier_id = supplier_by_categories.supplier_id
+						and sc.status = true
+						and isc.inventory_category_id = ic.id
+				) as items')
+				->where('supplier_id', $id)
+				->orderBy('ic.name', 'asc')
+				->get();
+		}
 
 		// return json_encode($all_categories, JSON_PRETTY_PRINT);
 
@@ -164,25 +202,44 @@ class SupplierController extends Controller
 		return redirect()->back()->with('success', 'Supplier removed.');
 	}
 
-	public function add_supplier_to_inventory(Request $request, $itemID){
-		$sCat = new \App\SupplierCategory;
+	public function add_supplier_to_inventory(Request $request, $itemID)
+	{
+		$sCat = \App\SupplierCategory::where('supplier_id', $request->supplier)
+			->where('inventory_sub_category_id', $itemID)
+			->whereNull('inventory_item_brand_id')
+			->first() ?? new \App\SupplierCategory;
+
 		$sCat->supplier_id = $request->supplier;
 		$sCat->inventory_sub_category_id = $itemID;
+		$sCat->inventory_item_brand_id = null;
+		$sCat->supplier_image = $sCat->supplier_image ?: '/images/no-logo.png';
+		$sCat->status = true;
 		$sCat->save();
 
 		return redirect()->back()->with('success', 'Supplier added.');
 	}
 
-	public function get_suppliers_via_ajax(Request $request){
-		$term = $request->search;
+	public function get_suppliers_via_ajax(Request $request)
+	{
+		$term = trim((string) $request->search);
+		$page = max(1, (int) ($request->page ?? 1));
 		$limit = 100;
-		$offset = $request->page;
-		$items = Supplier::having("text", "LIKE", '%'.$term.'%')
-		->selectRaw('id, name as text')->orderBy('name', 'asc')->offset($offset)->paginate($limit)->toArray();
+
+		$query = Supplier::query()
+			->when(getCurrentUserLocation(), function ($q) {
+				$q->where('inventory_location_id', getCurrentUserLocation()->id);
+			})
+			->when($term !== '', function ($q) use ($term) {
+				$q->where('name', 'ilike', '%'.$term.'%');
+			})
+			->selectRaw('id, name as text')
+			->orderBy('name', 'asc');
+
+		$items = $query->paginate($limit, ['*'], 'page', $page)->toArray();
 
 		return response()->json([
-			"results"=>$items['data'],
-			"pagination"=>["more"=>$items['prev_page_url'] != null]
+			'results' => $items['data'],
+			'pagination' => ['more' => ($items['next_page_url'] ?? null) !== null],
 		], 200);
 	}
 

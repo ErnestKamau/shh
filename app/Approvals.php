@@ -2,22 +2,24 @@
 
 namespace App;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
-class Approvals  extends Model implements Auditable
+class Approvals extends Model implements Auditable
 {
+	use HasUuids;
 	use \OwenIt\Auditing\Auditable;
-  public function user_roles()
+	public function user_roles()
 	{
 		// Use Spatie role group name (role_id legacy column mapping no longer supported)
 		if (empty($this->role_group_name)) {
 			// If role_group_name is not set, return empty collection
 			return collect([]);
 		}
-		
-		$users = User::role($this->role_group_name)->get();
-		
+
+		$users = getActiveUsersByRole($this->role_group_name);
+
 		return $users->map(function ($user) {
 			return (object) [
 				'id' => $user->id,

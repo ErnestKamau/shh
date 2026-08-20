@@ -71,7 +71,11 @@
 	<main>
 		<?php $systemUnitsofMeasure = getReportingUnits(); ?>
 		<?php
-			$itemBarcodeNo = pad_str($category->id, 2)."".pad_str($subcategory->id, 4);
+			// UUIDs are too long for Code128; prefer item code, else a short stable hash.
+			$itemBarcodeNo = trim((string) ($subcategory->code ?? ''));
+			if ($itemBarcodeNo === '') {
+				$itemBarcodeNo = strtoupper(substr(str_replace('-', '', (string) $subcategory->id), 0, 12));
+			}
       $items = array(
         array(
           'link' => route('inventory-home'),
@@ -111,7 +115,7 @@
 			{{-- <div class="btn btn-sm btn-transparent text-danger float-right m-2" data-target="#item-disposal-modal" data-toggle="modal"><i class="mdi mdi-trash-can"></i> Item Disposal</div> --}}
 			{{-- <div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#item-return-modal" data-toggle="modal"><i class="mdi mdi-keyboard-return"></i> Item Return</div> --}}
 			<br>
-			<div class="p-2"><span class="barcode">{!! DNS1D::getBarcodeSVG($itemBarcodeNo, 'C128B') !!}</span> <span class="btn btn-sm btn-transparent print-barcode"><i class="mdi mdi-printer text-info"></i></span></div>
+			<div class="p-2"><span class="barcode">{!! DNS1D::getBarcodeSVG($itemBarcodeNo, 'C128', 2, 50, 'black', true) !!}</span> <span class="btn btn-sm btn-transparent print-barcode"><i class="mdi mdi-printer text-info"></i></span></div>
 		</h3>
 
 		{{-- <pre>{{ json_encode($subcategory->sorted_items(), JSON_PRETTY_PRINT) }}</pre> --}}
@@ -409,7 +413,13 @@
 								@endif
 								@foreach ($subcategory->getBrands() as $brand)
 									<div class="float-left m-1" style="border: 1px solid #ccc; border-top-right-radius: 9px; border-top-left-radius: 9px">
-										<img src="{{ url($brand->image) }}" style="max-width: 200px; margin: 15px" />
+										@if($brand->image)
+											<img src="{{ url($brand->image) }}" style="max-width: 200px; margin: 15px" />
+										@else
+											<div class="text-muted text-center" style="max-width: 200px; margin: 15px; min-height: 60px; display: flex; align-items: center; justify-content: center;">
+												<small>No image</small>
+											</div>
+										@endif
 										<hr>
 										<span class="pl-3">{{ $brand->name }}</span>
 										<hr>
@@ -1235,8 +1245,9 @@
 					<input type="text" class="form-control" name="name" placeholder="Brand Name..." required />
 				</div>
 				<div class="form-group">
-					<label class="control-label">Image*</label>
-					<input type="file" class="form-control" name="image" placeholder="Brand Image..." required />
+					<label class="control-label">Image</label>
+					<input type="file" class="form-control" name="image" placeholder="Brand Image..." />
+					<small class="text-muted">Optional</small>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -1278,7 +1289,12 @@
 			<div class="modal-body">
 				<div class="form-group">
 					<label>Select Supplier</label>
-					<select class="form-control" id="select-supplier" name="supplier" placeholder="Select Supplier..."></select>
+					<select class="form-control" id="select-supplier" name="supplier" data-placeholder="Select Supplier..." required>
+						<option value=""></option>
+						@foreach(($suppliers ?? []) as $supplierOption)
+							<option value="{{ $supplierOption->id }}">{{ $supplierOption->name }}</option>
+						@endforeach
+					</select>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -1327,19 +1343,29 @@
 			}
 		});
 
-		$('#select-supplier').select2({
-			ajax: {
-				url: '{{ route("get_suppliers_via_ajax") }}',
-				data: function (params) {
-					var query = {
-						search: params.term,
-						page: params.page || 1
-					}
-					return query;
-				}
-			},
-			placeholder: 'Please Select Supplier...'
+		function initAddSupplierSelect2() {
+			var $select = $('#select-supplier');
+			if (!$select.length) {
+				return;
+			}
+
+			if ($select.data('select2')) {
+				try { $select.select2('destroy'); } catch (err) {}
+			}
+
+			$select.select2({
+				placeholder: 'Select Supplier...',
+				allowClear: true,
+				width: '100%',
+				dropdownParent: $('#add-this-supplier .modal-content')
+			});
+		}
+
+		$('#add-this-supplier').on('shown.bs.modal', function () {
+			initAddSupplierSelect2();
 		});
+
+		initAddSupplierSelect2();
 
 		$('.print-barcode').on('click', function(){
 			var restorepage = $('body').html();

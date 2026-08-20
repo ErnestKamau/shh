@@ -70,6 +70,11 @@ class QuotationRevisionService
 
             AmSpecQuotationNumberGenerator::assignIfMissing($header);
 
+            $priorHeader->loadMissing('labSections');
+            $header->labSections()->sync(
+                $priorHeader->labSections->pluck('id')->all()
+            );
+
             foreach ($priorHeader->details as $detail) {
                 $cloned = QuotationDetails::query()->create([
                     'quotation_header_id' => $header->id,

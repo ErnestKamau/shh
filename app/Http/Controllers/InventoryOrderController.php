@@ -108,21 +108,25 @@ class InventoryOrderController extends Controller
 
 	public function server_side_po(Request $request, $field=false, $fieldID=false, $type='Purchase Orders'){
 		$columns = array(
-			array( 'db' => 'id',  'dt' => 0),
-			array( 'db' => 'request_code',  'dt' => 1 ),
-			array( 'db' => 'description', 'dt' => 2 ),
-			array( 'db' => 'due_date', 'dt' => 3 ),
-			array( 'db' => 'status',  'dt' => 4 ),
-			array( 'db' => 'parent_id',   'dt' => 5 ),
-			array( 'db' => 'parent_request_code',     'dt' => 6 ),
-			array( 'db' => 'created_by',     'dt' => 7 ),
-			array( 'db' => 'created_at',     'dt' => 8 ),
+			array( 'db' => 'id',  'dt' => 0, 'order' => 'request_entities.id'),
+			array( 'db' => 'request_code',  'dt' => 1, 'order' => 'request_entities.request_code'),
+			array( 'db' => 'description', 'dt' => 2, 'order' => 'request_entities.description'),
+			array( 'db' => 'due_date', 'dt' => 3, 'order' => 'request_entities.due_date'),
+			array( 'db' => 'status',  'dt' => 4, 'order' => 'request_entities.status'),
+			array( 'db' => 'parent_id',   'dt' => 5, 'order' => 're.id'),
+			array( 'db' => 'parent_request_code',     'dt' => 6, 'order' => 're.request_code'),
+			array( 'db' => 'created_by',     'dt' => 7, 'order' => 'u.name'),
+			array( 'db' => 'created_at',     'dt' => 8, 'order' => 'request_entities.created_at'),
 		);
 
-		$orders = \App\RequestEntity::join('request_entities as re', 'request_entities.parent_request_id', 're.id')
-			->join('users as u', 'u.id', '=', 'request_entities.created_by')
+		$orders = \App\RequestEntity::query()
+			->leftJoin('request_entities as re', function ($join) {
+				// parent_request_id may still be integer on older DBs while id is uuid
+				$join->whereRaw('request_entities.parent_request_id::text = re.id::text');
+			})
+			->leftJoin('users as u', 'u.id', '=', 'request_entities.created_by')
 			->where('request_entities.request_type', $type)
-			->selectRaw('request_entities.id, request_entities.created_at, request_entities.request_code, request_entities.description, request_entities.due_date, request_entities.status, re.id as parent_id, re.request_code as parent_request_code, u.name as created_by');
+			->selectRaw('request_entities.id, request_entities.created_at, request_entities.request_code, request_entities.description, request_entities.due_date, request_entities.status, re.id as parent_id, re.request_code as parent_request_code, COALESCE(u.name, \'\') as created_by');
 		if($field){
 			$orders = $orders->where('request_entities.'.$field, $fieldID);
 		}

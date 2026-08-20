@@ -286,6 +286,22 @@
                                 </select>
                             </div>
                             <div class="form-group">
+                                <label class="control-label">Lab Section(s)</label>
+                                @php
+                                    $selectedLabSectionIds = $header->labSections->pluck('id')->map(fn ($id) => (string) $id)->all();
+                                @endphp
+                                <select name="lab_section_ids[]" class="form-control ls-select2" multiple data-placeholder="Select lab section(s)...">
+                                    @foreach($labSections ?? [] as $section)
+                                        <option value="{{ $section->id }}" @selected(in_array((string) $section->id, $selectedLabSectionIds, true))>
+                                            {{ $section->name }}@if($section->code) ({{ $section->code }})@endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="form-text text-muted">
+                                    Analysis lines are limited to tests under the selected lab section(s).
+                                </small>
+                            </div>
+                            <div class="form-group">
                                 <label class="control-label">Quotation Date *</label>
                                 <input type="date" name="quotation_date" class="form-control" placeholder="Quotation Date..." value="{{$header->quote_date}}" required>
                             </div>
@@ -416,6 +432,12 @@
                                 <button type="submit" class="btn btn-outline-success btn-sm">
                                     Save <i class="mdi mdi-share-circle"></i>
                                 </button>
+                                @if($header->labSections->isNotEmpty())
+                                    <span class="small text-muted">
+                                        Tests limited to:
+                                        {{ $header->labSections->pluck('name')->implode(', ') }}
+                                    </span>
+                                @endif
                                 <label class="mb-0 small text-muted" title="Include LOQ column on the quotation PDF">
                                     <input type="hidden" name="show_loq_column" value="0">
                                     <input type="checkbox" name="show_loq_column" value="1" class="mr-1"
@@ -953,6 +975,7 @@
             suggestUrl: @json(route('quotation.suggest_line_pricing', $header->id)),
             packageDefaultsUrl: @json(route('quotation.package_defaults', $header->id)),
             updateLoqUrl: @json(route('quotation.update_element_loq')),
+            quotationHeaderId: @json((string) $header->id),
             csrf: @json(csrf_token()),
         };
 
@@ -1332,7 +1355,7 @@
                 if (sample_type != '') {
 
                     $.ajax({
-                        url: '/fetch-sample-type/' + sample_type,
+                        url: '/fetch-sample-type/' + sample_type + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
                         beforeSend: function() {
                             $('#part-number-test').empty();
                             analysis = [];
@@ -1481,7 +1504,7 @@
             var savedState = readRowParameterState($('#detail-edit-mode'));
 
             $.ajax({
-                url: '/fetch-sample-analytes/' + sample_type + '/' + analysis_s.toString() + '/' + detail,
+                url: '/fetch-sample-analytes/' + sample_type + '/' + analysis_s.toString() + '/' + detail + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
                 beforeSend: function() {
                     $('#edit-description').empty();
                     $('#edit-analyte-all, #edit-accreditted, #edit-sub').prop('checked', false);
@@ -1695,7 +1718,7 @@
             var savedState = readRowParameterState($detailRow);
             if (sample_code != '') {
                 $.ajax({
-                    url: '/fetch-sample-analytes/' + sample_code + '/' + part_no_analysis,
+                    url: '/fetch-sample-analytes/' + sample_code + '/' + part_no_analysis + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
                     beforeSend: function() {
                         $('#analysis-analytes-holder').empty();
                         $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);

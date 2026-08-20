@@ -797,7 +797,22 @@ class TestRequestFormReportDataBuilder
      */
     private function resolveLabUseFields(array $formData, $submission = null, $creator = null): array
     {
+        $enquiry = null;
+        if ($submission instanceof SubmissionFormInstance) {
+            $submission->loadMissing('sampleSubmissionRequest');
+            $enquiry = $submission->sampleSubmissionRequest;
+        }
+
         $receivedAt = $formData['lab_received_datetime'] ?? '';
+        if ($receivedAt === '' && $enquiry?->received_by_date) {
+            $date = optional($enquiry->received_by_date)->format('Y-m-d')
+                ?? (string) $enquiry->received_by_date;
+            $time = trim((string) ($enquiry->received_by_time ?? ''));
+            $receivedAt = trim($date.' '.$time);
+        }
+        if ($receivedAt === '' && $submission?->reviewed_at) {
+            $receivedAt = $submission->reviewed_at;
+        }
         if ($receivedAt === '' && $submission?->submitted_at) {
             $receivedAt = $submission->submitted_at;
         }
@@ -810,13 +825,33 @@ class TestRequestFormReportDataBuilder
             }
         }
 
+        $receivedBy = trim((string) ($formData['lab_received_by'] ?? ''));
+        if ($receivedBy === '') {
+            $receivedBy = trim((string) ($enquiry?->received_by_full_name ?? ''));
+        }
+        if ($receivedBy === '') {
+            $receivedBy = trim((string) ($creator?->name ?? ''));
+        }
+
+        $labCondition = self::normalizeSingleSelect(
+            $formData['lab_sample_condition'] ?? '',
+            self::FOOD_OPTIONS['lab_sample_condition']
+        );
+
+        $configs = is_array($enquiry?->enquiry_sample_configuration)
+            ? $enquiry->enquiry_sample_configuration
+            : [];
+        $hasBeenPhysicallyReceived = filled($enquiry?->received_by_full_name)
+            || ($submission instanceof SubmissionFormInstance && $submission->reviewed_at !== null);
+
+        if ($hasBeenPhysicallyReceived && $configs !== []) {
+            $labCondition = TrfLabUseFieldsService::labSampleConditionFromConfigs($configs);
+        }
+
         return [
             'lab_received_datetime' => $receivedAt,
-            'lab_received_by' => (string) ($formData['lab_received_by'] ?? $creator?->name ?? ''),
-            'lab_sample_condition' => self::normalizeSingleSelect(
-                $formData['lab_sample_condition'] ?? '',
-                self::FOOD_OPTIONS['lab_sample_condition']
-            ),
+            'lab_received_by' => $receivedBy,
+            'lab_sample_condition' => $labCondition,
         ];
     }
 

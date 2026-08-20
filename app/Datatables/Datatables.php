@@ -120,7 +120,12 @@
 			foreach($orders as $order){
 				$index = intval($order['column'])-1 < 0 ? 0 : intval($order['column'])-1;
 
-				$column = $this->requiredColumns[$index];
+				$colDef = $this->columns[$index] ?? null;
+				if (! is_array($colDef)) {
+					continue;
+				}
+
+				$column = $colDef['order'] ?? $colDef['db'];
 				$object->orderBy($column, $order['dir']);
 			}
 

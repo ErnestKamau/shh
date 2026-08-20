@@ -25,6 +25,10 @@
         </tr>
     @endif
     <tr>
+        <td class="amspec-meta-label">Company Unit</td>
+        <td class="amspec-meta-value">: <strong>{{ $reportHeader->company_unit_display ?? '-' }}</strong></td>
+    </tr>
+    <tr>
         <td class="amspec-meta-label">Sampling Location</td>
         <td class="amspec-meta-value">: <strong>{{ $reportHeader->sampling_location_display ?? '-' }}</strong></td>
     </tr>

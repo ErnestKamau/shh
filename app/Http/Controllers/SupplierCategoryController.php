@@ -22,11 +22,11 @@ class SupplierCategoryController extends Controller
 			$brand_id = $data[1];
 			$brand = \App\ItemBrand::find($brand_id);
 
-			$supCat = SupplierCategory::where('inventory_item_brand_id', $brand->id ?? 0)
+			$supCat = SupplierCategory::where('inventory_item_brand_id', $brand->id ?? null)
 			->where('inventory_sub_category_id', $data[0])->where('supplier_id', $supplier)->first() ?? new SupplierCategory;
 			$supCat->supplier_id = $supplier;
 			$supCat->inventory_sub_category_id = $data[0];
-			$supCat->inventory_item_brand_id = $brand->id ?? 0;
+			$supCat->inventory_item_brand_id = $brand->id ?? null;
 			$supCat->supplier_image = $brand->image ?? '/images/no-logo.png';
 			$supCat->status = 1;
 			$supCat->save();

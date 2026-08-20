@@ -129,6 +129,7 @@ final class AmSpecQuotationPdfService
             'expiring_date' => $header->expiring_date,
             'attention' => $contactName !== '' ? $contactName : (string) ($header->customer?->name ?? ''),
             'subject' => $this->buildSubject($enquiry, $details),
+            'company_unit' => $this->resolveCompanyUnit($enquiry, $header),
             'sampling_location' => $this->resolveSamplingLocation($enquiry),
             'customer_name' => (string) ($header->customer?->name ?? ''),
             'customer_address' => (string) ($header->customer?->physical_address ?? $header->customer?->postal_address ?? ''),
@@ -391,7 +392,91 @@ final class AmSpecQuotationPdfService
             }
         }
 
+        $enquiry->loadMissing('submissionFormInstance');
+        $instance = $enquiry->submissionFormInstance ?? $enquiry->resolveLinkedFormInstance();
+        if ($instance !== null) {
+            $display = $instance->resolveDisplayValueByName('sampling_location');
+            if (filled($display)) {
+                return (string) $display;
+            }
+        }
+
         return '';
+    }
+
+    private function resolveCompanyUnit(?SampleSubmissionRequest $enquiry, QuotationHeader $header): string
+    {
+        $batch = \App\SampleHeader::query()
+            ->where('quote_id', $header->id)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($batch !== null) {
+            $fromName = trim((string) ($batch->crm_unit_name ?? ''));
+            if ($fromName !== '') {
+                return $fromName;
+            }
+
+            $fromId = $this->resolveCompanyUnitLabel((string) ($batch->crm_unit_id ?? ''));
+            if ($fromId !== '') {
+                return $fromId;
+            }
+        }
+
+        if ($enquiry === null) {
+            return '';
+        }
+
+        $enquiry->loadMissing('submissionFormInstance');
+        $instance = $enquiry->submissionFormInstance ?? $enquiry->resolveLinkedFormInstance();
+
+        if ($instance !== null) {
+            foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'client_unit'] as $fieldName) {
+                $display = $instance->resolveDisplayValueByName($fieldName);
+                if (filled($display)) {
+                    $label = $this->resolveCompanyUnitLabel((string) $display);
+                    if ($label !== '') {
+                        return $label;
+                    }
+                }
+
+                $raw = $instance->getValueByElementName($fieldName);
+                if (filled($raw)) {
+                    $label = $this->resolveCompanyUnitLabel((string) $raw);
+                    if ($label !== '') {
+                        return $label;
+                    }
+                }
+            }
+        }
+
+        $collection = is_array($enquiry->collection_data) ? $enquiry->collection_data : [];
+        foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'crm_unit_name', 'crm_unit_id'] as $key) {
+            if (! empty($collection[$key])) {
+                $label = $this->resolveCompanyUnitLabel((string) $collection[$key]);
+                if ($label !== '') {
+                    return $label;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function resolveCompanyUnitLabel(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (! \Illuminate\Support\Str::isUuid($value) && ! ctype_digit($value)) {
+            return $value;
+        }
+
+        $unitName = \App\Models\CRM\CRMCompanyUnit::query()->whereKey($value)->value('name');
+
+        return is_string($unitName) && trim($unitName) !== '' ? trim($unitName) : '';
     }
 
     /**

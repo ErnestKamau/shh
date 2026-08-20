@@ -130,6 +130,9 @@
                 @if($viewHeader['has_enquiry'] && $viewHeader['enquiry_stage'])
                     <span class="rv-header-stage batch-stage-pill">{{ $viewHeader['enquiry_stage'] }}</span>
                 @endif
+                @if(!empty($viewHeader['quotation_content_stale']))
+                    <span class="badge badge-warning ml-2" title="Tests were synced from an edited quotation after send">Content changed since send</span>
+                @endif
             </div>
 
             @if($hasActions)

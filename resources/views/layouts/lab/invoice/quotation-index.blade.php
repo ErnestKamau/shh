@@ -168,6 +168,17 @@
                                         </select>
                                     </div>
                                 </div>
+                                <div class="col-md-3">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Lab Section</label>
+                                        <select name="lab_section_id" id="lab_section_id" class="form-control">
+                                            <option value="">All lab sections</option>
+                                            @foreach($labSections ?? [] as $section)
+                                                <option value="{{ $section->id }}">{{ $section->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="col-md-3 sample_type_field d-none">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Sample Type</label>
@@ -235,6 +246,7 @@
                                         <th style="width: 1%;">Actions</th>
                                         <th>Quote #</th>
                                         <th>Type</th>
+                                        <th>Lab Section(s)</th>
                                         @if($isAllStage)
                                             <th>Status</th>
                                         @endif
@@ -299,6 +311,18 @@
                                                     {{ $quotation->quotation_type }}
                                                 </span>
                                             </td>
+                                            <td>
+                                                @php
+                                                    $sectionNames = $quotation->relationLoaded('labSections')
+                                                        ? $quotation->labSections->pluck('name')->filter()->values()
+                                                        : collect();
+                                                @endphp
+                                                @if($sectionNames->isEmpty())
+                                                    <span class="text-muted">—</span>
+                                                @else
+                                                    {{ $sectionNames->implode(', ') }}
+                                                @endif
+                                            </td>
                                             @if($isAllStage)
                                                 <td>
                                                     <span @class([
@@ -348,7 +372,7 @@
 
 <livewire:billing.create-enquiry-from-quotation-wizard />
 
-@include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers])
+@include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers, 'labSections' => $labSections ?? collect()])
 
 <style>
     .quotation-index-page .quotation-stage-tabs-card {

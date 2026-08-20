@@ -26,6 +26,10 @@ class InventoryStore extends Model implements Auditable
 	}
 
 	public function cost_centers(){
+		if (! \Illuminate\Support\Facades\Schema::hasTable('store_to_cost_centers')) {
+			return collect();
+		}
+
 		return StoreToCostCenter::where('store_id', $this->id)->orderBy('cost_center')->get();
 	}
 }

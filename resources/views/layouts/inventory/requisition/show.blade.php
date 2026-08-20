@@ -198,17 +198,17 @@
 	$gate_pass_category = getConfigByName('gate_pass_category_id');
 	$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : 0;
 
-	$inventoryProcurementRoles = ['Inventory Procurement Group', 'Procurement', 'Admin'];
-	$inventoryDepartmentHeadRoles = ['Inventory Department Head Group', 'Department Head', 'Admin'];
-	$inventoryManagerRoles = ['Inventory Manager Group', 'Manager', 'Admin'];
-	$inventoryFinanceRoles = ['Inventory Finance Group', 'Financial Accountant', 'Finance', 'Admin'];
-	$inventoryStoreManagerRoles = ['Inventory Store Manager Group', 'Store Manager', 'Store', 'Admin'];
+	$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin']);
+	$inventoryDepartmentHeadRoles = filterExistingSpatieRoleNames(['Inventory Department Head Group', 'Department Head', 'Admin']);
+	$inventoryManagerRoles = filterExistingSpatieRoleNames(['Inventory Manager Group', 'Manager', 'Admin']);
+	$inventoryFinanceRoles = filterExistingSpatieRoleNames(['Inventory Finance Group', 'Financial Accountant', 'Finance', 'Admin']);
+	$inventoryStoreManagerRoles = filterExistingSpatieRoleNames(['Inventory Store Manager Group', 'Store Manager', 'Store', 'Admin']);
 
-	$isInventoryProcurement = \Auth::user()->hasAnyRole($inventoryProcurementRoles);
-	$isInventoryDepartmentHead = \Auth::user()->hasAnyRole($inventoryDepartmentHeadRoles);
-	$isInventoryManager = \Auth::user()->hasAnyRole($inventoryManagerRoles);
-	$isInventoryFinance = \Auth::user()->hasAnyRole($inventoryFinanceRoles);
-	$isInventoryStoreManager = \Auth::user()->hasAnyRole($inventoryStoreManagerRoles);
+	$isInventoryProcurement = $inventoryProcurementRoles !== [] && \Auth::user()->hasAnyRole($inventoryProcurementRoles);
+	$isInventoryDepartmentHead = $inventoryDepartmentHeadRoles !== [] && \Auth::user()->hasAnyRole($inventoryDepartmentHeadRoles);
+	$isInventoryManager = $inventoryManagerRoles !== [] && \Auth::user()->hasAnyRole($inventoryManagerRoles);
+	$isInventoryFinance = $inventoryFinanceRoles !== [] && \Auth::user()->hasAnyRole($inventoryFinanceRoles);
+	$isInventoryStoreManager = $inventoryStoreManagerRoles !== [] && \Auth::user()->hasAnyRole($inventoryStoreManagerRoles);
 
 	$lab_department_id = getConfigByName('lab_department_id');
 	$lab_department_id = count($lab_department_id) > 0 ? $lab_department_id[0]->value : 0;
@@ -1723,11 +1723,8 @@
 											<span class="text-muted">-</span>
 											@endif
 											<?php
-														$users = \App\User::role($app->role_group_name ?? '')->where('active', 1)->pluck('id', 'name');
-
-														$man_users = \App\User::query()
-															->role($inventoryManagerRoles)
-															->pluck('id', 'name');
+														$users = getActiveUsersByRole($app->role_group_name ?? '')->pluck('id', 'name');
+														$man_users = getActiveUsersByRole($inventoryManagerRoles)->pluck('id', 'name');
 													?>
 											@if (isset($request->status) && ($request->status == 'Awaiting Approval' || $request->status ==
 											'Partially Approved'))
@@ -1777,7 +1774,7 @@
 											@endif
 											@if(!($entityApproval && intval($entityApproval->user_id) > 0))
 											<?php
-																	$users = \App\User::role($app->role_group_name ?? '')->where('active', 1)->pluck('id', 'name');
+																	$users = getActiveUsersByRole($app->role_group_name ?? '')->pluck('id', 'name');
 																?>
 											<span class="ml-2 btn btn-transparent btn-sm text-primary trigger-change-approver"
 												data-approval="{{ json_encode($entityApproval->id) }}" data-users="{{ json_encode($users) }}"

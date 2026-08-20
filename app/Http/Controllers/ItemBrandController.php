@@ -19,17 +19,16 @@ class ItemBrandController extends Controller
 
 		$brand->name = $request->name;
 		$brand->inventory_sub_category_id = $subcategory;
-		if ($request->hasFile('image')){
-      $path = $request->image->path();
-      $file = Storage::putFile('brands', new File($path));
-      $file = explode('/', $file);
+		$brand->image = null;
 
-      $fName = '/storage/brands/'.urlencode(end($file));
+		if ($request->hasFile('image')) {
+			$path = $request->image->path();
+			$file = Storage::putFile('brands', new File($path));
+			$file = explode('/', $file);
 
-      $brand->image = (String) $fName;
-		}
-		else{
-			return redirect()->back()->with('error', 'Brand image is required!');
+			$fName = '/storage/brands/'.urlencode(end($file));
+
+			$brand->image = (string) $fName;
 		}
 
 		$brand->save();

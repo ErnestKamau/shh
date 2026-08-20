@@ -734,6 +734,7 @@ class QuotationReportService
                 ? signatureToDataUri($signatory?->electronic_sig)
                 : ($signatory?->electronic_sig ?? null),
             'attention' => $attention,
+            'company_unit_display' => $this->resolveCompanyUnit($header, $batch) ?? '-',
             'sampling_location_display' => $samplingLocation ?? '-',
             'laboratory_ref_display' => $header->laboratory_ref ?? $batch?->batch_code ?? $header->quote_number,
             'revision_number' => (int) ($header->revision_number ?? 1),
@@ -1051,6 +1052,82 @@ class QuotationReportService
         }
 
         return null;
+    }
+
+    private function resolveCompanyUnit(QuotationHeader $header, ?SampleHeader $batch = null): ?string
+    {
+        $batch ??= SampleHeader::query()
+            ->where('quote_id', $header->id)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($batch !== null) {
+            $fromBatchName = trim((string) ($batch->crm_unit_name ?? ''));
+            if ($fromBatchName !== '') {
+                return $fromBatchName;
+            }
+
+            $fromBatchId = $this->resolveCompanyUnitLabel((string) ($batch->crm_unit_id ?? ''));
+            if ($fromBatchId !== '') {
+                return $fromBatchId;
+            }
+        }
+
+        $enquiry = $this->resolveLinkedEnquiry($header);
+        if ($enquiry === null) {
+            return null;
+        }
+
+        $enquiry->loadMissing('submissionFormInstance');
+        $instance = $enquiry->submissionFormInstance ?? $enquiry->resolveLinkedFormInstance();
+
+        if ($instance !== null) {
+            foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'client_unit'] as $fieldName) {
+                $display = $instance->resolveDisplayValueByName($fieldName);
+                if (filled($display)) {
+                    $label = $this->resolveCompanyUnitLabel((string) $display);
+                    if ($label !== '') {
+                        return $label;
+                    }
+                }
+
+                $raw = $instance->getValueByElementName($fieldName);
+                if (filled($raw)) {
+                    $label = $this->resolveCompanyUnitLabel((string) $raw);
+                    if ($label !== '') {
+                        return $label;
+                    }
+                }
+            }
+        }
+
+        $collection = is_array($enquiry->collection_data) ? $enquiry->collection_data : [];
+        foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'crm_unit_name', 'crm_unit_id'] as $key) {
+            if (! empty($collection[$key])) {
+                $label = $this->resolveCompanyUnitLabel((string) $collection[$key]);
+                if ($label !== '') {
+                    return $label;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveCompanyUnitLabel(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (! Str::isUuid($value) && ! ctype_digit($value)) {
+            return $value;
+        }
+
+        $unitName = \App\Models\CRM\CRMCompanyUnit::query()->whereKey($value)->value('name');
+
+        return is_string($unitName) && trim($unitName) !== '' ? trim($unitName) : '';
     }
 
     private function resolveLinkedEnquiry(QuotationHeader $header): ?SampleSubmissionRequest

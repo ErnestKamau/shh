@@ -32,6 +32,7 @@ use App\QuotationHeaderView;
 use App\SampleType;
 use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Billing\QuotationPricingResolver;
+use App\Services\Billing\QuotationLabSectionScope;
 use App\Services\Billing\QuotationReportService;
 use App\Services\Billing\QuotationRevisionService;
 use App\Exports\Billing\QuotationKpiExport;
@@ -56,6 +57,7 @@ class QuotationController extends Controller
         private readonly QuotationRevisionService $quotationRevisionService,
         private readonly EnquiryFromQuotationService $enquiryFromQuotationService,
         private readonly EnquiryQuotationService $enquiryQuotationService,
+        private readonly QuotationLabSectionScope $quotationLabSectionScope,
     ) {
         $this->middleware('auth');
     }
@@ -63,11 +65,25 @@ class QuotationController extends Controller
     public function index($stage = false)
     {
         if ($stage != false) {
-            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->where('status', $stage)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->where('status', $stage)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])
+                ->where('is_draft', 0)
+                ->where('status', $stage)
+                ->orderBy('id', 'desc')
+                ->get();
+            $drafts = QuotationHeaderView::with(['preparedBy', 'labSections'])
+                ->where('is_draft', 1)
+                ->where('status', $stage)
+                ->orderBy('id', 'desc')
+                ->get();
         } else {
-            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])
+                ->where('is_draft', 0)
+                ->orderBy('id', 'desc')
+                ->get();
+            $drafts = QuotationHeaderView::with(['preparedBy', 'labSections'])
+                ->where('is_draft', 1)
+                ->orderBy('id', 'desc')
+                ->get();
             $stage = 'All Quotations';
         }
 
@@ -84,6 +100,7 @@ class QuotationController extends Controller
         //     $quotation['prepared_by_name'] = $user->name;
         // }
         $sample_types = SampleType::where('active', 1)->get();
+        $labSections = $this->activeLabSectionsForQuotation();
 
         $metrics = $stage === 'All Quotations'
             ? $this->quotationStatisticsService->getOverviewMetrics()
@@ -106,6 +123,7 @@ class QuotationController extends Controller
             'drafts',
             'stage',
             'sample_types',
+            'labSections',
             'metrics',
             'kpiPeriod',
             'stageCounts',
@@ -202,36 +220,56 @@ class QuotationController extends Controller
     {
 
 
-        $drafts = QuotationHeaderView::with('preparedBy')->where('is_draft', 1)->orderBy('id', 'desc')->get();
+        $drafts = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 1)->orderBy('id', 'desc')->get();
         if ($request->quote_type == 'Analysis') {
             $quotations_d = QuotationDetails::query();
             $quotations_d = $request->sample_type_id != '' ? $quotations_d->where('sample_type', $request->sample_type_id) : $quotations_d;
             $analysis_detail_ids = $request->analysis_type_id != '' ? QuotationDetailAnalysisSplit::where('id', $request->analysis_type_id)->pluck('quotation_detail_id')->toArray() : [];
             $quotations_d = sizeof($analysis_detail_ids) > 0 ? $quotations_d->whereIn('id', $analysis_detail_ids) : $quotations_d;
             $quotations_d_ids = $quotations_d->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->whereIn('id', $quotations_d_ids);
+            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0)->whereIn('id', $quotations_d_ids);
 
             $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
-            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
-        }
-        if ($request->quote_type == 'General') {
+            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc');
+        } elseif ($request->quote_type == 'General') {
             $quotations_d = QuotationDetails::where('description', 'LIKE', '%' . $request->item_description . '%')->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::with('preparedBy')->where('is_draft', 0)->whereIn('id', $quotations_d);
+            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0)->whereIn('id', $quotations_d);
 
             $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
-            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
-
+            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc');
+        } else {
+            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0)->orderBy('id', 'desc');
         }
+
+        if ($request->filled('lab_section_id')) {
+            $labSectionId = (string) $request->input('lab_section_id');
+            $quotations = $quotations->whereHas('labSections', function ($query) use ($labSectionId): void {
+                $query->where('sample_analysis_stages.id', $labSectionId);
+            });
+        }
+
+        $quotations = $quotations->get();
 
 
         $stage = 'All Quotations';
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
         $sample_types = SampleType::where('active', 1)->get();
+        $labSections = $this->activeLabSectionsForQuotation();
         $metrics = $this->quotationStatisticsService->getOverviewMetrics();
         $kpiPeriod = $this->resolveKpiPeriodMetrics($request);
         $stageCounts = $this->quotationStageCounts();
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics', 'kpiPeriod', 'stageCounts'));
+        return view('layouts.lab.invoice.quotation-index', compact(
+            'customers',
+            'quotations',
+            'drafts',
+            'stage',
+            'sample_types',
+            'labSections',
+            'metrics',
+            'kpiPeriod',
+            'stageCounts',
+        ));
     }
 
     /**
@@ -268,8 +306,12 @@ class QuotationController extends Controller
     }
     public function add_quotation_header(Request $request)
     {
+        $isCreate = ! $request->filled('quote_id');
+
         $request->validate([
             'currency_id' => ['required', 'uuid', 'exists:currencies,id'],
+            'lab_section_ids' => [$isCreate ? 'required' : 'nullable', 'array', $isCreate ? 'min:1' : 'min:0'],
+            'lab_section_ids.*' => ['uuid', 'exists:sample_analysis_stages,id'],
         ]);
 
         if (isset($request->quote_id)) {
@@ -320,6 +362,7 @@ class QuotationController extends Controller
             $header->is_draft = 0;
         }
         $header->save();
+        $this->syncQuotationLabSections($header, $request->input('lab_section_ids', []));
         $this->quotationReportService->ensureHeaderMetadata($header);
         $this->quotationReportService->seedDefaultTermsOfSale($header);
         $this->quotationReportService->seedDefaultStructuredTerms($header);
@@ -352,10 +395,10 @@ class QuotationController extends Controller
     {
         // return response()->json('test');
         $customers = CRMCustomer::all();
-        $header = QuotationHeader::with(['preparedBy', 'customer'])->find($id);
+        $header = QuotationHeader::with(['preparedBy', 'customer', 'labSections'])->find($id);
         AmSpecQuotationNumberGenerator::assignIfMissing($header);
-        $header = $header->fresh();
-        $sample_types = SampleType::all();
+        $header = $header->fresh(['preparedBy', 'customer', 'labSections']);
+        $sample_types = $this->quotationLabSectionScope->sampleTypesForQuotation($header);
 
         $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
         $pricelist_items = $pricelist
@@ -409,7 +452,7 @@ class QuotationController extends Controller
 
         // return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details','sample_types '));
         $this->quotationReportService->normalizeStoredTerms($header);
-        $header = $header->fresh();
+        $header = $header->fresh(['preparedBy', 'customer', 'labSections']);
         $termsOfSale = $this->quotationReportService->resolveTermsOfSale($header);
         $users = getAllUsers();
         // return response()->json($sample_types);
@@ -426,8 +469,9 @@ class QuotationController extends Controller
         $revisionFamily = $this->quotationRevisionService->collectRevisionFamily($header);
         $linkedEnquiryEngagements = $this->enquiryQuotationService->engagementsForQuotation($header);
         $accountPaymentOptions = $this->quotationReportService->accountPaymentOptions();
+        $labSections = $this->activeLabSectionsForQuotation();
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -610,6 +654,18 @@ class QuotationController extends Controller
                     $request->sub_acc[$count] ?? '',
                 ])))));
 
+                $analysisTypeIds = array_values(array_filter(array_map(
+                    'trim',
+                    explode(',', (string) ($request->part_number_final[$count] ?? ''))
+                )));
+
+                try {
+                    $this->quotationLabSectionScope->assertAnalysisTypesAllowed($header, $analysisTypeIds);
+                    $this->quotationLabSectionScope->assertElementsAllowed($header, $elementIds);
+                } catch (\RuntimeException $exception) {
+                    return redirect()->back()->withInput()->with('error', $exception->getMessage());
+                }
+
                 $loqOverrides = [];
                 $loqJson = (string) ($request->element_loq_json[$count] ?? '');
                 if ($loqJson !== '') {
@@ -702,6 +758,11 @@ class QuotationController extends Controller
     }
     public function edit_quotation_header(Request $request, $id)
     {
+        $request->validate([
+            'lab_section_ids' => ['nullable', 'array'],
+            'lab_section_ids.*' => ['uuid', 'exists:sample_analysis_stages,id'],
+        ]);
+
         $header = QuotationHeader::find($id);
         $customer = CRMCustomer::where('name', $request->client)->first();
 
@@ -729,6 +790,9 @@ class QuotationController extends Controller
             }
         }
         $header->save();
+        if ($request->has('lab_section_ids')) {
+            $this->syncQuotationLabSections($header, $request->input('lab_section_ids', []));
+        }
         $this->quotationReportService->ensureHeaderMetadata($header);
 
         return redirect()->back()->with('success', 'Quotation updated successfully');
@@ -836,6 +900,19 @@ class QuotationController extends Controller
             $detail->show_loq_analytes = null;
             $detail->show_mu_analytes = null;
             $analysis_types_ids = array_values(array_filter(array_map('trim', explode(',', $partNoCsv))));
+
+            try {
+                $this->quotationLabSectionScope->assertAnalysisTypesAllowed($header, $analysis_types_ids);
+                $this->quotationLabSectionScope->assertElementsAllowed($header, array_values(array_unique(array_filter(array_merge(
+                    $this->splitCommaSeparatedIds((string) $detail->default_analytes),
+                    $this->splitCommaSeparatedIds((string) $detail->accredited_analytes),
+                    $this->splitCommaSeparatedIds((string) $detail->subcontracted_analytes),
+                    $this->splitCommaSeparatedIds((string) $detail->sub_acc_analytes),
+                )))));
+            } catch (\RuntimeException $exception) {
+                return redirect()->back()->withInput()->with('error', $exception->getMessage());
+            }
+
             QuotationDetailAnalysisSplit::syncForDetail((string) $detail->id, $analysis_types_ids);
 
             $elementIds = $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
@@ -893,6 +970,7 @@ class QuotationController extends Controller
         if (!isset($header->id)) {
             return redirect()->back()->with('error', 'There is no Quotation with the specified ID');
         }
+        $header->labSections()->detach();
         $header->delete();
         return redirect()->route('quotation-index')->with('success', 'Quotation deleted successfully!');
     }
@@ -918,7 +996,7 @@ class QuotationController extends Controller
     }
     public function clone_quotation($id)
     {
-        $header = QuotationHeader::find($id);
+        $header = QuotationHeader::with('labSections')->find($id);
         $header_clone = new QuotationHeader();
         $header_clone->crm_customer_id = $header->crm_customer_id;
 
@@ -935,6 +1013,10 @@ class QuotationController extends Controller
         AmSpecQuotationNumberGenerator::assignIfMissing($header_clone);
         $header_clone->is_draft = 1;
         $header_clone->save();
+
+        $header_clone->labSections()->sync(
+            $header->labSections->pluck('id')->all()
+        );
 
         $details = QuotationDetails::where('quotation_header_id', $header->id)->get();
         foreach ($details as $detail) {
@@ -996,8 +1078,8 @@ class QuotationController extends Controller
     }
     public function upload_quotation(Request $request, $id)
     {
-        // Billing-only send: records email_to_customer on the header. Per-enquiry send/accept
-        // lives on enquiry_quotations when enquiries are linked to this quote.
+        // Billing-only send: stamps header delivery markers. Per-enquiry send/accept
+        // still lives on enquiry_quotations when enquiries are linked to this quote.
         $header = QuotationHeader::find($id);
         // return response()->json($request->all(),200);
 
@@ -1010,6 +1092,9 @@ class QuotationController extends Controller
         $file = \storage_path() . '/app' . $header->upload_url;
         $notify = notify_user($body, $contact->email, $subject, $file);
         $header->email_to_customer = getTodayDate();
+        if ($header->sent_to_customer_at === null) {
+            $header->sent_to_customer_at = now();
+        }
         $header->save();
 
         return redirect()->back()->with('success', 'Quotation uploaded and sent to client successfully');
@@ -1023,6 +1108,18 @@ class QuotationController extends Controller
             'trim',
             explode(',', (string) $request->input('element_ids', ''))
         ))));
+
+        $analysisTypeIds = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) $request->input('analysis_type_ids', ''))
+        )));
+
+        try {
+            $this->quotationLabSectionScope->assertAnalysisTypesAllowed($header, $analysisTypeIds);
+            $this->quotationLabSectionScope->assertElementsAllowed($header, $elementIds);
+        } catch (\RuntimeException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 422);
+        }
 
         $suggestion = $this->quotationPricingResolver->suggestManualLinePricing(
             $header,
@@ -1038,6 +1135,17 @@ class QuotationController extends Controller
     public function packageDefaults(PackageDefaultsRequest $request, string $id)
     {
         $header = QuotationHeader::query()->findOrFail($id);
+
+        $analysisTypeIds = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) $request->input('analysis_type_ids', ''))
+        )));
+
+        try {
+            $this->quotationLabSectionScope->assertAnalysisTypesAllowed($header, $analysisTypeIds);
+        } catch (\RuntimeException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 422);
+        }
 
         $defaults = $this->quotationPricingResolver->resolvePackageDefaults(
             $header,
@@ -1080,7 +1188,12 @@ class QuotationController extends Controller
         $detail = QuotationDetails::find($id);
         if (isset($detail->id)) {
             $sample_types = SampleType::find($detail->sample_type);
-            $analysis_data = AnalysisType::where('sample_type_id', $detail->sample_type)->get();
+            $header = QuotationHeader::query()->find($detail->quotation_header_id);
+            $analysisQuery = AnalysisType::query()->where('sample_type_id', $detail->sample_type);
+            if ($header !== null) {
+                $analysisQuery = $this->quotationLabSectionScope->constrainAnalysisTypes($analysisQuery, $header);
+            }
+            $analysis_data = $analysisQuery->get();
             $detail_sub_analytes = $this->splitCommaSeparatedIds($detail->subcontracted_analytes);
             $detail_accredited_analytes = $this->splitCommaSeparatedIds($detail->accredited_analytes);
             $detail_part_no = $this->splitCommaSeparatedIds($detail->part_no);
@@ -1105,7 +1218,7 @@ class QuotationController extends Controller
             $detail['sample_type_name'] = $sampleType?->name ?? '';
         }
         $final = [];
-        $final['analysis_data'] = $analysis_data;
+        $final['analysis_data'] = $analysis_data ?? collect();
         $final['detail'] = $detail;
         return $final;
     }
@@ -1422,5 +1535,30 @@ class QuotationController extends Controller
         $header->tax = $taxes;
         $header->total_amount = $subTotal + $taxes;
         $header->save();
+    }
+
+    /**
+     * Active lab sections available for quotation assignment (SampleAnalysisStage).
+     *
+     * @return \Illuminate\Support\Collection<int, SampleAnalysisStage>
+     */
+    private function activeLabSectionsForQuotation()
+    {
+        return SampleAnalysisStage::query()
+            ->where('active', 1)
+            ->where(function ($query): void {
+                $query->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $labSectionIds
+     */
+    private function syncQuotationLabSections(QuotationHeader $header, ?array $labSectionIds): void
+    {
+        $ids = SampleAnalysisStage::filterExistingIds($labSectionIds ?? []);
+        $header->labSections()->sync($ids);
     }
 }

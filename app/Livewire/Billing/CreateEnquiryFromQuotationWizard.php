@@ -50,6 +50,10 @@ class CreateEnquiryFromQuotationWizard extends Component
 
     public bool $sendPortal = false;
 
+    public bool $quoteAlreadySentFromBilling = false;
+
+    public bool $notifyAgain = false;
+
     public string $errorMessage = '';
 
     /** @var list<array<string, mixed>> */
@@ -104,8 +108,18 @@ class CreateEnquiryFromQuotationWizard extends Component
                 'unit_price' => $line['unit_price'] ?? null,
             ])->values()->all();
             $this->trfGroups = $groups;
+            $this->quoteAlreadySentFromBilling = $quotation->wasSentFromBilling();
+            $this->notifyAgain = false;
+            if ($this->quoteAlreadySentFromBilling) {
+                $this->sendEmail = false;
+                $this->sendPortal = false;
+            }
             $this->seedSelectionsForGroups();
             $this->applyDeliveryDefaultsForChannel();
+            if ($this->quoteAlreadySentFromBilling) {
+                $this->sendEmail = false;
+                $this->sendPortal = false;
+            }
             $this->show = true;
             $this->phase = 'review';
             $this->trfIndex = 0;
@@ -335,16 +349,20 @@ class CreateEnquiryFromQuotationWizard extends Component
         }
         $this->validate($rules);
 
-        if (! $this->sendEmail && ! $this->sendPortal) {
-            $this->errorMessage = 'Select at least one delivery channel (email or portal).';
+        $inheritBillingDelivery = $this->quoteAlreadySentFromBilling && ! $this->notifyAgain;
 
-            return null;
-        }
+        if (! $inheritBillingDelivery) {
+            if (! $this->sendEmail && ! $this->sendPortal) {
+                $this->errorMessage = 'Select at least one delivery channel (email or portal).';
 
-        if ($this->sourceChannel === CommercialEnquirySyncService::SOURCE_WALK_IN && ! $this->sendEmail) {
-            $this->errorMessage = 'Email delivery is required for walk-in requests.';
+                return null;
+            }
 
-            return null;
+            if ($this->sourceChannel === CommercialEnquirySyncService::SOURCE_WALK_IN && ! $this->sendEmail) {
+                $this->errorMessage = 'Email delivery is required for walk-in requests.';
+
+                return null;
+            }
         }
 
         try {
@@ -364,6 +382,7 @@ class CreateEnquiryFromQuotationWizard extends Component
                 $this->creationToken,
                 $this->sendPortal,
                 $this->sendEmail,
+                notifyAgain: $this->quoteAlreadySentFromBilling && $this->notifyAgain,
             );
 
             $reference = $enquiry->reference_number ?: $enquiry->formatted_number;
@@ -371,10 +390,14 @@ class CreateEnquiryFromQuotationWizard extends Component
                 ? $trfCount.' Test Request Forms were generated'
                 : 'A Test Request Form was generated';
 
+            $deliveryNote = $inheritBillingDelivery
+                ? ' Quotation was already sent from Billing; enquiry marked Quotation Sent without re-sending.'
+                : ' and marked Quotation Sent.';
+
             session()->flash(
                 'success',
                 'Enquiry '.$reference.' was created from quotation '.$quotation->quote_number
-                .' and marked Quotation Sent. '.$trfLabel.'.'
+                .$deliveryNote.' '.$trfLabel.'.'
             );
 
             return $this->redirect(url()->previous() ?: route('quotation-index'), navigate: false);
@@ -465,6 +488,8 @@ class CreateEnquiryFromQuotationWizard extends Component
         $this->sectionRowFieldValuesByType = [];
         $this->sendEmail = true;
         $this->sendPortal = false;
+        $this->quoteAlreadySentFromBilling = false;
+        $this->notifyAgain = false;
         $this->errorMessage = '';
         $this->quoteLines = [];
         $this->trfGroups = [];
@@ -472,6 +497,22 @@ class CreateEnquiryFromQuotationWizard extends Component
         $this->customerName = '';
         $this->isMultiSampleType = false;
         $this->resetValidation();
+    }
+
+    public function updatedNotifyAgain(bool $value): void
+    {
+        if (! $this->quoteAlreadySentFromBilling) {
+            return;
+        }
+
+        if ($value) {
+            $this->applyDeliveryDefaultsForChannel();
+
+            return;
+        }
+
+        $this->sendEmail = false;
+        $this->sendPortal = false;
     }
 
     private function seedSelectionsForGroups(): void

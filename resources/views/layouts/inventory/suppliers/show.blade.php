@@ -639,7 +639,8 @@
 				{{-- <pre> {{ json_encode(getSubCategoriesByBrand(0, true), JSON_PRETTY_PRINT) }}</pre>; --}}
 				<div class="form-group">
 					<label class="control-label">Category</label>
-					<select class="form-control" name="category_id[]" required multiple placeholder="Select Category...">
+					<select class="form-control ls-select2" name="category_id[]" required multiple
+						data-placeholder="Select Category..." placeholder="Select Category...">
 						<option></option>
 						@foreach ($all_categories as $ac)
 							<option value="{{ $ac->id }}">{{ $ac->name }}</option>

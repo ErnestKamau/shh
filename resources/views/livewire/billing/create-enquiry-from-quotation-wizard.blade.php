@@ -281,21 +281,39 @@
                             @endif
 
                             @if($phase === 'send')
-                                <div class="alert alert-warning">
-                                    Finishing will create the enquiry, generate
-                                    {{ count($trfGroups) > 1 ? count($trfGroups).' Test Request Forms' : 'the Test Request Form' }},
-                                    send the quotation, and move the request to <strong>Quotation Sent</strong>.
-                                </div>
-                                <div class="form-group">
-                                    <div class="custom-control custom-checkbox mb-2">
-                                        <input type="checkbox" class="custom-control-input" id="send-email" wire:model="sendEmail">
-                                        <label class="custom-control-label" for="send-email">Send by email</label>
+                                @if($quoteAlreadySentFromBilling && ! $notifyAgain)
+                                    <div class="alert alert-info">
+                                        This quotation was already sent from Billing. Finishing will create the enquiry,
+                                        generate {{ count($trfGroups) > 1 ? count($trfGroups).' Test Request Forms' : 'the Test Request Form' }},
+                                        and mark the request as <strong>Quotation Sent</strong> without re-sending the quotation.
                                     </div>
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="send-portal" wire:model="sendPortal">
-                                        <label class="custom-control-label" for="send-portal">Send to customer portal</label>
+                                    <div class="custom-control custom-checkbox mb-3">
+                                        <input type="checkbox" class="custom-control-input" id="notify-again" wire:model.live="notifyAgain">
+                                        <label class="custom-control-label" for="notify-again">Notify customer again (optional)</label>
                                     </div>
-                                </div>
+                                @else
+                                    <div class="alert alert-warning">
+                                        Finishing will create the enquiry, generate
+                                        {{ count($trfGroups) > 1 ? count($trfGroups).' Test Request Forms' : 'the Test Request Form' }},
+                                        send the quotation, and move the request to <strong>Quotation Sent</strong>.
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="custom-control custom-checkbox mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="send-email" wire:model="sendEmail">
+                                            <label class="custom-control-label" for="send-email">Send by email</label>
+                                        </div>
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" class="custom-control-input" id="send-portal" wire:model="sendPortal">
+                                            <label class="custom-control-label" for="send-portal">Send to customer portal</label>
+                                        </div>
+                                    </div>
+                                    @if($quoteAlreadySentFromBilling)
+                                        <div class="custom-control custom-checkbox mb-3">
+                                            <input type="checkbox" class="custom-control-input" id="notify-again-on" wire:model.live="notifyAgain">
+                                            <label class="custom-control-label" for="notify-again-on">Notify customer again</label>
+                                        </div>
+                                    @endif
+                                @endif
                                 <ul class="mb-0 pl-3 text-muted small">
                                     <li>Origin: {{ $sourceChannel }}</li>
                                     <li>TRF(s): {{ count($trfGroups) }}</li>
@@ -322,7 +340,8 @@
                                 <button type="button" class="btn btn-success" wire:click="finish" wire:loading.attr="disabled"
                                         x-on:click="window.dispatchEvent(new CustomEvent('ceq-sync-tinymce')); if (document.activeElement) document.activeElement.blur();">
                                     <span wire:loading.remove wire:target="finish">
-                                        <i class="mdi mdi-send"></i> Create, generate TRF &amp; send
+                                        <i class="mdi {{ $quoteAlreadySentFromBilling && ! $notifyAgain ? 'mdi-check' : 'mdi-send' }}"></i>
+                                        {{ $quoteAlreadySentFromBilling && ! $notifyAgain ? 'Create enquiry &amp; TRF' : 'Create, generate TRF &amp; send' }}
                                     </span>
                                     <span wire:loading wire:target="finish">
                                         <span class="spinner-border spinner-border-sm"></span> Working...

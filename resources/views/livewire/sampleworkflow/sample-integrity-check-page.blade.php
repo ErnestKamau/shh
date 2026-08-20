@@ -139,6 +139,12 @@
                                             @if(!empty($sample['customer_sample_id']))
                                                 <div class="integrity-sample-customer-id">Customer ID: {{ $sample['customer_sample_id'] }}</div>
                                             @endif
+                                            @if(!empty($sample['condition_not_acceptable']))
+                                                <div class="integrity-sample-condition-flag" title="Sample condition recorded at receive">
+                                                    <i class="mdi mdi-flag" aria-hidden="true"></i>
+                                                    Condition: Not Acceptable
+                                                </div>
+                                            @endif
                                             <div class="integrity-sample-meta">
                                                 {{ $sample['complete'] }}/{{ $sample['total'] }} assigned
                                                 @if($sample['subcontracted'] > 0)
@@ -862,6 +868,25 @@
             margin-top: 0.1rem;
             font-size: 0.72rem;
             color: #64748b;
+        }
+
+        .sample-integrity-check-page .integrity-sample-condition-flag {
+            margin-top: 0.25rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #9f1239;
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+        }
+
+        .sample-integrity-check-page .integrity-sample-condition-flag .mdi {
+            font-size: 0.85rem;
+            line-height: 1;
         }
     </style>
 </div>

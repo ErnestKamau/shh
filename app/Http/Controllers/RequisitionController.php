@@ -28,9 +28,29 @@ class RequisitionController extends Controller
 
 	private function getUsersForRoleGroup($roleGroupName)
 	{
-		return User::role($roleGroupName)
+		return \App\User::role($roleGroupName)
 			->where('active', 1)
 			->get();
+	}
+
+	private function findRequestEntityItemOrNull(mixed $id): ?RequestEntityItem
+	{
+		if (! Str::isUuid((string) $id)) {
+			return null;
+		}
+
+		return RequestEntityItem::find($id);
+	}
+
+	private function uuidOrNull(mixed $value): ?string
+	{
+		$value = is_string($value) ? trim($value) : $value;
+
+		if ($value === null || $value === '' || $value === 0 || $value === '0') {
+			return null;
+		}
+
+		return Str::isUuid((string) $value) ? (string) $value : null;
 	}
 
 	private function getFirstUserForRoleGroup($roleGroupName, array $excludedUserIds = [], $departmentId = null)
@@ -2186,11 +2206,18 @@ class RequisitionController extends Controller
 		// return response()->json($request->all());
 
 		// return $isInternal;
-		if (!is_numeric($id)) {
-			$req = RequestEntity::where('request_code', $id)->where('request_type', $stage)->where('ammendment', $isInternal)->first();
-			$id = $req->id;
+		// Create links use time() as a numeric placeholder id (not a UUID).
+		// Non-numeric non-UUID values are treated as request_code.
+		if (! Str::isUuid((string) $id) && ! is_numeric($id)) {
+			$reqByCode = RequestEntity::where('request_code', $id)
+				->where('request_type', $stage)
+				->where('ammendment', $isInternal)
+				->first();
 
-			$isInternal = false;
+			if ($reqByCode) {
+				$id = $reqByCode->id;
+				$isInternal = false;
+			}
 		}
 
 		if ($isInternal == false && $request->nature_of_purchase != "Capex" && in_array($stage, ['Purchase Request', 'Request to Store'])) {
@@ -2255,7 +2282,9 @@ class RequisitionController extends Controller
 
 		$companyDetails = getCompanyDetails();
 
-		$req = RequestEntity::find($id) ?? new RequestEntity;
+		$req = Str::isUuid((string) $id)
+			? (RequestEntity::find($id) ?? new RequestEntity)
+			: new RequestEntity;
 
 		if ($request->has('make_an_ammendment')) {
 			return $this->make_an_ammendment($req);
@@ -2910,7 +2939,7 @@ class RequisitionController extends Controller
 			return \redirect()->back()->with('success', $stage . ' Approval was successful');
 		}
 
-		if (!isset(RequestEntity::find($id)->id)) {
+		if (! isset($req->id)) {
 			if ($stage == "Purchase Request") {
 				$pref = "PR";
 			}
@@ -3017,7 +3046,7 @@ class RequisitionController extends Controller
 			$req->submission_deadline = \Carbon\Carbon::parse($request->submission_deadline);
 		}
 
-		if (!isset(RequestEntity::find($id)->id)) {
+		if (! isset($req->id)) {
 			$req->status = $status;
 
 			$req->request_code = getNamingConventionCode($stage, false, $pref);
@@ -3117,13 +3146,16 @@ class RequisitionController extends Controller
 		$defaultStore = [];
 		if (isset($request->id)) {
 			$myCCs = explode(',', $req->cost_center ?? '');
-			$zStore = \App\StoreToCostCenter::whereIn('cost_center', $myCCs)->first();
+			$zStore = null;
+			if (\Illuminate\Support\Facades\Schema::hasTable('store_to_cost_centers')) {
+				$zStore = \App\StoreToCostCenter::whereIn('cost_center', $myCCs)->first();
+			}
 			if (isset($zStore->store_id)) {
 				$zStoreSlot = \App\InventoryStoreSlot::where('inventory_store_id', $zStore->store_id)->first();
 			}
 
-			$defaultStore['store'] = isset($zStore->store_id) ? $zStore->store_id : 0;
-			$defaultStore['slot'] = isset($zStoreSlot) && isset($zStoreSlot->id) ? $zStoreSlot->id : 0;
+			$defaultStore['store'] = isset($zStore->store_id) ? $zStore->store_id : null;
+			$defaultStore['slot'] = isset($zStoreSlot) && isset($zStoreSlot->id) ? $zStoreSlot->id : null;
 		}
 
 		auditableDelete(EntityAttachment::whereNotIn('id', $attachmentArray)->where('model', $stage)->where('model_id', $req->id)->get());
@@ -3134,7 +3166,7 @@ class RequisitionController extends Controller
 
 			$has_been_ammended = false;
 			foreach ($request->items['req_item_id'] ?? array() as $i => $it) {
-				$entityItem = RequestEntityItem::find($it);
+				$entityItem = $this->findRequestEntityItemOrNull($it);
 
 				if (isset($entityItem->id) && $req->in_ammendment > 0) {
 					if (
@@ -3171,32 +3203,55 @@ class RequisitionController extends Controller
 					$note->save();
 				}
 
-				$defaultStore['store'] = $itemCat->default_store_id == 0 ? $defaultStore['store'] : $itemCat->default_store_id;
-				$defaultStore['slot'] = $defaultStore['slot'] ?? 0;
+				$defaultStoreId = $defaultStore['store'] ?? null;
+				$defaultSlotId = $defaultStore['slot'] ?? null;
+				if (filled($itemCat->default_store_id) && Str::isUuid((string) $itemCat->default_store_id)) {
+					$defaultStoreId = $itemCat->default_store_id;
+				}
 
 				$item = $entityItem ?? new RequestEntityItem;
 				$item->request_id = $req->id;
-				$item->item_brand_id = $request->items['item_brand_id'][$i] ?? 0;
-				$item->brand = $request->items['brand'][$i] ?? 0;
-				$item->store_id = $request->items['store_id'][$i] ?? $defaultStore['store'];
-				$item->slot_id = $request->items['slot_id'][$i] ?? $defaultStore['slot'];
-				$item->uom = $request->items['uom'][$i] ?? 0;
+				$item->item_brand_id = $this->uuidOrNull($request->items['item_brand_id'][$i] ?? null);
+				$item->store_id = $this->uuidOrNull($request->items['store_id'][$i] ?? $defaultStoreId);
+				$item->slot_id = $this->uuidOrNull($request->items['slot_id'][$i] ?? $defaultSlotId);
+				$item->uom = $request->items['uom'][$i] ?? null;
 				$item->inventory_sub_category_id = $subCatID;
-				$item->item_account_id = $account_id;
 
-				$item->comments = $request->items['comments'][$i];
+				if (\Illuminate\Support\Facades\Schema::hasColumn('request_entity_items', 'brand')) {
+					$item->brand = $request->items['brand'][$i] ?? null;
+				}
+				if (\Illuminate\Support\Facades\Schema::hasColumn('request_entity_items', 'item_account_id')) {
+					$item->item_account_id = $this->uuidOrNull($account_id);
+				}
+
+				$item->comments = $request->items['comments'][$i] ?? null;
 				$item->quantity = isset($request->items['quantity'][$i]) ? $request->items['quantity'][$i] : $request->items['received_quantity'][$i];
-				$item->net_value = $request->items['net_value'][$i] ?? 0;
-				$item->currency = $request->items['currency'][$i] ?? 0;
+				$netValue = $request->items['net_value'][$i] ?? 0;
+				$item->net_value = is_numeric($netValue) ? $netValue : 0;
+				$item->currency = is_numeric($request->items['currency'][$i] ?? null)
+					? $request->items['currency'][$i]
+					: 0;
+
+				$unitCost = $request->items['unit_cost'][$i]
+					?? $request->items['unit_price'][$i]
+					?? $subCat->unit_price
+					?? null;
+				$item->unit_cost = is_numeric($unitCost) ? (float) $unitCost : 0.0;
 
 				$item->starting_sample = $request->items['starting_sample'][$i] ?? null;
 				$item->lot_no = $request->items['lot_no'][$i] ?? null;
 
-				$item->compensation_kind = $request->items['compensation_kind'][$i] ?? null;
-				$item->compensation_uom = $request->items['compensation_uom'][$i] ?? null;
-				$item->compensation_quantity = $request->items['compensation_quantity'][$i] ?? null;
-				$item->compensation_value = $request->items['compensation_value'][$i] ?? null;
-				$item->compensation_remarks = $request->items['compensation_remarks'][$i] ?? null;
+				foreach ([
+					'compensation_kind',
+					'compensation_uom',
+					'compensation_quantity',
+					'compensation_value',
+					'compensation_remarks',
+				] as $compensationField) {
+					if (\Illuminate\Support\Facades\Schema::hasColumn('request_entity_items', $compensationField)) {
+						$item->{$compensationField} = $request->items[$compensationField][$i] ?? null;
+					}
+				}
 
 				$item->save();
 				if ((!isset($entityItem->id) || $item->net_value == 0) && $req->request_type == "Purchase Orders") {
@@ -3309,7 +3364,9 @@ class RequisitionController extends Controller
 			}
 
 			if (in_array($stage, ["Purchase Request", "Request to Store", "Loan", "Lend"])) {
-				$req->farm_id =	$request->farm_id ?? null;
+				if (\Illuminate\Support\Facades\Schema::hasColumn('request_entities', 'farm_id')) {
+					$req->farm_id = $request->farm_id ?? null;
+				}
 				$req->description =	$request->description;
 				$req->is_lab_kit =	$request->has('is_lab_kit');
 				$req->catalog_number =	$request->has('catalog_number') ? $request->catalog_number : NULL;

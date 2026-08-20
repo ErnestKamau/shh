@@ -15,58 +15,82 @@ class RequestEntity extends Model implements Auditable
 
 	use \OwenIt\Auditing\Auditable;
 	protected $guarded = ['id'];
-	public function items($ammendment_id, $grp=false, $grpItems=false)
+	public function items($ammendment_id, $grp = false, $grpItems = false)
 	{
 		// New / unsaved requisitions have no id yet (Create Request uses time() placeholder).
 		if (empty($this->id)) {
 			return [];
 		}
 
-		$itemCount = RequestEntityItem::where('request_id', $this->id)->where('ammendment', $ammendment_id)->get()->count();
+		$itemCount = RequestEntityItem::where('request_id', $this->id)->where('ammendment', $ammendment_id)->count();
 
-		// $ammendment_id = $this->ammendment;
-
-		if($itemCount == 0 && $this->in_ammendment == 1){
-			$ammendment_id = $this->ammendment-1;
+		if ($itemCount == 0 && $this->in_ammendment == 1) {
+			$ammendment_id = $this->ammendment - 1;
 		}
 
-		$items = RequestEntityItem::join('inventory_sub_categories as isc', 'isc.id', 'request_entity_items.inventory_sub_category_id')
-		->leftJoin('module_pre_configs as mpc', function($join){
-			// module_pre_configs.id is uuid; request_entity_items.currency may still be int/legacy text
-			$join->whereRaw('mpc.id::text = request_entity_items.currency::text');
-			$join->where('mpc.type', "Currency");
-		})
-		->where('request_entity_items.request_id', $this->id)->where('request_entity_items.ammendment', $ammendment_id);
+		$baseQuery = RequestEntityItem::query()
+			->join('inventory_sub_categories as isc', 'isc.id', '=', 'request_entity_items.inventory_sub_category_id')
+			->leftJoin('module_pre_configs as mpc', function ($join) {
+				// module_pre_configs.id is uuid; request_entity_items.currency may still be int/legacy text
+				$join->whereRaw('mpc.id::text = request_entity_items.currency::text');
+				$join->where('mpc.type', 'Currency');
+			})
+			->where('request_entity_items.request_id', $this->id)
+			->where('request_entity_items.ammendment', $ammendment_id)
+			->selectRaw('request_entity_items.*, isc.zoho_account_id, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, isc.available_stock, isc.code')
+			->orderBy('request_entity_items.catalog_number', 'asc');
 
-		;
-		if($grp){
-			$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.zoho_account_id, isc.item_classification, "" as unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.zoho_account_id,
-			GROUP_CONCAT(request_entity_items.id) as kit_item_ids, GROUP_CONCAT(CONCAT(IFNULL(isc.name,""), " - ", IFNULL(request_entity_items.quantity, ""), "", IFNULL(request_entity_items.uom, ""), " ",
-			IFNULL(request_entity_items.comments, "")))
-			as kit_item_name, isc.unit_type, isc.name as item_name, available_stock, isc.code')
-				->orderBy('request_entity_items.catalog_number', 'desc')->groupBy('catalog_number');
+		$items = $baseQuery->get();
+
+		if ($grp) {
+			$items = $items
+				->groupBy(fn ($item) => (string) ($item->catalog_number ?? ''))
+				->map(function ($group) {
+					/** @var \App\RequestEntityItem $first */
+					$first = $group->first();
+					$first->kit_item_ids = $group->pluck('id')->implode(',');
+					$first->kit_item_name = $group
+						->map(function ($row) {
+							return trim(
+								($row->item_name ?? '').
+								' - '.
+								($row->quantity ?? '').
+								($row->uom ?? '').
+								' '.
+								($row->comments ?? '')
+							);
+						})
+						->implode(',');
+					$first->setAttribute('unit_type', '');
+
+					return $first;
+				})
+				->sortByDesc(fn ($item) => (string) ($item->catalog_number ?? ''))
+				->values();
+		} elseif ($grpItems) {
+			$items = $items
+				->groupBy(fn ($item) => ((string) $item->inventory_sub_category_id).'|'.((string) ($item->comments ?? '')))
+				->map(function ($group) {
+					/** @var \App\RequestEntityItem $first */
+					$first = $group->first();
+					$first->quantity = $group->sum(fn ($row) => (float) $row->quantity);
+
+					return $first;
+				})
+				->values();
 		}
-		else{
-			if($grpItems){
-				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.zoho_account_id, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code, sum(request_entity_items.quantity) as quantity')->orderBy('request_entity_items.catalog_number', 'asc')
-				->groupBy('request_entity_items.inventory_sub_category_id')->groupBy('request_entity_items.comments');
+
+		$data = [];
+
+		foreach ($items as $i) {
+			$action = $i->action ?? 'normal';
+			if (! isset($data[$action])) {
+				$data[$action] = [];
 			}
-			else{
-				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.zoho_account_id, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code')->orderBy('request_entity_items.catalog_number', 'asc');
-			}
+
+			$data[$action][] = $i;
 		}
 
-		$items = $items->get();
-
-		$data = array();
-
-		foreach($items as $i){
-			if(!isset($data[$i->action])){
-				$data[$i->action] = array();
-			}
-
-			$data[$i->action][] = $i;
-		}
 		return $data;
 	}
 

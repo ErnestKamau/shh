@@ -93,6 +93,8 @@ class ProcessEnquiryWizard extends Component
 
     public bool $quotationSent = false;
 
+    public bool $quotationContentStale = false;
+
     public bool $quotationManuallyEdited = false;
 
     public bool $quotationBuilt = false;
@@ -342,6 +344,7 @@ class ProcessEnquiryWizard extends Component
         $this->statusAutoDismiss = false;
         $this->pdfGenerated = ! empty($header?->upload_url);
         $this->quotationSent = $this->enquiryQuotationWasSent($enquiry);
+        $this->quotationContentStale = $enquiry->quotation_content_stale_at !== null;
         $this->syncApprovalState($enquiry, $header);
         $this->quotationManuallyEdited = false;
         $this->showBuildQuotationModal = false;
@@ -392,6 +395,10 @@ class ProcessEnquiryWizard extends Component
             $this->statusMessage = $this->customerFeedbackNotes !== ''
                 ? 'Customer sent this quotation back for review. See their reason below, revise pricing if needed, then send again.'
                 : 'Customer sent this quotation back for review. Revise as needed, then send again for acceptance.';
+            $this->statusLevel = 'warning';
+            $this->statusAutoDismiss = false;
+        } elseif ($this->quotationContentStale) {
+            $this->statusMessage = 'Quotation content changed since it was sent. Review the updated lines and use Send again when ready.';
             $this->statusLevel = 'warning';
             $this->statusAutoDismiss = false;
         } else {
@@ -741,12 +748,18 @@ class ProcessEnquiryWizard extends Component
             $this->pdfGenerated = ! empty($header->upload_url);
             $this->quotationSent = $this->enquiryQuotationWasSent($enquiry);
             $this->syncApprovalState($enquiry, $header);
+            $this->enquiryStatus = (string) ($enquiry->fresh()?->status ?? $enquiry->status);
 
             $warnings = $service->quotationMismatchWarnings($this->sampleConfigs, $header);
             $this->quotationMismatchWarning = implode(' ', $warnings);
 
             if ($this->quotationMismatchWarning !== '') {
                 $this->clearStatus();
+            } elseif ($this->quotationSent) {
+                $this->setStatus(
+                    'success',
+                    'Using quotation '.$this->quoteNumber.'. Already sent from Billing — enquiry is Quotation Sent. You can send again if needed.'
+                );
             } else {
                 $this->setStatus('success', 'Using quotation '.$this->quoteNumber.'. Review and send when ready.');
             }
@@ -1547,6 +1560,7 @@ class ProcessEnquiryWizard extends Component
                 $enquiry = $quotationService->ensureEnquiryReflectsSentQuotation($enquiry);
                 $this->enquiryStatus = (string) $enquiry->status;
                 $this->quotationSent = true;
+                $this->quotationContentStale = $enquiry->quotation_content_stale_at !== null;
                 $this->syncApprovalState($enquiry, $enquiry->currentQuotation);
             }
 

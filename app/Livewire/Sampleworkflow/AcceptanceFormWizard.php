@@ -15,6 +15,7 @@ use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
 use App\Services\Sampleworkflow\CustomerContactVerificationService;
 use App\Services\Sampleworkflow\SampleReceivingCheckInService;
+use App\Services\Sampleworkflow\TrfLabUseFieldsService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -583,13 +584,18 @@ class AcceptanceFormWizard extends Component
         $enquiry->save();
 
         $user = Auth::user();
-        if ($user instanceof User) {
-            $instance = $this->submissionFormInstanceId
-                ? SubmissionFormInstance::query()->find($this->submissionFormInstanceId)
-                : $enquiry->submissionFormInstance;
+        $instance = $this->submissionFormInstanceId
+            ? SubmissionFormInstance::query()->find($this->submissionFormInstanceId)
+            : $enquiry->submissionFormInstance;
 
+        if ($user instanceof User) {
             if ($instance !== null) {
                 app(SampleReceivingCheckInService::class)->recordReceivingOfficer($user, $instance, $enquiry);
+                app(TrfLabUseFieldsService::class)->applyAfterPhysicalReceive(
+                    $instance,
+                    $user,
+                    $normalizedConfigs,
+                );
             } else {
                 $enquiry->received_by_full_name = (string) $user->name;
                 $enquiry->received_by_date = now()->toDateString();

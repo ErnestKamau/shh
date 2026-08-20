@@ -718,6 +718,7 @@ final class QuotationFromEnquiryService
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
             app(QuotationAcceptanceTatService::class)->stampFirstSentAt($enquiry, $now);
+            $enquiry->quotation_content_stale_at = null;
             $enquiry->save();
 
             $instance = $enquiry->submissionFormInstance;
@@ -968,8 +969,47 @@ final class QuotationFromEnquiryService
             $freshHeader = $lockedHeader->fresh(['details', 'currency']) ?? $lockedHeader;
             $this->seedEnquirySubcontractFlagsFromQuotation($lockedEnquiry, $freshHeader);
 
+            if ($this->enquiryQuotationService->quotationWasDeliveredFromBilling($freshHeader)
+                && ! $this->enquiryQuotationService->wasSentToCustomer($lockedEnquiry, $freshHeader)) {
+                $lockedEnquiry = $this->enquiryQuotationService->inheritBillingDeliveryOntoEnquiry(
+                    $lockedEnquiry->fresh() ?? $lockedEnquiry,
+                    $freshHeader,
+                    EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
+                );
+                $this->attachQuotationPdfForExistingLink($lockedEnquiry, $freshHeader);
+            }
+
             return $freshHeader;
         }, attempts: 3);
+    }
+
+    private function attachQuotationPdfForExistingLink(
+        SampleSubmissionRequest $enquiry,
+        QuotationHeader $header,
+    ): void {
+        $instance = $enquiry->submissionFormInstance
+            ?? ($enquiry->submission_form_instance_id
+                ? \App\Models\SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id)
+                : null);
+
+        if ($instance === null) {
+            return;
+        }
+
+        try {
+            $uploaderId = Auth::id() !== null ? (string) Auth::id() : null;
+            app(SubmissionFormInstanceDocumentAttachmentService::class)->attachQuotation(
+                $instance,
+                $header->fresh() ?? $header,
+                $uploaderId,
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to attach quotation PDF after linking existing billing quotation.', [
+                'enquiry_id' => $enquiry->id,
+                'quotation_id' => $header->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -225,6 +225,52 @@ final class EnquiryQuotationService
         return (string) $latest->id !== (string) $current->id;
     }
 
+    /**
+     * True when Billing already delivered this completed quote (header stamp),
+     * independent of a specific enquiry engagement.
+     */
+    public function quotationWasDeliveredFromBilling(QuotationHeader $quotation): bool
+    {
+        return $quotation->wasSentFromBilling();
+    }
+
+    /**
+     * Mark an enquiry as Quotation Sent for a billing quote that was already
+     * delivered to the customer, without re-sending email/portal.
+     */
+    public function inheritBillingDeliveryOntoEnquiry(
+        SampleSubmissionRequest $enquiry,
+        QuotationHeader $quotation,
+        string $linkSource = EnquiryQuotation::LINK_SOURCE_BILLING_WIZARD,
+    ): SampleSubmissionRequest {
+        $sentAt = $quotation->sent_to_customer_at ?? now();
+
+        $this->recordSentToCustomer(
+            $enquiry,
+            $quotation,
+            sentViaPortal: false,
+            sentViaEmail: true,
+            sentAt: $sentAt,
+            linkSource: $linkSource,
+        );
+
+        if ($enquiry->quotation_first_sent_to_customer_at === null) {
+            $enquiry->quotation_first_sent_to_customer_at = $sentAt;
+        }
+
+        if ((string) $enquiry->current_quotation_header_id !== (string) $quotation->id) {
+            $enquiry->current_quotation_header_id = $quotation->id;
+        }
+
+        $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
+        $enquiry->save();
+
+        return $enquiry->fresh([
+            'currentQuotation',
+            'enquiryQuotations',
+        ]) ?? $enquiry;
+    }
+
     public function markPriorRevisionSuperseded(QuotationHeader $completedRevision): void
     {
         $priorId = trim((string) ($completedRevision->revision_of_quotation_header_id ?? ''));

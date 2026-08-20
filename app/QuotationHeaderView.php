@@ -6,6 +6,7 @@ use App\Casts\PlaintextWithLegacyDecrypt;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class QuotationHeaderView extends Model implements Auditable
@@ -24,6 +25,19 @@ class QuotationHeaderView extends Model implements Auditable
     public function preparedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'prepared_by_id');
+    }
+
+    /**
+     * @return BelongsToMany<SampleAnalysisStage, $this>
+     */
+    public function labSections(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SampleAnalysisStage::class,
+            'quotation_header_lab_sections',
+            'quotation_header_id',
+            'lab_section_id',
+        )->withTimestamps();
     }
 
     public function getContactAttribute(): string

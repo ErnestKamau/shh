@@ -108,7 +108,8 @@ class RequestViewPagePresenter
      *     request_number: ?string,
      *     form_name: string,
      *     enquiry_stage: ?string,
-     *     has_enquiry: bool
+     *     has_enquiry: bool,
+     *     quotation_content_stale: bool
      * }
      */
     public function header(): array
@@ -128,6 +129,7 @@ class RequestViewPagePresenter
             'form_name' => (string) $this->submissionForm->name,
             'enquiry_stage' => $stage,
             'has_enquiry' => $this->commercialEnquiry !== null,
+            'quotation_content_stale' => $this->commercialEnquiry?->quotation_content_stale_at !== null,
         ];
     }
 
@@ -1536,6 +1538,11 @@ class RequestViewPagePresenter
             } else {
                 $primary = $this->action('process_enquiry', $processEnquiryLabel, 'mdi-file-chart-outline', 'wire', 'openProcessEnquiry');
             }
+
+            $syncAction = $this->syncRequestQuotationAction();
+            if ($syncAction !== null) {
+                $secondary[] = $syncAction;
+            }
         } elseif ($stage === self::STAGE_QUOTATION_ACCEPTED) {
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');
         } elseif ($stage === self::STAGE_READY_FOR_RECEPTION) {
@@ -1552,6 +1559,31 @@ class RequestViewPagePresenter
             'primary' => $primary,
             'secondary' => $secondary,
         ];
+    }
+
+    /**
+     * @return ?array{key: string, label: string, icon: string, type: string, wire: ?string, href: ?string, confirm: ?string, target_blank: bool}
+     */
+    private function syncRequestQuotationAction(): ?array
+    {
+        if ($this->commercialEnquiry === null) {
+            return null;
+        }
+
+        $syncService = app(\App\Services\Commercial\EnquiryQuotationContentSyncService::class);
+        if (! $syncService->canSync($this->commercialEnquiry)) {
+            return null;
+        }
+
+        return $this->action(
+            'sync_request_quotation',
+            'Sync Request Quotation',
+            'mdi-sync',
+            'wire',
+            'syncRequestQuotation',
+            null,
+            'Rebuild this request\'s tests/parameters from the linked quotation? Staff-entered TRF answers will be kept.',
+        );
     }
 
     private function isActionAllowedInStage(string $key, string $stage): bool

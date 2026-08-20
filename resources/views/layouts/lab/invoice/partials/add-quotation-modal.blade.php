@@ -1,6 +1,13 @@
 @php
     $customers = $customers ?? collect();
     $currencies = $currencies ?? \App\Models\Currency::query()->orderBy('code')->get();
+    $labSections = $labSections ?? \App\SampleAnalysisStage::query()
+        ->where('active', 1)
+        ->where(function ($query): void {
+            $query->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+        })
+        ->orderBy('name')
+        ->get(['id', 'name', 'code']);
 @endphp
 @include('layouts.lab.invoice.partials.add-quotation-modal-styles')
 <div class="modal fade" id="add-quotation" role="dialog" aria-labelledby="add-quotation-title">
@@ -12,7 +19,7 @@
                     <h4 class="modal-title" id="add-quotation-title">
                         <i class="mdi mdi-file-document-plus-outline"></i> New Quotation
                     </h4>
-                    <p class="modal-subtitle">Select client, contact, and quotation type to continue.</p>
+                    <p class="modal-subtitle">Select client, contact, lab section(s), and quotation type to continue.</p>
                 </div>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -50,6 +57,16 @@
                     <select name="client_contact" id="select-client-contact" class="form-control modern-select ls-select2" required data-placeholder="Select client first...">
                         <option value=""></option>
                     </select>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="soft-label" for="select-lab-sections">Lab Section(s) <span class="text-danger">*</span></label>
+                    <select name="lab_section_ids[]" id="select-lab-sections" class="form-control modern-select ls-select2" multiple required data-placeholder="Select lab section(s)...">
+                        @foreach ($labSections as $section)
+                            <option value="{{ $section->id }}">{{ $section->name }}@if($section->code) ({{ $section->code }})@endif</option>
+                        @endforeach
+                    </select>
+                    <small class="form-text text-muted">A quotation can cover one or more lab sections.</small>
                 </div>
 
                 <div class="row">

@@ -29,7 +29,10 @@ class InventorySubCategories extends Model implements Auditable
 		$req = \App\RequestEntity::find($req_id);
 
 		$myCCs = explode(',', $req->cost_center ?? '');
-		$zStore = \App\StoreToCostCenter::whereIn('cost_center', $myCCs)->first();
+		$zStore = null;
+		if (\Illuminate\Support\Facades\Schema::hasTable('store_to_cost_centers')) {
+			$zStore = \App\StoreToCostCenter::whereIn('cost_center', $myCCs)->first();
+		}
 		if(isset($zStore->store_id)){
 			$zStoreSlot = \App\InventoryStoreSlot::where('inventory_store_id', $zStore->store_id)->first();
 		}

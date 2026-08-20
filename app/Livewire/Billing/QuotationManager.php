@@ -8,6 +8,7 @@ use App\QuotationHeaderView;
 use App\InvoicableItem;
 use App\AnalysisType;
 use App\SampleType;
+use App\SampleAnalysisStage;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\ModulePreConfigs;
@@ -29,6 +30,7 @@ class QuotationManager extends Component
     public $customerFilter = '';
     public $stageFilter = '';
     public $quotationTypeFilter = '';
+    public $labSectionFilter = '';
     public $startDate = '';
     public $endDate = '';
     public $perPage = 25;
@@ -72,9 +74,14 @@ class QuotationManager extends Component
         $this->resetPage();
     }
 
+    public function updatedLabSectionFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function getQuotationsProperty()
     {
-        $query = QuotationHeaderView::with('preparedBy')->where('is_draft', 0);
+        $query = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0);
 
         if ($this->search) {
             $query->where(function($q) {
@@ -92,6 +99,13 @@ class QuotationManager extends Component
 
         if ($this->quotationTypeFilter) {
             $query->where('quotation_type', $this->quotationTypeFilter);
+        }
+
+        if ($this->labSectionFilter) {
+            $labSectionId = (string) $this->labSectionFilter;
+            $query->whereHas('labSections', function ($q) use ($labSectionId): void {
+                $q->where('sample_analysis_stages.id', $labSectionId);
+            });
         }
 
         if ($this->startDate && $this->endDate) {
@@ -112,6 +126,17 @@ class QuotationManager extends Component
     public function getCustomersProperty()
     {
         return CRMCustomer::where('active', 1)->orderBy('name')->get();
+    }
+
+    public function getLabSectionsProperty()
+    {
+        return SampleAnalysisStage::query()
+            ->where('active', 1)
+            ->where(function ($query): void {
+                $query->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
     }
 
     public function getQuotationStagesProperty()
@@ -151,6 +176,7 @@ class QuotationManager extends Component
         $this->customerFilter = '';
         $this->stageFilter = '';
         $this->quotationTypeFilter = '';
+        $this->labSectionFilter = '';
         $this->startDate = now()->startOfMonth()->format('Y-m-d');
         $this->endDate = now()->endOfMonth()->format('Y-m-d');
         $this->resetPage();
@@ -210,6 +236,7 @@ class QuotationManager extends Component
             DB::beginTransaction();
             
             $quotation = QuotationHeader::findOrFail($quotationId);
+            $quotation->labSections()->detach();
             $quotation->details()->delete();
             $quotation->delete();
             
@@ -255,6 +282,7 @@ class QuotationManager extends Component
             'quotations' => $this->quotations,
             'drafts' => $this->drafts,
             'customers' => $this->customers,
+            'labSections' => $this->labSections,
             'quotationStages' => $this->quotationStages,
             'selectedQuotation' => $this->selectedQuotation,
             'stageCounts' => $this->stageCounts,

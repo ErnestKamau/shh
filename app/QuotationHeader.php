@@ -8,6 +8,7 @@ use App\Models\CRM\SamplePoint;
 use App\Models\Currency;
 use App\Models\EnquiryQuotation;
 use App\Models\SampleSubmissionRequest;
+use App\SampleAnalysisStage;
 use App\SampleHeader;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -152,6 +153,21 @@ class QuotationHeader extends Model implements Auditable
     }
 
     /**
+     * Lab sections (SampleAnalysisStage) this quotation is tied to.
+     *
+     * @return BelongsToMany<SampleAnalysisStage, $this>
+     */
+    public function labSections(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SampleAnalysisStage::class,
+            'quotation_header_lab_sections',
+            'quotation_header_id',
+            'lab_section_id',
+        )->withTimestamps();
+    }
+
+    /**
      * @return BelongsToMany<SampleSubmissionRequest, $this>
      */
     public function linkedEnquiries(): BelongsToMany
@@ -172,6 +188,26 @@ class QuotationHeader extends Model implements Auditable
     public function isSuperseded(): bool
     {
         return $this->superseded_by_quotation_header_id !== null;
+    }
+
+    /**
+     * True when Billing already delivered this completed quote to the customer
+     * (Process PDF → Send Quotation), independent of any enquiry engagement.
+     * Also true when any enquiry engagement has already been marked sent for this header.
+     */
+    public function wasSentFromBilling(): bool
+    {
+        if ($this->sent_to_customer_at !== null) {
+            return true;
+        }
+
+        if (trim((string) ($this->email_to_customer ?? '')) !== '') {
+            return true;
+        }
+
+        return $this->enquiryQuotations()
+            ->whereNotNull('sent_to_customer_at')
+            ->exists();
     }
 
     public function samplePoint()

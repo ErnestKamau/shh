@@ -1445,9 +1445,9 @@ function getInventoryWorkflowRoleConfig($workflowRole)
 function getInventoryWorkflowUsers($workflowRole, $departmentId = null)
 {
 	$config = getInventoryWorkflowRoleConfig($workflowRole);
-	$roleNames = $config['role_names'] ?? [];
+	$roleNames = filterExistingSpatieRoleNames($config['role_names'] ?? []);
 
-	$users = ! empty($roleNames)
+	$users = $roleNames !== []
 		? App\User::role($roleNames)
 			->orderBy('name')
 			->where('users.company_id', getUserCompany())
@@ -1483,9 +1483,9 @@ function currentUserHasInventoryWorkflowRole($workflowRole)
 
 	$user = \Auth::user();
 	$config = getInventoryWorkflowRoleConfig($workflowRole);
-	$roleNames = $config['role_names'] ?? [];
+	$roleNames = filterExistingSpatieRoleNames($config['role_names'] ?? []);
 
-	return ! empty($roleNames) && $user->hasRole($roleNames);
+	return $roleNames !== [] && $user->hasRole($roleNames);
 }
 
 function getReportingUnitsByID($id)
@@ -1522,7 +1522,49 @@ function getComplaintsResolutions($id)
 
 function getRoles()
 {
-	return App\Models\Auth\Role::orderBy('name')->where('company_id', getUserCompany())->get();
+	$companyId = getUserCompany();
+
+	return App\Models\Auth\Role::query()
+		->where('guard_name', 'web')
+		->where(function ($query) use ($companyId) {
+			$query->whereNull('company_id');
+
+			if (! empty($companyId)) {
+				$query->orWhere('company_id', $companyId);
+			}
+		})
+		->orderBy('name')
+		->get();
+}
+
+/**
+ * @param  string|array<int, string>  $roleNames
+ * @return array<int, string>
+ */
+function filterExistingSpatieRoleNames(string|array $roleNames): array
+{
+	$requested = collect(is_array($roleNames) ? $roleNames : [$roleNames])
+		->map(fn ($name) => trim((string) $name))
+		->filter()
+		->unique()
+		->values();
+
+	if ($requested->isEmpty()) {
+		return [];
+	}
+
+	return App\Models\Auth\Role::query()
+		->where('guard_name', 'web')
+		->where(function ($query) use ($requested) {
+			foreach ($requested as $name) {
+				$query->orWhereRaw('LOWER(name) = ?', [mb_strtolower($name)]);
+			}
+		})
+		->orderBy('name')
+		->pluck('name')
+		->unique()
+		->values()
+		->all();
 }
 
 /**
@@ -1531,26 +1573,13 @@ function getRoles()
  */
 function getActiveUsersByRole(string|array $roleNames): \Illuminate\Database\Eloquent\Collection
 {
-	$roleNames = collect(is_array($roleNames) ? $roleNames : [$roleNames])
-		->map(fn ($name) => trim((string) $name))
-		->filter()
-		->unique()
-		->values();
+	$existingRoleNames = filterExistingSpatieRoleNames($roleNames);
 
-	if ($roleNames->isEmpty()) {
+	if ($existingRoleNames === []) {
 		return new \Illuminate\Database\Eloquent\Collection();
 	}
 
-	$existingRoleNames = App\Models\Auth\Role::query()
-		->where('guard_name', 'web')
-		->whereIn('name', $roleNames->all())
-		->pluck('name');
-
-	if ($existingRoleNames->isEmpty()) {
-		return new \Illuminate\Database\Eloquent\Collection();
-	}
-
-	return App\User::role($existingRoleNames->all())
+	return App\User::role($existingRoleNames)
 		->where('is_support_staff', 0)
 		->where('active', 1)
 		->orderBy('name')
@@ -2712,19 +2741,21 @@ function getAvailableStockByCostCenter($item_id, $cc){
 
 	$cc = explode(',', $cc);
 	$ccs = array_map('trim', $cc);
-	$store_ids = \App\StoreToCostCenter::whereIn('cost_center', $ccs)->get();
 
-	if($store_ids->count() > 0){
-		$storeIDs = $store_ids->pluck('store_id');
-		$items = $items->whereIn('inventory_store_id', $storeIDs);
+	if (\Illuminate\Support\Facades\Schema::hasTable('store_to_cost_centers')) {
+		$store_ids = \App\StoreToCostCenter::whereIn('cost_center', $ccs)->get();
+
+		if ($store_ids->count() > 0) {
+			$storeIDs = $store_ids->pluck('store_id');
+			$items = $items->whereIn('inventory_store_id', $storeIDs);
+		}
 	}
-
 
 	$totalItems = 0;
 
-	foreach($items->get() as $item){
+	foreach ($items->get() as $item) {
 		$available = floatval($item->stock_in) - floatval($item->stock_out);
-		$totalItems+=$available;
+		$totalItems += $available;
 	}
 
 	return $totalItems;

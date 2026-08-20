@@ -47,17 +47,20 @@ class APIController extends Controller
 			$cc = explode(',', $cc);
 
 			$ccs = array_map('trim', $cc);
-			$store_ids = \App\StoreToCostCenter::whereIn('cost_center', $ccs);
+			$storeIDs = collect();
 
-			if($entity->request_type == "Request to Store"){
-				$store_ids = $store_ids->join('inventory_stores as s', 's.id', 'store_to_cost_centers.store_id');
-				$store_ids = $store_ids->where('s.is_frozen', 0);
+			if (\Illuminate\Support\Facades\Schema::hasTable('store_to_cost_centers')) {
+				$store_ids = \App\StoreToCostCenter::whereIn('cost_center', $ccs);
+
+				if ($entity->request_type == "Request to Store") {
+					$store_ids = $store_ids->join('inventory_stores as s', 's.id', 'store_to_cost_centers.store_id');
+					$store_ids = $store_ids->where('s.is_frozen', 0);
+				}
+
+				$store_ids = $store_ids->get();
+				$storeIDs = $store_ids->pluck('store_id');
+				$items = $items->whereIn('inventory_store_id', $storeIDs);
 			}
-
-			$store_ids = $store_ids->get();
-
-			$storeIDs = $store_ids->pluck('store_id');
-			$items = $items->whereIn('inventory_store_id', $storeIDs);
 		}
 
 		$totalItems = 0;

@@ -59,6 +59,7 @@ use App\Pricelist;
 use App\PricelistCustomer;
 use App\PricelistItem;
 use App\QuotationDetails;
+use App\QuotationHeader;
 use App\Result;
 use App\ReportingUnit;
 use App\SampleAnalysisDates;
@@ -4765,7 +4766,18 @@ class SampleWorkFlowController extends Controller
     public function fetch_sample_type($id)
     {
         $sample_type = SampleType::find($id);
-        $analysis_types = AnalysisType::where('sample_type_id', $sample_type->id)->get();
+        $analysisQuery = AnalysisType::query()->where('sample_type_id', $sample_type->id);
+
+        $quotationHeaderId = trim((string) request()->query('quotation_header_id', ''));
+        if ($quotationHeaderId !== '') {
+            $header = QuotationHeader::query()->find($quotationHeaderId);
+            if ($header !== null) {
+                $analysisQuery = app(\App\Services\Billing\QuotationLabSectionScope::class)
+                    ->constrainAnalysisTypes($analysisQuery, $header);
+            }
+        }
+
+        $analysis_types = $analysisQuery->get();
 
         $final['analysis'] = $analysis_types;
         $final['sample_type'] = $sample_type->name;
@@ -4776,7 +4788,25 @@ class SampleWorkFlowController extends Controller
     public function fetch_sample_analyte($id, $analysis, $detail = false)
     {
         $sample_type = SampleType::find($id);
-        $analysis_types = AnalysisType::where('sample_type_id', $sample_type->id)->get();
+        $analysisQuery = AnalysisType::query()->where('sample_type_id', $sample_type->id);
+
+        $quotationHeaderId = trim((string) request()->query('quotation_header_id', ''));
+        $header = null;
+        if ($quotationHeaderId !== '') {
+            $header = QuotationHeader::query()->find($quotationHeaderId);
+        } elseif ($detail != false) {
+            $detailHeaderId = QuotationDetails::query()->whereKey($detail)->value('quotation_header_id');
+            if ($detailHeaderId) {
+                $header = QuotationHeader::query()->find($detailHeaderId);
+            }
+        }
+
+        if ($header !== null) {
+            $analysisQuery = app(\App\Services\Billing\QuotationLabSectionScope::class)
+                ->constrainAnalysisTypes($analysisQuery, $header);
+        }
+
+        $analysis_types = $analysisQuery->get();
         $analytes = [];
         $selected_analysis = explode(',', $analysis);
         $sub = [];
@@ -4791,9 +4821,14 @@ class SampleWorkFlowController extends Controller
             $both = explode(',', (string) $detail_data->sub_acc_analytes);
         }
         $check = array_merge($sub, $acc, $default, $both);
+        $scope = app(\App\Services\Billing\QuotationLabSectionScope::class);
         foreach ($analysis_types as $type) {
             if (in_array($type->id, $selected_analysis)) {
-                $analysis_analytes = AnalysisElements::where('analysis_type_id', $type->id)->get();
+                $elementsQuery = AnalysisElements::query()->where('analysis_type_id', $type->id);
+                if ($header !== null) {
+                    $elementsQuery = $scope->constrainAnalysisElements($elementsQuery, $header);
+                }
+                $analysis_analytes = $elementsQuery->get();
                 $resolver = app(\App\Services\Lab\UncertaintyBudgetResolver::class);
                 foreach ($analysis_analytes as $aa) {
                     $analyte = getAnalyteByID($aa->analyte_id);

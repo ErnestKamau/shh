@@ -94,6 +94,12 @@
         <td class="meta-label">Subject:</td>
         <td colspan="3"><strong>{{ $subject }}</strong></td>
     </tr>
+    @if(!empty($company_unit))
+    <tr>
+        <td class="meta-label">Company Unit:</td>
+        <td colspan="3">{{ $company_unit }}</td>
+    </tr>
+    @endif
     @if($sampling_location !== '')
     <tr>
         <td class="meta-label">Sampling Location:</td>

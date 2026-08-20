@@ -268,6 +268,17 @@
                         </div>
                         <div class="col-md-2">
                             <div class="form-group mb-3">
+                                <label class="form-label">Lab Section</label>
+                                <select wire:model.live="labSectionFilter" class="form-control">
+                                    <option value="">All Sections</option>
+                                    @foreach($labSections as $section)
+                                        <option value="{{ $section->id }}">{{ $section->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group mb-3">
                                 <label class="form-label">Start Date</label>
                                 <input type="date" wire:model.live="startDate" class="form-control">
                             </div>
@@ -343,6 +354,7 @@
                                         <th style="width: 1%;">Actions</th>
                                         <th>Quote #</th>
                                         <th>Customer</th>
+                                        <th>Lab Section(s)</th>
                                         <th>Type</th>
                                         <th>Date</th>
                                         <th>Expiring</th>
@@ -397,6 +409,16 @@
                                             </td>
                                             <td><strong>{{ $quotation->quote_number }}</strong></td>
                                             <td>{{ $quotation->customer }}</td>
+                                            <td>
+                                                @php
+                                                    $sectionNames = $quotation->labSections->pluck('name')->filter()->values();
+                                                @endphp
+                                                @if($sectionNames->isEmpty())
+                                                    <span class="text-muted">—</span>
+                                                @else
+                                                    {{ $sectionNames->implode(', ') }}
+                                                @endif
+                                            </td>
                                             <td>
                                                 <span class="quotation-type-chip {{ $quotation->quotation_type === 'Analysis' ? 'quotation-type-chip--analysis' : 'quotation-type-chip--general' }}">
                                                     {{ $quotation->quotation_type }}

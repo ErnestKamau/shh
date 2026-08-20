@@ -408,7 +408,15 @@ Route::get('/billing/quotations', function () {
         ->orderBy('name')
         ->get();
 
-    return view('layouts.billing.quotations-index', compact('customers'));
+    $labSections = \App\SampleAnalysisStage::query()
+        ->where('active', 1)
+        ->where(function ($query): void {
+            $query->where('is_sample_stage', 0)->orWhereNull('is_sample_stage');
+        })
+        ->orderBy('name')
+        ->get(['id', 'name', 'code']);
+
+    return view('layouts.billing.quotations-index', compact('customers', 'labSections'));
 })->name('billing.quotations')->middleware('can:laboratory.components.quotation.view');
 
 Route::get('/billing/sales-order/create', function () {

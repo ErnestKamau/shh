@@ -262,7 +262,19 @@ final class EnquiryFromQuotationService
     }
 
     /**
-     * Create enquiry + TRF, then send the owned quotation to the customer.
+     * Build sample configs from a completed quotation (same shape as create-from-quotation).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function sampleConfigsFromQuotation(QuotationHeader $quotation, int $numberOfSamples): array
+    {
+        $lines = $this->eligibleQuotationLines($quotation);
+
+        return $this->buildSampleConfigs($lines, max(1, $numberOfSamples));
+    }
+
+    /**
+     * Create enquiry + TRF, then send — or inherit Billing delivery as Quotation Sent.
      *
      * @param  array<string, mixed>  $intake
      */
@@ -272,9 +284,33 @@ final class EnquiryFromQuotationService
         string $creationToken,
         bool $sendPortal = false,
         bool $sendEmail = true,
+        bool $notifyAgain = false,
     ): SampleSubmissionRequest {
-        $intake['creation_intent'] = self::INTENT_PREPARE;
         $intake['source_channel'] = $this->normalizeSourceChannel($intake['source_channel'] ?? null);
+
+        $alreadyDelivered = $this->enquiryQuotationService->quotationWasDeliveredFromBilling($sourceQuotation);
+
+        if ($alreadyDelivered && ! $notifyAgain) {
+            $intake['creation_intent'] = self::INTENT_ALREADY_SENT;
+            $enquiry = $this->create($sourceQuotation, $intake, $creationToken);
+
+            if ((string) $enquiry->source_channel === 'quotation') {
+                $enquiry->source_channel = CommercialEnquirySyncService::SOURCE_WALK_IN;
+                $enquiry->save();
+            }
+
+            $header = $enquiry->currentQuotation ?? $sourceQuotation;
+            $this->attachQuotationPdfToEnquiry($enquiry, $header);
+
+            return $enquiry->fresh([
+                'currentQuotation.details',
+                'submissionFormInstance',
+                'requestedAnalyses',
+                'contact',
+            ]) ?? $enquiry;
+        }
+
+        $intake['creation_intent'] = self::INTENT_PREPARE;
 
         $enquiry = $this->create($sourceQuotation, $intake, $creationToken);
 
@@ -314,6 +350,35 @@ final class EnquiryFromQuotationService
             }
 
             throw $exception;
+        }
+    }
+
+    private function attachQuotationPdfToEnquiry(
+        SampleSubmissionRequest $enquiry,
+        QuotationHeader $header,
+    ): void {
+        $instance = $enquiry->submissionFormInstance
+            ?? ($enquiry->submission_form_instance_id
+                ? \App\Models\SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id)
+                : null);
+
+        if ($instance === null) {
+            return;
+        }
+
+        try {
+            $uploaderId = Auth::id() !== null ? (string) Auth::id() : null;
+            app(SubmissionFormInstanceDocumentAttachmentService::class)->attachQuotation(
+                $instance,
+                $header->fresh() ?? $header,
+                $uploaderId,
+            );
+        } catch (Throwable $exception) {
+            Log::warning('Failed to attach quotation PDF after create-from-quotation (already sent).', [
+                'enquiry_id' => $enquiry->id,
+                'quotation_id' => $header->id,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 
@@ -901,7 +966,7 @@ final class EnquiryFromQuotationService
         array $intake,
     ): SampleSubmissionRequest {
         if ($intent === self::INTENT_ALREADY_SENT) {
-            $sentAt = now();
+            $sentAt = $quotation->sent_to_customer_at ?? now();
             $this->enquiryQuotationService->recordSentToCustomer(
                 $enquiry,
                 $quotation,
@@ -912,7 +977,7 @@ final class EnquiryFromQuotationService
             );
 
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
-            $enquiry->quotation_first_sent_to_customer_at = $sentAt;
+            $enquiry->quotation_first_sent_to_customer_at = $enquiry->quotation_first_sent_to_customer_at ?? $sentAt;
             $enquiry->save();
 
             return $enquiry->fresh([

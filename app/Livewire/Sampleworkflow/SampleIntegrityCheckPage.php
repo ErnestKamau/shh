@@ -14,6 +14,7 @@ use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
 use App\Services\Sampleworkflow\RequestTestExportDataService;
 use App\Services\Sampleworkflow\RequestTestWorksheetPdfService;
 use App\Services\Sampleworkflow\SampleIntegrityCheckService;
+use App\Services\Sampleworkflow\TrfLabUseFieldsService;
 use App\User;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
@@ -1025,6 +1026,8 @@ class SampleIntegrityCheckPage extends Component
      *     key: string,
      *     label: string,
      *     customer_sample_id: string,
+     *     sample_condition_name: string,
+     *     condition_not_acceptable: bool,
      *     total: int,
      *     complete: int,
      *     incomplete: int,
@@ -1034,6 +1037,13 @@ class SampleIntegrityCheckPage extends Component
     public function getSampleSummariesProperty(): array
     {
         $groups = [];
+        $conditionByConfigId = [];
+
+        if ($this->enquiry !== null) {
+            $configs = app(SampleIntegrityCheckService::class)
+                ->resolveConfigs($this->enquiry, $this->instance);
+            $conditionByConfigId = TrfLabUseFieldsService::conditionNameByConfigId($configs);
+        }
 
         foreach ($this->testRows as $row) {
             $key = (string) ($row['config_id'] ?? '');
@@ -1042,10 +1052,13 @@ class SampleIntegrityCheckPage extends Component
             }
 
             if (! isset($groups[$key])) {
+                $conditionName = trim((string) ($conditionByConfigId[$key] ?? ''));
                 $groups[$key] = [
                     'key' => $key,
                     'label' => (string) ($row['sample_label'] ?? 'Sample'),
                     'customer_sample_id' => (string) ($row['customer_sample_id'] ?? ''),
+                    'sample_condition_name' => $conditionName,
+                    'condition_not_acceptable' => TrfLabUseFieldsService::isNotAcceptableConditionName($conditionName),
                     'total' => 0,
                     'complete' => 0,
                     'incomplete' => 0,

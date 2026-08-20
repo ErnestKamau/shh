@@ -25,7 +25,7 @@
         @livewire('billing.quotation-manager')
     </main>
 
-    @include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers])
+        @include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers, 'labSections' => $labSections ?? collect()])
 @endsection
 
 @section('script2')

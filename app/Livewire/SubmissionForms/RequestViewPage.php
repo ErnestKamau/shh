@@ -1551,6 +1551,38 @@ class RequestViewPage extends Component
             ->to(ProcessEnquiryWizard::class);
     }
 
+    public function syncRequestQuotation(): void
+    {
+        if ($this->commercialEnquiry === null) {
+            $this->dispatch('notify', type: 'error', message: 'No commercial enquiry is linked to this request.');
+
+            return;
+        }
+
+        try {
+            $enquiry = app(\App\Services\Commercial\EnquiryQuotationContentSyncService::class)
+                ->sync($this->commercialEnquiry);
+
+            $this->commercialEnquiry = $enquiry;
+            $this->instance = $this->instance->fresh([
+                'values.element',
+                'sampleSubmissionRequest.currentQuotation',
+                'sampleSubmissionRequest.requestedAnalyses',
+            ]) ?? $this->instance;
+
+            $message = 'Request tests/parameters synced from quotation '
+                .((string) ($enquiry->currentQuotation?->quote_number ?? '')).'.';
+
+            if ($enquiry->quotation_content_stale_at !== null) {
+                $message .= ' Quotation content changed since send — use Process enquiry to send again if needed.';
+            }
+
+            $this->dispatch('notify', type: 'success', message: $message);
+        } catch (\Throwable $exception) {
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
+        }
+    }
+
     public function openRejectWizard(): void
     {
         $this->authorizeFormAccess(auth()->user());

@@ -18,7 +18,10 @@
         class="{{ $classes }}"
         wire:click="{{ $action['wire'] }}"
         wire:loading.attr="disabled"
-        wire:target="{{ $action['wire'] }}">
+        wire:target="{{ $action['wire'] }}"
+        @if(!empty($action['confirm']))
+            onclick="return confirm(@json($action['confirm']));"
+        @endif>
         <i class="mdi {{ $icon }}{{ $isDropdown ? ' mr-2' : '' }}" aria-hidden="true"></i>{{ $action['label'] }}
     </button>
 @elseif($type === 'modal')

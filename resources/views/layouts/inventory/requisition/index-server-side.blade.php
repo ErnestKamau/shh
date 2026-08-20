@@ -35,10 +35,10 @@
         )
 			);
 
-			$inventoryAssistantSupervisorRoles = ['Inventory Assistant Supervisor Group', 'Assistant Supervisor', 'Supervisor', 'Admin'];
-			$inventoryProcurementRoles = ['Inventory Procurement Group', 'Procurement', 'Admin'];
-			$isInventoryAssistantSupervisor = $user->hasAnyRole($inventoryAssistantSupervisorRoles);
-			$isInventoryProcurement = $user->hasAnyRole($inventoryProcurementRoles);
+			$inventoryAssistantSupervisorRoles = filterExistingSpatieRoleNames(['Inventory Assistant Supervisor Group', 'Assistant Supervisor', 'Supervisor', 'Admin']);
+			$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin']);
+			$isInventoryAssistantSupervisor = $inventoryAssistantSupervisorRoles !== [] && $user->hasAnyRole($inventoryAssistantSupervisorRoles);
+			$isInventoryProcurement = $inventoryProcurementRoles !== [] && $user->hasAnyRole($inventoryProcurementRoles);
 
 			$lab_department_id = getConfigByName('lab_department_id');
 			$lab_department_id = count($lab_department_id) > 0 ? $lab_department_id[0]->value : 0;
@@ -293,7 +293,7 @@
 																	<select name="role_id" class="form-control" placeholder="Select Approval User..." required>
 																		<option></option>
 																		@foreach (getRoles() as $item)
-																			<option value="{{ $item->id }}" {{ $item->id == $approval->role_id ? 'selected' : '' }}>{{ $item->name }}</option>
+																			<option value="{{ $item->id }}" {{ ($item->name === $approval->role_group_name || (string) $item->id === (string) $approval->role_id) ? 'selected' : '' }}>{{ $item->name }}</option>
 																		@endforeach
 																	</select>
 																</div>
