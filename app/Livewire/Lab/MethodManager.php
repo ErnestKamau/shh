@@ -3,7 +3,9 @@
 namespace App\Livewire\Lab;
 
 use App\AnalysisMethod;
+use App\Company;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Models\BulkImportBatch;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Equipments\Equipment;
 use App\Models\QcModule\Configurations\QcSchemes;
@@ -11,16 +13,20 @@ use App\Models\QcModule\QcSchemeBinding;
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
 use App\SampleType;
+use App\Services\BulkImportService;
 use App\Services\Lab\MethodConfigurationResolver;
 use App\Standards;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class MethodManager extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use WithFileUploads;
     use WithPagination;
 
     protected $paginationTheme = 'bootstrap';
@@ -79,6 +85,15 @@ class MethodManager extends Component
     // Messages
     public $message = '';
     public $messageType = '';
+
+    public bool $showBulkImportModal = false;
+
+    /** @var mixed */
+    public $bulkFile = null;
+
+    public bool $replaceExisting = true;
+
+    public string $purgeConfirmation = '';
 
     protected function rules(): array
     {
@@ -391,6 +406,116 @@ class MethodManager extends Component
     public function dismissMessage(): void
     {
         $this->message = '';
+    }
+
+    public function openBulkImportModal(): void
+    {
+        $this->showBulkImportModal = true;
+        $this->bulkFile = null;
+        $this->replaceExisting = true;
+        $this->purgeConfirmation = '';
+        $this->resetValidation(['bulkFile', 'purgeConfirmation']);
+    }
+
+    public function closeBulkImportModal(): void
+    {
+        $this->showBulkImportModal = false;
+        $this->bulkFile = null;
+        $this->replaceExisting = true;
+        $this->purgeConfirmation = '';
+        $this->resetValidation(['bulkFile', 'purgeConfirmation']);
+    }
+
+    public function downloadBulkImportTemplate()
+    {
+        return app(BulkImportService::class)->generateTemplate('lab', 'analysis_method');
+    }
+
+    public function processBulkImport(): void
+    {
+        $companyName = $this->resolveCompanyName();
+        $rules = [
+            'bulkFile' => 'required|file|mimes:xlsx,xls,csv|max:15360',
+        ];
+
+        if ($this->replaceExisting) {
+            $rules['purgeConfirmation'] = [
+                'required',
+                'string',
+                Rule::in(array_values(array_filter(['DELETE ALL METHODS', $companyName]))),
+            ];
+        }
+
+        $this->validate($rules, [
+            'purgeConfirmation.in' => 'Type DELETE ALL METHODS or your company name exactly to confirm.',
+        ]);
+
+        $batch = null;
+
+        try {
+            $service = app(BulkImportService::class);
+            $batch = $service->createBatch('lab', 'analysis_method');
+            $results = $service->processImport(
+                $batch,
+                $this->bulkFile,
+                null,
+                $this->replaceExisting
+            );
+
+            $this->closeBulkImportModal();
+            $this->resetPage();
+
+            if (! ($results['success'] ?? false)) {
+                $this->setMessage('Error processing file: '.($results['message'] ?? 'Unknown error'), 'error');
+
+                return;
+            }
+
+            $summary = $results['summary'] ?? [];
+            $imported = (int) ($summary['imported_rows'] ?? 0);
+            $errors = (int) ($summary['error_rows'] ?? 0);
+
+            if ($errors > 0) {
+                $errorList = is_array($summary['errors'] ?? null) ? $summary['errors'] : [];
+                $errorMessage = implode(' | ', array_map(
+                    fn (array $error): string => (string) ($error['message'] ?? 'Unknown error'),
+                    array_slice($errorList, 0, 5)
+                ));
+                if (count($errorList) > 5) {
+                    $errorMessage .= ' ... and more';
+                }
+                $this->setMessage(
+                    "{$imported} method(s) imported. {$errors} row(s) failed. Errors: {$errorMessage}",
+                    'warning'
+                );
+
+                return;
+            }
+
+            $this->setMessage("{$imported} method(s) imported successfully.", 'success');
+        } catch (\Throwable $e) {
+            $this->closeBulkImportModal();
+
+            if ($batch instanceof BulkImportBatch) {
+                try {
+                    $batch->markAsFailed($e->getMessage());
+                } catch (\Throwable) {
+                }
+            }
+
+            $this->setMessage('Error processing file: '.$e->getMessage(), 'error');
+        }
+    }
+
+    public function resolveCompanyName(): string
+    {
+        $companyId = Auth::user()->company_id ?? Auth::user()->inventory_location_id;
+
+        if (! $companyId) {
+            return '';
+        }
+
+        return (string) (Company::query()->whereKey($companyId)->value('name') ?? '');
     }
 
     public function render()

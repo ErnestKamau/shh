@@ -5,6 +5,8 @@ namespace App\Services\Sampleworkflow;
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
 use App\Country;
+use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\SamplePoint;
 use App\Models\SubmissionFormInstance;
 use App\SampleAnalysisDates;
 use App\SampleDetails;
@@ -126,10 +128,12 @@ class TestRequestReportDataService
             $formData['method_of_sampling'] ?? null,
         ) ?? '-';
 
-        $samplingLocation = $this->firstNonEmptyFromMixed(
+        $samplingLocation = $this->firstResolvedSampleLocationLabel(
             $collection['sampling_location'] ?? null,
             $formData['sampling_location'] ?? null,
+            $firstDetail?->sample_point_id ?? null,
             $batch->crm_unit_name ?? null,
+            $batch->crm_unit_id ?? null,
         ) ?? '-';
 
         $additionalNotes = $this->firstNonEmptyFromMixed(
@@ -137,7 +141,7 @@ class TestRequestReportDataService
             is_array($trfPayload) ? ($trfPayload['signatures']['remarks'] ?? null) : null,
         ) ?? '-';
 
-        $originCountry = $this->firstNonEmptyFromMixed(
+        $originCountry = $this->firstResolvedCountryLabel(
             $formData['origin_country'] ?? null,
             $formData['country_of_origin'] ?? null,
             $firstRawRow['origin_country'] ?? null,
@@ -173,10 +177,11 @@ class TestRequestReportDataService
 
         $samplePointByIndex = [];
         foreach ($samples->values() as $index => $sample) {
-            $samplePointByIndex[$index] = $this->firstNonEmptyFromMixed(
+            $samplePointByIndex[$index] = $this->firstResolvedSamplePointLabel(
                 $sample->sample_point_name ?? null,
+                $sample->sample_point_id ?? null,
                 $normalizedRows[$index]['sampling_point'] ?? $normalizedRows[$index]['location'] ?? null,
-                $trfRows[$index]['sampling_point'] ?? $trfRows[$index]['location'] ?? null,
+                $trfRows[$index]['sampling_point'] ?? $trfRows[$index]['location'] ?? $trfRows[$index]['sampling_location'] ?? null,
             ) ?? '-';
         }
 
@@ -350,10 +355,11 @@ class TestRequestReportDataService
                 $formData['sample_temperature'] ?? null,
             ) ?? '-';
 
-            $samplingPoint = $this->firstNonEmptyFromMixed(
+            $samplingPoint = $this->firstResolvedSamplePointLabel(
                 $sample->sample_point_name ?? null,
+                $sample->sample_point_id ?? null,
                 $normalizedRow['sampling_point'] ?? $normalizedRow['location'] ?? null,
-                $rawRow['sampling_point'] ?? $rawRow['location'] ?? null,
+                $rawRow['sampling_point'] ?? $rawRow['location'] ?? $rawRow['sampling_location'] ?? null,
             ) ?? '-';
 
             $sampleCondition = $this->firstNonEmptyFromMixed(
@@ -441,7 +447,14 @@ class TestRequestReportDataService
                         'right' => ['label' => 'analysis_end_date', 'value' => (string) ($shared['analysisEndDate'] ?? '-')],
                     ],
                     [
-                        'left' => ['label' => 'sampling_location', 'value' => (string) ($shared['samplingLocation'] ?? '-')],
+                        'left' => ['label' => 'sampling_location', 'value' => $this->firstResolvedSampleLocationLabel(
+                            $shared['samplingLocation'] ?? null,
+                            $sample->sample_point_id ?? null,
+                            $normalizedRow['sampling_location'] ?? $normalizedRow['location'] ?? null,
+                            $rawRow['sampling_location'] ?? $rawRow['location'] ?? null,
+                            $batch->crm_unit_name ?? null,
+                            $batch->crm_unit_id ?? null,
+                        ) ?? '-'],
                         'right' => ['label' => 'reporting_date', 'value' => (string) ($shared['approvalDate'] ?? date('d/m/Y'))],
                     ],
                     [
@@ -575,6 +588,106 @@ class TestRequestReportDataService
     private function looksLikeUuid(string $value): bool
     {
         return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value);
+    }
+
+    private function firstResolvedSamplePointLabel(mixed ...$candidates): ?string
+    {
+        return $this->firstResolvedReferenceLabel(
+            fn (string $id): string => $this->resolveSamplePointName($id),
+            ...$candidates,
+        );
+    }
+
+    private function firstResolvedSampleLocationLabel(mixed ...$candidates): ?string
+    {
+        return $this->firstResolvedReferenceLabel(
+            fn (string $id): string => $this->resolveSamplingLocationName($id),
+            ...$candidates,
+        );
+    }
+
+    private function firstResolvedCountryLabel(mixed ...$candidates): ?string
+    {
+        return $this->firstResolvedReferenceLabel(
+            fn (string $id): string => trim((string) (Country::query()->whereKey($id)->value('name') ?? '')),
+            ...$candidates,
+        );
+    }
+
+    private function firstResolvedReferenceLabel(callable $uuidResolver, mixed ...$candidates): ?string
+    {
+        foreach ($candidates as $candidate) {
+            $value = $this->scalarValue($candidate);
+            if ($value === '' || $value === '-') {
+                continue;
+            }
+
+            if ($this->looksLikeUuid($value) || ctype_digit($value)) {
+                $resolved = trim((string) $uuidResolver($value));
+                if ($resolved !== '' && ! $this->looksLikeUuid($resolved)) {
+                    return $resolved;
+                }
+
+                continue;
+            }
+
+            return $value;
+        }
+
+        return null;
+    }
+
+    private function resolveSamplePointName(string $id): string
+    {
+        $point = SamplePoint::query()->with('unit')->find($id);
+        if ($point !== null) {
+            $name = $this->humanSamplePointName($point);
+            if ($name !== '') {
+                return $name;
+            }
+
+            $unitName = trim((string) ($point->unit?->name ?? ''));
+            if ($unitName !== '') {
+                return $unitName;
+            }
+        }
+
+        return trim((string) (CRMCompanyUnit::query()->whereKey($id)->value('name') ?? ''));
+    }
+
+    private function resolveSamplingLocationName(string $id): string
+    {
+        $point = SamplePoint::query()->with('unit')->find($id);
+        if ($point !== null) {
+            $unitName = trim((string) ($point->unit?->name ?? ''));
+            $pointName = $this->humanSamplePointName($point);
+            if ($unitName !== '' && $pointName !== '') {
+                return $unitName.', '.$pointName;
+            }
+            if ($unitName !== '') {
+                return $unitName;
+            }
+            if ($pointName !== '') {
+                return $pointName;
+            }
+        }
+
+        return trim((string) (CRMCompanyUnit::query()->whereKey($id)->value('name') ?? ''));
+    }
+
+    private function humanSamplePointName(SamplePoint $point): string
+    {
+        $name = trim((string) ($point->getAttributes()['name'] ?? ''));
+        if ($name !== '' && ! $this->looksLikeUuid($name)) {
+            return $name;
+        }
+
+        $code = trim((string) ($point->code ?? ''));
+        if ($code !== '' && ! $this->looksLikeUuid($code)) {
+            return $code;
+        }
+
+        return '';
     }
 
     /**

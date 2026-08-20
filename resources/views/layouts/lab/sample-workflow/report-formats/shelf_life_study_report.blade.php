@@ -316,6 +316,42 @@
         padding-top: 12px;
         border-top: 1px dashed #d0d0d0;
     }
+    .trr-sample-photo-page {
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px dashed #d0d0d0;
+        page-break-before: always;
+        page-break-inside: avoid;
+    }
+    .trr-sample-photo-heading {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 0 12px;
+        font-size: 10pt;
+    }
+    .trr-sample-photo-heading th {
+        background: #8B1A1A;
+        color: #fff;
+        text-align: left;
+        padding: 6px 8px;
+        border: 1px solid #6e1515;
+        font-size: 10pt;
+        letter-spacing: 0.02em;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .trr-sample-photo-frame {
+        text-align: center;
+        padding: 8px 0 4px;
+    }
+    .trr-sample-photo-frame img {
+        max-width: 100%;
+        max-height: 420px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border: 1px solid #ccc;
+    }
 
     /* ── RESULTS TABLE ──────────────────────────── */
     .results-table {
@@ -694,6 +730,26 @@
         padding-top: 0;
         border-top: none;
     }
+    .trr-sample-photo-page {
+        page-break-before: always;
+        page-break-inside: avoid;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+    }
+    .trr-sample-photo-heading {
+        font-size: 9pt;
+        margin-bottom: 10px;
+        page-break-after: avoid;
+    }
+    .trr-sample-photo-heading th {
+        padding: 5px 7px;
+        font-size: 9pt;
+    }
+    .trr-sample-photo-frame img {
+        max-width: 100%;
+        max-height: 170mm;
+    }
     .results-table {
         font-size: 8pt;
         margin-bottom: 6px;
@@ -772,6 +828,13 @@
             font-size: 64pt;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+        }
+        .trr-sample-photo-page {
+            page-break-before: always;
+            page-break-inside: avoid;
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
         }
     }
 </style>
@@ -863,10 +926,6 @@
             @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-client-info')
 
             @include('layouts.lab.sample-workflow.report-formats.partials.trr-sample-detail-grid', [
-                'sampleIndex' => $loop->index,
-            ])
-
-            @include('layouts.lab.sample-workflow.report-formats.partials.trr-sample-photo', [
                 'sampleIndex' => $loop->index,
             ])
 
@@ -983,6 +1042,11 @@
                     <li>{{ $labels['shelf_life_note_2'] }}</li>
                 </ol>
             </div>
+
+            @include('layouts.lab.sample-workflow.report-formats.partials.trr-sample-photo', [
+                'sampleIndex' => $loop->index,
+                'sampleCode' => $sample->sample_code ?? '',
+            ])
 
             @if(empty($isPdfMode))
                 @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-legal-footer')

@@ -8,7 +8,11 @@ use App\Standards;
 use App\StandardValue;
 use App\StandardAnalytes;
 use App\Analyte;
+use App\AnalysisMethod;
+use App\ReportingUnit;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -42,7 +46,9 @@ class StandardAnalytesManager extends Component
         'rel_std_dev' => '',
         'tolerance_1' => '',
         'tolerance_2' => '',
-        'value_type' => ''
+        'value_type' => '',
+        'method_ids' => [],
+        'reporting_unit' => '',
     ];
 
     // Supporting Data
@@ -58,6 +64,13 @@ class StandardAnalytesManager extends Component
     public $showStandardValueDropdown = false;
     public $filteredAnalytes = [];
     public $filteredStandardValues = [];
+
+    public string $methodSearch = '';
+    public string $reportingUnitSearch = '';
+    public bool $showMethodDropdown = false;
+    public bool $showReportingUnitDropdown = false;
+
+    protected int $searchResultLimit = 30;
 
     // Search and Filter
     public $search = '';
@@ -94,7 +107,7 @@ class StandardAnalytesManager extends Component
 
     public function getStandardAnalytesProperty()
     {
-        $query = StandardAnalytes::with(['analyte', 'standardValue'])
+        $query = StandardAnalytes::with(['analyte.analysisMethods', 'standardValue'])
             ->where('standard_id', $this->standardId);
 
         if ($this->search) {
@@ -186,7 +199,13 @@ class StandardAnalytesManager extends Component
             'matrix_value' => $isValueSelected
                 ? ($standardAnalyte->matrix_value ?: ($standardAnalyte->standard_is_value ?? ''))
                 : '',
+            'method_ids' => [],
+            'reporting_unit' => '',
         ];
+
+        $this->hydrateAnalyteMethodAndUnit(
+            Analyte::query()->with('analysisMethods')->find($standardAnalyte->analyte_id)
+        );
         
         $this->editingStandardAnalyte = $id;
         $this->showStandardAnalyteModal = true;
@@ -279,6 +298,8 @@ class StandardAnalytesManager extends Component
                 $this->message = 'Standard analyte created successfully!';
             }
 
+            $this->backfillAnalyteFromForm((string) $this->standardAnalyteForm['analyte_id']);
+
             DB::commit();
             $this->closeStandardAnalyteModal();
             $this->messageType = 'success';
@@ -335,7 +356,9 @@ class StandardAnalytesManager extends Component
             'tolerance_2' => '',
             'value_type' => 'range', // Default to range
             'matrix_operator' => '',
-            'matrix_value' => ''
+            'matrix_value' => '',
+            'method_ids' => [],
+            'reporting_unit' => '',
         ];
         $this->editingStandardAnalyte = null;
         $this->resetSearchableSelectState();
@@ -355,6 +378,8 @@ class StandardAnalytesManager extends Component
     {
         $this->showAnalyteDropdown = false;
         $this->showStandardValueDropdown = false;
+        $this->showMethodDropdown = false;
+        $this->showReportingUnitDropdown = false;
     }
 
     public function searchAnalytes(): void
@@ -372,7 +397,10 @@ class StandardAnalytesManager extends Component
 
     public function selectAnalyte(int|string $id): void
     {
-        $analyte = Analyte::query()->where('active', 1)->find($id);
+        $analyte = Analyte::query()
+            ->with('analysisMethods')
+            ->where('active', 1)
+            ->find($id);
         if (! $analyte) {
             return;
         }
@@ -381,14 +409,21 @@ class StandardAnalytesManager extends Component
         $this->selectedAnalyteName = $analyte->name;
         $this->analyteSearch = $analyte->name;
         $this->showAnalyteDropdown = false;
+        $this->hydrateAnalyteMethodAndUnit($analyte);
     }
 
     public function clearAnalyte(): void
     {
         $this->standardAnalyteForm['analyte_id'] = null;
+        $this->standardAnalyteForm['method_ids'] = [];
+        $this->standardAnalyteForm['reporting_unit'] = '';
         $this->selectedAnalyteName = '';
         $this->analyteSearch = '';
+        $this->methodSearch = '';
+        $this->reportingUnitSearch = '';
         $this->showAnalyteDropdown = false;
+        $this->showMethodDropdown = false;
+        $this->showReportingUnitDropdown = false;
     }
 
     public function searchStandardValues(): void
@@ -497,6 +532,235 @@ class StandardAnalytesManager extends Component
         $this->showStandardValueDropdown = false;
         $this->filteredAnalytes = [];
         $this->filteredStandardValues = [];
+        $this->methodSearch = '';
+        $this->reportingUnitSearch = '';
+        $this->showMethodDropdown = false;
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function openMethodDropdown(): void
+    {
+        $this->showMethodDropdown = true;
+        $this->showReportingUnitDropdown = false;
+        $this->showAnalyteDropdown = false;
+        $this->showStandardValueDropdown = false;
+    }
+
+    public function closeMethodDropdown(): void
+    {
+        $this->showMethodDropdown = false;
+    }
+
+    public function addMethod(string $methodId): void
+    {
+        $selected = $this->normalizeIdList($this->standardAnalyteForm['method_ids'] ?? []);
+
+        if (! in_array($methodId, $selected, true)) {
+            $selected[] = $methodId;
+        }
+
+        $this->standardAnalyteForm['method_ids'] = $selected;
+        $this->methodSearch = '';
+        $this->showMethodDropdown = false;
+    }
+
+    public function removeMethod(string $methodId): void
+    {
+        $this->standardAnalyteForm['method_ids'] = array_values(array_filter(
+            $this->normalizeIdList($this->standardAnalyteForm['method_ids'] ?? []),
+            fn (string $id): bool => $id !== $methodId
+        ));
+    }
+
+    public function updatedMethodSearch(): void
+    {
+        $this->showMethodDropdown = true;
+        $this->showReportingUnitDropdown = false;
+        $this->showAnalyteDropdown = false;
+        $this->showStandardValueDropdown = false;
+    }
+
+    public function openReportingUnitDropdown(): void
+    {
+        $this->showReportingUnitDropdown = true;
+        $this->showMethodDropdown = false;
+        $this->showAnalyteDropdown = false;
+        $this->showStandardValueDropdown = false;
+    }
+
+    public function closeReportingUnitDropdown(): void
+    {
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function selectReportingUnit(string $unit): void
+    {
+        $this->standardAnalyteForm['reporting_unit'] = $unit;
+        $this->reportingUnitSearch = '';
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function clearReportingUnit(): void
+    {
+        $this->standardAnalyteForm['reporting_unit'] = '';
+        $this->reportingUnitSearch = '';
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function updatedReportingUnitSearch(): void
+    {
+        $this->showReportingUnitDropdown = true;
+        $this->showMethodDropdown = false;
+        $this->showAnalyteDropdown = false;
+        $this->showStandardValueDropdown = false;
+    }
+
+    public function getFilteredMethodsProperty(): Collection
+    {
+        if (! $this->showMethodDropdown) {
+            return collect();
+        }
+
+        $query = $this->methodOptionsQuery($this->methodSearch);
+        $selectedIds = $this->normalizeIdList($this->standardAnalyteForm['method_ids'] ?? []);
+
+        if ($selectedIds !== []) {
+            $query->whereNotIn('id', $selectedIds);
+        }
+
+        return $query->limit($this->searchResultLimit)->get();
+    }
+
+    public function getSelectedMethodsProperty(): Collection
+    {
+        $ids = $this->normalizeIdList($this->standardAnalyteForm['method_ids'] ?? []);
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return AnalysisMethod::query()
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getFilteredReportingUnitsProperty(): Collection
+    {
+        if (! $this->showReportingUnitDropdown) {
+            return collect();
+        }
+
+        return $this->reportingUnitOptionsQuery($this->reportingUnitSearch)
+            ->limit($this->searchResultLimit)
+            ->get();
+    }
+
+    /**
+     * @param  array<int, mixed>  $ids
+     * @return list<string>
+     */
+    protected function normalizeIdList(array $ids): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map(
+                static fn ($id): string => trim((string) ($id ?? '')),
+                $ids
+            ),
+            static fn (string $id): bool => $id !== ''
+        )));
+    }
+
+    /**
+     * @return Builder<AnalysisMethod>
+     */
+    protected function methodOptionsQuery(?string $search = null): Builder
+    {
+        $query = AnalysisMethod::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name', 'code'], (string) $search);
+
+        return $query;
+    }
+
+    /**
+     * @return Builder<ReportingUnit>
+     */
+    protected function reportingUnitOptionsQuery(?string $search = null): Builder
+    {
+        $query = ReportingUnit::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $this->applyCaseInsensitiveSearch($query, ['name'], (string) $search);
+
+        return $query;
+    }
+
+    protected function hydrateAnalyteMethodAndUnit(?Analyte $analyte): void
+    {
+        if (! $analyte) {
+            $this->standardAnalyteForm['method_ids'] = [];
+            $this->standardAnalyteForm['reporting_unit'] = '';
+
+            return;
+        }
+
+        $this->standardAnalyteForm['method_ids'] = $this->resolveAnalyteMethodIds($analyte);
+        $this->standardAnalyteForm['reporting_unit'] = (string) ($analyte->reporting_unit ?? '');
+        $this->methodSearch = '';
+        $this->reportingUnitSearch = '';
+        $this->showMethodDropdown = false;
+        $this->showReportingUnitDropdown = false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function resolveAnalyteMethodIds(Analyte $analyte): array
+    {
+        $fromPivot = $analyte->relationLoaded('analysisMethods')
+            ? $analyte->analysisMethods->pluck('id')->all()
+            : $analyte->analysisMethods()->pluck('analysis_methods.id')->all();
+
+        $ids = $this->normalizeIdList($fromPivot);
+        if ($ids !== []) {
+            return $ids;
+        }
+
+        $raw = trim((string) ($analyte->method ?? ''));
+        if ($raw === '') {
+            return [];
+        }
+
+        return $this->normalizeIdList(explode(',', $raw));
+    }
+
+    protected function backfillAnalyteFromForm(string $analyteId): void
+    {
+        $analyte = Analyte::query()->with('analysisMethods')->find($analyteId);
+        if (! $analyte) {
+            return;
+        }
+
+        $methodIds = $this->normalizeIdList($this->standardAnalyteForm['method_ids'] ?? []);
+        $reportingUnit = trim((string) ($this->standardAnalyteForm['reporting_unit'] ?? ''));
+        $updates = [];
+
+        if ($methodIds !== []) {
+            $analyte->analysisMethods()->sync($methodIds);
+            $updates['method'] = implode(',', $methodIds);
+        }
+
+        if ($reportingUnit !== '') {
+            $updates['reporting_unit'] = $reportingUnit;
+        }
+
+        if ($updates !== []) {
+            $analyte->update($updates);
+        }
     }
 
     public function toggleValueType($type)
