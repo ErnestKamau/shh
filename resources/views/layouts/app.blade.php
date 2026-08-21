@@ -1962,6 +1962,9 @@
                     @endif
                     @else
                     @yield('alerts')
+                    <li class="nav-item d-flex align-items-center mr-2">
+                        @livewire('lab.system-notifications-bell', key('lab-system-notifications-bell'))
+                    </li>
                     @if(config('localization.enable_switcher'))
                     <li class="nav-item dropdown mr-2">
                         <a id="languageDropdown" class="nav-link dropdown-toggle d-flex align-items-center text-secondary font-weight-bold" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="cursor: pointer; font-size: 0.95rem;">
@@ -2819,6 +2822,7 @@
 <script src="{{ asset('js/method-sequences.js') }}"></script>
 @livewireScripts
 @include('partials.toast-notifications')
+@include('partials.imara-toast')
 @yield('script')
 @stack('scripts')
 @if (isset(Auth::user()->company_id) && Auth::user()->company_id == 0)

@@ -682,6 +682,7 @@ final class QuotationFromEnquiryService
         QuotationHeader $header,
         bool $sendPortal = true,
         bool $sendEmail = false,
+        ?array $recipientContactIds = null,
     ): SampleSubmissionRequest {
         if (! $sendPortal && ! $sendEmail) {
             throw new RuntimeException('Select at least one delivery channel (portal or email).');
@@ -693,7 +694,7 @@ final class QuotationFromEnquiryService
             app(QuotationApprovalService::class)->assertReadyToSend($header);
         }
 
-        $enquiry = DB::transaction(function () use ($enquiry, $header, $sendEmail): SampleSubmissionRequest {
+        $enquiry = DB::transaction(function () use ($enquiry, $header, $sendEmail, $sendPortal): SampleSubmissionRequest {
             if (empty($header->upload_url)) {
                 $header = $this->generatePdf($header);
             }
@@ -703,7 +704,7 @@ final class QuotationFromEnquiryService
             $this->enquiryQuotationService->recordSentToCustomer(
                 $enquiry,
                 $header,
-                sentViaPortal: true,
+                sentViaPortal: $sendPortal,
                 sentViaEmail: $sendEmail,
                 sentAt: $now,
                 linkSource: EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
@@ -765,9 +766,13 @@ final class QuotationFromEnquiryService
 
         // Deliver email after status/PDF commit so a mail failure cannot leave
         // the enquiry stuck on Quotation Ready to Send.
-        if ($sendEmail && $enquiry->contact?->email) {
+        if ($sendEmail) {
             try {
-                $this->emailQuotation($enquiry->currentQuotation ?? $header, $enquiry);
+                $this->emailQuotation(
+                    $enquiry->currentQuotation ?? $header,
+                    $enquiry,
+                    $recipientContactIds,
+                );
             } catch (\Throwable $exception) {
                 Log::warning('Quotation email delivery failed after send status was recorded.', [
                     'quotation_id' => $header->id,
@@ -1158,37 +1163,55 @@ final class QuotationFromEnquiryService
         return $header->fresh(['customer', 'contact']) ?? $header;
     }
 
-    private function emailQuotation(QuotationHeader $header, SampleSubmissionRequest $enquiry): void
-    {
-        $contact = $enquiry->contact ?? CustomerContact::query()->find($header->crm_customer_contact_id);
-        if ($contact === null || empty($contact->email) || empty($header->upload_url)) {
+    /**
+     * @param  list<string>|null  $recipientContactIds
+     */
+    private function emailQuotation(
+        QuotationHeader $header,
+        SampleSubmissionRequest $enquiry,
+        ?array $recipientContactIds = null,
+    ): void {
+        if (empty($header->upload_url)) {
             return;
         }
 
+        $contacts = collect();
+        if (is_array($recipientContactIds) && count($recipientContactIds) > 0) {
+            $contacts = CustomerContact::query()
+                ->whereIn('id', $recipientContactIds)
+                ->where('active', 1)
+                ->get();
+        }
+
+        if ($contacts->isEmpty()) {
+            $fallback = $enquiry->contact ?? CustomerContact::query()->find($header->crm_customer_contact_id);
+            if ($fallback !== null) {
+                $contacts = collect([$fallback]);
+            }
+        }
+
         $company = getActiveCompany();
-        $name = trim(implode(' ', array_filter([
-            $contact->first_name ?? '',
-            $contact->middle_name ?? '',
-            $contact->last_name ?? '',
-        ])));
-        $acceptUrl = app(QuotationEmailActionService::class)->acceptanceUrl(
-            $enquiry,
-            $header,
-            (string) $contact->id,
-        );
-        $previewUrl = app(QuotationReportService::class)->resolveReportViewUrl($header);
-        $message = 'Quotation '.$header->quote_number.' has been sent to you from '.($company->name ?? 'GCLA').'. Kindly find it attached.';
-        $body = 'Hi '.$name.', <br>'.$message
-            .'<br><br><a href="'.e($acceptUrl).'" '
-            .'style="display:inline-block;padding:10px 18px;background:#16a34a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">'
-            .'Accept quotation</a>'
-            .' &nbsp; <a href="'.e($previewUrl).'" '
-            .'style="display:inline-block;padding:10px 18px;background:#64748b;color:#fff;text-decoration:none;border-radius:6px;">'
-            .'View online</a>'
-            .'<br>Regards,<br>'.($company->name ?? 'GCLA');
-        $subject = '['.($company->name ?? 'GCLA').'] Quotation '.$header->quote_number;
         $file = storage_path('app'.$header->upload_url);
-        notify_user($body, $contact->email, $subject, $file);
+        $subject = '['.($company->name ?? 'GCLA').'] Quotation '.$header->quote_number;
+
+        foreach ($contacts as $contact) {
+            if (empty($contact->email)) {
+                continue;
+            }
+
+            $name = trim(implode(' ', array_filter([
+                $contact->first_name ?? '',
+                $contact->middle_name ?? '',
+                $contact->last_name ?? '',
+            ])));
+            $message = 'Quotation '.$header->quote_number.' has been sent to you from '.($company->name ?? 'GCLA').'. Kindly find it attached.';
+            // TODO: Accept / view quotation belongs in the customer portal (not customer email).
+            // Acceptance is via customer portal or LIMS "Record quotation acceptance".
+            // Previously linked Accept quotation + View online signed URLs here.
+            $body = 'Hi '.$name.', <br>'.$message
+                .'<br>Regards,<br>'.($company->name ?? 'GCLA');
+            notify_user($body, $contact->email, $subject, $file);
+        }
     }
 
     /**

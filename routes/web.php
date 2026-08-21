@@ -564,6 +564,10 @@ Route::get('/sample-workflow/request-for-testing/fill/{sampleType}', 'SampleWork
 Route::get('/sample-workflow/request-for-testing/form/{submissionForm}', 'SampleWorkFlowController@requestForTestingFillForm')
     ->name('sample-workflow.request-for-testing.fill-form')
     ->middleware('can:laboratory.components.rft form.view');
+Route::get('/lab/ui/ls-gallery', function () {
+    return view('layouts.lab.ui.ls-gallery');
+})->name('lab.ui.ls-gallery')->middleware(['auth', 'can:laboratory.components.all samples.view']);
+
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.all samples.view');
 Route::post('/sample-workflow/assign-user', [SampleAssignmentController::class, 'store'])
     ->name('sample-workflow.assign-user')
@@ -707,6 +711,7 @@ Route::get('/regerateCustomerInvoice/{id}', 'SampleWorkFlowController@regerateCu
 Route::get('/split-contact', 'SampleWorkFlowController@splitSchoolContacts')->name('/split-contact')->middleware('can:laboratory.components.all samples.view');
 //############################################################################################################################
 Route::get('/billing-quotation/{stage?}', 'Invoice\QuotationController@index')->name('quotation-index')->middleware('can:laboratory.components.quotation.view');
+Route::get('/billing-quotation-customer-locations/{customerId}', 'Invoice\QuotationController@customerLocationOptions')->name('quotation.customer-locations')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/quotations/kpi-export', 'Invoice\QuotationController@exportQuotationKpi')->name('quotation.kpi.export')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/analysis-options/{sampleTypeId}', 'Invoice\QuotationController@getAnalysisOptionsBySampleType')->name('billing.analysis-options')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/create-enquiry', 'Invoice\QuotationController@createEnquiryFromQuotation')->name('quotation.create-enquiry')->middleware('can:laboratory.components.quotation.add');

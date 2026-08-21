@@ -38,6 +38,10 @@ class AcceptanceFormWizard extends Component
 
     public string $customerName = '';
 
+    public string $trfNumber = '';
+
+    public string $requestNumber = '';
+
     public ?string $requestDate = null;
 
     public int $numberOfSamples = 1;
@@ -214,6 +218,7 @@ class AcceptanceFormWizard extends Component
         $this->numberOfSamples = (int) ($prefill['number_of_samples'] ?? 1);
         $this->modeOfWork = (string) ($prefill['mode_of_work'] ?? 'Normal');
         $this->dateOfSampling = $prefill['date_of_sampling'];
+        $this->hydrateReferenceNumbers($instance, $enquiry);
         $pricingService = app(AcceptanceFormPricingService::class);
         $quotationLines = $pricingService->deduplicateRedundantAnalysisTypeLines($prefill['lines']);
         $quotationLocked = (bool) ($prefill['quotation_locked'] ?? false);
@@ -705,6 +710,32 @@ class AcceptanceFormWizard extends Component
         }
     }
 
+    private function hydrateReferenceNumbers(
+        ?SubmissionFormInstance $instance,
+        ?SampleSubmissionRequest $enquiry,
+    ): void {
+        $trfNumber = '';
+        if ($instance !== null) {
+            $trfNumber = trim((string) (
+                $instance->getDocumentControlNumber()
+                ?? $instance->canonicalFormNumber()
+                ?? $instance->form_number
+                ?? ''
+            ));
+        }
+
+        $requestNumber = '';
+        if ($enquiry !== null) {
+            $requestNumber = trim((string) ($enquiry->formatted_number ?? ''));
+            if ($requestNumber === '' && filled($enquiry->request_number)) {
+                $requestNumber = 'REQ-'.str_pad((string) $enquiry->request_number, 4, '0', STR_PAD_LEFT);
+            }
+        }
+
+        $this->trfNumber = $trfNumber;
+        $this->requestNumber = $requestNumber;
+    }
+
     private function applySampleConfigAssignmentDefaults(): void
     {
         $defaultLabId = \App\Lab::defaultLabId();
@@ -728,6 +759,8 @@ class AcceptanceFormWizard extends Component
         $this->instancePhotoUploads = [];
         $this->crmCustomerId = null;
         $this->customerName = '';
+        $this->trfNumber = '';
+        $this->requestNumber = '';
         $this->numberOfSamples = 1;
         $this->modeOfWork = 'Normal';
         $this->dateOfSampling = null;

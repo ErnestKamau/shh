@@ -160,8 +160,6 @@
 			$labWorkflowStatus = is_string($labRouteStatus) ? trim(urldecode($labRouteStatus)) : '';
 			$isLabDashboardActive = request()->routeIs('dashboard-lab');
 			$isLabPersonalDashboardActive = request()->routeIs('dashboard-lab-personal');
-			$isFinalisedQuotesActive = request()->routeIs('quotation-index')
-				&& request()->route('stage') === 'Quote Complete';
 			$isInSampleWorkflow = request()->routeIs(
 				'dashboard-lab-personal',
 				'sample-workflow',
@@ -175,7 +173,7 @@
 				'submission-forms.instances.*',
 				'lab.submission-requests.*',
 				'sample-workflow.submission-requests.*'
-			) || $isFinalisedQuotesActive;
+			);
 			$isWorkflowKpisActive = request()->routeIs('sample-workflow.kpis', 'lab-reports-home');
 			$isRequestForTestingActive = request()->routeIs('sample-workflow.request-for-testing', 'sample-workflow.request-for-testing.fill');
 			$isSampleWorkflowStageActive = static function (string $stage) use ($labWorkflowStatus, $labRouteName): bool {
@@ -231,6 +229,7 @@
 					</div>
 				</a>
 				@endif
+				{{-- Finalised Quotes moved to Quotation Overview tabs.
 				@if($canQuotation)
 				<a href="{{ route('quotation-index', ['stage' => 'Quote Complete']) }}" class="list-group-item list-group-item-action {{ $isFinalisedQuotesActive ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
@@ -238,6 +237,7 @@
 					</div>
 				</a>
 				@endif
+				--}}
 				@if($canAllSamples)
 				<a href="{{ route('sample-workflow', ['status' => 'All Samples']) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive('All Samples') ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
@@ -265,6 +265,7 @@
 					</div>
 				</a>
 				@endif
+				{{-- Inter Lab Transfer temporarily hidden from sidebar.
 				@if($canInterLabLogs)
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action">
 					<div class="d-flex w-100 justify-content-between align-items-center">
@@ -275,6 +276,7 @@
 					</div>
 				</a>
 				@endif
+				--}}
 				@foreach (getSampleWorflowStages() as $item)
 				@if(in_array($item, $pinnedWorkflowStages, true))
 					@continue
@@ -348,9 +350,10 @@
 			</a>
 			<div id="quotation-menu" class="collapse sidebar-submenu">
 				<a href="{{route('quotation-index')}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.all_quotes') }}
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotation Overview
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
+				{{-- Stage shortcuts removed: use Quotation Overview tabs instead.
 				<a href="{{route('quotation-index',['stage'=>'Quote In Preparation'])}}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.quotes_in_preparation') }}
 						<small class="float-right badge badge-pill"></small></span>
@@ -359,6 +362,11 @@
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Approval
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
+				<a href="{{route('quotation-index',['stage'=>'Quote Complete'])}}" class="list-group-item list-group-item-action">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.finalised_quotes') }}
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
+				--}}
 			</div>
 			@endif
 

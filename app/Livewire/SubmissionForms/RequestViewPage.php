@@ -27,6 +27,7 @@ use App\Services\SubmissionForm\RequestViewPagePresenter;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionFormInstanceSampleRowUpdateService;
+use App\Services\SubmissionForm\SubmissionFormInstanceTrfEditService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
 use Illuminate\Http\Request as HttpRequest;
@@ -86,6 +87,19 @@ class RequestViewPage extends Component
 
     public string $approvalDecisionComments = '';
 
+    public bool $showApproveQuotationModal = false;
+
+    public bool $showSendQuotationModal = false;
+
+    /** Optional customer email when approving/sending from LIMS (portal send is automatic when eligible). */
+    public bool $approveSendEmail = true;
+
+    /** @var list<string> */
+    public array $approveRecipientContactIds = [];
+
+    /** @var list<array{id: string, name: string, email: string, company_unit: string, sampling_location: string, receive_quotations: bool, can_login: bool}> */
+    public array $approveRecipientOptions = [];
+
     public bool $showChangeLabManagerForm = false;
 
     public ?string $reassignLabManagerId = null;
@@ -128,6 +142,10 @@ class RequestViewPage extends Component
 
     public ?string $quotationAcceptanceContactId = null;
 
+    public string $quotationAcceptanceAttachmentType = '';
+
+    public $quotationAcceptanceAttachment = null;
+
     /** Contact the currently held signature belongs to, so re-sent updates don't reset the pad. */
     #[Locked]
     public string $quotationAcceptanceAppliedContactId = '';
@@ -157,6 +175,51 @@ class RequestViewPage extends Component
     public array $editingRowSelectOptions = [];
 
     public string $editingRowCollectionSamplingLocation = '';
+
+    public bool $showTrfEditModal = false;
+
+    /** @var 'customer'|'collection'|'samples' */
+    public string $trfEditSlide = 'customer';
+
+    public ?int $trfEditExpandedSampleIndex = null;
+
+    public string $trfEditClientName = '';
+
+    public string $trfEditCompanyUnitId = '';
+
+    public string $trfEditContactId = '';
+
+    public string $trfEditContactName = '';
+
+    public string $trfEditContactEmail = '';
+
+    public string $trfEditContactPhone = '';
+
+    public ?string $trfEditCustomerId = null;
+
+    /** @var list<array{id: string, text: string}> */
+    public array $trfEditUnitOptions = [];
+
+    /** @var list<array{id: string, text: string, email: string, phone: string}> */
+    public array $trfEditContactOptions = [];
+
+    /** @var list<array{value: string, label: string}> */
+    public array $trfEditSamplePointOptions = [];
+
+    /** @var list<array{id: string, name: string, label: string, element_type: string, required: bool, options: array<int|string, mixed>}> */
+    public array $trfEditCollectionDefinitions = [];
+
+    /** @var array<string, mixed> */
+    public array $trfEditCollectionFields = [];
+
+    /** @var list<array{index: int, number: int, summary: string}> */
+    public array $trfEditSampleSummaries = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $trfEditSampleDrafts = [];
+
+    /** @var list<array{id: string, name: string, label: string, element_type: string, required: bool, options: array<int|string, mixed>}> */
+    public array $trfEditSampleDefinitions = [];
 
     public function mount(
         string $submissionFormId,
@@ -209,8 +272,19 @@ class RequestViewPage extends Component
         $this->syncQuotationApprovalUiState();
 
         $requestedTab = (string) request()->query('tab', '');
-        if (in_array($requestedTab, ['tests', 'notes', 'attachments', 'custody', 'quotation_approvals'], true)) {
+        if (in_array($requestedTab, ['tests', 'sample_collection', 'notes', 'attachments', 'custody'], true)) {
             $this->activeTab = $requestedTab;
+        } elseif ($requestedTab === 'quotation_approvals') {
+            $this->activeTab = 'tests';
+        } else {
+            $presenter = new RequestViewPagePresenter(
+                instance: $this->instance,
+                submissionForm: $this->submissionForm,
+                commercialEnquiry: $this->commercialEnquiry,
+                trfPdfUrl: $this->trfPdfUrl,
+                isTrfForm: $this->isTrfForm(),
+            );
+            $this->activeTab = $presenter->defaultCanvasTab();
         }
     }
 
@@ -285,6 +359,8 @@ class RequestViewPage extends Component
         $this->quotationAcceptanceContactId = null;
         $this->quotationAcceptanceAppliedContactId = '';
         $this->quotationAcceptanceContactOptions = [];
+        $this->quotationAcceptanceAttachmentType = '';
+        $this->quotationAcceptanceAttachment = null;
         $this->clientPoNumber = '';
         $this->poRuleType = 'walk_in';
         $this->poRequiresPo = false;
@@ -325,6 +401,8 @@ class RequestViewPage extends Component
         $this->validate([
             'quotationAcceptanceContactId' => ['required', 'string'],
             'quotationAcceptanceSignature' => ['required', 'string'],
+            'quotationAcceptanceAttachment' => ['nullable', 'file', 'max:10240'],
+            'quotationAcceptanceAttachmentType' => ['nullable', 'string', 'max:120'],
         ], [
             'quotationAcceptanceContactId.required' => 'Select the customer contact.',
             'quotationAcceptanceSignature.required' => 'Provide the customer signature.',
@@ -357,6 +435,22 @@ class RequestViewPage extends Component
                 ],
             );
 
+            if ($this->quotationAcceptanceAttachment !== null) {
+                $path = $this->quotationAcceptanceAttachment->store('request-attachments', 'public');
+                $type = trim($this->quotationAcceptanceAttachmentType) !== ''
+                    ? trim($this->quotationAcceptanceAttachmentType)
+                    : 'Purchase Order';
+
+                $this->instance->customAttachments()->create([
+                    'file_path' => $path,
+                    'original_name' => $this->quotationAcceptanceAttachment->getClientOriginalName(),
+                    'uploaded_by' => auth()->id(),
+                    'attachment_type' => $type,
+                    'attachment_heading' => $type,
+                    'description' => 'Uploaded during quotation acceptance',
+                ]);
+            }
+
             $this->commercialEnquiry = app(EnquiryReceptionReadinessService::class)->markReadyForReception(
                 $accepted,
                 (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
@@ -366,6 +460,12 @@ class RequestViewPage extends Component
             );
 
             $this->closeQuotationAcceptanceModal();
+            $this->dispatch('imara-toast', [
+                'type' => 'success',
+                'title' => 'Quotation accepted',
+                'message' => 'This request is ready for physical reception.',
+                'durationMs' => 7000,
+            ]);
             session()->flash('request_view_message', 'Quotation accepted. This request is ready for physical reception on the Samples Receiving board.');
         } catch (\Illuminate\Validation\ValidationException $exception) {
             $this->setErrorBag($exception->validator->errors());
@@ -566,14 +666,88 @@ class RequestViewPage extends Component
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['tests', 'notes', 'attachments', 'custody', 'quotation_approvals'], true)) {
+        if (! in_array($tab, ['tests', 'sample_collection', 'notes', 'attachments', 'custody'], true)) {
             return;
         }
 
         $this->activeTab = $tab;
     }
 
-    public function approveEnquiryQuotation(): void
+    public function openApproveQuotationModal(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if (! $this->canApproveQuotation || $this->commercialEnquiry === null) {
+            return;
+        }
+
+        $this->approveRecipientOptions = $this->buildApproveRecipientOptions();
+        // Default-check contacts with receive_quotations (or primary enquiry contact).
+        $this->approveRecipientContactIds = collect($this->approveRecipientOptions)
+            ->filter(static fn (array $row): bool => (bool) ($row['receive_quotations'] ?? false))
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->values()
+            ->all();
+        if ($this->approveRecipientContactIds === [] && $this->approveRecipientOptions !== []) {
+            $this->approveRecipientContactIds = [(string) $this->approveRecipientOptions[0]['id']];
+        }
+        $this->approveSendEmail = true;
+        $this->showApproveQuotationModal = true;
+    }
+
+    public function closeApproveQuotationModal(): void
+    {
+        $this->showApproveQuotationModal = false;
+        $this->approveRecipientContactIds = [];
+        $this->approveRecipientOptions = [];
+    }
+
+    public function openSendApprovedQuotationModal(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if (! $this->quotationApprovedReadyToSend || $this->commercialEnquiry === null) {
+            return;
+        }
+
+        $this->approveRecipientOptions = $this->buildApproveRecipientOptions();
+        $this->approveRecipientContactIds = collect($this->approveRecipientOptions)
+            ->filter(static fn (array $row): bool => (bool) ($row['receive_quotations'] ?? false))
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->values()
+            ->all();
+        if ($this->approveRecipientContactIds === [] && $this->approveRecipientOptions !== []) {
+            $this->approveRecipientContactIds = [(string) $this->approveRecipientOptions[0]['id']];
+        }
+        $this->approveSendEmail = true;
+        $this->showSendQuotationModal = true;
+    }
+
+    public function closeSendApprovedQuotationModal(): void
+    {
+        $this->showSendQuotationModal = false;
+        $this->approveRecipientContactIds = [];
+        $this->approveRecipientOptions = [];
+    }
+
+    public function toggleApproveRecipient(string $contactId): void
+    {
+        $contactId = (string) $contactId;
+        if (in_array($contactId, $this->approveRecipientContactIds, true)) {
+            $this->approveRecipientContactIds = array_values(array_filter(
+                $this->approveRecipientContactIds,
+                static fn (string $id): bool => $id !== $contactId,
+            ));
+
+            return;
+        }
+
+        $this->approveRecipientContactIds[] = $contactId;
+    }
+
+    public function confirmApproveQuotationAndSend(): void
     {
         $this->authorizeFormAccess(auth()->user());
 
@@ -582,26 +756,181 @@ class RequestViewPage extends Component
         }
 
         try {
-            $enquiry = $this->commercialEnquiry->loadMissing('currentQuotation');
+            $enquiry = $this->commercialEnquiry->loadMissing(['currentQuotation', 'customer', 'contact']);
             $header = $enquiry->currentQuotation;
             if ($header === null) {
                 throw new \RuntimeException('No quotation is linked to this request.');
             }
 
+            // In-app approval: lab manager picks CRM contacts; portal send is automatic when eligible;
+            // email send is optional. Customer email is PDF-only (no Accept/View). Acceptance via portal or LIMS.
             $enquiry = app(QuotationApprovalService::class)->approve(
                 $enquiry,
                 $header,
                 $this->approvalDecisionComments !== '' ? $this->approvalDecisionComments : null,
+                notifyRequester: false,
+            );
+
+            $header = $enquiry->currentQuotation ?? $header;
+            [$sendPortal, $sendEmail] = $this->resolveApproveSendChannels($enquiry);
+
+            app(QuotationFromEnquiryService::class)->sendToCustomer(
+                $enquiry,
+                $header,
+                sendPortal: $sendPortal,
+                sendEmail: $sendEmail,
+                recipientContactIds: $this->approveRecipientContactIds,
             );
 
             $this->commercialEnquiry = $enquiry->fresh(['currentQuotation.approvedByUser', 'customer', 'contact']) ?? $enquiry;
             $this->approvalDecisionComments = '';
             $this->canApproveQuotation = false;
             $this->syncQuotationApprovalUiState();
-            session()->flash('request_view_message', 'Quotation approved. It can now be sent to the customer.');
+            $this->closeApproveQuotationModal();
+
+            $this->dispatch('imara-toast', [
+                'type' => 'success',
+                'title' => 'Quotation approved and sent',
+                'message' => 'The quotation was approved and sent to the customer.',
+                'durationMs' => 7000,
+            ]);
+            session()->flash('request_view_message', 'Quotation approved and sent to the customer.');
         } catch (\Throwable $exception) {
+            $this->dispatch('imara-toast', [
+                'type' => 'error',
+                'title' => 'Could not approve quotation',
+                'message' => $exception->getMessage(),
+                'durationMs' => 7000,
+            ]);
             session()->flash('request_view_message', $exception->getMessage());
         }
+    }
+
+    /**
+     * @return list<array{id: string, name: string, email: string, company_unit: string, sampling_location: string, receive_quotations: bool, can_login: bool}>
+     */
+    private function buildApproveRecipientOptions(): array
+    {
+        $enquiry = $this->commercialEnquiry;
+        if ($enquiry === null) {
+            return [];
+        }
+
+        $customerId = (string) ($enquiry->crm_customer_id ?? '');
+        if ($customerId === '') {
+            return [];
+        }
+
+        $contacts = CustomerContact::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('first_name')
+            ->get();
+
+        $unitIds = $contacts->pluck('crm_company_unit_id')->filter()->unique()->values()->all();
+        $unitNamesById = $unitIds === []
+            ? collect()
+            : \App\Models\CRM\CRMCompanyUnit::query()
+                ->whereIn('id', $unitIds)
+                ->pluck('name', 'id');
+
+        $samplePointsByContact = \App\Models\CRM\SamplePoint::query()
+            ->where('crm_customer_id', $customerId)
+            ->whereNotNull('contact_id')
+            ->whereIn('contact_id', $contacts->pluck('id')->all())
+            ->orderBy('name')
+            ->get()
+            ->groupBy(fn ($point) => (string) $point->contact_id);
+
+        $primaryContactId = (string) ($enquiry->crm_customer_contact_id ?? '');
+        $options = [];
+
+        foreach ($contacts as $contact) {
+            $email = trim((string) ($contact->email ?? ''));
+            if ($email === '' && ! (bool) ($contact->can_login ?? false)) {
+                continue;
+            }
+
+            $receivesQuotes = (bool) ($contact->receive_quotations ?? false)
+                || (string) $contact->id === $primaryContactId
+                || (bool) ($contact->is_main_customer_contact ?? false);
+
+            $unitLabel = '—';
+            $unitId = (string) ($contact->crm_company_unit_id ?? '');
+            if ($unitId !== '' && $unitNamesById->has($unitId)) {
+                $unitLabel = (string) $unitNamesById->get($unitId);
+            } elseif (trim((string) ($contact->unit_name ?? '')) !== '') {
+                $unitLabel = (string) $contact->unit_name;
+            }
+
+            $locations = $samplePointsByContact->get((string) $contact->id, collect())
+                ->map(fn ($point) => trim((string) ($point->display_name ?? $point->name ?? '')))
+                ->filter()
+                ->unique()
+                ->values();
+            $samplingLocation = $locations->isNotEmpty() ? $locations->implode(', ') : '—';
+
+            $name = trim(implode(' ', array_filter([
+                (string) ($contact->first_name ?? ''),
+                (string) ($contact->middle_name ?? ''),
+                (string) ($contact->last_name ?? ''),
+            ])));
+
+            $options[] = [
+                'id' => (string) $contact->id,
+                'name' => $name !== '' ? $name : 'Contact',
+                'email' => $email,
+                'company_unit' => $unitLabel,
+                'sampling_location' => $samplingLocation,
+                'receive_quotations' => $receivesQuotes,
+                'can_login' => (bool) ($contact->can_login ?? false),
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return array{0: bool, 1: bool}
+     */
+    private function resolveApproveSendChannels(SampleSubmissionRequest $enquiry): array
+    {
+        $channel = strtolower((string) ($enquiry->source_channel ?? ''));
+        $selectedCanLogin = collect($this->approveRecipientOptions)
+            ->filter(fn (array $row): bool => in_array((string) $row['id'], $this->approveRecipientContactIds, true))
+            ->contains(fn (array $row): bool => (bool) ($row['can_login'] ?? false));
+
+        $sendPortal = $channel === 'portal' || $selectedCanLogin || $this->enquiryHasPortalRecipients($enquiry);
+        $sendEmail = $this->approveSendEmail;
+
+        if ($channel === 'walk_in') {
+            $sendPortal = false;
+        }
+
+        if (! $sendPortal && ! $sendEmail) {
+            throw new \RuntimeException('Enable “Email quotation PDF” or select a portal-capable contact so the quotation can be delivered.');
+        }
+
+        return [$sendPortal, $sendEmail];
+    }
+
+    private function enquiryHasPortalRecipients(SampleSubmissionRequest $enquiry): bool
+    {
+        $customerId = (string) ($enquiry->crm_customer_id ?? '');
+        if ($customerId === '') {
+            return false;
+        }
+
+        return CustomerContact::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->where('can_login', true)
+            ->exists();
+    }
+
+    public function approveEnquiryQuotation(): void
+    {
+        $this->openApproveQuotationModal();
     }
 
     public function rejectEnquiryQuotation(): void
@@ -642,24 +971,14 @@ class RequestViewPage extends Component
 
     public function sendApprovedQuotationToCustomer(): void
     {
+        $this->openSendApprovedQuotationModal();
+    }
+
+    public function confirmSendApprovedQuotationToCustomer(): void
+    {
         $this->authorizeFormAccess(auth()->user());
 
         if ($this->commercialEnquiry === null) {
-            return;
-        }
-
-        $channel = strtolower((string) ($this->commercialEnquiry->source_channel ?? ''));
-        if ($channel !== 'portal') {
-            $this->sendPortal = false;
-        }
-        if ($channel === 'walk_in') {
-            $this->sendPortal = false;
-            $this->sendEmail = true;
-        }
-
-        if (! $this->sendPortal && ! $this->sendEmail) {
-            session()->flash('request_view_message', 'Select at least one delivery channel (portal or email).');
-
             return;
         }
 
@@ -670,22 +989,38 @@ class RequestViewPage extends Component
                 throw new \RuntimeException('No quotation is linked to this request.');
             }
 
+            [$sendPortal, $sendEmail] = $this->resolveApproveSendChannels($enquiry);
+
             $enquiry = app(QuotationFromEnquiryService::class)->sendToCustomer(
                 $enquiry,
                 $header,
-                $this->sendPortal,
-                $this->sendEmail,
+                $sendPortal,
+                $sendEmail,
+                $this->approveRecipientContactIds,
             );
 
+            $channel = strtolower((string) ($enquiry->source_channel ?? ''));
             $this->commercialEnquiry = $enquiry;
             $this->syncQuotationApprovalUiState();
-            session()->flash(
-                'request_view_message',
-                $channel === 'walk_in'
-                    ? 'Quotation sent by email. Record walk-in acceptance, then capture the PO.'
-                    : 'Quotation sent to customer.'
-            );
+            $this->closeSendApprovedQuotationModal();
+
+            $message = $channel === 'walk_in'
+                ? 'Quotation sent by email. Record quotation acceptance, then capture the PO.'
+                : 'Quotation sent to customer.';
+            $this->dispatch('imara-toast', [
+                'type' => 'success',
+                'title' => 'Quotation sent',
+                'message' => $message,
+                'durationMs' => 7000,
+            ]);
+            session()->flash('request_view_message', $message);
         } catch (\Throwable $exception) {
+            $this->dispatch('imara-toast', [
+                'type' => 'error',
+                'title' => 'Could not send quotation',
+                'message' => $exception->getMessage(),
+                'durationMs' => 7000,
+            ]);
             session()->flash('request_view_message', $exception->getMessage());
         }
     }
@@ -1039,70 +1374,303 @@ class RequestViewPage extends Component
 
     public function openSampleRowEditor(int $rowIndex): void
     {
+        $this->openTrfEditor('samples', $rowIndex);
+    }
+
+    /**
+     * @param  'customer'|'collection'|'samples'  $slide
+     */
+    public function openTrfEditor(string $slide = 'customer', ?int $sampleRowIndex = null): void
+    {
         $this->authorizeSampleRowEdit(auth()->user());
 
         $presenter = $this->requestViewPresenter();
         if (! $presenter->canEditSampleRows()) {
-            session()->flash('request_view_message', 'Sample rows can no longer be edited after reception.');
+            session()->flash('request_view_message', 'Request details can no longer be edited after reception.');
 
             return;
         }
 
-        try {
-            $service = app(SubmissionFormInstanceSampleRowUpdateService::class);
-            $this->editingRowIndex = $rowIndex;
-            $this->editingRowFieldDefinitions = $this->prepareSampleRowEditDefinitions(
-                $service->rowFieldDefinitions($this->submissionForm),
-            );
-            $this->editingRowFields = $service->rowValues($this->instance, $rowIndex);
-            $this->editingRowCollectionSamplingLocation = $service->collectionSamplingLocationLabel($this->instance);
+        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+            $slide = 'customer';
+        }
 
-            foreach ($this->editingRowFieldDefinitions as $field) {
+        try {
+            $editService = app(SubmissionFormInstanceTrfEditService::class);
+            $rowService = app(SubmissionFormInstanceSampleRowUpdateService::class);
+
+            $customer = $editService->customerDraft($this->instance);
+            $this->trfEditClientName = $customer['client_name'];
+            $this->trfEditCompanyUnitId = $customer['company_unit_id'];
+            $this->trfEditContactId = $customer['contact_id'];
+            $this->trfEditContactName = $customer['contact_name'];
+            $this->trfEditContactEmail = $customer['contact_email'];
+            $this->trfEditContactPhone = $customer['contact_phone'];
+            $this->trfEditCustomerId = $customer['customer_id'];
+            $this->trfEditUnitOptions = $editService->unitOptions($this->trfEditCustomerId);
+            $this->refreshTrfEditContactOptions($editService);
+            $this->trfEditSamplePointOptions = $editService->samplePointOptions($this->trfEditCompanyUnitId);
+
+            $this->trfEditCollectionDefinitions = $editService->collectionFieldDefinitions($this->submissionForm);
+            $this->trfEditCollectionFields = $editService->collectionDraft(
+                $this->instance,
+                $this->trfEditCollectionDefinitions,
+            );
+
+            foreach ($this->trfEditCollectionDefinitions as $field) {
                 $name = (string) ($field['name'] ?? '');
                 $type = (string) ($field['element_type'] ?? '');
-
                 if ($name === '') {
                     continue;
                 }
-
-                if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
-                    $this->editingRowFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
-                        $this->editingRowFields[$name] ?? null,
+                if ($type === 'checkbox' || in_array($name, ['sampling_apparatus', 'method_of_sampling'], true)) {
+                    $this->trfEditCollectionFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
+                        $this->trfEditCollectionFields[$name] ?? null,
                     );
-
-                    $this->ensureCheckboxOptionKeys($name, $field['options'] ?? []);
-                }
-
-                if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
-                    || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
-                    $this->editingRowFields[$name] = $this->normalizeRowSelectValues($this->editingRowFields[$name] ?? null);
-                }
-
-                if ($type === 'analysis_elements_select' || $name === 'parameters') {
-                    $current = $this->editingRowFields[$name] ?? '';
-                    if (is_string($current) && str_contains($current, ',')) {
-                        $this->editingRowFields[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
-                    } elseif (is_string($current) && $current !== '') {
-                        $this->editingRowFields[$name] = [$current];
-                    } elseif (! is_array($current)) {
-                        $this->editingRowFields[$name] = [];
-                    }
+                    $this->ensureCollectionCheckboxOptionKeys($name, $field['options'] ?? []);
                 }
             }
 
-            $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
-            $this->showSampleRowEditModal = true;
-            $this->dispatch('sample-row-edit-modal-opened');
+            $this->trfEditSampleDefinitions = $this->prepareSampleRowEditDefinitions(
+                $rowService->rowFieldDefinitions($this->submissionForm),
+            );
+
+            $this->trfEditSampleSummaries = [];
+            $this->trfEditSampleDrafts = [];
+            foreach ($this->sampleLines as $line) {
+                $index = (int) ($line['row_index'] ?? 0);
+                $number = (int) ($line['number'] ?? ($index + 1));
+                $summaryParts = array_filter([
+                    $line['sample_type'] ?? null,
+                    $line['sample_description'] ?? null,
+                ], fn ($part): bool => is_string($part) && trim(strip_tags($part)) !== '' && trim(strip_tags($part)) !== '—');
+                $summary = $summaryParts === []
+                    ? 'Sample '.$number
+                    : 'Sample '.$number.' · '.mb_strimwidth(trim(strip_tags(implode(' · ', $summaryParts))), 0, 72, '…');
+
+                $this->trfEditSampleSummaries[] = [
+                    'index' => $index,
+                    'number' => $number,
+                    'summary' => $summary,
+                ];
+
+                $draft = $rowService->rowValues($this->instance, $index);
+                foreach ($this->trfEditSampleDefinitions as $field) {
+                    $name = (string) ($field['name'] ?? '');
+                    $type = (string) ($field['element_type'] ?? '');
+                    if ($name === '') {
+                        continue;
+                    }
+                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
+                        $draft[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
+                            $draft[$name] ?? null,
+                        );
+                    }
+                    if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
+                        || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
+                        $draft[$name] = $this->normalizeRowSelectValues($draft[$name] ?? null);
+                    }
+                    if ($type === 'analysis_elements_select' || $name === 'parameters') {
+                        $current = $draft[$name] ?? '';
+                        if (is_string($current) && str_contains($current, ',')) {
+                            $draft[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
+                        } elseif (is_string($current) && $current !== '') {
+                            $draft[$name] = [$current];
+                        } elseif (! is_array($current)) {
+                            $draft[$name] = [];
+                        }
+                    }
+                }
+                $this->trfEditSampleDrafts[$index] = $draft;
+            }
+
+            $this->trfEditSlide = $slide;
+            $this->trfEditExpandedSampleIndex = null;
+            $this->editingRowIndex = null;
+            $this->editingRowFields = [];
+            $this->editingRowFieldDefinitions = $this->trfEditSampleDefinitions;
+            $this->editingRowSelectOptions = [];
+            $this->showSampleRowEditModal = false;
+            $this->showTrfEditModal = true;
+
+            if ($slide === 'samples' && $sampleRowIndex !== null) {
+                $this->expandTrfSample($sampleRowIndex);
+            }
+
+            $this->dispatch('trf-edit-modal-opened');
         } catch (\Throwable $exception) {
             report($exception);
-            $this->closeSampleRowEditor();
+            $this->closeTrfEditor();
             session()->flash(
                 'request_view_message',
                 app()->isProduction()
-                    ? 'Unable to open the sample editor. Please contact support if this continues.'
-                    : 'Unable to open the sample editor: '.$exception->getMessage(),
+                    ? 'Unable to open the editor. Please contact support if this continues.'
+                    : 'Unable to open the editor: '.$exception->getMessage(),
             );
         }
+    }
+
+    public function setTrfEditSlide(string $slide): void
+    {
+        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+            return;
+        }
+
+        $this->persistExpandedSampleDraft();
+        $this->trfEditSlide = $slide;
+        $this->dispatch('trf-edit-modal-opened');
+    }
+
+    public function updatedTrfEditCompanyUnitId(?string $unitId): void
+    {
+        $editService = app(SubmissionFormInstanceTrfEditService::class);
+        $this->trfEditSamplePointOptions = $editService->samplePointOptions($unitId);
+        $currentLocation = (string) ($this->trfEditCollectionFields['sampling_location'] ?? '');
+        $validIds = collect($this->trfEditSamplePointOptions)->pluck('value')->all();
+        if ($currentLocation !== '' && ! in_array($currentLocation, $validIds, true)) {
+            $this->trfEditCollectionFields['sampling_location'] = '';
+        }
+
+        $this->refreshTrfEditContactOptions($editService);
+        $validContactIds = collect($this->trfEditContactOptions)->pluck('id')->all();
+        if ($this->trfEditContactId !== '' && ! in_array($this->trfEditContactId, $validContactIds, true)) {
+            $this->trfEditContactId = '';
+            $this->trfEditContactName = '';
+            $this->trfEditContactEmail = '';
+            $this->trfEditContactPhone = '';
+        }
+
+        $this->dispatch('trf-edit-modal-opened');
+    }
+
+    public function updatedTrfEditContactId(?string $contactId): void
+    {
+        $editService = app(SubmissionFormInstanceTrfEditService::class);
+        $option = collect($this->trfEditContactOptions)->firstWhere('id', (string) ($contactId ?? ''))
+            ?? $editService->contactOptionById($contactId);
+
+        if ($option === null) {
+            $this->trfEditContactName = '';
+            $this->trfEditContactEmail = '';
+            $this->trfEditContactPhone = '';
+
+            return;
+        }
+
+        $this->trfEditContactName = (string) ($option['text'] ?? '');
+        $this->trfEditContactEmail = (string) ($option['email'] ?? '');
+        $this->trfEditContactPhone = (string) ($option['phone'] ?? '');
+    }
+
+    public function expandTrfSample(int $rowIndex, bool $open = true): void
+    {
+        $this->persistExpandedSampleDraft();
+
+        if (! array_key_exists($rowIndex, $this->trfEditSampleDrafts)) {
+            return;
+        }
+
+        if (! $open) {
+            if ($this->trfEditExpandedSampleIndex === $rowIndex) {
+                $this->trfEditExpandedSampleIndex = null;
+                $this->editingRowIndex = null;
+                $this->editingRowFields = [];
+                $this->editingRowSelectOptions = [];
+            }
+
+            $this->dispatch('trf-sample-card-toggled', rowIndex: $rowIndex, open: false);
+
+            return;
+        }
+
+        if ($this->trfEditExpandedSampleIndex === $rowIndex) {
+            return;
+        }
+
+        if ($this->trfEditExpandedSampleIndex !== null) {
+            $this->dispatch('trf-sample-card-toggled', rowIndex: $this->trfEditExpandedSampleIndex, open: false);
+        }
+
+        $this->trfEditExpandedSampleIndex = $rowIndex;
+        $this->editingRowIndex = $rowIndex;
+        $this->editingRowFields = $this->trfEditSampleDrafts[$rowIndex];
+        $this->editingRowFieldDefinitions = $this->trfEditSampleDefinitions;
+
+        foreach ($this->trfEditSampleDefinitions as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            if (($field['element_type'] ?? '') === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
+                $this->ensureCheckboxOptionKeys($name, $field['options'] ?? []);
+            }
+        }
+
+        $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
+        $this->dispatch('trf-sample-card-toggled', rowIndex: $rowIndex, open: true);
+        $this->dispatch('trf-sample-card-opened', rowIndex: $rowIndex);
+    }
+
+    public function closeTrfEditor(): void
+    {
+        $this->dispatch('trf-edit-modal-closed');
+        $this->showTrfEditModal = false;
+        $this->trfEditSlide = 'customer';
+        $this->trfEditExpandedSampleIndex = null;
+        $this->trfEditClientName = '';
+        $this->trfEditCompanyUnitId = '';
+        $this->trfEditContactId = '';
+        $this->trfEditContactName = '';
+        $this->trfEditContactEmail = '';
+        $this->trfEditContactPhone = '';
+        $this->trfEditCustomerId = null;
+        $this->trfEditUnitOptions = [];
+        $this->trfEditContactOptions = [];
+        $this->trfEditSamplePointOptions = [];
+        $this->trfEditCollectionDefinitions = [];
+        $this->trfEditCollectionFields = [];
+        $this->trfEditSampleSummaries = [];
+        $this->trfEditSampleDrafts = [];
+        $this->trfEditSampleDefinitions = [];
+        $this->closeSampleRowEditor();
+    }
+
+    public function saveTrfEditor(): void
+    {
+        $this->authorizeSampleRowEdit(auth()->user());
+
+        $presenter = $this->requestViewPresenter();
+        if (! $presenter->canEditSampleRows()) {
+            session()->flash('request_view_message', 'Request details can no longer be edited after reception.');
+            $this->closeTrfEditor();
+
+            return;
+        }
+
+        $this->persistExpandedSampleDraft();
+
+        $editService = app(SubmissionFormInstanceTrfEditService::class);
+        $this->instance = $editService->saveAll(
+            $this->instance,
+            [
+                'company_unit_id' => $this->trfEditCompanyUnitId,
+                'contact_id' => $this->trfEditContactId,
+                'contact_name' => $this->trfEditContactName,
+                'contact_email' => $this->trfEditContactEmail,
+                'contact_phone' => $this->trfEditContactPhone,
+            ],
+            $this->trfEditCollectionFields,
+            $this->trfEditSampleDrafts,
+        );
+
+        $this->commercialEnquiry = $this->instance->sampleSubmissionRequest
+            ?? SampleSubmissionRequest::query()
+                ->with(['currentQuotation', 'contact', 'customer'])
+                ->where('submission_form_instance_id', $this->instance->id)
+                ->first();
+
+        $this->closeTrfEditor();
+        session()->flash('request_view_message', 'Request details updated successfully.');
     }
 
     public function closeSampleRowEditor(): void
@@ -1114,6 +1682,63 @@ class RequestViewPage extends Component
         $this->editingRowFieldDefinitions = [];
         $this->editingRowSelectOptions = [];
         $this->editingRowCollectionSamplingLocation = '';
+    }
+
+    private function persistExpandedSampleDraft(): void
+    {
+        if ($this->trfEditExpandedSampleIndex === null) {
+            return;
+        }
+
+        $this->trfEditSampleDrafts[$this->trfEditExpandedSampleIndex] = $this->editingRowFields;
+    }
+
+    private function refreshTrfEditContactOptions(SubmissionFormInstanceTrfEditService $editService): void
+    {
+        $this->trfEditContactOptions = $editService->contactOptions(
+            $this->trfEditCustomerId,
+            $this->trfEditCompanyUnitId !== '' ? $this->trfEditCompanyUnitId : null,
+        );
+
+        if ($this->trfEditContactId === '') {
+            return;
+        }
+
+        $selected = collect($this->trfEditContactOptions)->firstWhere('id', $this->trfEditContactId);
+        if ($selected !== null) {
+            return;
+        }
+
+        $fallback = $editService->contactOptionById($this->trfEditContactId);
+        if ($fallback !== null) {
+            array_unshift($this->trfEditContactOptions, $fallback);
+        }
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $options
+     */
+    private function ensureCollectionCheckboxOptionKeys(string $fieldName, array $options): void
+    {
+        if (! is_array($this->trfEditCollectionFields[$fieldName] ?? null)) {
+            $this->trfEditCollectionFields[$fieldName] = [];
+        }
+
+        foreach ($options as $optionValue => $optionLabel) {
+            if (is_array($optionLabel) && isset($optionLabel['value'])) {
+                $optionKey = (string) $optionLabel['value'];
+            } elseif (is_string($optionValue) && ! is_numeric($optionValue)) {
+                $optionKey = $optionValue;
+            } elseif (is_string($optionLabel)) {
+                $optionKey = $optionLabel;
+            } else {
+                continue;
+            }
+
+            if (! array_key_exists($optionKey, $this->trfEditCollectionFields[$fieldName])) {
+                $this->trfEditCollectionFields[$fieldName][$optionKey] = false;
+            }
+        }
     }
 
     public function updated($property): void
@@ -1210,6 +1835,13 @@ class RequestViewPage extends Component
      */
     private function prepareSampleRowEditDefinitions(array $definitions): array
     {
+        foreach ($definitions as $index => $definition) {
+            $name = (string) ($definition['name'] ?? '');
+            if ($name === 'state_of_sample' && ($definition['options'] ?? []) !== []) {
+                $definitions[$index]['element_type'] = 'select';
+            }
+        }
+
         if (! $this->isWaterTrf()) {
             return $definitions;
         }
@@ -1794,6 +2426,9 @@ class RequestViewPage extends Component
         $boardStatus = $this->workflowBoardStatus();
 
         $quotationHeader = $this->commercialEnquiry?->currentQuotation;
+        if ($quotationHeader !== null) {
+            $quotationHeader->loadMissing('labSections');
+        }
         $approvalService = app(QuotationApprovalService::class);
         $quotationApproverName = $approvalService->resolveApproverName($quotationHeader);
 
@@ -1818,6 +2453,7 @@ class RequestViewPage extends Component
             'workflowForms' => $this->instance->workflowForms()->get(),
             'viewHeader' => $presenter->header(),
             'requestInfoCard' => $presenter->requestInfoCard($formData, $sampleLines),
+            'contextRail' => $presenter->contextRail($formData, $sampleLines),
             'customerCard' => $sectionCards['customer'],
             'sectionCards' => $sectionCards['sections'],
             'testSamplesCard' => $presenter->testSamplesCard($sampleLines),

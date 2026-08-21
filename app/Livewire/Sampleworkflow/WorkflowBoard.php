@@ -3377,6 +3377,64 @@ SQL);
     }
 
     /**
+     * Clone the selected submission request into a new submitted request (Samples Receiving).
+     *
+     * @param  array<int, string>|string  $ids
+     */
+    public function cloneSelectedRequest(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids !== [] ? $ids : $this->selectedFormInstanceIds);
+
+        if (count($this->selectedFormInstanceIds) !== 1) {
+            $this->workflowNotify(
+                'error',
+                'Please select exactly one request to clone.'
+            );
+
+            return;
+        }
+
+        $source = SubmissionFormInstance::query()
+            ->with(['values', 'submissionForm'])
+            ->find($this->selectedFormInstanceIds[0]);
+
+        if ($source === null) {
+            $this->workflowNotify('error', 'The selected request could not be found.');
+
+            return;
+        }
+
+        try {
+            $clone = app(\App\Services\SubmissionForm\SubmissionFormInstanceCloneService::class)
+                ->cloneRequest($source);
+
+            $this->bustReceivingCountsCache();
+            $this->selectedFormInstanceIds = [];
+
+            $label = $clone->getDocumentControlNumber()
+                ?? $clone->form_number
+                ?? 'new request';
+
+            $this->workflowNotify(
+                'success',
+                'Request cloned as '.$label.'.'
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->workflowNotify(
+                'error',
+                $exception->getMessage() !== ''
+                    ? $exception->getMessage()
+                    : 'Unable to clone the selected request.'
+            );
+        }
+    }
+
+    /**
      * @param  array<int, string>|string  $ids
      */
     #[Renderless]

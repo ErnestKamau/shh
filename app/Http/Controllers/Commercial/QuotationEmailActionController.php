@@ -22,7 +22,6 @@ class QuotationEmailActionController extends Controller
         string $token,
         QuotationEmailActionService $tokens,
         QuotationApprovalService $approvalService,
-        QuotationFromEnquiryService $quotationService,
     ): View|RedirectResponse {
         $enquiry->loadMissing(['customer', 'contact', 'currentQuotation']);
         $quotation = $quotation->fresh() ?? $quotation;
@@ -33,10 +32,11 @@ class QuotationEmailActionController extends Controller
 
         if ($approvalService->isApprovedReadyToSend($enquiry, $quotation)
             || $quotationService->quotationWasSentToCustomer($enquiry)
+            || (int) $quotation->is_approved === 1
         ) {
             return view('commercial.quotations.email-action-result', [
                 'title' => 'Quotation already approved',
-                'message' => 'Quotation '.$quotation->quote_number.' was already approved and sent to the customer.',
+                'message' => $approvalService->alreadyApprovedMessage($quotation),
                 'variant' => 'info',
             ]);
         }
@@ -50,17 +50,11 @@ class QuotationEmailActionController extends Controller
         }
 
         try {
+            // Email approval link: approve only. Do NOT send to customer from email.
+            // Notify requester (in-app bell + email) to log into LIMS and send via the approve/send modal.
             $approvalService->approveViaEmailToken($enquiry, $quotation);
             $enquiry = $enquiry->fresh(['customer', 'contact', 'currentQuotation']) ?? $enquiry;
             $quotation = $enquiry->currentQuotation ?? $quotation;
-
-            $sendPortal = strtolower((string) ($enquiry->source_channel ?? '')) === 'portal';
-            $quotationService->sendToCustomer(
-                $enquiry,
-                $quotation,
-                sendPortal: $sendPortal,
-                sendEmail: true,
-            );
         } catch (RuntimeException $exception) {
             return view('commercial.quotations.email-action-result', [
                 'title' => 'Could not approve quotation',
@@ -70,8 +64,9 @@ class QuotationEmailActionController extends Controller
         }
 
         return view('commercial.quotations.email-action-result', [
-            'title' => 'Quotation approved and sent',
-            'message' => 'Quotation '.$quotation->quote_number.' has been approved and emailed to the customer.',
+            'title' => 'Quotation approved',
+            'message' => 'Quotation '.$quotation->quote_number.' has been approved. '
+                .'The requester has been notified to log into LIMS and send it to the customer.',
             'variant' => 'success',
         ]);
     }

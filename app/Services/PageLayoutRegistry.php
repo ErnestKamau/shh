@@ -66,6 +66,7 @@ class PageLayoutRegistry
                 ['trigger_id' => 'workflow-action-generate-customer-focus','label' => 'Actions: Generate Customer Focus'],
                 ['trigger_id' => 'workflow-action-send-schedule-analysis', 'label' => 'Actions: Send Schedule of Analysis'],
                 ['trigger_id' => 'workflow-action-clone-batches',          'label' => 'Actions: Clone Batch(es)'],
+                ['trigger_id' => 'workflow-action-clone-request',          'label' => 'Actions: Clone Request'],
                 ['trigger_id' => 'workflow-action-email-reports',          'label' => 'Actions: Email Report(s)'],
                 ['trigger_id' => 'workflow-action-generate-draft-invoice', 'label' => 'Actions: Generate Draft Invoice'],
                 ['trigger_id' => 'workflow-action-approve-request',        'label' => 'Actions: Approve Request'],

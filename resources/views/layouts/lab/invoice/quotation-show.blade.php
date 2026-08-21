@@ -322,11 +322,28 @@
                                 <input type="text" name="subject" class="form-control" value="{{ $header->subject }}" placeholder="Quotation for ...">
                             </div>
                             <div class="form-group">
+                                <label class="control-label">Company Unit</label>
+                                <select name="crm_company_unit_id" id="quote-company-unit" class="form-control no-select2">
+                                    <option value="">Select company unit...</option>
+                                    @foreach($companyUnits ?? [] as $unit)
+                                        <option value="{{ $unit->id }}" {{ (string) $header->crm_company_unit_id === (string) $unit->id ? 'selected' : '' }}>
+                                            {{ $unit->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group">
                                 <label class="control-label">Sampling Location</label>
-                                <select name="sample_point_id" class="form-control no-select2">
+                                <select name="sample_point_id" id="quote-sample-point" class="form-control no-select2">
                                     <option value="">Select sample point...</option>
                                     @foreach($samplePoints ?? [] as $point)
-                                        <option value="{{ $point->id }}" {{ $header->sample_point_id == $point->id ? 'selected' : '' }}>{{ $point->display_name }}</option>
+                                        <option
+                                            value="{{ $point->id }}"
+                                            data-unit-id="{{ $point->crm_company_unit_id }}"
+                                            {{ (string) $header->sample_point_id === (string) $point->id ? 'selected' : '' }}
+                                        >
+                                            {{ $point->display_name ?? $point->name }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -971,6 +988,34 @@
 <script>
     var analysis = [];
     $(function() {
+        function filterQuoteSamplePointsByUnit() {
+            var unitId = String($('#quote-company-unit').val() || '');
+            var $points = $('#quote-sample-point');
+            var selected = String($points.val() || '');
+            var keepSelected = false;
+
+            $points.find('option').each(function () {
+                var $opt = $(this);
+                if (!$opt.val()) {
+                    $opt.prop('hidden', false).prop('disabled', false);
+                    return;
+                }
+                var optUnit = String($opt.data('unit-id') || '');
+                var visible = unitId === '' || optUnit === '' || optUnit === unitId;
+                $opt.prop('hidden', !visible).prop('disabled', !visible);
+                if (visible && $opt.val() === selected) {
+                    keepSelected = true;
+                }
+            });
+
+            if (!keepSelected) {
+                $points.val('');
+            }
+        }
+
+        $('#quote-company-unit').on('change', filterQuoteSamplePointsByUnit);
+        filterQuoteSamplePointsByUnit();
+
         var quotationPricingConfig = {
             suggestUrl: @json(route('quotation.suggest_line_pricing', $header->id)),
             packageDefaultsUrl: @json(route('quotation.package_defaults', $header->id)),

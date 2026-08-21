@@ -430,7 +430,7 @@ class ReceiveSampleRequest extends Component
                         'description' => filled($form->description)
                             ? (string) $form->description
                             : 'Fill a sampling form for '.$sampleType->name.'.',
-                        'icon' => 'mdi-clipboard-edit-outline',
+                        'icon' => 'mdi-file-document-edit-outline',
                         'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
                         'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
                         'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
@@ -489,7 +489,7 @@ class ReceiveSampleRequest extends Component
                         'description' => filled($form->description)
                             ? (string) $form->description
                             : 'Capture a test request for '.$cardTitle.'.',
-                        'icon' => 'mdi-flask-outline',
+                        'icon' => 'mdi-file-document-edit-outline',
                         'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
                         'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
                         'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),
@@ -535,7 +535,7 @@ class ReceiveSampleRequest extends Component
                     'description' => filled($form->description)
                         ? (string) $form->description
                         : 'TRF with no linked sample type — choose sample type in the form.',
-                    'icon' => 'mdi-clipboard-text-outline',
+                    'icon' => 'mdi-file-document-edit-outline',
                     'view_url' => route('submission-forms.show', ['submissionForm' => $form, 'from' => 'rft']),
                     'edit_url' => route('submission-forms.builder', ['submissionForm' => $form, 'from' => 'rft']),
                     'details_url' => route('submission-forms.edit', ['submissionForm' => $form, 'from' => 'rft']),

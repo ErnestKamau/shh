@@ -37,6 +37,7 @@ class ContactsManager extends Component
         'mobile' => '',
         'receive_price_list' => false,
         'receive_invoice' => false,
+        'receive_quotations' => false,
         'receive_report' => false,
         'can_receive_schedule_of_analysis' => false,
         'can_receive_payment_reminders' => false,
@@ -184,6 +185,7 @@ class ContactsManager extends Component
             'mobile' => $contact->mobile ?? '',
             'receive_price_list' => $contact->receive_price_list == 1,
             'receive_invoice' => $contact->receive_invoice == 1,
+            'receive_quotations' => (int) ($contact->receive_quotations ?? 0) === 1,
             'receive_report' => $contact->receive_report == 1,
             'can_receive_schedule_of_analysis' => $contact->can_receive_schedule_of_analysis == 1,
             'can_receive_payment_reminders' => $contact->can_receive_payment_reminders == 1,
@@ -230,6 +232,7 @@ class ContactsManager extends Component
             $contact->mobile = $this->contactForm['mobile'];
             $contact->receive_price_list = $this->contactForm['receive_price_list'] ? 1 : 0;
             $contact->receive_invoice = $this->contactForm['receive_invoice'] ? 1 : 0;
+            $contact->receive_quotations = ! empty($this->contactForm['receive_quotations']) ? 1 : 0;
             $contact->receive_report = $this->contactForm['receive_report'] ? 1 : 0;
             $contact->can_receive_schedule_of_analysis = $this->contactForm['can_receive_schedule_of_analysis'] ? 1 : 0;
             $contact->can_receive_payment_reminders = $this->contactForm['can_receive_payment_reminders'] ? 1 : 0;
@@ -374,6 +377,7 @@ class ContactsManager extends Component
             'mobile' => '',
             'receive_price_list' => false,
             'receive_invoice' => false,
+            'receive_quotations' => false,
             'receive_report' => false,
             'can_receive_schedule_of_analysis' => false,
             'can_receive_payment_reminders' => false,

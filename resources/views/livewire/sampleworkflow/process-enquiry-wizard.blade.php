@@ -85,17 +85,20 @@
                                         <span wire:loading wire:target="sendQuotation">Sending…</span>
                                     </button>
                                 @else
-                                    <button type="button" class="btn btn-primary btn-sm" wire:click="openSendForApprovalModal" wire:loading.attr="disabled" @disabled($lines === [])>
-                                        <span wire:loading.remove wire:target="openSendForApprovalModal,submitQuotationForApproval,openChangeLabManagerModal">
-                                            <i class="mdi mdi-account-check"></i>
-                                            @if($quotationPendingApproval)
-                                                Change lab manager
-                                            @else
+                                    @if($quotationPendingApproval)
+                                        <button type="button" class="btn btn-primary btn-sm" disabled title="Quotation is awaiting approval">
+                                            <i class="mdi mdi-account-clock"></i>
+                                            Awaiting approval
+                                        </button>
+                                    @else
+                                        <button type="button" class="btn btn-primary btn-sm" wire:click="openSendForApprovalModal" wire:loading.attr="disabled" @disabled($lines === [])>
+                                            <span wire:loading.remove wire:target="openSendForApprovalModal,submitQuotationForApproval">
+                                                <i class="mdi mdi-account-check"></i>
                                                 Send for Approval
-                                            @endif
-                                        </span>
-                                        <span wire:loading wire:target="openSendForApprovalModal,submitQuotationForApproval,openChangeLabManagerModal">Submitting…</span>
-                                    </button>
+                                            </span>
+                                            <span wire:loading wire:target="openSendForApprovalModal,submitQuotationForApproval">Submitting…</span>
+                                        </button>
+                                    @endif
                                 @endif
                             @endif
                         </div>
@@ -297,9 +300,6 @@
                                             <span class="badge badge-success">Quotation Sent</span>
                                         @elseif($quotationPendingApproval)
                                             <span class="badge badge-warning">Pending Approval</span>
-                                            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" wire:click="openChangeLabManagerModal">
-                                                Change lab manager
-                                            </button>
                                         @elseif($quotationApprovedReadyToSend)
                                             <span class="badge badge-info">
                                                 @if($quotationReviewedByName !== '')
@@ -672,53 +672,50 @@
 
     @if($showApprovalModal)
         <div class="acc-wizard-backdrop acc-wizard-backdrop--nested" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
                 <div class="modal-content acc-wizard-modal">
                     <div class="acc-wizard-header acc-wizard-header--compact">
-                        <h5 class="acc-wizard-title mb-0">
-                            {{ $approvalModalIsReassign ? 'Change Lab Manager' : 'Send for Approval' }}
-                        </h5>
+                        <h5 class="acc-wizard-title mb-0">Send for Approval</h5>
                         <button type="button" class="acc-wizard-close" wire:click="closeSendForApprovalModal">
                             <i class="mdi mdi-close"></i>
                         </button>
                     </div>
                     <div class="modal-body px-4 py-3">
-                        <p class="text-muted small mb-3">
-                            @if($approvalModalIsReassign)
-                                Assign a different Lab Manager to approve
-                                @if($quoteNumber !== '')
-                                    quotation <strong>{{ $quoteNumber }}</strong>
-                                @else
-                                    this quotation
-                                @endif.
+                        <p class="mb-2">
+                            Send
+                            @if($quoteNumber !== '')
+                                quotation <strong>{{ $quoteNumber }}</strong>
                             @else
-                                Assign a Lab Manager to approve
-                                @if($quoteNumber !== '')
-                                    quotation <strong>{{ $quoteNumber }}</strong>
-                                @else
-                                    this quotation
-                                @endif
-                                before it can be sent to the customer.
+                                this quotation
                             @endif
+                            for approval?
                         </p>
-                        <div class="form-group">
-                            <label class="acc-label" for="enquiry-approval-manager">Lab Manager <span class="text-danger">*</span></label>
-                            <select id="enquiry-approval-manager" class="form-control acc-input" wire:model="approvalLabManagerId">
-                                <option value="">Select Lab Manager…</option>
-                                @foreach($labManagerOptions as $manager)
-                                    <option value="{{ $manager['id'] }}">{{ $manager['name'] }}</option>
-                                @endforeach
-                            </select>
-                            @error('approvalLabManagerId') <span class="text-danger small">{{ $message }}</span> @enderror
-                            @error('labManagerId') <span class="text-danger small">{{ $message }}</span> @enderror
+                        <p class="text-muted small mb-3">
+                            After an approver confirms in LIMS, the quotation can be sent to the customer from the request view.
+                            Email approval links only approve — they do not send to the customer.
+                        </p>
+
+                        <h6 class="acc-label mb-2">Personnel who can approve</h6>
+                        <ul class="list-unstyled small mb-3 border rounded px-3 py-2" style="max-height: 160px; overflow-y: auto;">
+                            @forelse($labManagerOptions as $manager)
+                                <li class="py-1 {{ !$loop->last ? 'border-bottom' : '' }}">
+                                    <strong>{{ $manager['name'] }}</strong>
+                                    @if(($manager['email'] ?? '') !== '')
+                                        <span class="text-muted"> · {{ $manager['email'] }}</span>
+                                    @endif
+                                </li>
+                            @empty
+                                <li class="text-muted">No approvers configured.</li>
+                            @endforelse
+                        </ul>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify-email" wire:model="approvalNotifyEmail">
+                            <label class="form-check-label" for="enquiry-approval-notify-email">Email all listed personnel</label>
                         </div>
-                        <div class="form-group">
-                            <label class="acc-label" for="enquiry-approval-comments">Comments (optional)</label>
-                            <textarea id="enquiry-approval-comments" class="form-control acc-input" rows="2" wire:model="approvalComments" placeholder="Notes for the lab manager"></textarea>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify" wire:model="approvalNotifyEmail">
-                            <label class="form-check-label" for="enquiry-approval-notify">Email notification to lab manager</label>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify-app" wire:model="approvalNotifyInApp">
+                            <label class="form-check-label" for="enquiry-approval-notify-app">Notify in app (bell) for all listed personnel</label>
                         </div>
                     </div>
                     <div class="acc-wizard-footer">
@@ -726,11 +723,9 @@
                         <button type="button" class="btn btn-primary" wire:click="submitQuotationForApproval" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="submitQuotationForApproval">
                                 <i class="mdi mdi-account-check"></i>
-                                {{ $approvalModalIsReassign ? 'Update lab manager' : 'Submit for approval' }}
+                                Confirm
                             </span>
-                            <span wire:loading wire:target="submitQuotationForApproval">
-                                {{ $approvalModalIsReassign ? 'Updating…' : 'Submitting…' }}
-                            </span>
+                            <span wire:loading wire:target="submitQuotationForApproval">Sending…</span>
                         </button>
                     </div>
                 </div>

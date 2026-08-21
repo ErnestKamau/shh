@@ -4,9 +4,26 @@ namespace App\Livewire\Concerns;
 
 trait WithToastNotifications
 {
-    protected function toast(string $type, string $message): void
+    protected function toast(string $type, string $message, ?string $title = null): void
     {
         $this->dispatch('notify', type: $type, message: $message);
+
+        $this->dispatch('imara-toast', [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'durationMs' => 7000,
+        ]);
+    }
+
+    protected function imaraToast(string $type, string $title, string $message): void
+    {
+        $this->dispatch('imara-toast', [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'durationMs' => 7000,
+        ]);
     }
 
     protected function toastSuccess(string $message): void

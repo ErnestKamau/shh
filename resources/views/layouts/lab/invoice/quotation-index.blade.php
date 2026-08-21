@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app', ['dataTable' => false, 'select2' => true])
 
 @section('title2')
-<title>Lab — Quotations</title>
+<title>Lab — Quotation Overview</title>
 @endsection
 
 @section('content2')
@@ -16,6 +16,7 @@
     $isPrepStage = $stage === 'Quote In Preparation';
     $isApprovalStage = $stage === 'Quote In Approval';
     $isCompleteStage = $stage === 'Quote Complete';
+    $isApprovalSettings = $isApprovalSettings ?? ($stage === 'approval-settings');
 @endphp
 
 <main class="container-fluid lab-surface-theme ls-admin-page quotation-index-page" data-ls-type="plex">
@@ -28,12 +29,12 @@
         ],
         [
             'link' => route('quotation-index'),
-            'name' => 'Quotations',
+            'name' => 'Quotation Overview',
             'icon' => null,
         ],
         [
             'link' => null,
-            'name' => $stage,
+            'name' => $stage === 'All Quotations' ? 'All' : $stage,
             'icon' => null,
         ],
     ];
@@ -69,9 +70,9 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-file-document-edit-outline text-primary"></i>
-                                Quotations
+                                Quotation Overview
                             </h2>
-                            <p class="text-muted mb-0">View and manage customer quotations — {{ $stage }}</p>
+                            <p class="text-muted mb-0">KPIs and quotations by status — {{ $stage === 'All Quotations' ? 'All' : $stage }}</p>
                         </div>
                         <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
                             <div class="dropdown">
@@ -108,7 +109,7 @@
         </div>
     </div>
 
-    @if($isAllStage && !empty($metrics))
+    @if(!empty($metrics))
         @include('layouts.lab.invoice.partials.quotation-metrics', ['metrics' => $metrics, 'kpiPeriod' => $kpiPeriod ?? null])
     @endif
 
@@ -140,10 +141,23 @@
                         <span>Complete</span>
                         <span class="quotation-stage-tab__count">{{ $stageCounts['Quote Complete'] }}</span>
                     </a>
+                    <a href="{{ route('quotation-index', ['stage' => 'approval-settings']) }}"
+                       class="quotation-stage-tab {{ $isApprovalSettings ? 'is-active' : '' }}">
+                        <i class="mdi mdi-cog-outline"></i>
+                        <span>Approval settings</span>
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+
+    @if($isApprovalSettings)
+        <div class="row mb-4">
+            <div class="col-12">
+                @livewire('billing.quotation-approval-settings')
+            </div>
+        </div>
+    @endif
 
     @if($isAllStage)
         <div class="row mb-4">
@@ -227,6 +241,7 @@
         </div>
     @endif
 
+    @unless($isApprovalSettings)
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0">
@@ -275,12 +290,6 @@
                                                             <i class="mdi mdi-pencil"></i>
                                                         </a>
                                                     @endif
-                                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
-                                                       class="rm-act-btn rm-act-btn--preview quotation-preview-quote-btn"
-                                                       title="Preview quotation PDF"
-                                                       target="_blank">
-                                                        <i class="mdi mdi-file-eye"></i>
-                                                    </a>
                                                     <a href="{{ route('clone_quotation', ['id' => $quotation->id]) }}"
                                                        class="rm-act-btn rm-act-btn--clone"
                                                        title="Clone">
@@ -368,6 +377,7 @@
             </div>
         </div>
     </div>
+    @endunless
 </main>
 
 <livewire:billing.create-enquiry-from-quotation-wizard />

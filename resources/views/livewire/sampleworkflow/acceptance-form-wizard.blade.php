@@ -48,15 +48,23 @@
                         @if($activeStep === 'sample_config')
                             <section class="acc-wizard-summary mb-4">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-3">
+                                        <p class="acc-wizard-hint mb-1">TRF No.</p>
+                                        <p class="mb-0 font-weight-bold">{{ $trfNumber !== '' ? $trfNumber : '—' }}</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <p class="acc-wizard-hint mb-1">Request Number</p>
+                                        <p class="mb-0 font-weight-bold">{{ $requestNumber !== '' ? $requestNumber : '—' }}</p>
+                                    </div>
+                                    <div class="col-md-2">
                                         <p class="acc-wizard-hint mb-1">Customer</p>
                                         <p class="mb-0 font-weight-bold">{{ $customerName ?: '—' }}</p>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <p class="acc-wizard-hint mb-1">Samples</p>
                                         <p class="mb-0 font-weight-bold">{{ $numberOfSamples }}</p>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label class="acc-wizard-hint mb-1 d-block" for="acceptance-mode-of-work">Mode of work</label>
                                         <select id="acceptance-mode-of-work" class="form-control form-control-sm acc-input" wire:model="modeOfWork">
                                             <option value="Normal">Normal</option>
@@ -80,15 +88,23 @@
                         @else
                             <section class="acc-wizard-summary mb-4">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-3">
+                                        <p class="acc-wizard-hint mb-1">TRF No.</p>
+                                        <p class="mb-0 font-weight-bold">{{ $trfNumber !== '' ? $trfNumber : '—' }}</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <p class="acc-wizard-hint mb-1">Request Number</p>
+                                        <p class="mb-0 font-weight-bold">{{ $requestNumber !== '' ? $requestNumber : '—' }}</p>
+                                    </div>
+                                    <div class="col-md-2">
                                         <p class="acc-wizard-hint mb-1">Customer</p>
                                         <p class="mb-0 font-weight-bold">{{ $customerName ?: '—' }}</p>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <p class="acc-wizard-hint mb-1">Samples</p>
                                         <p class="mb-0 font-weight-bold">{{ $numberOfSamples }}</p>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <p class="acc-wizard-hint mb-1">Mode of work</p>
                                         <p class="mb-0 font-weight-bold">{{ $modeOfWork }}</p>
                                     </div>

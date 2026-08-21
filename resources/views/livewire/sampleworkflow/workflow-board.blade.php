@@ -516,23 +516,46 @@
 		border-left-width: 4px;
 		border-radius: 2px;
 	}
-	.workflow-review-status-legend .legend-swatch--awaiting-customer {
-		border-left-color: #f59e0b;
+	/*
+	 * Submitted enquiry row borders — Carbon/Astro-style status palette
+	 * (gray = not started, blue = in progress, violet = pending gate,
+	 * amber = awaiting customer, green = success). Distinct hues for a11y.
+	 */
+	.workflow-review-status-legend .legend-swatch--awaiting-customer,
+	.workflow-review-status-legend .legend-swatch--quotation-sent {
+		border-left-color: #d97706;
 	}
-	.workflow-review-status-legend .legend-swatch--awaiting-manager {
-		border-left-color: #7dd3fc;
+	.workflow-review-status-legend .legend-swatch--awaiting-manager,
+	.workflow-review-status-legend .legend-swatch--quotation-pending-approval {
+		border-left-color: #7c3aed;
 	}
-	.workflow-review-status-legend .legend-swatch--pending {
-		border-left-color: #94a3b8;
+	.workflow-review-status-legend .legend-swatch--quotation-in-progress {
+		border-left-color: #2563eb;
 	}
-	.workflow-table tr.workflow-review-row--awaiting-customer td:first-child {
-		border-left: 4px solid #f59e0b;
+	.workflow-review-status-legend .legend-swatch--pending,
+	.workflow-review-status-legend .legend-swatch--requested {
+		border-left-color: #64748b;
 	}
-	.workflow-table tr.workflow-review-row--awaiting-manager td:first-child {
-		border-left: 4px solid #7dd3fc;
+	.workflow-review-status-legend .legend-swatch--quotation-accepted {
+		border-left-color: #059669;
 	}
-	.workflow-table tr.workflow-review-row--pending td:first-child {
-		border-left: 4px solid #94a3b8;
+	.workflow-table tr.workflow-review-row--awaiting-customer td:first-child,
+	.workflow-table tr.workflow-submitted-row--quotation-sent td:first-child {
+		border-left: 4px solid #d97706;
+	}
+	.workflow-table tr.workflow-review-row--awaiting-manager td:first-child,
+	.workflow-table tr.workflow-submitted-row--quotation-pending-approval td:first-child {
+		border-left: 4px solid #7c3aed;
+	}
+	.workflow-table tr.workflow-submitted-row--quotation-in-progress td:first-child {
+		border-left: 4px solid #2563eb;
+	}
+	.workflow-table tr.workflow-review-row--pending td:first-child,
+	.workflow-table tr.workflow-submitted-row--requested td:first-child {
+		border-left: 4px solid #64748b;
+	}
+	.workflow-table tr.workflow-submitted-row--quotation-accepted td:first-child {
+		border-left: 4px solid #059669;
 	}
 
 	[x-cloak] {
@@ -1263,6 +1286,7 @@
 								:class="{ 'show': actionsOpen }"
 								aria-labelledby="workflowActionsDropdownToggle"
 								@click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { closeActions(); }">
+								{{-- Samples Receiving: Initiate Inter Lab Transfer commented out
 								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Receiving", "Samples Request Review", "Samples Reception", "Samples In Lab")))
 									<li>
 										<button type="button" class="dropdown-item initiate-interlab" data-toggle="modal"
@@ -1273,80 +1297,248 @@
 
 									</li>
 								@endif
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-review-quotation"
-											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
-											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReviewQuotationFromInstances(selectedInstanceIds())"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Review quotation</button>
-									</li>
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-record-po"
-											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
-											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedInstanceIds().length > 0 && $wire.openPoCaptureFromInstances(selectedInstanceIds())"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Record PO</button>
-									</li>
-								@endif
-								{{-- Move to tray removed as unnecessary
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'in_review')
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-move-to-intray"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())"><i class="mdi mdi-inbox-arrow-down mr-2"></i> Move to tray</button>
-									</li>
-								@endif
 								--}}
-								{{-- Interzone transfer removed with zones
-								@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Request Review", "Samples Reception", "Samples In Lab")))
 									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-interzone-transfer"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="openInterzoneTransfer('request')">
-											<i class="mdi mdi-map-marker-path mr-2 text-info"></i> Interzone transfer
-										</button>
+										<button type="button" class="dropdown-item initiate-interlab" data-toggle="modal"
+											data-sf-trigger="workflow-action-interlab-transfer"
+											data-target="#inter-lab-add" data-action="bulk"><i
+												class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip"
+												title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</button>
+
 									</li>
 								@endif
-								--}}
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-request-additional-info"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											title="Portal-submitted requests only"
-											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
-											<i class="mdi mdi-file-document-edit-outline mr-2"></i> Request more info
-										</button>
-									</li>
-								@endif
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'in_additional_info')
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-resume-additional-info"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedCount > 0 && $wire.resumeAdditionalInfoToReception(selectedInstanceIds())">
-											<i class="mdi mdi-backup-restore mr-2"></i> Resume Ready for Reception
-										</button>
-									</li>
-								@endif
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-request-additional-info"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											title="Portal-submitted requests only"
-											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
-											<i class="mdi mdi-file-document-edit-outline mr-2"></i> Request more info
-										</button>
-									</li>
+								{{-- Samples Receiving: tab-specific Actions menu --}}
+								@if($status === 'Samples Receiving')
+									@if($workflowSubTab === 'submitted')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-process-enquiry"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())">
+												<i class="mdi mdi-file-chart-outline mr-2"></i> Process enquiry
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-walk-in-acceptance"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())">
+												<i class="mdi mdi-check-decagram mr-2"></i> Record quotation acceptance
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-toggle="modal"
+												data-target="#send-schedule-analysis"
+												data-sf-trigger="workflow-action-send-schedule-analysis"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+												<i class="mdi mdi-email-send-outline mr-2"></i> Send Schedule of Analysis
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-clone-request"
+												:class="{ 'disabled': selectedInstanceIds().length !== 1 }"
+												:style="selectedInstanceIds().length !== 1 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedInstanceIds().length === 1 && $wire.cloneSelectedRequest(selectedInstanceIds())">
+												<i class="mdi mdi-content-duplicate mr-2"></i> Clone Request
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-reject-request"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.openRejectSampleWizardFromSelection(selectedInstanceIds())">
+												<i class="mdi mdi-close-circle-outline mr-2"></i> Reject Request
+											</button>
+										</li>
+									@elseif($workflowSubTab === 'ready_for_reception')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-request-additional-info"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												title="Portal-submitted requests only"
+												@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
+												<i class="mdi mdi-file-document-edit-outline mr-2"></i> Request more info
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-direct-registration"
+												wire:click="openOfflinePaperTrfCapture"
+												title="Register a walk-in request under an active contract">
+												<i class="mdi mdi-clipboard-plus-outline mr-2"></i> Direct Registration
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-toggle="modal"
+												data-target="#send-schedule-analysis"
+												data-sf-trigger="workflow-action-send-schedule-analysis"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+												<i class="mdi mdi-email-send-outline mr-2"></i> Send Schedule of Analysis
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-approve-request"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.openAcceptSampleWizardFromSelection(selectedInstanceIds())">
+												<i class="mdi mdi-package-down mr-2"></i> Receive Samples
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-clone-request"
+												:class="{ 'disabled': selectedInstanceIds().length !== 1 }"
+												:style="selectedInstanceIds().length !== 1 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedInstanceIds().length === 1 && $wire.cloneSelectedRequest(selectedInstanceIds())">
+												<i class="mdi mdi-content-duplicate mr-2"></i> Clone Request
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-reject-request"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.openRejectSampleWizardFromSelection(selectedInstanceIds())">
+												<i class="mdi mdi-close-circle-outline mr-2"></i> Reject Request
+											</button>
+										</li>
+									@elseif($workflowSubTab === 'sample_integrity_check')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-integrity-view"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.openSampleIntegrityCheckPageFromSelection(selectedInstanceIds())">
+												<i class="mdi mdi-clipboard-check-outline mr-2"></i> Integrity Check
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-toggle="modal"
+												data-target="#send-schedule-analysis"
+												data-sf-trigger="workflow-action-send-schedule-analysis"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+												<i class="mdi mdi-email-send-outline mr-2"></i> Send Schedule of Analysis
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-clone-request"
+												:class="{ 'disabled': selectedInstanceIds().length !== 1 }"
+												:style="selectedInstanceIds().length !== 1 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedInstanceIds().length === 1 && $wire.cloneSelectedRequest(selectedInstanceIds())">
+												<i class="mdi mdi-content-duplicate mr-2"></i> Clone Request
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-reject-request"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.openRejectSampleWizardFromSelection(selectedInstanceIds())">
+												<i class="mdi mdi-close-circle-outline mr-2"></i> Reject Request
+											</button>
+										</li>
+									@elseif($workflowSubTab === 'accepted')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-toggle="modal"
+												data-target="#send-schedule-analysis"
+												data-sf-trigger="workflow-action-send-schedule-analysis"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+												<i class="mdi mdi-email-send-outline mr-2"></i> Send Schedule of Analysis
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-print-sample-labels"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && window.openTrfLabelsForSelection && window.openTrfLabelsForSelection('registration')">
+												<i class="mdi mdi-barcode mr-2"></i> Print Sample Labels
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-print-collection-labels"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && window.openTrfLabelsForSelection && window.openTrfLabelsForSelection('collection')">
+												<i class="mdi mdi-tag-outline mr-2"></i> Print Collection Labels
+											</button>
+										</li>
+									@elseif($workflowSubTab === 'in_additional_info')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-resume-additional-info"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && $wire.resumeAdditionalInfoToReception(selectedInstanceIds())">
+												<i class="mdi mdi-backup-restore mr-2"></i> Resume Ready for Reception
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-toggle="modal"
+												data-target="#send-schedule-analysis"
+												data-sf-trigger="workflow-action-send-schedule-analysis"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+												<i class="mdi mdi-email-send-outline mr-2"></i> Send Schedule of Analysis
+											</button>
+										</li>
+									@elseif($workflowSubTab === 'sub_contracting')
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-dispatch-subcontract"
+												:class="{ 'disabled': selectedInstanceIds().length !== 1 }"
+												:style="selectedInstanceIds().length !== 1 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedInstanceIds().length === 1 && $wire.openSubcontractDispatchModal(selectedInstanceIds())">
+												<i class="mdi mdi-barcode-scan mr-2"></i> Dispatch request
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-toggle="modal"
+												data-target="#send-schedule-analysis"
+												data-sf-trigger="workflow-action-send-schedule-analysis"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+												<i class="mdi mdi-email-send-outline mr-2"></i> Send Schedule of Analysis
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-print-sample-labels"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && window.openTrfLabelsForSelection && window.openTrfLabelsForSelection('registration')">
+												<i class="mdi mdi-barcode mr-2"></i> Print Sample Labels
+											</button>
+										</li>
+										<li>
+											<button type="button" class="dropdown-item"
+												data-sf-trigger="workflow-action-print-collection-labels"
+												:class="{ 'disabled': selectedCount === 0 }"
+												:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+												@click.prevent="selectedCount > 0 && window.openTrfLabelsForSelection && window.openTrfLabelsForSelection('collection')">
+												<i class="mdi mdi-tag-outline mr-2"></i> Print Collection Labels
+											</button>
+										</li>
+									@endif
 								@endif
 								@if(in_array($status, ['Samples En-Route'], true) && $workflowSubTab === 'requests')
 									<li>
@@ -1355,25 +1547,19 @@
 											data-toggle="modal"><i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for request review</button>
 									</li>
 								@endif
-								@if ($status == "Samples Reception" || $status == "Samples Receiving")
-
-
+								@if ($status == "Samples Reception")
 									<li>
 										<button type="button" class="dropdown-item" data-toggle="modal" disabled data-target="#delete-batch"
 											data-sf-trigger="workflow-action-cancel-batch">
 											<i class="mdi mdi-delete-empty mr-2"></i> Cancel Batch
 										</button>
 									</li>
-									@if($status !== 'Samples Receiving')
 									<li>
 										<button type="button" class="dropdown-item" data-toggle="modal" disabled data-target="#move-to-lab"
 											data-sf-trigger="workflow-action-move-to-lab">
 											<i class="mdi mdi-swap-vertical mr-2"></i> Move to Lab
 										</button>
 									</li>
-									@endif
-
-									@if($status !== 'Samples Receiving')
 									<li>
 										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal"
 											data-sf-trigger="workflow-action-print-labels"><i
@@ -1406,7 +1592,6 @@
 											data-toggle="modal" title="Generate Customer Focus"><i
 												class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</button>
 									</li>
-									@endif
 									<li>
 										<button type="button" class="dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"
 											data-sf-trigger="workflow-action-send-schedule-analysis"
@@ -1432,68 +1617,7 @@
 
 									</li>
 								@endif
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
-									<li>
-										<button type="button" class="dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-											data-sf-trigger="workflow-action-generate-draft-invoice"
-											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</button>
-									</li>
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-approve-request"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											wire:click.prevent="openAcceptSampleWizardFromSelection">
-											<i class="mdi mdi-package-down mr-2"></i> Receive Samples
-										</button>
-									</li>
-									<li>
-
-										<button type="button" class="dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i class="mdi mdi-printer mr-2"></i>Print Labels</button>
-									</li>
-								@endif
-								@if($status === 'Samples Receiving' && $workflowSubTab === 'sample_integrity_check')
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-integrity-view"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openSampleIntegrityCheckPageFromSelection(ids); } })()">
-											<i class="mdi mdi-clipboard-check-outline mr-2"></i> Open Integrity Check
-										</button>
-									</li>
-									{{-- Accept sample hidden on Sample Integrity Check tab
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-approve-request"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openAcceptSampleWizardFromSelection(ids); } })()">
-											<i class="mdi mdi-check-circle-outline mr-2"></i> Accept sample
-										</button>
-									</li>
-									--}}
-									<li>
-										<button type="button" class="dropdown-item"
-											data-sf-trigger="workflow-action-reject-request"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openRejectSampleWizardFromSelection(ids); } })()">
-											<i class="mdi mdi-close-circle-outline mr-2"></i> Reject sample
-										</button>
-									</li>
-									<li>
-										<button type="button" class="dropdown-item"
-											data-target="#print-trf-labels-modal"
-											data-toggle="modal"
-											data-sf-trigger="workflow-action-print-labels"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
-											<i class="mdi mdi-printer mr-2"></i>Print Labels
-										</button>
-									</li>
-								@endif
-								@if(in_array($status, ['Samples Reception', 'Samples Receiving']) || (in_array($status, ['Samples En-Route']) && $workflowSubTab === 'requests'))
+								@if($status === 'Samples Reception' || (in_array($status, ['Samples En-Route']) && $workflowSubTab === 'requests'))
 									<li>
 										<button type="button" class="dropdown-item" disabled data-target="#portal-request-reject-form-modal" data-toggle="modal" data-sf-trigger="workflow-action-reject-request" title="Reject Request">
 											<i class="mdi mdi-close-circle-outline mr-2"></i> Reject Request
@@ -1622,6 +1746,7 @@
 											<i class="mdi mdi-clipboard-plus-outline mr-1"></i> Direct Registration
 										</button>
 									@endif
+								{{-- Selection toolbar primaries moved to row Actions icons
 								<div class="d-flex align-items-center flex-wrap"
 									style="gap: 8px;"
 									x-show="selectedCount > 0"
@@ -1672,14 +1797,6 @@
 											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openSampleIntegrityCheckPageFromSelection(ids); } })()">
 											<i class="mdi mdi-clipboard-check-outline mr-1"></i> Open Integrity Check
 										</button>
-										{{-- Accept sample hidden on Sample Integrity Check tab
-										<button type="button"
-											class="btn btn-sm btn-primary"
-											data-sf-trigger="workflow-action-approve-request"
-											@click.prevent="(() => { const ids = selectedInstanceIds(); if (ids.length) { $wire.openAcceptSampleWizardFromSelection(ids); } })()">
-											<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
-										</button>
-										--}}
 										<button type="button"
 											class="btn btn-sm btn-outline-danger"
 											data-sf-trigger="workflow-action-reject-request"
@@ -1705,6 +1822,7 @@
 										</button>
 									@endif
 								</div>
+								--}}
 								</div>
 							@endif
 							@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review' && $status !== 'All Samples')
@@ -2532,20 +2650,28 @@
 
 							@if($hasSubmissions)
 								@if($submissionForms && $submissionForms->count() > 0)
-									@if($this->isReceivingAnalystReviewTab())
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 										<div class="workflow-review-status-legend mb-3">
 											<span class="legend-label">Row border:</span>
 											<span class="legend-item">
-												<span class="legend-swatch legend-swatch--awaiting-customer"></span>
-												Awaiting customer approval
+												<span class="legend-swatch legend-swatch--requested"></span>
+												Requested
 											</span>
 											<span class="legend-item">
-												<span class="legend-swatch legend-swatch--awaiting-manager"></span>
-												Awaiting lab manager approval
+												<span class="legend-swatch legend-swatch--quotation-in-progress"></span>
+												Quotation In Progress
 											</span>
 											<span class="legend-item">
-												<span class="legend-swatch legend-swatch--pending"></span>
-												Nothing actioned — awaiting acceptance or rejection
+												<span class="legend-swatch legend-swatch--quotation-pending-approval"></span>
+												Quotation Pending Approval
+											</span>
+											<span class="legend-item">
+												<span class="legend-swatch legend-swatch--quotation-sent"></span>
+												Quotation Sent / Under Review
+											</span>
+											<span class="legend-item">
+												<span class="legend-swatch legend-swatch--quotation-accepted"></span>
+												Quotation Accepted
 											</span>
 										</div>
 									@endif
@@ -2683,6 +2809,19 @@
 															));
 														}
 														$reviewRowBorderClass = '';
+														if ($status === 'Samples Receiving' && $workflowSubTab === 'submitted') {
+															$enquiryStatusForBorder = (string) ($instance->sampleSubmissionRequest?->status ?? '');
+															$reviewRowBorderClass = match ($enquiryStatusForBorder) {
+																\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+																\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'workflow-submitted-row--quotation-sent',
+																\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL => 'workflow-submitted-row--quotation-pending-approval',
+																\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+																\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND,
+																'Pending Quotation' => 'workflow-submitted-row--quotation-in-progress',
+																\App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'workflow-submitted-row--quotation-accepted',
+																default => 'workflow-submitted-row--requested',
+															};
+														}
 													@endphp
 													<tr @if($reviewRowBorderClass !== '') class="{{ $reviewRowBorderClass }}" @endif>
 														<td class="align-middle">
@@ -2812,6 +2951,76 @@
 																			title="Record PO"
 																			wire:click="openPoCaptureModal('{{ $instance->sampleSubmissionRequest->id }}')">
 																			<i class="mdi mdi-file-document-edit-outline"></i>
+																		</button>
+																	@endif
+																	@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			data-sf-trigger="workflow-process-enquiry"
+																			wire:click="openProcessEnquiryFromInstances(['{{ $instance->id }}'])"
+																			title="Process enquiry"
+																			aria-label="Process enquiry">
+																			<i class="mdi mdi-file-chart-outline"></i>
+																		</button>
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			data-sf-trigger="workflow-walk-in-acceptance"
+																			wire:click="recordWalkInAcceptanceFromInstances(['{{ $instance->id }}'])"
+																			title="Accept quotation"
+																			aria-label="Accept quotation">
+																			<i class="mdi mdi-check-decagram"></i>
+																		</button>
+																	@elseif($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			data-sf-trigger="workflow-action-approve-request"
+																			wire:click="openAcceptSampleWizardFromSelection(['{{ $instance->id }}'])"
+																			title="Receive samples"
+																			aria-label="Receive samples">
+																			<i class="mdi mdi-package-down"></i>
+																		</button>
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--review"
+																			data-sf-trigger="workflow-action-request-additional-info"
+																			wire:click="openRequestAdditionalInfoModal(['{{ $instance->id }}'])"
+																			title="Request more info"
+																			aria-label="Request more info">
+																			<i class="mdi mdi-comment-question-outline"></i>
+																		</button>
+																	@elseif($status === 'Samples Receiving' && $workflowSubTab === 'sample_integrity_check')
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			data-sf-trigger="workflow-action-integrity-view"
+																			wire:click="openSampleIntegrityCheckPageFromSelection(['{{ $instance->id }}'])"
+																			title="Integrity Check"
+																			aria-label="Integrity Check">
+																			<i class="mdi mdi-clipboard-check-outline"></i>
+																		</button>
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--delete"
+																			data-sf-trigger="workflow-action-reject-request"
+																			wire:click="openRejectSampleWizardFromSelection(['{{ $instance->id }}'])"
+																			title="Reject request"
+																			aria-label="Reject request">
+																			<i class="mdi mdi-close-circle-outline"></i>
+																		</button>
+																	@elseif($status === 'Samples Receiving' && $workflowSubTab === 'in_additional_info')
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			data-sf-trigger="workflow-action-resume-additional-info"
+																			wire:click="resumeAdditionalInfoToReception(['{{ $instance->id }}'])"
+																			title="Resume Ready for Reception"
+																			aria-label="Resume Ready for Reception">
+																			<i class="mdi mdi-backup-restore"></i>
+																		</button>
+																	@elseif($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			data-sf-trigger="workflow-action-dispatch-subcontract"
+																			wire:click="openSubcontractDispatchModal(['{{ $instance->id }}'])"
+																			title="Dispatch request"
+																			aria-label="Dispatch request">
+																			<i class="mdi mdi-truck-delivery-outline"></i>
 																		</button>
 																	@endif
 																@endif
@@ -3211,7 +3420,6 @@
 												@endif
 												@if($status !== 'Samples En-Route')
 													<th style="min-width: 220px;">Samples</th>
-													<th>Draft Invoice</th>
 												@else
 													<th>Client</th>
 												@endif
@@ -3223,10 +3431,8 @@
 													<th nowrap>Date Collected</th>
 													<th nowrap>Target Date</th>
 													<th nowrap>Status Days</th>
-													@if(! $isUniformLabWorkflowTable)
-														<th>Client Unit</th>
-													@endif
 													<th>Lab</th>
+													<th nowrap>Lab Section(s)</th>
 													<th nowrap>Sample Type</th>
 												@endif
 												<th>Actions</th>
@@ -3275,7 +3481,6 @@
 																</div>
 															@endif
 														</td>
-														<td>{{ $item->invoice->invoice_number ?? 'N/A' }}</td>
 													@else
 														<td>{{ $item->client->name ?? 'N/A' }}</td>
 													@endif
@@ -3287,9 +3492,6 @@
 														<td nowrap>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatDateOnly($item->date_collected) }}</td>
 														<td nowrap>{{ $targetDateRaw ? \Illuminate\Support\Carbon::parse($targetDateRaw)->format('Y-m-d') : 'N/A' }}</td>
 														<td nowrap @class(['text-danger font-weight-bold' => $statusDays !== null && $statusDays < 0])>{{ \App\Livewire\Sampleworkflow\WorkflowBoard::formatStatusDaysLabel($statusDays) }}</td>
-														@if(! $isUniformLabWorkflowTable)
-															<td>{{ $item->client_unit ?? 'N/A' }}</td>
-														@endif
 														<td>
 															@php
 																$analysisLabs = $item->analysisLabsForDisplay();
@@ -3315,6 +3517,30 @@
 																			@endif
 																			{{ $labLabel }}
 																		</span>
+																	@endforeach
+																</div>
+															@endif
+														</td>
+														<td>
+															@php
+																$labSections = $item->labSectionsForDisplay();
+															@endphp
+															@if($labSections === [])
+																<span class="text-muted">N/A</span>
+															@else
+																<div class="d-flex flex-wrap align-items-center" style="gap: 2px; max-width: 200px;">
+																	@foreach($labSections as $labSection)
+																		@php
+																			$sectionTitle = trim((string) ($labSection['name'] ?? ''));
+																			$sectionLabel = ($labSection['code'] ?? '') !== ''
+																				? $labSection['code']
+																				: ($labSection['name'] ?? 'Section');
+																		@endphp
+																		<span
+																			class="badge border badge-light"
+																			title="{{ $sectionTitle !== '' ? $sectionTitle : $sectionLabel }}"
+																			style="font-size: 10px; font-weight: 500; line-height: 1.2; padding: 2px 5px; white-space: nowrap;"
+																		>{{ $sectionLabel }}</span>
 																	@endforeach
 																</div>
 															@endif
@@ -6211,8 +6437,7 @@
 				rebuildTrfPrintLabels();
 			});
 
-			$('#print-trf-labels-modal').off('click.workflowTrfLabels', '.js-open-trf-label').on('click', '.js-open-trf-label', function () {
-				const labelType = $(this).data('label-type') || 'collection';
+			window.openTrfLabelsForSelection = function (labelType) {
 				const selectedIds = getSelectedTrfInstanceIds();
 
 				if (selectedIds.length === 0) {
@@ -6221,9 +6446,12 @@
 				}
 
 				selectedIds.forEach(function (instanceId) {
-					window.open(buildTrfLabelUrl(instanceId, labelType), '_blank');
+					window.open(buildTrfLabelUrl(instanceId, labelType || 'collection'), '_blank');
 				});
+			};
 
+			$('#print-trf-labels-modal').off('click.workflowTrfLabels', '.js-open-trf-label').on('click', '.js-open-trf-label', function () {
+				window.openTrfLabelsForSelection($(this).data('label-type') || 'collection');
 				$('#print-trf-labels-modal').modal('hide');
 			});
 

@@ -186,6 +186,68 @@ class SampleHeader extends Model implements Auditable
 			->all();
 	}
 
+	/**
+	 * Unique lab sections across this batch and all of its samples (via analysis types).
+	 *
+	 * @return list<array{id: string, code: string, name: string}>
+	 */
+	public function labSectionsForDisplay(): array
+	{
+		$sectionIds = [];
+
+		foreach (explode(',', (string) ($this->lab_section_ids ?? '')) as $id) {
+			$id = trim($id);
+			if ($id !== '' && \Illuminate\Support\Str::isUuid($id)) {
+				$sectionIds[$id] = true;
+			}
+		}
+
+		$this->loadMissing(['samples']);
+
+		$analysisTypeIds = $this->samples
+			->flatMap(static function ($sample): array {
+				return array_values(array_filter(array_map(
+					static fn (string $id): string => trim($id),
+					explode(',', (string) ($sample->analysis_type_id ?? '')),
+				)));
+			})
+			->unique()
+			->values()
+			->all();
+
+		if ($analysisTypeIds !== []) {
+			$fromTypes = AnalysisType::query()
+				->whereIn('id', $analysisTypeIds)
+				->whereNotNull('lab_section_id')
+				->pluck('lab_section_id');
+
+			foreach ($fromTypes as $id) {
+				$id = trim((string) $id);
+				if ($id !== '' && \Illuminate\Support\Str::isUuid($id)) {
+					$sectionIds[$id] = true;
+				}
+			}
+		}
+
+		if ($sectionIds === []) {
+			return [];
+		}
+
+		return SampleAnalysisStage::query()
+			->whereIn('id', array_keys($sectionIds))
+			->orderBy('code')
+			->orderBy('name')
+			->get(['id', 'code', 'name'])
+			->map(static fn (SampleAnalysisStage $section): array => [
+				'id' => (string) $section->id,
+				'code' => trim((string) ($section->code ?? '')),
+				'name' => trim((string) ($section->name ?? '')),
+			])
+			->filter(static fn (array $section): bool => $section['code'] !== '' || $section['name'] !== '')
+			->values()
+			->all();
+	}
+
 	public function shelfLifeStudy()
 	{
 		return $this->hasOne(\App\Models\ShelfLife\ShelfLifeStudy::class, 'sample_header_id');

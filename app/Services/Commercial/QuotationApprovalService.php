@@ -2,9 +2,11 @@
 
 namespace App\Services\Commercial;
 
+use App\Jobs\Commercial\NotifyQuotationApproversJob;
 use App\Models\QuotationApprovalLog;
 use App\Models\SampleSubmissionRequest;
 use App\QuotationHeader;
+use App\Services\Lab\LabSystemNotificationService;
 use App\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
@@ -26,8 +28,18 @@ final class QuotationApprovalService
      */
     public function eligibleLabManagers(?string $excludeUserId = null): Collection
     {
+        return $this->eligibleApprovers($excludeUserId);
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function eligibleApprovers(?string $excludeUserId = null): Collection
+    {
+        $role = app(QuotationApprovalConfigService::class)->approverRoleName();
+
         $query = User::query()
-            ->role('Lab Manager')
+            ->role($role)
             ->where('active', 1)
             ->orderBy('name');
 
@@ -44,30 +56,29 @@ final class QuotationApprovalService
         string $labManagerId,
         bool $notifyEmail = true,
         ?string $comments = null,
+        bool $notifyInApp = true,
     ): SampleSubmissionRequest {
+        // Email approval link: approve only (no customer send). Requester is notified
+        // in-app + email to log into LIMS and send via the approve/send modal.
+        // In-app approval: lab manager picks CRM contacts (name, company unit, sampling location).
+        // Portal send is automatic for selected portal-eligible contacts; email send is optional.
+        // Customer email carries the PDF attachment only — no Accept/View links.
+        // Acceptance is via customer portal or LIMS "Record quotation acceptance".
         $actor = Auth::user();
         if ($actor === null) {
             throw new RuntimeException('You must be signed in to submit a quotation for approval.');
+        }
+
+        if (! $notifyEmail && ! $notifyInApp) {
+            throw ValidationException::withMessages([
+                'approvalNotify' => 'Choose at least one notification channel (email or in-app).',
+            ]);
         }
 
         $manager = $this->resolveLabManager($labManagerId);
 
         if ($header->details()->count() < 1) {
             throw new RuntimeException('Add at least one quotation line before sending for approval.');
-        }
-
-        // Generate PDF before the status transaction so Dompdf cannot hold DB locks.
-        if (empty($header->upload_url)) {
-            try {
-                $header = app(QuotationFromEnquiryService::class)->generatePdf($header);
-            } catch (\Throwable $exception) {
-                report($exception);
-                throw new RuntimeException(
-                    'Could not generate the quotation PDF before sending for approval. '.$exception->getMessage(),
-                    0,
-                    $exception,
-                );
-            }
         }
 
         $submitted = DB::transaction(function () use ($enquiry, $header, $manager, $actor, $comments): SampleSubmissionRequest {
@@ -100,11 +111,71 @@ final class QuotationApprovalService
             return $enquiry->fresh(['currentQuotation', 'customer', 'contact']) ?? $enquiry;
         });
 
-        if ($notifyEmail && filled($manager->email)) {
+        $freshHeader = $submitted->currentQuotation ?? $header->fresh() ?? $header;
+        $approvers = $this->eligibleApprovers();
+
+        if ($notifyInApp) {
             try {
-                $approvalUrl = app(QuotationEmailActionService::class)->approvalUrl($submitted, $header);
+                app(LabSystemNotificationService::class)->notifyQuotationApprovalRequired(
+                    $freshHeader,
+                    $approvers,
+                    (string) $actor->name,
+                );
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        if ($notifyEmail) {
+            NotifyQuotationApproversJob::dispatch(
+                (string) $freshHeader->id,
+                (string) $submitted->id,
+                (string) $actor->id,
+                true,
+            )->afterResponse();
+        }
+
+        return $submitted;
+    }
+
+    /**
+     * Generate the quotation PDF (if needed) and email all eligible approvers.
+     * Intended to run after the HTTP response via NotifyQuotationApproversJob.
+     */
+    public function deliverApproverNotifications(
+        QuotationHeader $header,
+        SampleSubmissionRequest $enquiry,
+        User $actor,
+        bool $notifyEmail = true,
+    ): void {
+        if (empty($header->upload_url)) {
+            try {
+                $header = app(QuotationFromEnquiryService::class)->generatePdf($header);
+            } catch (\Throwable $exception) {
+                report($exception);
+                throw new RuntimeException(
+                    'Could not generate the quotation PDF for approver notifications. '.$exception->getMessage(),
+                    0,
+                    $exception,
+                );
+            }
+        }
+
+        if (! $notifyEmail) {
+            return;
+        }
+
+        $approvers = $this->eligibleApprovers();
+
+        foreach ($approvers as $approver) {
+            if (! filled($approver->email)) {
+                continue;
+            }
+
+            try {
+                $approvalUrl = app(QuotationEmailActionService::class)->approvalUrl($enquiry, $header);
                 $subject = 'Quotation '.$header->quote_number.' awaiting your approval';
-                $message = 'Hi '.$manager->name.',<br><br>'
+                $message = 'Hi '.$approver->name.',<br><br>'
                     .$actor->name.' submitted quotation <strong>'.$header->quote_number.'</strong> for approval.';
                 if ($approvalUrl !== null) {
                     $message .= '<br><br><a href="'.e($approvalUrl).'" '
@@ -114,15 +185,13 @@ final class QuotationApprovalService
                     $message .= '<br>Open the request from your personal dashboard to preview and approve.';
                 }
                 $message .= '<br><br>The quotation PDF is attached for your review.';
-                notify_user($message, $manager->email, $subject, $this->resolveQuotationAttachmentPath($header), false, [], [
+                notify_user($message, $approver->email, $subject, $this->resolveQuotationAttachmentPath($header), false, [], [
                     'eyebrow' => 'Quotation Approval',
                 ]);
             } catch (\Throwable $exception) {
                 report($exception);
             }
         }
-
-        return $submitted;
     }
 
     /**
@@ -218,23 +287,29 @@ final class QuotationApprovalService
         SampleSubmissionRequest $enquiry,
         QuotationHeader $header,
         ?string $comments = null,
+        bool $notifyRequester = true,
     ): SampleSubmissionRequest {
         $actor = Auth::user();
         if ($actor === null) {
             throw new RuntimeException('You must be signed in to approve a quotation.');
         }
 
-        $this->assertAssignedApprover($header, (string) $actor->id);
+        $this->assertUserCanApprove($header, $actor);
 
         if ((string) $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL
             && (string) $header->status !== self::HEADER_STATUS_IN_APPROVAL) {
             throw new RuntimeException('This quotation is not awaiting approval.');
         }
 
+        if ((int) $header->is_approved === 1) {
+            throw new RuntimeException($this->alreadyApprovedMessage($header));
+        }
+
         $approved = DB::transaction(function () use ($enquiry, $header, $actor, $comments): SampleSubmissionRequest {
             $header->status = self::HEADER_STATUS_COMPLETE;
             $header->is_approved = 1;
             $header->is_complete = 1;
+            $header->approved_by = (string) $actor->id;
             $header->approval_decision_at = now();
             $header->approval_comments = $comments !== null && trim($comments) !== '' ? trim($comments) : null;
             $header->save();
@@ -248,20 +323,21 @@ final class QuotationApprovalService
                 $enquiry,
                 QuotationApprovalLog::ACTION_APPROVED,
                 (string) $actor->id,
-                (string) $header->approved_by,
+                (string) $actor->id,
                 $header->approval_comments,
             );
 
             return $enquiry->fresh(['currentQuotation', 'customer', 'contact']) ?? $enquiry;
         });
 
-        // Notify outside the transaction so SMTP delays cannot block approval.
-        // PDF is not regenerated here — preview/send regenerate when needed.
-        $this->notifyRequesterOfDecision(
-            $approved->currentQuotation ?? $header,
-            $actor,
-            approved: true,
-        );
+        // Skip when the in-app modal will immediately send to the customer.
+        if ($notifyRequester) {
+            $this->notifyRequesterOfDecision(
+                $approved->currentQuotation ?? $header,
+                $actor,
+                approved: true,
+            );
+        }
 
         return $approved;
     }
@@ -272,10 +348,20 @@ final class QuotationApprovalService
     public function approveViaEmailToken(
         SampleSubmissionRequest $enquiry,
         QuotationHeader $header,
+        ?string $approverUserId = null,
     ): SampleSubmissionRequest {
-        $approverId = trim((string) ($header->approved_by ?? ''));
+        if ((int) $header->is_approved === 1) {
+            throw new RuntimeException($this->alreadyApprovedMessage($header));
+        }
+
+        $approverId = trim((string) ($approverUserId ?: $header->approved_by ?? ''));
         if ($approverId === '') {
-            throw new RuntimeException('No lab manager is assigned to approve this quotation.');
+            $firstApprover = $this->eligibleApprovers()->first();
+            $approverId = $firstApprover ? (string) $firstApprover->id : '';
+        }
+
+        if ($approverId === '') {
+            throw new RuntimeException('No approver is available for this quotation.');
         }
 
         if ((string) $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL
@@ -287,6 +373,7 @@ final class QuotationApprovalService
             $header->status = self::HEADER_STATUS_COMPLETE;
             $header->is_approved = 1;
             $header->is_complete = 1;
+            $header->approved_by = $approverId;
             $header->approval_decision_at = now();
             $header->save();
 
@@ -305,6 +392,21 @@ final class QuotationApprovalService
 
             return $enquiry->fresh(['currentQuotation', 'customer', 'contact']) ?? $enquiry;
         });
+
+        $freshHeader = $approved->currentQuotation ?? $header->fresh() ?? $header;
+        $approver = User::query()->find($approverId);
+        if ($approver === null) {
+            $approver = new User;
+            $approver->name = 'An approver';
+        }
+
+        // Email link only approves — never sends to the customer. Requester must send from LIMS.
+        $this->notifyRequesterOfDecision(
+            $freshHeader,
+            $approver,
+            approved: true,
+            fromEmailLink: true,
+        );
 
         return $approved;
     }
@@ -431,13 +533,17 @@ final class QuotationApprovalService
     public function canCurrentUserApprove(QuotationHeader $header, ?User $user = null): bool
     {
         $user ??= Auth::user();
-        if ($user === null || empty($header->approved_by)) {
+        if ($user === null) {
             return false;
         }
 
-        return (string) $header->approved_by === (string) $user->id
-            && (string) $header->status === self::HEADER_STATUS_IN_APPROVAL
-            && (int) $header->is_approved !== 1;
+        if ((string) $header->status !== self::HEADER_STATUS_IN_APPROVAL || (int) $header->is_approved === 1) {
+            return false;
+        }
+
+        $role = app(QuotationApprovalConfigService::class)->approverRoleName();
+
+        return $user->hasRole($role);
     }
 
     /**
@@ -445,10 +551,19 @@ final class QuotationApprovalService
      */
     public function pendingApprovalsForUser(string $userId): SupportCollection
     {
+        $user = User::query()->find($userId);
+        if ($user === null) {
+            return collect();
+        }
+
+        $role = app(QuotationApprovalConfigService::class)->approverRoleName();
+        if (! $user->hasRole($role)) {
+            return collect();
+        }
+
         return QuotationHeader::query()
             ->with(['sampleSubmissionRequest.submissionFormInstance.submissionForm', 'customer'])
             ->where('status', self::HEADER_STATUS_IN_APPROVAL)
-            ->where('approved_by', $userId)
             ->where(function ($query): void {
                 $query->where('is_approved', 0)->orWhereNull('is_approved');
             })
@@ -471,26 +586,59 @@ final class QuotationApprovalService
 
     private function resolveLabManager(string $labManagerId): User
     {
+        $role = app(QuotationApprovalConfigService::class)->approverRoleName();
+
         $manager = User::query()
-            ->role('Lab Manager')
+            ->role($role)
             ->where('active', 1)
             ->where('id', $labManagerId)
             ->first();
 
         if ($manager === null) {
             throw ValidationException::withMessages([
-                'labManagerId' => 'Select a valid lab manager.',
+                'labManagerId' => 'Select a valid approver with the configured quotation approval role.',
             ]);
         }
 
         return $manager;
     }
 
+    private function assertUserCanApprove(QuotationHeader $header, User $user): void
+    {
+        if (! $this->canCurrentUserApprove($header, $user)) {
+            throw ValidationException::withMessages([
+                'approval' => 'Only users with the quotation approval role can action this quotation.',
+            ]);
+        }
+    }
+
+    public function alreadyApprovedMessage(QuotationHeader $header): string
+    {
+        $header->loadMissing('approvedByUser');
+        $name = trim((string) ($header->approvedByUser?->name ?? $this->resolveApproverName($header)));
+        $when = $header->approval_decision_at
+            ? $header->approval_decision_at->format('Y-m-d H:i')
+            : '';
+
+        $quote = (string) ($header->quote_number ?? '');
+
+        if ($name !== '' && $when !== '') {
+            return 'Quotation '.$quote.' was approved by '.$name.' on '.$when.'.';
+        }
+
+        if ($name !== '') {
+            return 'Quotation '.$quote.' was approved by '.$name.'.';
+        }
+
+        return 'Quotation '.$quote.' was already approved.';
+    }
+
     private function assertAssignedApprover(QuotationHeader $header, string $userId): void
     {
-        if ((string) $header->approved_by !== $userId) {
+        $user = User::query()->find($userId);
+        if ($user === null || ! $this->canCurrentUserApprove($header, $user)) {
             throw ValidationException::withMessages([
-                'approval' => 'Only the assigned lab manager can action this quotation approval.',
+                'approval' => 'Only users with the quotation approval role can action this quotation approval.',
             ]);
         }
     }
@@ -500,6 +648,7 @@ final class QuotationApprovalService
         User $actor,
         bool $approved,
         ?string $comments = null,
+        bool $fromEmailLink = false,
     ): void {
         try {
             $requesterId = (string) ($header->approval_requested_by ?: $header->prepared_by_id);
@@ -508,15 +657,36 @@ final class QuotationApprovalService
             }
 
             $requester = User::query()->find($requesterId);
-            if (! $requester?->email) {
+            if ($requester === null) {
+                return;
+            }
+
+            if ($approved) {
+                try {
+                    app(LabSystemNotificationService::class)->notifyQuotationApprovedReadyToSend(
+                        $header,
+                        $requester,
+                        (string) $actor->name,
+                    );
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            }
+
+            if (! filled($requester->email)) {
                 return;
             }
 
             if ($approved) {
                 $subject = 'Quotation '.$header->quote_number.' approved';
                 $message = 'Hi '.$requester->name.',<br><br>'
-                    .$actor->name.' approved quotation <strong>'.$header->quote_number.'</strong>. '
-                    .'You can now send it to the customer.';
+                    .$actor->name.' approved quotation <strong>'.$header->quote_number.'</strong>. ';
+                if ($fromEmailLink) {
+                    $message .= 'Please log into LIMS and send the quotation to the customer from the request view. '
+                        .'Sending is not done from this email.';
+                } else {
+                    $message .= 'You can now send it to the customer from LIMS if it was not sent automatically.';
+                }
             } else {
                 $subject = 'Quotation '.$header->quote_number.' returned for revision';
                 $message = 'Hi '.$requester->name.',<br><br>'

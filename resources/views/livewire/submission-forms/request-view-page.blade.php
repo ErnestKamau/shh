@@ -21,6 +21,11 @@
     @include('livewire.submission-forms.request-view.cards.header', [
         'viewHeader' => $viewHeader,
         'nextStepActions' => $nextStepActions,
+        'quotationHeader' => $quotationHeader ?? null,
+        'quotationPendingApproval' => $quotationPendingApproval ?? false,
+        'quotationApprovedReadyToSend' => $quotationApprovedReadyToSend ?? false,
+        'canApproveQuotation' => $canApproveQuotation ?? false,
+        'commercialEnquiry' => $commercialEnquiry ?? null,
     ])
 
     @if($commercialEnquiry && ($commercialEnquiry->isQuotationUnderReview() || $commercialEnquiry->hasCustomerFeedback()))
@@ -41,126 +46,126 @@
         </div>
     @endif
 
-    @include('livewire.submission-forms.request-view.cards.request-info', [
-        'requestInfoCard' => $requestInfoCard,
-    ])
+    <div class="rv-console">
+        @include('livewire.submission-forms.request-view.cards.context-rail', [
+            'contextRail' => $contextRail,
+            'canEditSampleRows' => $canEditSampleRows,
+        ])
 
-    @if($workflowForms->count() > 0)
-        <div class="workflow-board-panel mb-3">
-            <div class="workflow-board-panel-header">
-                <h5><i class="mdi mdi-file-document-multiple-outline"></i> Workflow decision forms</h5>
-            </div>
-            <div class="workflow-board-panel-body flush-top">
-                <div class="table-responsive">
-                    <table class="table table-hover workflow-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Form type</th>
-                                <th>Reference</th>
-                                <th>Submitted at</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($workflowForms as $workflowForm)
-                                <tr>
-                                    <td>{{ $workflowForm->form_type === 'laboratory_analysis_acceptance' ? 'Laboratory Analysis Acceptance' : 'Sample Rejection' }}</td>
-                                    <td>{{ $workflowForm->request_reference ?: ($workflowForm->batch_code ?: '—') }}</td>
-                                    <td>{{ optional($workflowForm->submitted_at)->format('Y-m-d H:i') ?: optional($workflowForm->created_at)->format('Y-m-d H:i') }}</td>
-                                    <td>
-                                        @if($workflowForm->pdf_path)
-                                            <a href="{{ $workflowForm->pdf_path }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">PDF</a>
-                                        @else
-                                            <span class="text-muted small">PDF unavailable</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+        <div class="rv-console-canvas">
+            @if($workflowForms->count() > 0)
+                <div class="workflow-board-panel mb-3">
+                    <div class="workflow-board-panel-header">
+                        <h5><i class="mdi mdi-file-document-multiple-outline"></i> Workflow decision forms</h5>
+                    </div>
+                    <div class="workflow-board-panel-body flush-top">
+                        <div class="table-responsive">
+                            <table class="table table-hover workflow-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Form type</th>
+                                        <th>Reference</th>
+                                        <th>Submitted at</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($workflowForms as $workflowForm)
+                                        <tr>
+                                            <td>{{ $workflowForm->form_type === 'laboratory_analysis_acceptance' ? 'Laboratory Analysis Acceptance' : 'Sample Rejection' }}</td>
+                                            <td>{{ $workflowForm->request_reference ?: ($workflowForm->batch_code ?: '—') }}</td>
+                                            <td>{{ optional($workflowForm->submitted_at)->format('Y-m-d H:i') ?: optional($workflowForm->created_at)->format('Y-m-d H:i') }}</td>
+                                            <td>
+                                                @if($workflowForm->pdf_path)
+                                                    <a href="{{ $workflowForm->pdf_path }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">PDF</a>
+                                                @else
+                                                    <span class="text-muted small">PDF unavailable</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    @endif
+            @endif
 
-    <div class="workflow-board-panel batch-tabs-panel">
-        <div class="workflow-board-panel-body flush-top">
-            <ul class="nav batch-nav-tabs mb-0" role="tablist">
-                <li class="nav-item">
-                    <button type="button" class="nav-link {{ $activeTab === 'tests' ? 'active' : '' }}" wire:click="setTab('tests')">
-                        <i class="mdi mdi-flask-outline"></i> Tests
-                        <span class="badge">{{ $testSamplesCard['count'] }}</span>
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button type="button" class="nav-link {{ $activeTab === 'notes' ? 'active' : '' }}" wire:click="setTab('notes')">
-                        <i class="mdi mdi-comment-text-outline"></i> Notes
-                        <span class="badge">{{ $instance->notes->count() }}</span>
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button type="button" class="nav-link {{ $activeTab === 'attachments' ? 'active' : '' }}" wire:click="setTab('attachments')">
-                        <i class="mdi mdi-paperclip"></i> Attachments
-                        <span class="badge">{{ $attachmentInstances->count() + $batchAttachments->count() + (isset($customAttachments) ? $customAttachments->count() : 0) + (isset($formMediaAttachments) ? $formMediaAttachments->count() : 0) }}</span>
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button type="button" class="nav-link {{ $activeTab === 'custody' ? 'active' : '' }}" wire:click="setTab('custody')">
-                        <i class="mdi mdi-sitemap"></i> Chain of custody
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button type="button" class="nav-link {{ $activeTab === 'quotation_approvals' ? 'active' : '' }}" wire:click="setTab('quotation_approvals')">
-                        <i class="mdi mdi-file-check-outline"></i> Quotation approvals
-                    </button>
-                </li>
-            </ul>
+            <div class="workflow-board-panel batch-tabs-panel mb-0">
+                <div class="workflow-board-panel-body flush-top">
+                    <ul class="nav batch-nav-tabs mb-0" role="tablist">
+                        <li class="nav-item">
+                            <button type="button" class="nav-link {{ $activeTab === 'tests' ? 'active' : '' }}" wire:click="setTab('tests')">
+                                <i class="mdi mdi-flask-outline"></i> Tests
+                                <span class="badge">{{ $testSamplesCard['count'] }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link {{ $activeTab === 'sample_collection' ? 'active' : '' }}" wire:click="setTab('sample_collection')">
+                                <i class="mdi mdi-map-marker-radius-outline"></i> Sample collection
+                                <span class="badge">{{ count($contextRail['sample_collection'] ?? []) }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link {{ $activeTab === 'notes' ? 'active' : '' }}" wire:click="setTab('notes')">
+                                <i class="mdi mdi-comment-text-outline"></i> Notes
+                                <span class="badge">{{ $instance->notes->count() }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link {{ $activeTab === 'attachments' ? 'active' : '' }}" wire:click="setTab('attachments')">
+                                <i class="mdi mdi-paperclip"></i> Attachments
+                                <span class="badge">{{ $attachmentInstances->count() + $batchAttachments->count() + (isset($customAttachments) ? $customAttachments->count() : 0) + (isset($formMediaAttachments) ? $formMediaAttachments->count() : 0) }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link {{ $activeTab === 'custody' ? 'active' : '' }}" wire:click="setTab('custody')">
+                                <i class="mdi mdi-sitemap"></i> Chain of custody
+                            </button>
+                        </li>
+                    </ul>
 
-            <div class="tab-content">
-                @if($activeTab === 'tests')
-                    @include('livewire.submission-forms.request-view.tabs.tests', [
-                        'testSamplesCard' => $testSamplesCard,
-                        'canEditSampleRows' => $canEditSampleRows,
-                        'acceptanceForm' => $acceptanceForm,
-                        'boardStatus' => $boardStatus,
-                        'attachmentInstances' => $attachmentInstances,
-                        'instance' => $instance,
-                        'linkedBatchesOutOfSyncWithForm' => $linkedBatchesOutOfSyncWithForm,
-                    ])
-                @elseif($activeTab === 'notes')
-                    <div class="tab-pane-pad">
-                        @include('livewire.submission-forms.request-view.tabs.notes')
+                    <div class="tab-content">
+                        @if($activeTab === 'tests')
+                            @include('livewire.submission-forms.request-view.tabs.tests', [
+                                'testSamplesCard' => $testSamplesCard,
+                                'canEditSampleRows' => $canEditSampleRows,
+                                'acceptanceForm' => $acceptanceForm,
+                                'boardStatus' => $boardStatus,
+                                'attachmentInstances' => $attachmentInstances,
+                                'instance' => $instance,
+                                'linkedBatchesOutOfSyncWithForm' => $linkedBatchesOutOfSyncWithForm,
+                            ])
+                        @elseif($activeTab === 'sample_collection')
+                            <div class="tab-pane-pad">
+                                @include('livewire.submission-forms.request-view.tabs.sample-collection', [
+                                    'contextRail' => $contextRail,
+                                    'canEditSampleRows' => $canEditSampleRows,
+                                ])
+                            </div>
+                        @elseif($activeTab === 'notes')
+                            <div class="tab-pane-pad">
+                                @include('livewire.submission-forms.request-view.tabs.notes')
+                            </div>
+                        @elseif($activeTab === 'attachments')
+                            <div class="tab-pane-pad">
+                                @include('livewire.submission-forms.request-view.tabs.attachments', [
+                                    'attachmentInstances' => $attachmentInstances,
+                                    'batchAttachments' => $batchAttachments,
+                                    'customAttachments' => $customAttachments,
+                                    'formMediaAttachments' => $formMediaAttachments,
+                                ])
+                            </div>
+                        @elseif($activeTab === 'custody')
+                            <div class="tab-pane-pad">
+                                @include('livewire.submission-forms.request-view.tabs.chain-of-custody', [
+                                    'custodyTimeline' => $this->custodyTimeline,
+                                    'custodyEnteredLab' => $this->custodyEnteredLab,
+                                ])
+                            </div>
+                        @endif
                     </div>
-                @elseif($activeTab === 'attachments')
-                    <div class="tab-pane-pad">
-                        @include('livewire.submission-forms.request-view.tabs.attachments', [
-                            'attachmentInstances' => $attachmentInstances,
-                            'batchAttachments' => $batchAttachments,
-                            'customAttachments' => $customAttachments,
-                            'formMediaAttachments' => $formMediaAttachments,
-                        ])
-                    </div>
-                @elseif($activeTab === 'custody')
-                    <div class="tab-pane-pad">
-                        @include('livewire.submission-forms.request-view.tabs.chain-of-custody', [
-                            'custodyTimeline' => $this->custodyTimeline,
-                            'custodyEnteredLab' => $this->custodyEnteredLab,
-                        ])
-                    </div>
-                @elseif($activeTab === 'quotation_approvals')
-                    <div class="tab-pane-pad">
-                        @include('livewire.submission-forms.request-view.tabs.quotation-approvals', [
-                            'quotationHeader' => $quotationHeader,
-                            'quotationApproverName' => $quotationApproverName,
-                            'commercialEnquiry' => $commercialEnquiry,
-                            'quotationPendingApproval' => $quotationPendingApproval,
-                            'quotationApprovedReadyToSend' => $quotationApprovedReadyToSend,
-                            'canApproveQuotation' => $canApproveQuotation,
-                            'showChangeLabManagerForm' => $showChangeLabManagerForm,
-                            'labManagerOptions' => $labManagerOptions,
-                        ])
-                    </div>
-                @endif
+                </div>
             </div>
         </div>
     </div>
@@ -168,6 +173,9 @@
     @livewire('sampleworkflow.process-enquiry-wizard')
     @livewire('sampleworkflow.sample-rejection-wizard')
     @livewire('sampleworkflow.acceptance-form-wizard')
+
+    @include('livewire.submission-forms.request-view.partials.sample-row-edit-modal')
+    @include('livewire.submission-forms.request-view.partials.approve-quotation-modal')
 
     {{-- Keep receive/walk-in capture in a Bootstrap modal so it is not inline on the read-only view. --}}
     <div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
@@ -355,6 +363,29 @@
                             <label for="clientPoNumber">Client PO number</label>
                             <input type="text" id="clientPoNumber" class="form-control" wire:model.defer="clientPoNumber">
                             @error('client_po_number')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
+                        </div>
+
+                        <div class="form-group">
+                            <label for="quotationAcceptanceAttachmentType">Attachment type (optional)</label>
+                            <select id="quotationAcceptanceAttachmentType" class="form-control" wire:model="quotationAcceptanceAttachmentType">
+                                <option value="">No attachment</option>
+                                <option value="Test Request Form">Test Request Form</option>
+                                <option value="Quotation">Quotation</option>
+                                <option value="Purchase Order">Purchase Order</option>
+                                <option value="Invoice">Invoice</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="quotationAcceptanceAttachment">Upload attachment (optional)</label>
+                            <input type="file"
+                                id="quotationAcceptanceAttachment"
+                                class="form-control-file"
+                                wire:model="quotationAcceptanceAttachment">
+                            <small class="text-muted d-block">Use this for a purchase order or supporting document. Signature is still required to accept.</small>
+                            @error('quotationAcceptanceAttachment')
                                 <small class="text-danger d-block mt-1">{{ $message }}</small>
                             @enderror
                         </div>
@@ -675,24 +706,96 @@
             return select.multiple ? [] : [''];
         };
 
+        let multiDropdownSearchAdapters = null;
+
+        const getMultiDropdownSearchAdapters = () => {
+            if (multiDropdownSearchAdapters !== null) {
+                return multiDropdownSearchAdapters;
+            }
+
+            const amd = window.jQuery?.fn?.select2?.amd;
+            if (! amd || typeof amd.require !== 'function') {
+                multiDropdownSearchAdapters = false;
+                return multiDropdownSearchAdapters;
+            }
+
+            try {
+                const Utils = amd.require('select2/utils');
+                const MultipleSelection = amd.require('select2/selection/multiple');
+                const Placeholder = amd.require('select2/selection/placeholder');
+                const EventRelay = amd.require('select2/selection/eventRelay');
+                const Dropdown = amd.require('select2/dropdown');
+                const DropdownSearch = amd.require('select2/dropdown/search');
+                const AttachBody = amd.require('select2/dropdown/attachBody');
+
+                // Selection without inline search; dropdown with search field.
+                let SelectionAdapter = Utils.Decorate(MultipleSelection, Placeholder);
+                SelectionAdapter = Utils.Decorate(SelectionAdapter, EventRelay);
+
+                let DropdownAdapter = Utils.Decorate(Dropdown, DropdownSearch);
+                DropdownAdapter = Utils.Decorate(DropdownAdapter, AttachBody);
+
+                multiDropdownSearchAdapters = { SelectionAdapter, DropdownAdapter };
+            } catch (error) {
+                console.warn('TRF Select2 dropdown-search adapters unavailable', error);
+                multiDropdownSearchAdapters = false;
+            }
+
+            return multiDropdownSearchAdapters;
+        };
+
         const initOneSelect2 = ($el) => {
             if ($el.data('select2')) {
+                $el.off('.rvTrfSelect2');
                 $el.select2('destroy');
             }
 
-            $el.select2({
+            const isMultiple = !! $el.prop('multiple');
+            const options = {
                 placeholder: $el.data('placeholder') || 'Select an option',
                 width: '100%',
-                allowClear: !$el.prop('multiple'),
-                closeOnSelect: !$el.prop('multiple'),
+                allowClear: ! isMultiple,
+                closeOnSelect: ! isMultiple,
                 dropdownParent: $el.closest('.rv-modal').length ? $el.closest('.rv-modal') : window.jQuery(document.body),
-            });
+            };
+
+            if (isMultiple) {
+                const adapters = getMultiDropdownSearchAdapters();
+                if (adapters) {
+                    options.selectionAdapter = adapters.SelectionAdapter;
+                    options.dropdownAdapter = adapters.DropdownAdapter;
+                }
+            }
+
+            $el.select2(options);
 
             const selectedValues = readSelectedValues($el.get(0));
-            if ($el.prop('multiple')) {
+            if (isMultiple) {
                 $el.val(selectedValues).trigger('change.select2');
             } else {
                 $el.val(selectedValues[0] ?? '').trigger('change.select2');
+            }
+
+            if (isMultiple) {
+                const select2Instance = $el.data('select2');
+                const fitMultipleSelect2 = () => {
+                    const $container = select2Instance?.$container;
+                    if (! $container || ! $container.length) {
+                        return;
+                    }
+
+                    $container.css({ height: 'auto', minHeight: 0 });
+                    $container.find('.selection, .select2-selection--multiple, .select2-selection__rendered').css({
+                        height: 'auto',
+                        minHeight: 0,
+                        maxHeight: 'none',
+                    });
+                };
+
+                fitMultipleSelect2();
+                $el.on('select2:open.rvTrfSelect2 select2:close.rvTrfSelect2 select2:select.rvTrfSelect2 select2:unselect.rvTrfSelect2', fitMultipleSelect2);
+                window.setTimeout(fitMultipleSelect2, 0);
+                window.setTimeout(fitMultipleSelect2, 50);
             }
 
             bindSelect2LivewireSync($el);
@@ -704,6 +807,17 @@
             }
 
             window.jQuery('.rv-sample-row-edit-modal select.livewire-select2').each(function () {
+                initOneSelect2(window.jQuery(this));
+            });
+        };
+
+        const initTrfSampleCardEnhancements = (rowIndex) => {
+            const card = document.querySelector('.rv-trf-sample-card[data-trf-sample-index="' + rowIndex + '"]');
+            if (!card || !window.jQuery?.fn?.select2) {
+                return;
+            }
+
+            window.jQuery(card).find('select.livewire-select2').each(function () {
                 initOneSelect2(window.jQuery(this));
             });
         };
@@ -822,7 +936,48 @@
                 setTimeout(prepareSampleRowEditModal, 100);
             });
 
+            Livewire.on('trf-edit-modal-opened', () => {
+                setTimeout(prepareSampleRowEditModal, 100);
+            });
+
+            Livewire.on('trf-sample-card-opened', (payload) => {
+                const detail = payload?.rowIndex !== undefined ? payload : (payload?.[0] ?? {});
+                const rowIndex = detail.rowIndex;
+                if (rowIndex === undefined || rowIndex === null) {
+                    return;
+                }
+
+                // Scoped init only — avoid full-modal loading overlay / Select2 rebuild.
+                setTimeout(() => initTrfSampleCardEnhancements(rowIndex), 40);
+            });
+
             Livewire.on('sample-row-edit-modal-closed', () => {
+                sampleRowModalPrepared = false;
+                setModalLoading(true);
+
+                if (typeof tinymce !== 'undefined') {
+                    document.querySelectorAll('.rv-sample-row-edit-modal .sf-rich-text-livewire textarea[id]').forEach((textarea) => {
+                        if (tinymce.get(textarea.id)) {
+                            tinymce.remove('#' + textarea.id);
+                        }
+                    });
+                }
+
+                if (window.jQuery?.fn?.select2) {
+                    window.jQuery('.rv-sample-row-edit-modal select.livewire-select2').each(function () {
+                        const $el = window.jQuery(this);
+                        if ($el.data('select2')) {
+                            try {
+                                $el.select2('destroy');
+                            } catch (e) {
+                                // ignore
+                            }
+                        }
+                    });
+                }
+            });
+
+            Livewire.on('trf-edit-modal-closed', () => {
                 sampleRowModalPrepared = false;
                 setModalLoading(true);
 

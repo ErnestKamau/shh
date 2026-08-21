@@ -59,6 +59,25 @@
                     </select>
                 </div>
 
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="soft-label" for="select-company-unit">Company Unit</label>
+                            <select name="crm_company_unit_id" id="select-company-unit" class="form-control modern-select ls-select2" data-placeholder="Select company unit...">
+                                <option value=""></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="soft-label" for="select-sample-point">Sampling Location</label>
+                            <select name="sample_point_id" id="select-sample-point" class="form-control modern-select ls-select2" data-placeholder="Select sample point...">
+                                <option value=""></option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group mb-3">
                     <label class="soft-label" for="select-lab-sections">Lab Section(s) <span class="text-danger">*</span></label>
                     <select name="lab_section_ids[]" id="select-lab-sections" class="form-control modern-select ls-select2" multiple required data-placeholder="Select lab section(s)...">

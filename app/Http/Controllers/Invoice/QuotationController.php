@@ -64,7 +64,13 @@ class QuotationController extends Controller
 
     public function index($stage = false)
     {
-        if ($stage != false) {
+        $isApprovalSettings = $stage === 'approval-settings';
+
+        if ($isApprovalSettings) {
+            $quotations = collect();
+            $drafts = collect();
+            $stage = 'approval-settings';
+        } elseif ($stage != false) {
             $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])
                 ->where('is_draft', 0)
                 ->where('status', $stage)
@@ -87,28 +93,12 @@ class QuotationController extends Controller
             $stage = 'All Quotations';
         }
 
-        // return response()->json($stage,200);
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
-        // foreach ($quotations as $quotation) {
-        //     $customer = getCrmCustomerByID($quotation->crm_customer_id);
-        //     $contact = getCrmCustomerContactById($quotation->crm_customer_contact_id);
-        //     $user = getUserById($quotation->prepared_by_id);
-        //     $pricelist = getPricelistByID($quotation->pricelist_id);
-        //     $quotation['customer'] = $customer->name;
-        //     $quotation['contact'] = $contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name;
-        //     $quotation['pricelist'] = $pricelist->code ?? '-';
-        //     $quotation['prepared_by_name'] = $user->name;
-        // }
         $sample_types = SampleType::where('active', 1)->get();
         $labSections = $this->activeLabSectionsForQuotation();
 
-        $metrics = $stage === 'All Quotations'
-            ? $this->quotationStatisticsService->getOverviewMetrics()
-            : null;
-
-        $kpiPeriod = $stage === 'All Quotations'
-            ? $this->resolveKpiPeriodMetrics(request())
-            : null;
+        $metrics = $this->quotationStatisticsService->getOverviewMetrics();
+        $kpiPeriod = $this->resolveKpiPeriodMetrics(request());
 
         $stageCounts = $this->quotationStageCounts();
         $quotationSampleCounts = QuotationDetails::query()
@@ -128,7 +118,43 @@ class QuotationController extends Controller
             'kpiPeriod',
             'stageCounts',
             'quotationSampleCounts',
+            'isApprovalSettings',
         ));
+    }
+
+    public function customerLocationOptions(string $customerId): \Illuminate\Http\JsonResponse
+    {
+        $units = CRMCompanyUnit::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(static fn (CRMCompanyUnit $unit): array => [
+                'id' => (string) $unit->id,
+                'name' => (string) $unit->name,
+            ])
+            ->values()
+            ->all();
+
+        $samplePoints = SamplePoint::query()
+            ->where('active', 1)
+            ->where('crm_customer_id', $customerId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'crm_company_unit_id'])
+            ->map(static function (SamplePoint $point): array {
+                return [
+                    'id' => (string) $point->id,
+                    'name' => (string) ($point->display_name ?? $point->name),
+                    'crm_company_unit_id' => $point->crm_company_unit_id ? (string) $point->crm_company_unit_id : '',
+                ];
+            })
+            ->values()
+            ->all();
+
+        return response()->json([
+            'units' => $units,
+            'sample_points' => $samplePoints,
+        ]);
     }
 
     public function createEnquiryFromQuotation(
@@ -342,7 +368,8 @@ class QuotationController extends Controller
         }
         $header->quotation_type = $request->quotation_type;
         $header->subject = $request->input('subject');
-        $header->sample_point_id = $request->input('sample_point_id');
+        $header->crm_company_unit_id = $request->input('crm_company_unit_id') ?: null;
+        $header->sample_point_id = $request->input('sample_point_id') ?: null;
         $header->sampling_location = $request->input('sampling_location');
         $header->laboratory_ref = $request->input('laboratory_ref');
         $header->terms_override = $request->input('terms_override');
@@ -460,7 +487,13 @@ class QuotationController extends Controller
         $samplePoints = SamplePoint::query()
             ->where('active', 1)
             ->where('crm_customer_id', $header->crm_customer_id)
-            ->orderBy('id')
+            ->orderBy('name')
+            ->get();
+
+        $companyUnits = CRMCompanyUnit::query()
+            ->where('crm_customer_id', $header->crm_customer_id)
+            ->where('active', 1)
+            ->orderBy('name')
             ->get();
 
         $currencies = Currency::query()->orderBy('code')->get();
@@ -471,7 +504,7 @@ class QuotationController extends Controller
         $accountPaymentOptions = $this->quotationReportService->accountPaymentOptions();
         $labSections = $this->activeLabSectionsForQuotation();
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'companyUnits', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -586,7 +619,8 @@ class QuotationController extends Controller
         $header->payment_info = $request->input('payment_info');
         $header->currency_id = $request->currency_id;
         $header->subject = $request->input('subject', $header->subject);
-        $header->sample_point_id = $request->input('sample_point_id', $header->sample_point_id);
+        $header->crm_company_unit_id = $request->input('crm_company_unit_id', $header->crm_company_unit_id) ?: null;
+        $header->sample_point_id = $request->input('sample_point_id', $header->sample_point_id) ?: null;
         $header->sampling_location = $request->input('sampling_location', $header->sampling_location);
         $header->laboratory_ref = $request->input('laboratory_ref', $header->laboratory_ref);
         $header->terms_override = $termsOverride;
@@ -774,7 +808,8 @@ class QuotationController extends Controller
         $header->quotation_type = $request->quotation_type;
         $header->expiring_date = $request->expire_date;
         $header->subject = $request->input('subject', $header->subject);
-        $header->sample_point_id = $request->input('sample_point_id', $header->sample_point_id);
+        $header->crm_company_unit_id = $request->input('crm_company_unit_id', $header->crm_company_unit_id) ?: null;
+        $header->sample_point_id = $request->input('sample_point_id', $header->sample_point_id) ?: null;
         $header->sampling_location = $request->input('sampling_location', $header->sampling_location);
         $header->laboratory_ref = $request->input('laboratory_ref', $header->laboratory_ref);
 

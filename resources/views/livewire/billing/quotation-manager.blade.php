@@ -221,11 +221,24 @@
                         <span>Complete</span>
                         <span class="quotation-stage-tab__count">{{ $this->stageCounts['Quote Complete'] }}</span>
                     </button>
+                    <button type="button"
+                            class="quotation-stage-tab {{ $stageFilter === 'approval-settings' ? 'is-active' : '' }}"
+                            wire:click="$set('stageFilter', 'approval-settings')">
+                        <i class="mdi mdi-cog-outline"></i>
+                        <span>Approval settings</span>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    @if($stageFilter === 'approval-settings')
+        <div class="row mb-4">
+            <div class="col-12">
+                @livewire('billing.quotation-approval-settings')
+            </div>
+        </div>
+    @else
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0">
@@ -379,12 +392,6 @@
                                                             <i class="mdi mdi-pencil"></i>
                                                         </a>
                                                     @endif
-                                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
-                                                       class="rm-act-btn rm-act-btn--view quotation-preview-quote-btn"
-                                                       title="Preview quotation document"
-                                                       target="_blank">
-                                                        <i class="mdi mdi-file-eye"></i>
-                                                    </a>
                                                     <button type="button"
                                                             wire:click="cloneQuotation({{ $quotation->id }})"
                                                             class="rm-act-btn rm-act-btn--clone"
@@ -463,6 +470,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     @if($showQuotationDetails && $this->selectedQuotation)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">

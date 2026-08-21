@@ -59,6 +59,15 @@ class RequestViewPagePresenter
     /** @var array<string, list<string>> */
     private const REQUEST_INFO_FIELD_ALIASES = [
         'client_name' => ['customer_name', 'client_name', 'customer', 'client'],
+        'site' => [
+            'company_unit_id',
+            'company_unit',
+            'site_name',
+            'site',
+            'customer_site',
+            'unit_name',
+            'crm_unit_name',
+        ],
         'address' => ['customer_address', 'address', 'physical_address', 'postal_address'],
         'tel_fax' => ['tel_fax_no', 'tel_fax', 'customer_phone', 'phone', 'telephone', 'phone_number', 'telephone_number'],
         'mobile' => ['mobile_number', 'mobile', 'customer_mobile'],
@@ -79,6 +88,7 @@ class RequestViewPagePresenter
     /** @var list<string> */
     private const REQUEST_INFO_CONSUMED_NAMES = [
         'customer_name', 'client_name', 'customer', 'client',
+        'company_unit_id', 'company_unit', 'site_name', 'site', 'customer_site', 'unit_name', 'crm_unit_name',
         'customer_address', 'address', 'physical_address', 'postal_address',
         'tel_fax_no', 'tel_fax', 'customer_phone', 'phone', 'telephone', 'phone_number', 'telephone_number',
         'mobile_number', 'mobile', 'customer_mobile',
@@ -91,6 +101,14 @@ class RequestViewPagePresenter
         'lab_received_datetime', 'lab_sample_condition',
         'customer_representative_name', 'customer_rep_name', 'customer_representative', 'customer_rep_contact',
         'crm_contact_id', 'crm_customer_id', 'remarks',
+    ];
+
+    /** @var list<string> */
+    private const SOURCE_CHANNEL_LABELS = [
+        'walk_in' => 'Walk-in',
+        'portal' => 'Portal',
+        'offline' => 'Offline',
+        'scheduled' => 'Scheduled',
     ];
 
     public function __construct(
@@ -301,6 +319,269 @@ class RequestViewPagePresenter
             'fields' => $fields,
             'remarks' => $this->extractRemarks($formData),
         ];
+    }
+
+    /**
+     * Context rail for the lab-console request view (no remarks).
+     *
+     * @param  array<string, mixed>  $formData
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @return array{
+     *     identity: list<array{label: string, value: string, name: string}>,
+     *     contact: list<array{label: string, value: string, name: string}>,
+     *     when: list<array{label: string, value: string, name: string}>,
+     *     refs: list<array{label: string, value: string, name: string}>,
+     *     sample_collection: list<array{label: string, value: string, name: ?string}>,
+     *     documents: list<array{key: string, label: string, icon: string, href: string, available: bool}>,
+     *     more_fields: list<array{label: string, value: string, name: ?string}>
+     * }
+     */
+    public function contextRail(array $formData, array $sampleLines = []): array
+    {
+        $indexed = $this->indexFilledFieldsByName($formData);
+        $info = $this->requestInfoCard($formData, $sampleLines);
+
+        $clientName = $this->firstFilledAlias($indexed, 'client_name')
+            ?? $this->nonEmptyString($this->commercialEnquiry?->customer?->name ?? $this->instance->crmCustomer?->name);
+
+        $site = $this->firstFilledAlias($indexed, 'site');
+        $sourceChannel = $this->sourceChannelLabel();
+
+        $identity = [];
+        if ($clientName !== null) {
+            $identity[] = ['label' => 'Client', 'value' => $clientName, 'name' => 'client_name'];
+        }
+        if ($site !== null) {
+            $identity[] = ['label' => 'Site / location', 'value' => $site, 'name' => 'site'];
+        }
+        if ($sourceChannel !== null) {
+            $identity[] = ['label' => 'Source', 'value' => $sourceChannel, 'name' => 'source_channel'];
+        }
+
+        $when = [];
+        $submittedAt = $this->instance->submitted_at ?? $this->instance->created_at;
+        if ($submittedAt !== null) {
+            $when[] = [
+                'label' => 'Submitted',
+                'value' => $submittedAt->format('Y-m-d H:i'),
+                'name' => 'submitted_at',
+            ];
+        }
+
+        $refs = [];
+        $docControl = $this->nonEmptyString($this->instance->getDocumentControlNumber() ?? $this->instance->form_number);
+        if ($docControl !== null) {
+            $refs[] = ['label' => 'Form no.', 'value' => $docControl, 'name' => 'form_number'];
+        }
+
+        $jobCodes = $this->instance->batches
+            ->pluck('batch_code')
+            ->filter(fn ($code): bool => $this->nonEmptyString($code) !== null)
+            ->unique()
+            ->values()
+            ->all();
+        if ($jobCodes !== []) {
+            $refs[] = [
+                'label' => count($jobCodes) === 1 ? 'Job no.' : 'Job nos.',
+                'value' => implode(', ', $jobCodes),
+                'name' => 'job_numbers',
+            ];
+        }
+
+        $contact = [];
+        $enquiryContact = $this->commercialEnquiry?->contact;
+        $rawContactPerson = $this->firstFilledAlias($indexed, 'contact_name');
+        $resolvedContact = $enquiryContact;
+        if ($rawContactPerson !== null && Str::isUuid($rawContactPerson)) {
+            if ($enquiryContact === null || (string) $enquiryContact->id !== $rawContactPerson) {
+                $resolvedContact = \App\Models\CRM\CustomerContact::query()->find($rawContactPerson) ?? $enquiryContact;
+            }
+        }
+        $enquiryContactName = null;
+        if ($resolvedContact !== null) {
+            $enquiryContactName = $this->nonEmptyString(trim(
+                (string) ($resolvedContact->first_name ?? '').' '
+                .(string) ($resolvedContact->middle_name ?? '').' '
+                .(string) ($resolvedContact->last_name ?? '')
+            ));
+        }
+        $contactName = $enquiryContactName;
+        if ($contactName === null && $rawContactPerson !== null && ! Str::isUuid($rawContactPerson)) {
+            $contactName = $rawContactPerson;
+        }
+        $contactEmail = $this->firstFilledAlias($indexed, 'contact_email')
+            ?? $this->firstFilledAlias($indexed, 'email')
+            ?? $this->nonEmptyString($resolvedContact?->email ?? null);
+        $contactPhone = $this->firstFilledAlias($indexed, 'contact_phone')
+            ?? $this->firstFilledAlias($indexed, 'mobile')
+            ?? $this->nonEmptyString($resolvedContact?->mobile ?? $resolvedContact?->telephone ?? null);
+
+        if ($contactName !== null) {
+            $contact[] = ['label' => 'Contact name', 'value' => $contactName, 'name' => 'contact_name'];
+        }
+        if ($contactEmail !== null) {
+            $contact[] = ['label' => 'Email', 'value' => $contactEmail, 'name' => 'contact_email'];
+        }
+        if ($contactPhone !== null) {
+            $contact[] = ['label' => 'Phone', 'value' => $contactPhone, 'name' => 'contact_phone'];
+        }
+
+        $sampleCollection = $this->sampleCollectionRailFields($formData);
+        $documents = $this->railDocuments();
+
+        $railNames = array_values(array_filter(array_merge(
+            array_column($identity, 'name'),
+            array_column($contact, 'name'),
+            array_column($when, 'name'),
+            array_column($refs, 'name'),
+            array_map(
+                static fn (array $field): string => strtolower(trim((string) ($field['name'] ?? ''))),
+                $sampleCollection
+            ),
+            self::REQUEST_INFO_FIELD_ALIASES['client_name'],
+            self::REQUEST_INFO_FIELD_ALIASES['site'],
+            self::REQUEST_INFO_FIELD_ALIASES['contact_name'],
+            self::REQUEST_INFO_FIELD_ALIASES['contact_email'],
+            self::REQUEST_INFO_FIELD_ALIASES['contact_phone'],
+            self::REQUEST_INFO_FIELD_ALIASES['email'],
+            self::REQUEST_INFO_FIELD_ALIASES['mobile'],
+            ['sample_type', 'number_of_samples'],
+        )));
+
+        $moreFields = [];
+        foreach ($info['fields'] as $field) {
+            $name = strtolower(trim((string) ($field['name'] ?? '')));
+            if ($name !== '' && in_array($name, $railNames, true)) {
+                continue;
+            }
+            if ($name === 'remarks') {
+                continue;
+            }
+            $moreFields[] = [
+                'label' => $field['label'],
+                'value' => $field['value'],
+                'name' => $field['name'] ?? null,
+            ];
+        }
+
+        return [
+            'identity' => $identity,
+            'contact' => $contact,
+            'when' => $when,
+            'refs' => $refs,
+            'sample_collection' => $sampleCollection,
+            'documents' => $documents,
+            'more_fields' => $moreFields,
+        ];
+    }
+
+    /**
+     * Default work-canvas tab for a cold load (no ?tab= / no prior user choice).
+     */
+    public function defaultCanvasTab(): string
+    {
+        $stage = $this->enquiryDisplayStatus();
+
+        return match ($stage) {
+            self::STAGE_QUOTATION_SENT,
+            self::STAGE_QUOTATION_UNDER_REVIEW => 'tests',
+            default => 'tests',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     * @return list<array{label: string, value: string, name: ?string}>
+     */
+    private function sampleCollectionRailFields(array $formData): array
+    {
+        $fields = [];
+
+        foreach ($formData['sections'] ?? [] as $section) {
+            $titleKey = strtolower(trim((string) ($section['title'] ?? '')));
+            if ($titleKey !== 'sample collection data') {
+                continue;
+            }
+
+            foreach ($this->filledFieldsFromSection($section) as $field) {
+                $name = strtolower(trim((string) ($field['name'] ?? '')));
+                if (in_array($name, SubmissionFormSchemaHelper::miscellaneousTrfFieldNames(), true)) {
+                    continue;
+                }
+
+                $fields[] = [
+                    'label' => $field['label'],
+                    'value' => $field['value'],
+                    'name' => $field['name'] ?? null,
+                ];
+            }
+        }
+
+        return $fields;
+    }
+
+    private function sourceChannelLabel(): ?string
+    {
+        $raw = strtolower(trim((string) (
+            $this->commercialEnquiry?->source_channel
+            ?? $this->instance->source_channel
+            ?? ''
+        )));
+
+        if ($raw === '') {
+            return null;
+        }
+
+        return self::SOURCE_CHANNEL_LABELS[$raw]
+            ?? Str::of($raw)->replace('_', ' ')->title()->toString();
+    }
+
+    /**
+     * @return list<array{key: string, label: string, icon: string, href: string, available: bool}>
+     */
+    private function railDocuments(): array
+    {
+        $documents = [];
+
+        if ($this->isTrfForm) {
+            $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
+            $primaryPdfExists = \Illuminate\Support\Facades\Storage::disk('public')
+                ->exists($pdfService->resolveStoragePath($this->instance));
+            $href = $this->trfPdfUrl
+                ?? route('test-request-form.pdf', $this->instance->id);
+
+            $documents[] = [
+                'key' => 'trf_pdf',
+                'label' => 'TRF PDF',
+                'icon' => 'mdi-file-pdf-box',
+                'href' => $href,
+                'available' => $primaryPdfExists || filled($this->trfPdfUrl),
+            ];
+        }
+
+        $quotation = $this->commercialEnquiry?->currentQuotation;
+        if ($quotation !== null) {
+            $documents[] = [
+                'key' => 'quotation',
+                'label' => 'Quotation',
+                'icon' => 'mdi-file-document-outline',
+                'href' => route('quotation.preview.pdf', ['id' => $quotation->id]),
+                'available' => true,
+            ];
+        }
+
+        $batch = $this->instance->batches->first();
+        if ($batch instanceof SampleHeader && ! empty($batch->invoice_id)) {
+            $documents[] = [
+                'key' => 'invoice',
+                'label' => 'Invoice',
+                'icon' => 'mdi-receipt',
+                'href' => route('invoice-sample-header', $batch->id),
+                'available' => true,
+            ];
+        }
+
+        return $documents;
     }
 
     private function displayableLabel(mixed $value): string
@@ -1184,6 +1465,9 @@ class RequestViewPagePresenter
                 if ($primary !== null && ($action['key'] ?? null) === ($primary['key'] ?? null)) {
                     continue;
                 }
+                if (in_array($action['key'] ?? null, ['view_quotation', 'view_trf_pdf'], true)) {
+                    continue;
+                }
                 $secondary[] = $action;
             }
 
@@ -1209,6 +1493,9 @@ class RequestViewPagePresenter
                 continue;
             }
             if ($this->actionListContainsKey($secondary, $action['key'])) {
+                continue;
+            }
+            if (in_array($action['key'] ?? null, ['view_quotation', 'view_trf_pdf'], true)) {
                 continue;
             }
             if (! $this->isActionAllowedInStage($action['key'], $stage)) {
@@ -1540,7 +1827,7 @@ class RequestViewPagePresenter
                 : 'Process enquiry';
 
             if ($walkIn) {
-                $primary = $this->action('record_walk_in_acceptance', 'Record walk-in acceptance', 'mdi-check-decagram', 'wire', 'recordWalkInQuotationAcceptance');
+                $primary = $this->action('record_walk_in_acceptance', 'Record quotation acceptance', 'mdi-check-decagram', 'wire', 'recordWalkInQuotationAcceptance');
                 $secondary[] = $this->action('process_enquiry', $processEnquiryLabel, 'mdi-file-chart-outline', 'wire', 'openProcessEnquiry');
             } else {
                 $primary = $this->action('process_enquiry', $processEnquiryLabel, 'mdi-file-chart-outline', 'wire', 'openProcessEnquiry');

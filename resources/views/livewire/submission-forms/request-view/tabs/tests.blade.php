@@ -148,6 +148,4 @@
             </div>
         </div>
     </div>
-
-    @include('livewire.submission-forms.request-view.partials.sample-row-edit-modal')
 </div>

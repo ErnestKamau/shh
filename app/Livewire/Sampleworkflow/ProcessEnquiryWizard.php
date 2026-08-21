@@ -4,6 +4,7 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\AnalysisElements;
 use App\AnalysisType;
+use App\Livewire\Concerns\WithToastNotifications;
 use App\Livewire\Sampleworkflow\Concerns\ManagesSampleConfigurationWizard;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
@@ -27,6 +28,7 @@ use Throwable;
 class ProcessEnquiryWizard extends Component
 {
     use ManagesSampleConfigurationWizard;
+    use WithToastNotifications;
 
     public bool $showModal = false;
 
@@ -141,9 +143,11 @@ class ProcessEnquiryWizard extends Component
 
     public bool $approvalNotifyEmail = true;
 
+    public bool $approvalNotifyInApp = true;
+
     public string $approvalComments = '';
 
-    /** @var list<array{id: string, name: string}> */
+    /** @var list<array{id: string, name: string, email: string}> */
     public array $labManagerOptions = [];
 
     /** Hides the Condition of sample column on the sample config table (Process Enquiry does not need it). */
@@ -1304,7 +1308,7 @@ class ProcessEnquiryWizard extends Component
         }
 
         if ($this->quotationPendingApproval) {
-            $this->openChangeLabManagerModal();
+            $this->setStatus('info', 'This quotation is already awaiting approval. Approvers have been notified.');
 
             return;
         }
@@ -1317,7 +1321,7 @@ class ProcessEnquiryWizard extends Component
 
         $this->refreshLabManagerOptions();
         if ($this->labManagerOptions === []) {
-            $this->setStatus('error', 'No active Lab Manager users are available for approval.');
+            $this->setStatus('error', 'No active quotation approvers are available. Configure the approval role in Billing → Approval settings.');
 
             return;
         }
@@ -1325,37 +1329,7 @@ class ProcessEnquiryWizard extends Component
         $this->approvalModalIsReassign = false;
         $this->approvalLabManagerId = $this->labManagerOptions[0]['id'] ?? null;
         $this->approvalNotifyEmail = true;
-        $this->approvalComments = '';
-        $this->showApprovalModal = true;
-    }
-
-    public function openChangeLabManagerModal(): void
-    {
-        if ($this->quotationMode !== 'build_new') {
-            return;
-        }
-
-        if (! $this->quotationPendingApproval) {
-            return;
-        }
-
-        $this->refreshLabManagerOptions();
-        if ($this->labManagerOptions === []) {
-            $this->setStatus('error', 'No active Lab Manager users are available for approval.');
-
-            return;
-        }
-
-        $currentId = null;
-        if ($this->quotationHeaderId) {
-            $header = QuotationHeader::query()->find($this->quotationHeaderId);
-            $currentId = $header?->approved_by ? (string) $header->approved_by : null;
-        }
-
-        $this->approvalModalIsReassign = true;
-        $this->approvalLabManagerId = $currentId
-            ?? ($this->labManagerOptions[0]['id'] ?? null);
-        $this->approvalNotifyEmail = true;
+        $this->approvalNotifyInApp = true;
         $this->approvalComments = '';
         $this->showApprovalModal = true;
     }
@@ -1374,11 +1348,12 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        $this->validate([
-            'approvalLabManagerId' => ['required', 'uuid'],
-        ], [
-            'approvalLabManagerId.required' => 'Select a lab manager to approve this quotation.',
-        ]);
+        if ($this->quotationPendingApproval) {
+            $this->showApprovalModal = false;
+            $this->setStatus('info', 'This quotation is already awaiting approval.');
+
+            return;
+        }
 
         try {
             $enquiry = SampleSubmissionRequest::query()
@@ -1391,38 +1366,14 @@ class ProcessEnquiryWizard extends Component
 
             $approvalService = app(QuotationApprovalService::class);
 
-            if ($this->approvalModalIsReassign) {
-                $header = $enquiry->currentQuotation;
-                if ($header === null) {
-                    throw new \RuntimeException('No quotation is linked to this request.');
-                }
+            $this->refreshLabManagerOptions();
+            $approverId = $this->labManagerOptions[0]['id'] ?? null;
+            if ($approverId === null) {
+                throw new \RuntimeException('No active quotation approvers are available. Configure the approval role in Billing → Approval settings.');
+            }
 
-                $enquiry = $approvalService->reassignLabManager(
-                    $enquiry,
-                    $header,
-                    (string) $this->approvalLabManagerId,
-                    $this->approvalNotifyEmail,
-                    $this->approvalComments !== '' ? $this->approvalComments : null,
-                );
-
-                $header = $enquiry->currentQuotation;
-                $header?->loadMissing('approvedByUser');
-                $this->quotationHeaderId = $header?->id;
-                $this->quoteNumber = (string) ($header?->quote_number ?? '');
-                $this->enquiryStatus = (string) $enquiry->status;
-                $this->syncApprovalState($enquiry, $header);
-                $this->showApprovalModal = false;
-                $this->approvalModalIsReassign = false;
-
-                $managerName = trim((string) ($header?->approvedByUser?->name ?? ''));
-                $flashMessage = $managerName !== ''
-                    ? 'Lab manager updated to '.$managerName.'. Quotation is awaiting their approval.'
-                    : 'Lab manager updated. Quotation is awaiting approval.';
-                $this->dispatch('notify', type: 'success', message: $flashMessage);
-                $this->setStatus('success', $flashMessage, true);
-                $this->dispatch('process-enquiry-completed');
-
-                return;
+            if (! $this->approvalNotifyEmail && ! $this->approvalNotifyInApp) {
+                throw new \RuntimeException('Choose at least one notification channel (email or in-app).');
             }
 
             $this->normalizeQuotationLineQuantities();
@@ -1439,9 +1390,10 @@ class ProcessEnquiryWizard extends Component
             $enquiry = $approvalService->submitForApproval(
                 $enquiry,
                 $header,
-                (string) $this->approvalLabManagerId,
+                (string) $approverId,
                 $this->approvalNotifyEmail,
-                $this->approvalComments !== '' ? $this->approvalComments : null,
+                null,
+                $this->approvalNotifyInApp,
             );
 
             $header = $enquiry->currentQuotation ?? $header->fresh();
@@ -1455,8 +1407,8 @@ class ProcessEnquiryWizard extends Component
             $this->showApprovalModal = false;
             $this->approvalModalIsReassign = false;
 
-            $flashMessage = 'Quotation '.$this->quoteNumber.' sent for lab manager approval.';
-            $this->dispatch('notify', type: 'success', message: $flashMessage);
+            $flashMessage = 'Quotation '.$this->quoteNumber.' sent for approval. Approvers have been notified.';
+            $this->imaraToast('success', 'Sent for approval', $flashMessage);
             $this->setStatus('success', $flashMessage, true);
             $this->dispatch('process-enquiry-completed');
         } catch (Throwable $exception) {
@@ -1578,7 +1530,7 @@ class ProcessEnquiryWizard extends Component
             $this->dispatch('process-enquiry-completed');
 
             $flashMessage = strtolower($this->sourceChannel) === 'walk_in'
-                ? 'Quotation sent by email. Record walk-in acceptance on the request view page, then capture the PO.'
+                ? 'Quotation sent by email. Record quotation acceptance on the request view page, then capture the PO.'
                 : 'Quotation sent to customer.';
 
             $this->dispatch('notify', type: 'success', message: $flashMessage);
@@ -1704,6 +1656,7 @@ class ProcessEnquiryWizard extends Component
             ->map(fn ($user): array => [
                 'id' => (string) $user->id,
                 'name' => (string) $user->name,
+                'email' => (string) ($user->email ?? ''),
             ])
             ->values()
             ->all();

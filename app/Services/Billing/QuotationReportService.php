@@ -1056,6 +1056,11 @@ class QuotationReportService
 
     private function resolveCompanyUnit(QuotationHeader $header, ?SampleHeader $batch = null): ?string
     {
+        $fromHeaderUnit = $this->resolveCompanyUnitLabel((string) ($header->crm_company_unit_id ?? ''));
+        if ($fromHeaderUnit !== '') {
+            return $fromHeaderUnit;
+        }
+
         $batch ??= SampleHeader::query()
             ->where('quote_id', $header->id)
             ->orderByDesc('created_at')

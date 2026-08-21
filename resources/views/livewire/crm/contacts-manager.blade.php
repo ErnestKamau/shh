@@ -492,6 +492,24 @@
                                         </div>
                                     </div>
 
+                                    <!-- Quotations -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.receive_quotations')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.receive_quotations') }">
+                                                <div class="preference-icon bg-primary bg-opacity-10 text-primary" style="background-color: rgba(30, 58, 138, 0.1) !important;">
+                                                    <i class="mdi mdi-file-document-outline"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Quotations</span>
+                                                    <span class="preference-desc">Receive quotation emails and portal notices</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_quotations" role="switch" @click.stop>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <!-- Payment Reminders -->
                                     <div class="col-md-6 col-xl-4">
                                         <div class="h-100" wire:click="$toggle('contactForm.can_receive_payment_reminders')">

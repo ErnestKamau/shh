@@ -425,6 +425,9 @@
     .dr-trf-card {
         --dr-card-accent: var(--color-primary, #6d0a0e);
         --dr-card-accent-soft: var(--color-primary-soft, #f8ecec);
+        --dr-card-mesh-a: 20%;
+        --dr-card-mesh-b: 12%;
+        --dr-card-grid-opacity: 0.55;
         position: relative;
         display: flex;
         flex-direction: column;
@@ -437,12 +440,13 @@
         border-radius: 18px;
         border: 1px solid #e8edf3;
         background:
-            radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--dr-card-accent) 12%, #fff) 0%, transparent 55%),
-            linear-gradient(165deg, #ffffff 0%, #f7f9fc 100%);
+            radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--dr-card-accent) var(--dr-card-mesh-a), #fff) 0%, transparent 55%),
+            radial-gradient(100% 80% at 0% 100%, color-mix(in srgb, var(--dr-card-accent) var(--dr-card-mesh-b), #fff) 0%, transparent 50%),
+            linear-gradient(165deg, #ffffff 0%, color-mix(in srgb, var(--dr-card-accent) 4%, #f7f9fc) 100%);
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
         overflow: hidden;
         text-align: left;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, --dr-card-mesh-a 0.18s ease, --dr-card-mesh-b 0.18s ease, --dr-card-grid-opacity 0.18s ease;
         width: 100%;
         cursor: pointer;
     }
@@ -452,7 +456,24 @@
         position: absolute;
         inset: 0 0 auto 0;
         height: 5px;
+        z-index: 2;
         background: linear-gradient(90deg, var(--dr-card-accent), color-mix(in srgb, var(--dr-card-accent) 45%, #fff));
+    }
+
+    .dr-trf-card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 0;
+        opacity: var(--dr-card-grid-opacity);
+        background-image:
+            radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--dr-card-accent) 28%, transparent) 1px, transparent 0);
+        background-size: 14px 14px;
+        background-position: 0 0;
+        mask-image: linear-gradient(165deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.18) 55%, transparent 100%);
+        -webkit-mask-image: linear-gradient(165deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.18) 55%, transparent 100%);
     }
 
     .dr-trf-card--accent-1 {
@@ -481,6 +502,9 @@
     }
 
     .dr-trf-card:hover {
+        --dr-card-mesh-a: 26%;
+        --dr-card-mesh-b: 16%;
+        --dr-card-grid-opacity: 0.7;
         transform: translateY(-4px);
         border-color: color-mix(in srgb, var(--dr-card-accent) 40%, #e8edf3);
         box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
@@ -492,6 +516,8 @@
     }
 
     .dr-trf-card__icon {
+        position: relative;
+        z-index: 1;
         width: 3.35rem;
         height: 3.35rem;
         border-radius: 14px;
@@ -506,6 +532,8 @@
     }
 
     .dr-trf-card__body {
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-direction: column;
         gap: 0.55rem;

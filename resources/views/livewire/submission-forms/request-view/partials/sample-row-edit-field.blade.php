@@ -82,9 +82,12 @@
             @endforeach
         </div>
     @elseif($usesSelect2)
-        <div wire:ignore class="rv-sample-row-select2-wrap">
+        @php
+            $isTrfCatalogSelect = in_array($fieldName, ['sample_type_id', 'analysis_type_id', 'parameters'], true);
+        @endphp
+        <div wire:ignore class="rv-sample-row-select2-wrap {{ $isTrfCatalogSelect ? 'rv-trf-select-shell' : '' }}">
             <select id="edit-row-{{ $fieldName }}"
-                class="form-control form-control-sm livewire-select2"
+                class="form-control form-control-sm livewire-select2 {{ $isTrfCatalogSelect ? 'rv-trf-catalog-select' : '' }}"
                 data-wire-field="editingRowFields.{{ $fieldName }}"
                 data-select-live="{{ in_array($fieldName, ['sample_type_id', 'analysis_type_id'], true) ? '1' : '0' }}"
                 @if($isMultiSelectField) multiple @endif
@@ -95,9 +98,9 @@
                     default => [],
                 }) }}"
                 data-placeholder="{{ match(true) {
-                    $fieldName === 'parameters' => 'Select tests',
-                    $fieldName === 'sample_type_id' => 'Select sample type',
-                    $fieldName === 'analysis_type_id' => 'Select analysis type',
+                    $fieldName === 'parameters' => 'Search and add tests…',
+                    $fieldName === 'sample_type_id' => 'Search sample type…',
+                    $fieldName === 'analysis_type_id' => 'Search analysis type…',
                     default => 'Select sampling point',
                 } }}">
                 @if(! $isMultiSelectField)
@@ -130,6 +133,17 @@
             step="any"
             class="form-control form-control-sm"
             wire:model.defer="editingRowFields.{{ $fieldName }}">
+    @elseif(in_array($fieldType, ['select', 'radio'], true) && $checkboxOptions !== [])
+        <select id="edit-row-{{ $fieldName }}"
+            class="form-control form-control-sm"
+            wire:model.defer="editingRowFields.{{ $fieldName }}">
+            <option value="">— Select —</option>
+            @foreach($checkboxOptions as $optionKey => $optionText)
+                <option value="{{ $optionKey }}" @selected((string) ($editingRowFields[$fieldName] ?? '') === (string) $optionKey)>
+                    {{ $optionText }}
+                </option>
+            @endforeach
+        </select>
     @else
         <input id="edit-row-{{ $fieldName }}"
             type="text"

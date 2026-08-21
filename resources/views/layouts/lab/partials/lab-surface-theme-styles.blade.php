@@ -38,7 +38,13 @@
 		--ls-color-surface: var(--color-surface, #ffffff);
 		--ls-color-bg: var(--workflow-bg, var(--color-bg-app, #f8fafc));
 		--ls-color-border: var(--color-border, #e2e8f0);
-		--ls-color-ink: var(--color-text, #1e293b);
+		--workflow-secondary: #1e293b;
+		--workflow-secondary-fg: #f8fafc;
+		--ls-blue-soft: #eff6ff;
+		--ls-blue-soft-border: #dbeafe;
+		--ls-blue-soft-ring: #bfdbfe;
+		--ls-blue-focus: #93c5fd;
+		--ls-color-ink: var(--workflow-secondary, var(--color-text, #1e293b));
 		--ls-color-muted: var(--color-muted, #64748b);
 		--ls-color-slate-400: #94a3b8;
 

@@ -3,6 +3,7 @@
 namespace App;
 
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\SamplePoint;
 use App\Models\Currency;
@@ -213,6 +214,11 @@ class QuotationHeader extends Model implements Auditable
     public function samplePoint()
     {
         return $this->belongsTo(SamplePoint::class, 'sample_point_id');
+    }
+
+    public function companyUnit(): BelongsTo
+    {
+        return $this->belongsTo(CRMCompanyUnit::class, 'crm_company_unit_id');
     }
 
     public function batches()

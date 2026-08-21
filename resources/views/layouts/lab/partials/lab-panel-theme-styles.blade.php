@@ -1,15 +1,49 @@
 <style>
 	.lab-panel-theme {
+		/*
+		 * 60/30/10 workflow brand roles (light LIMS UI):
+		 *  ~60% dominant surface — --workflow-bg / --workflow-surface
+		 *  ~30% secondary structure — --workflow-secondary + --workflow-secondary-fg
+		 *  ~10% accent — --workflow-accent (burgundy / app --color-primary)
+		 * Complementary soft blues (--ls-blue-*) are opt-in for .ls-* components.
+		 */
 		--workflow-accent: var(--color-primary, var(--color-primary));
 		--workflow-accent-soft: var(--color-primary-soft, var(--color-primary-soft));
+		--workflow-secondary: #1e293b;
+		--workflow-secondary-fg: #f8fafc;
 		--workflow-border: #e2e8f0;
 		--workflow-muted: #64748b;
 		--workflow-surface: #ffffff;
 		--workflow-bg: #f8fafc;
-		--workflow-text-main: #1e293b;
+		--workflow-text-main: var(--workflow-secondary);
 		--workflow-text-muted: #64748b;
+		--ls-blue-soft: #eff6ff;
+		--ls-blue-soft-border: #dbeafe;
+		--ls-blue-soft-ring: #bfdbfe;
+		--ls-blue-focus: #93c5fd;
 		--card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 		--card-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+	}
+
+	.lab-panel-theme .workflow-secondary-fill {
+		background: var(--workflow-secondary) !important;
+		background-color: var(--workflow-secondary) !important;
+		border-color: var(--workflow-secondary) !important;
+		color: var(--workflow-secondary-fg) !important;
+	}
+
+	.lab-panel-theme .workflow-secondary-fill:hover,
+	.lab-panel-theme .workflow-secondary-fill:focus,
+	.lab-panel-theme .workflow-secondary-fill:active,
+	.lab-panel-theme .workflow-secondary-fill.show {
+		background: color-mix(in srgb, var(--workflow-secondary) 88%, #000) !important;
+		background-color: color-mix(in srgb, var(--workflow-secondary) 88%, #000) !important;
+		border-color: color-mix(in srgb, var(--workflow-secondary) 88%, #000) !important;
+		color: var(--workflow-secondary-fg) !important;
+	}
+
+	.lab-panel-theme .workflow-secondary-fill .mdi {
+		color: inherit !important;
 	}
 
 	.lab-panel-theme .workflow-board-panel {

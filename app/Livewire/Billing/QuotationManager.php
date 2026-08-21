@@ -81,6 +81,13 @@ class QuotationManager extends Component
 
     public function getQuotationsProperty()
     {
+        if ($this->stageFilter === 'approval-settings') {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, (int) $this->perPage, 1, [
+                'path' => request()->url(),
+                'pageName' => 'page',
+            ]);
+        }
+
         $query = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0);
 
         if ($this->search) {
