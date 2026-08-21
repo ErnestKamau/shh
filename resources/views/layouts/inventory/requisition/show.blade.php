@@ -597,20 +597,6 @@
 				@endif
 	</h3>
 	<br>
-	@if($similarItems->count() > 0 && in_array($stage, ['Purchase Request']))
-	<div class="alert alert-warning" style="font-size: 11px; display:flex; align-items: center; justify-content: center">
-		<i class="fas fa-info-circle m-2 p-2 fa-2x"></i> The following items in your Purchase Request have been found in a
-		recent Purchase Request.<br>
-		<ul style="clear: both; width: 100%">
-			@foreach ($similarItems as $sm)
-			<li><b><a href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>$sm->request_id]) }}">Purchase Request {{
-						$sm->request_code }}</a><small>(Created {{ $sm->days_ago == 0 ? 'Today' : $sm->days_ago." day(s) ago"
-						}})</small></b> - <em>Item : {{ $sm->sub_category->name }}, Quantity: {{ $sm->quantity }}{{ $sm->uom }}
-				</em></li>
-			@endforeach
-		</ul>
-	</div>
-	@endif
 	@if($hasExceeded && isset($request->status) && in_array($request->status, ['In Preparation', 'Awaiting Approval']))
 	<div class="alert alert-danger" style="font-size: 18px; display:flex; align-items: center; justify-content: center">
 		<i class="mdi mdi-alert" style="font-size: 24px"></i> &nbsp;&nbsp;Some items in your request exceed the available
@@ -988,6 +974,7 @@
 								</tr>
 								@endif
 								<tr>
+									<th style="width: 32px"></th>
 									<th>#</th>
 									<th nowrap>Item</th>
 									<th nowrap>Brand</th>
@@ -1052,6 +1039,9 @@
 								@foreach ($normalItems as $req_item)
 								<?php $pendingQ = $req_item->quantity - $req_item->pending(); ?>
 								<tr class="item-row">
+									<td class="text-center align-middle">
+										<input type="checkbox" class="row-select-checkbox" title="Select row" />
+									</td>
 									<td class="item-id">
 										{{ $loop->iteration }}
 										<input type="hidden" name="items[req_item_id][]" value="{{ $req_item->id }}" />
@@ -1090,7 +1080,7 @@
 									</td>
 									<td>
 										<div class="form-group">
-											<input type="text" class="form-control" name="items[brand][]" style="min-width: 200px"
+											<input type="text" class="form-control" name="items[brand][]" style="min-width: 110px; max-width: 130px"
 												value="{{ $req_item->brand }}" placeholder="Brand..." />
 											<div class="d-none" style="display:none">
 												<select name="items[item_brand_id][]" class="form-control selected-item-brand d-none"
@@ -1107,7 +1097,7 @@
 												<i class="mdi mdi-map-marker"></i>
 											</span>
 											<textarea class="form-control item-description" name="items[comments][]" value=""
-												style="min-width: 250px; z-index:0" {{ $readonly ? "readonly" : ""
+												style="min-width: 140px; max-width: 160px; z-index:0" {{ $readonly ? "readonly" : ""
 												}}>{{ $req_item->comments }}</textarea>
 										</div>
 									</td>
@@ -1120,36 +1110,56 @@
 															$existsCon = getUoMConverstion(1, $req_item->unit_type, $req_item->secondary_unit_type);
 														?>
 											<?php
-															$itemUoM = [$req_item->unit_type, $req_item->secondary_unit_type];
+															$itemUoM = array_values(array_filter(array_unique([
+																$req_item->uom,
+																$req_item->unit_type,
+																$req_item->secondary_unit_type,
+															])));
 															if($existsCon == false){
-																$itemUoM = [$req_item->unit_type];
+																$itemUoM = array_values(array_filter(array_unique([
+																	$req_item->uom,
+																	$req_item->unit_type,
+																])));
 															}
 														?>
 											@if($existsCon == false)
 											<small class="text-danger"><sup>*UoM conversions not configured</sup></small>
 											@endif
-											<select name="items[uom][]" class="form-control selected-item-uom"
-												data-selected="{{ $req_item->uom }}" placeholder="Select Item UoM..." {{ $readonly &&
-												$request->in_ammendment == 0 ? "disabled" : "" }}>
+											@if($readonly && (int) ($request->in_ammendment ?? 0) === 0)
+											<span class="form-control" style="min-width: 140px">{{ $req_item->uom ?: ($req_item->unit_type ?: '-') }}</span>
+											<input type="hidden" name="items[uom][]" value="{{ $req_item->uom ?: $req_item->unit_type }}" />
+											@else
+											<select name="items[uom][]" class="form-control selected-item-uom" style="min-width: 140px"
+												data-selected="{{ $req_item->uom }}" placeholder="Select Item UoM...">
 												<option value=""></option>
 												@foreach ($itemUoM as $uom)
 												<option value="{{ $uom }}" {{ $uom==$req_item->uom ? 'selected' : '' }}>{{ $uom }}</option>
 												@endforeach
 											</select>
+											@endif
 										</div>
 									</td>
 									@else
 									<td>
 										<div class="form-group">
-											<?php $itemUoM = [$req_item->unit_type]; ?>
-											<select name="items[uom][]" class="form-control selected-item-uom"
-												data-selected="{{ $req_item->uom }}" placeholder="Select Item UoM..." {{ $readonly &&
-												$request->in_ammendment == 0 ? "disabled" : "" }}>
+											<?php
+												$itemUoM = array_values(array_filter(array_unique([
+													$req_item->uom,
+													$req_item->unit_type,
+												])));
+											?>
+											@if($readonly && (int) ($request->in_ammendment ?? 0) === 0)
+											<span class="form-control" style="min-width: 140px">{{ $req_item->uom ?: ($req_item->unit_type ?: '-') }}</span>
+											<input type="hidden" name="items[uom][]" value="{{ $req_item->uom ?: $req_item->unit_type }}" />
+											@else
+											<select name="items[uom][]" class="form-control selected-item-uom" style="min-width: 140px"
+												data-selected="{{ $req_item->uom }}" placeholder="Select Item UoM...">
 												<option value=""></option>
 												@foreach ($itemUoM as $uom)
 												<option value="{{ $uom }}" {{ $uom==$req_item->uom ? 'selected' :'' }}>{{ $uom }}</option>
 												@endforeach
 											</select>
+											@endif
 										</div>
 									</td>
 									@endif
@@ -1157,8 +1167,8 @@
 									"Lend")))
 									<td nowrap>
 										<div class="form-group">
-											<span class="form-control open-quantity" style="min-width: 150px">0.00</span>
-											<input type="hidden" min="0.00" name="items[open_quantity][]" style="min-width: 100px"
+											<span class="form-control open-quantity" style="min-width: 70px; max-width: 80px">0.00</span>
+											<input type="hidden" min="0.00" name="items[open_quantity][]" style="min-width: 70px"
 												class="form-control open_quantity" placeholder="Open Quantity..." />
 										</div>
 									</td>
@@ -1204,7 +1214,7 @@
 										<div class="form-group">
 											<input type="number" min="0.00" data-item="{{ $req_item->sub_category->name }}"
 												name="items[quantity][]" data-value="{{ $req_item->quantity }}"
-												value="{{ $req_item->quantity }}" step="any" style="min-width: 100px"
+												value="{{ $req_item->quantity }}" step="any" style="min-width: 70px; max-width: 90px"
 												class="form-control user-quantity {{ $notifyQuantityChange }}" placeholder="Quantity..." {!!
 												isset($request->status) && $request->status == "In Preparation" || !isset($request->status)
 											? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!}
@@ -1301,7 +1311,7 @@
 									@if(in_array($stage,["Request for Quotation", "Purchase Orders"]))
 									<td>
 										<div class="form-group">
-											<select name="items[mode][]">
+											<select name="items[mode][]" class="form-control" style="min-width: 140px" placeholder="Select Shipping Mode...">
 												@foreach(getShippingMode() as $mode)
 												<option value="{{ $mode }}" {{ $mode==$req_item->shipping_mode ? 'selected' : '' }}>{{ $mode }}
 												</option>
@@ -1313,7 +1323,7 @@
 									@if(!in_array($stage,["Purchase Request", "Gate Pass", "Loan", "Lend", "Request to Store"]))
 									<td>
 										<div class="form-group">
-											<select name="items[store_id][]" data-selected="{{ $req_item->store_id }}"
+											<select name="items[store_id][]" data-selected="{{ $req_item->store_id }}" style="min-width: 180px"
 												class="form-control selected-store {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
 												data-placeholder="Select Store..." {!! (isset($request->status) && in_array($request->status,
 												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
@@ -1329,7 +1339,7 @@
 									</td>
 									<td>
 										<div class="form-group">
-											<select name="items[slot_id][]" data-slot="{{ $req_item->slot_id }}" style="min-width: 100px"
+											<select name="items[slot_id][]" data-slot="{{ $req_item->slot_id }}" style="min-width: 160px"
 												class="form-control store-slots {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
 												data-placeholder="Select Slot..." {!! (isset($request->status) && in_array($request->status,
 												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
@@ -1553,7 +1563,9 @@
 											?>
 									@foreach ($request->quotes(false, true) as $quote)
 									<?php
-													$isKitRow = !is_numeric($quote->catalog_number);
+													$isKitRow = filled($quote->catalog_number)
+														&& ! is_numeric($quote->catalog_number)
+														&& ! \Illuminate\Support\Str::isUuid((string) $quote->catalog_number);
 													$row = [$isKitRow ? $quote->catalog_number.' - '.$quote->kit_item_name : $quote->item_name,
 														(isset($quote->supplier) ? $quote->supplier->name : '--'), $quote->currency == '-1' ? $systemCurrency : $quote->currency,
 														$quote->quote_amount
@@ -1651,6 +1663,7 @@
 								class="table table-condensed my-small-text server-side table-banded table-striped table-hover table-bordered table-sm">
 								<thead>
 									<tr>
+										<th style="width: 32px"></th>
 										<th>#</th>
 										<th nowrap>Name</th>
 										<th nowrap>Rating</th>
@@ -1662,7 +1675,7 @@
 								</thead>
 								<tbody id="supplier-list" data-suppliers='{{ json_encode($request->supplier_rfqs()) }}'>
 									<tr class="no-data">
-										<td colspan="7">
+										<td colspan="8">
 											<div class="alert alert-info">
 												<i class="fas fa-exclamation-triangle"></i> No suppliers selected yet.
 											</div>
@@ -1704,33 +1717,51 @@
 										?>
 									@foreach ($approvals as $app)
 									<?php
-												$entityApproval =  $app->entity_approval($stage, $request->id);
-
-												// echo json_encode($entityApproval);
+												$entityApproval = $app->entity_approval($stage, $request->id);
+												$assignedApproverId = filled($entityApproval?->user_id) ? (string) $entityApproval->user_id : null;
+												$assignedApproverName = $assignedApproverId
+													? (string) (\App\User::find($assignedApproverId)?->name ?? '')
+													: '';
+												$configuredApprovers = getActiveUsersByRole($app->role_group_name ?? '');
+												$configuredApproverNames = $configuredApprovers
+													->pluck('name')
+													->filter()
+													->values()
+													->all();
 
 												$enableCurrentForApproval = $isEntityAboveApproved;
 												//Set $isEntityAboveApproved for the next approval step
-												$isEntityAboveApproved = trim($entityApproval->approved_at ?? "") != "";
+												$isEntityAboveApproved = trim((string) ($entityApproval?->approved_at ?? '')) !== '';
 											?>
 									<tr>
 										<td>{{ $loop->iteration }}</td>
-										<td>{{ $app->title }}</td>
-										<td>{{ $entityApproval->created_at ?? '-' }}</td>
+										<td>
+											{{ $app->title }}
+											@if(!empty($app->role_group_name))
+												<br><small class="text-muted">Role: {{ $app->role_group_name }}</small>
+											@endif
+										</td>
+										<td>{{ $entityApproval?->created_at ?? '-' }}</td>
 										<td nowrap>
-											@if($entityApproval && intval($entityApproval->user_id) > 0)
-											{{ $entityApproval->user()->name ?? '' }}
+											@if($assignedApproverName !== '')
+												{{ $assignedApproverName }}
+											@elseif(count($configuredApproverNames) > 0)
+												{{ implode(', ', $configuredApproverNames) }}
+												@if(!$entityApproval)
+													<br><small class="text-muted">Configured (not sent yet)</small>
+												@endif
 											@else
-											<span class="text-muted">-</span>
+												<span class="text-muted">-</span>
 											@endif
 											<?php
-														$users = getActiveUsersByRole($app->role_group_name ?? '')->pluck('id', 'name');
+														$users = $configuredApprovers->pluck('id', 'name');
 														$man_users = getActiveUsersByRole($inventoryManagerRoles)->pluck('id', 'name');
 													?>
 											@if (isset($request->status) && ($request->status == 'Awaiting Approval' || $request->status ==
 											'Partially Approved'))
 											@if(isset($app->is_pending($stage, isset($request->id) ? $request->id : 0)->id))
 											<span class="ml-2 btn btn-transparent btn-sm text-primary"
-												data-approval="{{ json_encode($entityApproval->id) }}" data-users="{{ json_encode($users) }}"
+												data-approval="{{ $entityApproval->id }}" data-users="{{ json_encode($users) }}"
 												data-manusers="{{ json_encode($man_users) }}" data-toggle="modal" data-title="{{ $app->title }}"
 												data-target="#change-approver-modal">
 												<i class="mdi mdi-sync"></i> Change
@@ -1738,31 +1769,31 @@
 											@endif
 											@endif
 										</td>
-										<td>{{ $entityApproval->approved_at ?? '-' }}</td>
+										<td>{{ $entityApproval?->approved_at ?? '-' }}</td>
 										<td nowrap>
 											@if (isset($request->status) && ($request->status == 'Awaiting Approval' || $request->status ==
 											'Partially Approved'))
 											@if(isset($app->is_pending($stage, isset($request->id) ? $request->id : 0)->id))
 											{{-- @if(true) --}}
 											@if($enableCurrentForApproval && ((isset($entityApproval->created_at)) &&
-											($entityApproval->user_id == Auth::user()->id)) && !in_array(Auth::user()->id,
-											$hasApprovedBefore))
-											@if(trim($entityApproval->approved_at) == "")
+											((string) $entityApproval->user_id === (string) Auth::user()->id)) && !in_array((string) Auth::user()->id,
+											array_map('strval', $hasApprovedBefore), true))
+											@if(trim((string) ($entityApproval->approved_at ?? '')) == "")
 											<span class="btn btn-sm btn-outline-success"
-												data-approval="{{ json_encode($entityApproval->id) }}" role="button" data-toggle="modal"
+												data-approval="{{ $entityApproval->id }}" role="button" data-toggle="modal"
 												data-target="#confirm-accept-modal">
 												<i class="mdi mdi-check-bold"></i> Approve
 											</span>
-											<span class="btn btn-sm btn-outline-danger" data-approval="{{ json_encode($entityApproval->id) }}"
+											<span class="btn btn-sm btn-outline-danger" data-approval="{{ $entityApproval->id }}"
 												role="button" data-toggle="modal" data-target="#enter-reject-modal">
 												<i class="mdi mdi-cancel"></i> Reject
 											</span>
-											<span class="btn btn-sm btn-outline-info" data-approval="{{ json_encode($entityApproval->id) }}"
+											<span class="btn btn-sm btn-outline-info" data-approval="{{ $entityApproval->id }}"
 												role="button" data-toggle="modal" data-target="#enter-recheck-modal">
 												<i class="mdi mdi-arrow-left-top"></i> Return
 											</span>
 											@else
-											{{ $app->entity_approval($stage, $request->id ?? 0)->status ?? '' }}
+											{{ $entityApproval->status ?? '' }}
 											@endif
 											@else
 											<span class="btn btn-sm mr-2 btn-disabled text-muted">
@@ -1772,29 +1803,25 @@
 												<i class="mdi mdi-cancel"></i> Reject
 											</span>
 											@endif
-											@if(!($entityApproval && intval($entityApproval->user_id) > 0))
-											<?php
-																	$users = getActiveUsersByRole($app->role_group_name ?? '')->pluck('id', 'name');
-																?>
+											@if(!$assignedApproverId)
 											<span class="ml-2 btn btn-transparent btn-sm text-primary trigger-change-approver"
-												data-approval="{{ json_encode($entityApproval->id) }}" data-users="{{ json_encode($users) }}"
+												data-approval="{{ $entityApproval?->id }}" data-users="{{ json_encode($users) }}"
 												data-manusers="{{ json_encode($man_users) }}" data-toggle="modal" data-title="{{ $app->title }}"
 												data-target="#change-approver-modal"></span>
 											@endif
 											<small class="text-danger">{{ trim(Auth::user()->electronic_sig) == "" ? '**Please update your
 												signature' : '' }}</small>
 											@else
-											<span class="text-info">{{ $app->entity_approval($stage, $request->id ?? 0)->status ?? ''
-												}}</span>
+											<span class="text-info">{{ $entityApproval?->status ?? '' }}</span>
 											@endif
 											@else
-											{{ $app->entity_approval($stage, $request->id ?? 0)->status ?? 'Not Sent' }}
+											{{ $entityApproval?->status ?? 'Not Sent' }}
 											@endif
 										</td>
 									</tr>
 									<?php
-												if($entityApproval && intval($entityApproval->user_id) > 0){
-													$hasApprovedBefore[] = $entityApproval->user_id;
+												if ($assignedApproverId) {
+													$hasApprovedBefore[] = $assignedApproverId;
 												}
 											?>
 									@endforeach
@@ -1937,10 +1964,10 @@
 							</div>
 							@if($stage == "Request for Quotation")
 							<div class="form-group">
-								<label class="control-label">Submission Deadline</label>
+								<label class="control-label">Submission Deadline*</label>
 								<input type="datetime-local" name="submission_deadline"
-									value="{{ \Carbon\Carbon::parse($request->submission_deadline)->format('Y-m-d\TH:i') ?? '' }}"
-									class="form-control trigger-save" placeholder="Submission Deadline..." />
+									value="{{ $request->submission_deadline ? \Carbon\Carbon::parse($request->submission_deadline)->format('Y-m-d\TH:i') : '' }}"
+									class="form-control trigger-save" placeholder="Submission Deadline..." required />
 							</div>
 							@endif
 							@if($stage == "Purchase Orders" && !empty($request->validity_period))
@@ -1951,9 +1978,10 @@
 							</div>
 							@endif
 							<div class="form-group">
-								<label class="control-label">{{ $stage == "Purchase Orders" ? "Delivery Date" : "Valid Until" }}</label>
+								<label class="control-label">{{ $stage == "Purchase Orders" ? "Delivery Date" : "Valid Until" }}{{ $stage == "Request for Quotation" ? '*' : '' }}</label>
 								<input type="date" name="valid_until" value="{{ $request->due_date ?? '' }}"
-									class="form-control trigger-save" placeholder="Validity Period..." />
+									class="form-control trigger-save" placeholder="Validity Period..."
+									{{ $stage == "Request for Quotation" ? 'required' : '' }} />
 							</div>
 							<div class="form-group">
 								<label class="control-label">Request Value</label>
@@ -3735,7 +3763,11 @@
 					</thead>
 					<tbody>
 						@foreach ($kitPossibleItems ?? array() as $req_item)
-							<?php $isKitRow = !is_numeric($req_item->catalog_number); ?>
+							<?php
+								$isKitRow = filled($req_item->catalog_number)
+									&& ! is_numeric($req_item->catalog_number)
+									&& ! \Illuminate\Support\Str::isUuid((string) $req_item->catalog_number);
+							?>
 							<tr class="for-item-{{ $req_item->inventory_sub_category_id }} quote-row">
 								<td><input type="checkbox" class="duplicatable quote-check" value="{{ $isKitRow ? $req_item->kit_item_ids : $req_item->id }}" name="quote[id][{{$isKitRow ? $req_item->kit_item_ids : $req_item->id}}]"></td>
 								<td>{{ $isKitRow ? $req_item->catalog_number." - ".$req_item->kit_item_name : $req_item->item_name }}</td>
@@ -3803,11 +3835,13 @@
 		});
 
 		var getNoteRow = function($data){
+			var noteTitle = $data.title || '';
+			var noteDescription = $data.description || '';
 			var $row = `
 				<tr class="note-row new">
 					<td class="row-id"></td>
 					<td>
-						<em>${ $data.title }</em>
+						${ noteTitle ? `<em>${ noteTitle }</em>` : '' }
 						<select class="form-control" name="notes[type][]" placeholder="Type..." required>
 							@foreach (getNoteTypes() as $item)
 								<option value="{{ $item }}" ${ $data.type == '{{ $item }}' ? 'selected' : '' } >{{ $item }}</option>
@@ -3815,16 +3849,16 @@
 						</select>
 					</td>
 					<td>
-						<input type="text" class="note-type-val form-control" value="${ $data.current_user_name }" readonly />
-						<input type="hidden" class="note-type-val" name="created_by" value="${ $data.current_user }" />
+						<input type="text" class="note-type-val form-control" value="${ $data.current_user_name || '' }" readonly />
+						<input type="hidden" class="note-type-val" name="created_by" value="${ $data.current_user || '' }" />
 					</td>
 					<td>
-						<input type="text" class="note-type-val form-control" value="${ $data.current_time }" readonly />
+						<input type="text" class="note-type-val form-control" value="${ $data.current_time || '' }" readonly />
 					</td>
 					<td nowrap>
 						<span class="mdi mdi-android-messages btn btn-sm btn-default text-primary" data-toggle="modal" data-target="#view-note-modal"
-							data-description='${ $data.description }'> Description</span>
-						<input type="hidden" name="notes[description][]" value="${ $data.description }" />
+							data-description="${ noteDescription.replace(/"/g, '&quot;') }"> Description</span>
+						<input type="hidden" name="notes[description][]" value="${ noteDescription.replace(/"/g, '&quot;') }" />
 					</td>
 				</tr>
 			`;
@@ -3878,6 +3912,9 @@
 		var getSupplierRow = function($data={}){
 			var $row = `
 				<tr class="item-row new">
+					<td class="text-center align-middle">
+						<input type="checkbox" class="row-select-checkbox" title="Select row" />
+					</td>
 					<td class="item-id row-id ${ ($data.rfq_sent || 0) == '1' ? 'rfq_sent' : '' }"></td>
 					<td>
 						<div class="form-group">
@@ -3943,6 +3980,9 @@
 		var getItemRow = function($data){
 			var $row = `
 				<tr class="item-row new">
+					<td class="text-center align-middle">
+						<input type="checkbox" class="row-select-checkbox" title="Select row" />
+					</td>
 					<td class="item-id"></td>
 					<td>
 						<div class="form-group">
@@ -3959,7 +3999,7 @@
 					</td>
 					<td>
 						<div class="form-group">
-							<input type="text" class="form-control" name="items[brand][]" style="min-width: 200px" placeholder="Brand..." />
+							<input type="text" class="form-control" name="items[brand][]" style="min-width: 110px; max-width: 130px" placeholder="Brand..." />
 							<div class="d-none" style="display:none">
 								<select name="items[item_brand_id][]" class="form-control selected-item-brand d-none" data-selected="" placeholder="Select Item Brand..."></select>
 							</div>
@@ -3970,25 +4010,25 @@
 							<span class="btn btn-default btn-sm text-primary" style="position: absolute; top: 0px; right: 0px; z-index: 1" data-target="#req-location-selector-modal" data-toggle="modal">
 								<i class="mdi mdi-map-marker"></i>
 							</span>
-							<textarea class="form-control item-description" name="items[comments][]" style="min-width: 250px; z-index: 0"></textarea>
+							<textarea class="form-control item-description" name="items[comments][]" style="min-width: 140px; max-width: 160px; z-index: 0"></textarea>
 						</div>
 					</td>
 					<td>
 						<div class="form-group">
-							<select name="items[uom][]" class="form-control selected-item-uom" placeholder="Select Item UoM..." ><option></option></select>
+							<select name="items[uom][]" class="form-control selected-item-uom" style="min-width: 140px" placeholder="Select Item UoM..." ><option></option></select>
 						</div>
 					</td>
 					@if(in_array($stage, array("Request to Store", "Purchase Request", "Request for Quotation", "Loan", "Lend")))
 					<td nowrap>
 						<div class="form-group">
-							<span class="form-control open-quantity" style="min-width: 150px">0.00</span>
-							<input type="hidden" min="0.00" name="items[open_quantity][]" style="min-width: 100px" class="form-control open_quantity" placeholder="Quantity..." />
+							<span class="form-control open-quantity" style="min-width: 70px; max-width: 80px">0.00</span>
+							<input type="hidden" min="0.00" name="items[open_quantity][]" style="min-width: 70px" class="form-control open_quantity" placeholder="Quantity..." />
 						</div>
 					</td>
 					@endif
 					<td>
 						<div class="form-group">
-							<input type="number" min="0" name="items[quantity][]" step="any" style="min-width: 100px" class="form-control user-quantity" placeholder="Quantity..." required />
+							<input type="number" min="0" name="items[quantity][]" step="any" style="min-width: 70px; max-width: 90px" class="form-control user-quantity" placeholder="Quantity..." required />
 						</div>
 					</td>
 					@if($stage == "Goods Receipt")
@@ -4041,7 +4081,7 @@
 					@if(in_array($stage,["Request for Quotation", "Purchase Orders"]))
 						<td>
 							<div class="form-group">
-								<select name="items[mode][]">
+								<select name="items[mode][]" class="form-control" style="min-width: 140px" placeholder="Select Shipping Mode...">
 									@foreach(getShippingMode() as $mode)
 										<option value="{{ $mode }}">{{ $mode }}</option>
 									@endforeach
@@ -4052,7 +4092,7 @@
 					@if(!in_array($stage,["Purchase Request", "Gate Pass", "Loan", "Lend", "Request to Store"]))
 					<td>
 						<div class="form-group">
-							<select name="items[store_id][]" class="form-control selected-store" data-placeholder="Select Store...">
+							<select name="items[store_id][]" class="form-control selected-store" style="min-width: 180px" data-placeholder="Select Store...">
 								@foreach ($allStores as $store)
 									<option value="{{ $store->id }}" data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
 								@endforeach
@@ -4061,7 +4101,7 @@
 					</td>
 					<td>
 						<div class="form-group">
-							<select name="items[slot_id][]" style="min-width: 100px"  class="form-control store-slots" data-placeholder="Select Slot..."></select>
+							<select name="items[slot_id][]" style="min-width: 160px"  class="form-control store-slots" data-placeholder="Select Slot..."></select>
 						</div>
 					</td>
 					<td>
@@ -4995,12 +5035,18 @@
 					siblingBrands.append($op);
 				});
 
-				$UoMSelect.empty();
-				$.each($uoms, function(u, m){
-					var $op = $(`<option value="${m}">${m}</option>`);
-					$UoMSelect.append($op);
-				});
-				$UoMSelect.val(selectedUoM).trigger('change');
+				// After approval the UOM control is readonly text (no select). Do not wipe it.
+				if ($UoMSelect.length && !$UoMSelect.is(':disabled')) {
+					$UoMSelect.empty();
+					$.each($uoms, function(u, m){
+						if (!m) {
+							return;
+						}
+						var $op = $(`<option value="${m}">${m}</option>`);
+						$UoMSelect.append($op);
+					});
+					$UoMSelect.val(selectedUoM).trigger('change');
+				}
 				siblingBrands.val(selectedBrand).trigger('change');
 
 				@if(in_array($stage,getRequisitionWorkflow()))
@@ -5056,6 +5102,14 @@
 					}
 				},
 				placeholder: 'Please Select Inventory Item...'
+			});
+
+			$('#req-items').find('select[name="items[mode][]"]').each(function(){
+				var placeholder = $(this).attr('placeholder') || 'Select Shipping Mode...';
+				$(this).select2({
+					placeholder: placeholder,
+					width: 'style'
+				});
 			});
 
 			$('#req-items').on('change', 'tr .selected-item', function(){
@@ -5114,6 +5168,7 @@
 
 			$('#req-items').on('dblclick', 'tr.item-row .item-id', function(){
 				$(this).toggleClass('bg-selected');
+				$(this).closest('tr').find('.row-select-checkbox').prop('checked', $(this).hasClass('bg-selected'));
 			});
 
 			$('#note-items').on('dblclick', 'tr.item-row .item-id', function(){
@@ -5128,13 +5183,18 @@
 				$(this).toggleClass('bg-selected');
 			});
 
+			$('#supplier-list').on('dblclick', 'tr.item-row .item-id, tr.item-row .row-id', function(){
+				$(this).toggleClass('bg-selected');
+				$(this).closest('tr').find('.row-select-checkbox').prop('checked', $(this).hasClass('bg-selected'));
+			});
+
 			$('.delete-item-row').on('click', function(){
 				if($('#req-items').find('.item-id.bg-selected').length && confirm("Are you sure you want to remove this row?")){
 					$('#req-items').find('.item-id.bg-selected').parents('tr').remove();
 					$('.trigger-save').trigger("change");
 				}
 				else{
-					alert("No row selected. Double-click on a row number to select");
+					alert("No row selected. Use the checkbox to select a row");
 				}
 			});
 
@@ -5145,7 +5205,20 @@
 					$('.trigger-save').trigger("change");
 				}
 				else{
-					alert("No row selected. Double-click on a row number to select");
+					alert("No row selected. Use the checkbox to select a row");
+				}
+			});
+
+			$('#req-items, #supplier-list').on('change', '.row-select-checkbox', function(){
+				var $idCell = $(this).closest('tr').find('.item-id, .row-id').first();
+				if ($idCell.hasClass('rfq_sent')) {
+					$(this).prop('checked', false);
+					return;
+				}
+				if ($(this).is(':checked')) {
+					$idCell.addClass('bg-selected');
+				} else {
+					$idCell.removeClass('bg-selected');
 				}
 			});
 
@@ -5154,7 +5227,9 @@
 				var modal = $(this).parents('.modal');
 
 				if(type == "note"){
-					generateNoteRow(modal);
+					if (generateNoteRow(modal) === false) {
+						return;
+					}
 				}
 				else{
 					generateAttachmentRow(modal);
@@ -5165,10 +5240,19 @@
 
 			var generateNoteRow = function($modal = false, $dt = false){
 				if($modal){
+					var noteType = $modal.find('[name="type"]').val();
+					var noteTitle = $modal.find('[name="title"]').val();
+					var noteDescription = $.trim($modal.find('[name="description"]').val() || '');
+
+					if (!noteDescription) {
+						alert('Please enter a note description.');
+						return false;
+					}
+
 					var data = {
-						"type": $modal.find('[name="type"]').val(),
-						"title": $dt.title,
-						"description": $modal.find('[name="description"]').val(),
+						"type": noteType,
+						"title": noteTitle,
+						"description": noteDescription,
 						"current_user": $modal.find('[name="current_user"]').val(),
 						"current_user_name": $modal.find('[name="current_user_name"]').val(),
 						"current_user_email": $modal.find('[name="current_user_email"]').val(),
@@ -5188,6 +5272,10 @@
 					}
 				}
 
+				if (!data) {
+					return false;
+				}
+
 				var noteRow = getNoteRow(data);
 
 				var d = new Date();
@@ -5205,6 +5293,7 @@
 					$modal.find('.form-control').val('');
 				}
 
+				return true;
 			}
 
 			var all_notes = $('#note-items').data('notes');
@@ -5225,8 +5314,22 @@
 				sRow.find('.item-id').on('dblclick', function(){
 					if(!$(this).hasClass('rfq_sent')){
 						$(this).toggleClass('bg-selected');
+						$(this).closest('tr').find('.row-select-checkbox').prop('checked', $(this).hasClass('bg-selected'));
 					}
-				})
+				});
+
+				sRow.find('.row-select-checkbox').on('change', function(){
+					var $idCell = $(this).closest('tr').find('.item-id');
+					if ($idCell.hasClass('rfq_sent')) {
+						$(this).prop('checked', false);
+						return;
+					}
+					if ($(this).is(':checked')) {
+						$idCell.addClass('bg-selected');
+					} else {
+						$idCell.removeClass('bg-selected');
+					}
+				});
 
 				sRow.find('.item-id').append(`
 					<input type="hidden" name="suppliers[supplier_rfq_id][]" value="${ n }" />

@@ -423,44 +423,82 @@ final class AmSpecQuotationPdfService
             }
         }
 
-        if ($enquiry === null) {
-            return '';
-        }
+        if ($enquiry !== null) {
+            $enquiry->loadMissing('submissionFormInstance');
+            $instance = $enquiry->submissionFormInstance ?? $enquiry->resolveLinkedFormInstance();
 
-        $enquiry->loadMissing('submissionFormInstance');
-        $instance = $enquiry->submissionFormInstance ?? $enquiry->resolveLinkedFormInstance();
+            if ($instance !== null) {
+                foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'client_unit'] as $fieldName) {
+                    $display = $instance->resolveDisplayValueByName($fieldName);
+                    if (filled($display)) {
+                        $label = $this->resolveCompanyUnitLabel((string) $display);
+                        if ($label !== '') {
+                            return $label;
+                        }
+                    }
 
-        if ($instance !== null) {
-            foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'client_unit'] as $fieldName) {
-                $display = $instance->resolveDisplayValueByName($fieldName);
-                if (filled($display)) {
-                    $label = $this->resolveCompanyUnitLabel((string) $display);
-                    if ($label !== '') {
-                        return $label;
+                    $raw = $instance->getValueByElementName($fieldName);
+                    if (filled($raw)) {
+                        $label = $this->resolveCompanyUnitLabel((string) $raw);
+                        if ($label !== '') {
+                            return $label;
+                        }
                     }
                 }
+            }
 
-                $raw = $instance->getValueByElementName($fieldName);
-                if (filled($raw)) {
-                    $label = $this->resolveCompanyUnitLabel((string) $raw);
+            $collection = is_array($enquiry->collection_data) ? $enquiry->collection_data : [];
+            foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'crm_unit_name', 'crm_unit_id'] as $key) {
+                if (! empty($collection[$key])) {
+                    $label = $this->resolveCompanyUnitLabel((string) $collection[$key]);
                     if ($label !== '') {
                         return $label;
                     }
                 }
             }
+
+            $fromEnquirySamplePoint = $this->resolveCompanyUnitFromSamplePointId(
+                (string) ($collection['sampling_location'] ?? '')
+            );
+            if ($fromEnquirySamplePoint !== '') {
+                return $fromEnquirySamplePoint;
+            }
         }
 
-        $collection = is_array($enquiry->collection_data) ? $enquiry->collection_data : [];
-        foreach (['company_unit_id', 'company_unit', 'client_unit_id', 'crm_unit_name', 'crm_unit_id'] as $key) {
-            if (! empty($collection[$key])) {
-                $label = $this->resolveCompanyUnitLabel((string) $collection[$key]);
-                if ($label !== '') {
-                    return $label;
-                }
+        $fromHeaderSamplePoint = $this->resolveCompanyUnitFromSamplePointId(
+            (string) ($header->sample_point_id ?? '')
+        );
+        if ($fromHeaderSamplePoint !== '') {
+            return $fromHeaderSamplePoint;
+        }
+
+        $header->loadMissing('contact');
+        $contact = $header->contact;
+        if ($contact !== null) {
+            $fromContactId = $this->resolveCompanyUnitLabel((string) ($contact->crm_company_unit_id ?? ''));
+            if ($fromContactId !== '') {
+                return $fromContactId;
+            }
+
+            $fromContactName = $this->resolveCompanyUnitLabel((string) ($contact->unit_name ?? ''));
+            if ($fromContactName !== '') {
+                return $fromContactName;
             }
         }
 
         return '';
+    }
+
+    private function resolveCompanyUnitFromSamplePointId(string $samplePointId): string
+    {
+        $samplePointId = trim($samplePointId);
+        if ($samplePointId === '') {
+            return '';
+        }
+
+        $unitId = \App\Models\CRM\SamplePoint::query()->whereKey($samplePointId)->value('crm_company_unit_id');
+
+        return $this->resolveCompanyUnitLabel((string) ($unitId ?? ''));
     }
 
     private function resolveCompanyUnitLabel(string $value): string

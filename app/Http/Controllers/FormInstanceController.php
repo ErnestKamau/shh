@@ -2009,6 +2009,7 @@ class FormInstanceController extends Controller
 
         $sampleId = $this->resolveSampleIdForLabel($instance, $sampleLines, $formData);
         $testRequirement = $this->resolveTestRequirementForLabel($instance, $sampleLines, $formData);
+        $testCategory = $this->resolveTestCategoryForLabel($instance, $sampleLines, $formData);
 
         $sampleRows = $formData['sample_rows'] ?? [];
 
@@ -2038,7 +2039,8 @@ class FormInstanceController extends Controller
             'containerType',
             'sampleCollectionFor',
             'sampleId',
-            'testRequirement'
+            'testRequirement',
+            'testCategory'
         ));
     }
 
@@ -2177,6 +2179,58 @@ class FormInstanceController extends Controller
         }
 
         return 'N/A';
+    }
+
+    /**
+     * Selected PDF/TRF test categories only (e.g. Microbiology, Chemistry) — not analyte names.
+     *
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @param  array<string, mixed>  $formData
+     */
+    private function resolveTestCategoryForLabel(
+        SubmissionFormInstance $instance,
+        array $sampleLines,
+        array $formData
+    ): string {
+        $allowed = ['chemistry', 'microbiology', 'legionella'];
+        $tokens = [];
+
+        foreach ($sampleLines as $line) {
+            $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+            $candidates = [
+                $line['test_category'] ?? null,
+                $line['parameter_category'] ?? null,
+                $attributes['test_category'] ?? null,
+                $attributes['parameter_category'] ?? null,
+            ];
+
+            foreach ($candidates as $candidate) {
+                foreach (SubmissionFormSchemaHelper::testCategoryTokens($candidate) as $token) {
+                    if (in_array($token, $allowed, true) && ! in_array($token, $tokens, true)) {
+                        $tokens[] = $token;
+                    }
+                }
+            }
+        }
+
+        if ($tokens === []) {
+            foreach (['test_category', 'parameter_category'] as $fieldName) {
+                $fromForm = $formData[$fieldName] ?? null;
+                if ($fromForm === null || $fromForm === '') {
+                    $fromForm = $instance->resolveDisplayValueByName($fieldName);
+                }
+
+                foreach (SubmissionFormSchemaHelper::testCategoryTokens($fromForm) as $token) {
+                    if (in_array($token, $allowed, true) && ! in_array($token, $tokens, true)) {
+                        $tokens[] = $token;
+                    }
+                }
+            }
+        }
+
+        $label = SubmissionFormSchemaHelper::testCategoryLabel(implode(',', $tokens));
+
+        return $label !== '' ? $label : 'N/A';
     }
 
     /**

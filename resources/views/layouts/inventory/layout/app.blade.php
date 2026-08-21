@@ -309,6 +309,12 @@
 					<span class="menu-collapsed">{{ __('inventory.departments') }}</span>
 				</div>
 			</a>
+			<a href="{{ route('inventory-locations') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-locations', 'show-inventory-locations') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-map-marker fa-fw mr-3"></span>
+					<span class="menu-collapsed">{{ __('inventory.organizational_structure') }}</span>
+				</div>
+			</a>
 			<a href="{{ route('inventory-suppliers') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-suppliers', 'show-supplier') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-group fa-fw mr-3"></span>

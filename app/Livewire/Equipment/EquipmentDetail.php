@@ -434,9 +434,13 @@ class EquipmentDetail extends Component
         $this->selectedDepartmentName = '';
         $this->departmentSearch = '';
         if ($e->assigned_department) {
-            $department = getInventoryDepartmentByid($e->assigned_department);
-            $this->selectedDepartmentName = $department?->name ?? (is_string($e->assigned_department) ? $e->assigned_department : '');
+            $departmentName = getInventoryDepartmentName($e->assigned_department);
+            $this->selectedDepartmentName = $departmentName ?? '';
             $this->departmentSearch = $this->selectedDepartmentName;
+
+            if ($departmentName === null && \Illuminate\Support\Str::isUuid((string) $e->assigned_department)) {
+                $this->equipmentForm['assigned_department'] = null;
+            }
         }
 
         $this->selectedStatusName = (string) ($this->equipmentForm['status'] ?? '');
@@ -2088,11 +2092,7 @@ class EquipmentDetail extends Component
         $calibration = $equipment->calibration_date();
         $maintenance = $equipment->maintainance_date();
 
-        $departmentName = '—';
-        if ($equipment->assigned_department) {
-            $department = getInventoryDepartmentByid($equipment->assigned_department);
-            $departmentName = $department?->name ?? (is_string($equipment->assigned_department) ? $equipment->assigned_department : '—');
-        }
+        $departmentName = getInventoryDepartmentName($equipment->assigned_department) ?? '—';
 
         $assignedEmployeeName = '—';
         if ($equipment->assigned_employee_id) {

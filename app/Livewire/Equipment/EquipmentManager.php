@@ -274,9 +274,14 @@ class EquipmentManager extends Component
         }
 
         if ($equipment->assigned_department) {
-            $department = getInventoryDepartmentByid($equipment->assigned_department);
-            $this->selectedDepartmentName = $department?->name ?? (is_string($equipment->assigned_department) ? $equipment->assigned_department : '');
+            $departmentName = getInventoryDepartmentName($equipment->assigned_department);
+            $this->selectedDepartmentName = $departmentName ?? '';
             $this->departmentSearch = $this->selectedDepartmentName;
+
+            // Orphan UUID (department row deleted) — clear so the UI is empty and save requires re-select.
+            if ($departmentName === null && \Illuminate\Support\Str::isUuid((string) $equipment->assigned_department)) {
+                $this->equipmentForm['assigned_department'] = null;
+            }
         }
 
         if ($equipment->asset_type_id) {

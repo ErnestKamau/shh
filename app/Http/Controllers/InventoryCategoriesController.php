@@ -32,7 +32,7 @@ class InventoryCategoriesController extends Controller
   {
     $category = new InventoryCategories;
     $category->name = $request->name;
-    $category->description = $request->description ?? $request->name;
+    $category->description = filled($request->description) ? $request->description : null;
     if ($request->hasFile('image')){
       $path = $request->image->path();
       $file = Storage::putFile('categories', new File($path));
@@ -55,7 +55,7 @@ class InventoryCategoriesController extends Controller
   {
     $category = InventoryCategories::find($id);
     $category->name = $request->name;
-    $category->description = $request->description ?? $request->name;
+    $category->description = filled($request->description) ? $request->description : null;
     if ($request->hasFile('image')){
       $path = $request->image->path();
       $file = Storage::putFile('categories', new File($path));

@@ -184,7 +184,7 @@
                                             <td>{{ $item->model }}</td>
                                             <td>{{ $item->serial_number ?? '-' }}</td>
                                             <td>{{ $item->manufacturer ?? '-' }}</td>
-                                            <td>{{ getInventoryDepartmentByid($item->assigned_department)?->name ?? $item->assigned_department ?? '-' }}</td>
+                                            <td>{{ getInventoryDepartmentName($item->assigned_department) ?? '-' }}</td>
                                             <td>
                                                 @php
                                                     $employee = \App\User::find($item->assigned_employee_id);

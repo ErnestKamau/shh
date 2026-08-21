@@ -55,6 +55,18 @@ class SampleIntegrityCheckPage extends Component
 
     public bool $showAcceptConfirmModal = false;
 
+    public bool $showSampleInfoModal = false;
+
+    public string $sampleInfoTitle = '';
+
+    public string $sampleInfoDetails = '';
+
+    /** @var list<array{label: string, value: string}> */
+    public array $sampleInfoFields = [];
+
+    /** @var list<string> */
+    public array $sampleInfoTests = [];
+
     public bool $isAccepting = false;
 
     public string $acceptError = '';
@@ -834,13 +846,20 @@ class SampleIntegrityCheckPage extends Component
     {
         $info = $this->sampleInfoForKey($configKey);
 
-        $this->dispatch(
-            'integrity-sample-info-open',
-            title: $label.' — Test & sample information',
-            details: $info['sample_details'],
-            fields: $info['details'],
-            tests: $info['tests'],
-        );
+        $this->sampleInfoTitle = $label.' — Test & sample information';
+        $this->sampleInfoDetails = (string) ($info['sample_details'] ?? '');
+        $this->sampleInfoFields = is_array($info['details'] ?? null) ? $info['details'] : [];
+        $this->sampleInfoTests = is_array($info['tests'] ?? null) ? $info['tests'] : [];
+        $this->showSampleInfoModal = true;
+    }
+
+    public function closeSampleInfo(): void
+    {
+        $this->showSampleInfoModal = false;
+        $this->sampleInfoTitle = '';
+        $this->sampleInfoDetails = '';
+        $this->sampleInfoFields = [];
+        $this->sampleInfoTests = [];
     }
 
     protected function setFlashMessage(string $message, string $type = 'info'): void

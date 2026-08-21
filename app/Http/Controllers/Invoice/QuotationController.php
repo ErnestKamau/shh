@@ -1153,6 +1153,31 @@ class QuotationController extends Controller
             (string) $request->input('analysis_type_ids', ''),
         );
 
+        if (! empty($defaults['found']) && is_array($defaults['element_ids'] ?? null)) {
+            $allowed = $this->quotationLabSectionScope->filterAllowedElementIds(
+                $header,
+                $defaults['element_ids'],
+            );
+            $allowedSet = array_flip($allowed);
+            $defaults['element_ids'] = $allowed;
+            $defaults['accredited_ids'] = array_values(array_filter(
+                $defaults['accredited_ids'] ?? [],
+                static fn ($id): bool => isset($allowedSet[(string) $id]),
+            ));
+            $defaults['default_ids'] = array_values(array_filter(
+                $defaults['default_ids'] ?? [],
+                static fn ($id): bool => isset($allowedSet[(string) $id]),
+            ));
+            $defaults['parameters'] = array_values(array_filter(
+                $defaults['parameters'] ?? [],
+                static fn (array $row): bool => isset($allowedSet[(string) ($row['id'] ?? '')]),
+            ));
+            if ($allowed === []) {
+                $defaults['found'] = false;
+                $defaults['hint'] = 'No package parameters fall under this quotation\'s lab section(s).';
+            }
+        }
+
         return response()->json($defaults);
     }
 

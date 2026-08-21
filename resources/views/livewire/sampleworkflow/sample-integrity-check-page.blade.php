@@ -1,12 +1,5 @@
 <div
     class="sample-integrity-check-page"
-    x-data="{
-        sampleInfoOpen: false,
-        sampleInfoTitle: '',
-        sampleInfoDetails: '',
-        sampleInfoFields: [],
-        sampleInfoTests: []
-    }"
 >
     @if($flashMessage !== '')
         <div class="alert alert-{{ $flashMessageType === 'error' ? 'danger' : ($flashMessageType === 'warning' ? 'warning' : 'info') }} alert-dismissible fade show" role="alert">
@@ -561,43 +554,49 @@
         </div>
     @endif
 
-    <div class="rv-modal-backdrop" x-show="sampleInfoOpen" x-cloak @keydown.escape.window="sampleInfoOpen = false">
-        <div class="rv-modal" role="dialog" aria-modal="true" @click.away="sampleInfoOpen = false">
-            <div class="rv-modal-header">
-                <h4 class="rv-modal-title" x-text="sampleInfoTitle"></h4>
-                <button type="button" class="rv-modal-close" @click="sampleInfoOpen = false" aria-label="Close">
-                    <i class="mdi mdi-close" aria-hidden="true"></i>
-                </button>
-            </div>
-            <div class="rv-modal-body">
-                <dl class="rv-detail-grid mb-0">
-                    <div class="rv-detail-row">
-                        <dt>Sample Details</dt>
-                        <dd x-text="sampleInfoDetails !== '' ? sampleInfoDetails : '—'"></dd>
-                    </div>
-                    <template x-for="field in sampleInfoFields" :key="field.label">
+    @if($showSampleInfoModal)
+        <div
+            class="rv-modal-backdrop"
+            wire:click.self="closeSampleInfo"
+            @keydown.escape.window="$wire.closeSampleInfo()"
+        >
+            <div class="rv-modal" role="dialog" aria-modal="true" aria-labelledby="integrity-sample-info-title">
+                <div class="rv-modal-header">
+                    <h4 class="rv-modal-title" id="integrity-sample-info-title">{{ $sampleInfoTitle }}</h4>
+                    <button type="button" class="rv-modal-close" wire:click="closeSampleInfo" aria-label="Close">
+                        <i class="mdi mdi-close" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="rv-modal-body">
+                    <dl class="rv-detail-grid mb-0">
                         <div class="rv-detail-row">
-                            <dt x-text="field.label"></dt>
-                            <dd x-text="field.value"></dd>
+                            <dt>Sample Details</dt>
+                            <dd>{{ $sampleInfoDetails !== '' ? $sampleInfoDetails : '—' }}</dd>
                         </div>
-                    </template>
-                </dl>
-                <template x-if="sampleInfoTests.length > 0">
-                    <div class="mt-3 pt-3 border-top">
-                        <div class="rv-field-label mb-2">Tests</div>
-                        <div class="rv-test-codes">
-                            <template x-for="test in sampleInfoTests" :key="test">
-                                <span class="rv-test-code" x-text="test"></span>
-                            </template>
+                        @foreach($sampleInfoFields as $field)
+                            <div class="rv-detail-row">
+                                <dt>{{ $field['label'] ?? '' }}</dt>
+                                <dd>{{ $field['value'] ?? '' }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                    @if(count($sampleInfoTests) > 0)
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="rv-field-label mb-2">Tests</div>
+                            <div class="rv-test-codes">
+                                @foreach($sampleInfoTests as $test)
+                                    <span class="rv-test-code">{{ $test }}</span>
+                                @endforeach
+                            </div>
                         </div>
-                    </div>
-                </template>
-                <template x-if="sampleInfoDetails === '' && sampleInfoFields.length === 0 && sampleInfoTests.length === 0">
-                    <p class="rv-empty-copy mb-0 mt-3">No sample information was captured on the TRF.</p>
-                </template>
+                    @endif
+                    @if($sampleInfoDetails === '' && $sampleInfoFields === [] && $sampleInfoTests === [])
+                        <p class="rv-empty-copy mb-0 mt-3">No sample information was captured on the TRF.</p>
+                    @endif
+                </div>
             </div>
         </div>
-    </div>
+    @endif
 
     <script>
         (function () {

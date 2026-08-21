@@ -1644,6 +1644,30 @@ function getInventoryDepartmentByid($id)
 	return App\InventoryDepartment::where('name', $id)->first();
 }
 
+/**
+ * Human-readable department label for equipment.assigned_department.
+ * Never returns a raw UUID when the related department row is missing.
+ */
+function getInventoryDepartmentName($id): ?string
+{
+	if ($id === null || $id === '') {
+		return null;
+	}
+
+	$id = (string) $id;
+	$department = getInventoryDepartmentByid($id);
+	if ($department !== null && filled($department->name)) {
+		return (string) $department->name;
+	}
+
+	// Legacy rows sometimes stored the department name directly.
+	if (! \Illuminate\Support\Str::isUuid($id)) {
+		return $id;
+	}
+
+	return null;
+}
+
 function getSampleTrackingStages()
 {
 	return App\SampleAnalysisStage::all();

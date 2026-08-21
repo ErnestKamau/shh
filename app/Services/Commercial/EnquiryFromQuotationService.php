@@ -498,7 +498,7 @@ final class EnquiryFromQuotationService
         $crmCustomerId = trim((string) ($quotation->crm_customer_id ?? ''));
         $crmCustomerId = $crmCustomerId !== '' ? $crmCustomerId : null;
 
-        $form = $this->formInstanceSync->resolveSubmissionFormForEnquiryLines($lines, $crmCustomerId);
+        $form = $this->formInstanceSync->resolveSubmissionFormForEnquiryLines($lines, null, $crmCustomerId);
         $sections = $form !== null ? $this->fillableSectionsForForm($form) : [];
 
         $typeNames = \App\SampleType::query()

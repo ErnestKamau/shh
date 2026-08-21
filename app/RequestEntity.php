@@ -116,49 +116,73 @@ class RequestEntity extends Model implements Auditable
 		return Supplier::find($this->supplier_id);
 	}
 
-	public function quotes($item_id=false, $grp=false){
-		if($grp){
-			$quotes =  \App\SupplierQuote::join('request_entity_items as rei', 'rei.id', '=', 'supplier_quotes.request_item_id')
+	public function quotes($item_id = false, $grp = false)
+	{
+		$hasCurrencyId = \Illuminate\Support\Facades\Schema::hasColumn('supplier_quotes', 'currency_id');
+
+		$quotes = \App\SupplierQuote::query()
+			->join('request_entity_items as rei', 'rei.id', '=', 'supplier_quotes.request_item_id')
 			->join('inventory_sub_categories as ics', 'ics.id', '=', 'rei.inventory_sub_category_id')
-			->where('supplier_quotes.request_id', $this->id)->selectRaw('supplier_quotes.*, COALESCE(mpc.name, "-1") as currency, rei.catalog_number, GROUP_CONCAT(supplier_quotes.id) as quotes_id, GROUP_CONCAT(CONCAT(IFNULL(ics.name,""), " - ", IFNULL(rei.quantity, ""), "", IFNULL(rei.uom, ""), " ",
-			IFNULL(rei.comments, "")))
-			as kit_item_name, ics.name as item_name, rei.item_brand_id as brand_id');
-		}
-		else{
-			$quotes =  \App\SupplierQuote::join('request_entity_items as rei', 'rei.id', '=', 'supplier_quotes.request_item_id')
-			->join('inventory_sub_categories as ics', 'ics.id', '=', 'rei.inventory_sub_category_id')
-			->where('supplier_quotes.request_id', $this->id)->selectRaw('supplier_quotes.*, COALESCE(mpc.name, "-1") as currency, ics.name as item_name, rei.item_brand_id as brand_id');
+			->where('supplier_quotes.request_id', $this->id);
+
+		if ($hasCurrencyId) {
+			$quotes->leftJoin('module_pre_configs as mpc', function ($join) {
+				$join->whereRaw('mpc.id::text = supplier_quotes.currency_id::text');
+			});
 		}
 
-		$quotes = $quotes->leftJoin('module_pre_configs as mpc', function ($join) {
-			$join->whereRaw('mpc.id::text = supplier_quotes.currency_id::text');
-		});
+		$select = 'supplier_quotes.*, rei.catalog_number, rei.quantity, rei.uom, rei.comments, ics.name as item_name, rei.item_brand_id as brand_id';
+		$select .= $hasCurrencyId
+			? ", COALESCE(mpc.name, '-1') as currency"
+			: ", '-1' as currency";
 
-		if($item_id){
-			$quotes = $quotes->where('ics.id', $item_id)
-				->orderBy('supplier_quotes.quote_amount', 'asc');
+		$quotes->selectRaw($select);
+
+		if ($item_id) {
+			$quotes->where('ics.id', $item_id);
 		}
-		else{
-			if($grp){
-				$quotes = $quotes->orderBy('kit_item_name', 'asc')->orderBy('supplier_quotes.quote_amount', 'asc');
+
+		$quotes->orderBy('ics.name', 'asc')->orderBy('supplier_quotes.quote_amount', 'asc');
+
+		$rows = $quotes->get();
+
+		if ($grp) {
+			$grouped = [];
+
+			foreach ($rows as $q) {
+				$key = ((string) ($q->catalog_number ?? '')).'|'.((string) $q->supplier_id);
+				$kitPart = trim(
+					($q->item_name ?? '').
+					' - '.
+					($q->quantity ?? '').
+					($q->uom ?? '').
+					' '.
+					($q->comments ?? '')
+				);
+
+				if (! isset($grouped[$key])) {
+					$q->quotes_id = (string) $q->id;
+					$q->kit_item_name = $kitPart;
+					$grouped[$key] = $q;
+				} else {
+					$grouped[$key]->quotes_id .= ','.$q->id;
+					$grouped[$key]->kit_item_name .= ','.$kitPart;
+				}
 			}
-			else{
-				$quotes = $quotes->orderBy('ics.name', 'asc')->orderBy('supplier_quotes.quote_amount', 'asc');
-			}
-		}
-		if($grp){
-			$quotes = $quotes->groupBy('rei.catalog_number', 'supplier_quotes.supplier_id');
-		}
 
-		$quotes = $quotes->get();
+			$rows = collect(array_values($grouped))
+				->sortBy([
+					['kit_item_name', 'asc'],
+					['quote_amount', 'asc'],
+				])
+				->values();
+		}
 
 		$return = [];
 
-		foreach($quotes as $q){
+		foreach ($rows as $q) {
 			$brand = \App\ItemBrand::find($q->brand_id);
-
 			$q->brand = $brand ? $brand->name : 'Non-Specific';
-
 			$return[] = $q;
 		}
 

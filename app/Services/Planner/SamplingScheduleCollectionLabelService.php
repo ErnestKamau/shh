@@ -89,6 +89,7 @@ final class SamplingScheduleCollectionLabelService
             'sampleCollectionFor' => $sampleCollectionFor,
             'sampleId' => 'N/A',
             'testRequirement' => $testRequirement,
+            'testCategory' => 'N/A',
             'barcodeValue' => '',
         ];
     }

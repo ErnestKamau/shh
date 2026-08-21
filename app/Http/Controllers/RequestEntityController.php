@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\RequestEntity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use App\Datatables\DatatablesWhere as Datatables;
 
 class RequestEntityController extends Controller
 {
-	public function get_entities_server_side(Request $request, $stage, $type){
+	public function get_entities_server_side(Request $request, $stage, $type)
+	{
 		$isSomeBody = isUserSomebody(\Auth::user());
 
 		$columns = array(
@@ -32,32 +33,43 @@ class RequestEntityController extends Controller
 			array( 'db' => 'created_by','dt' => 16 )
 		);
 
-		$orders = \App\ViewRequestEntity::where('request_type', $stage)->where('is_lab_kit', 0)->where('delete', 0)
-		->where('is_supplement', 0)->where('inventory_location_id', getCurrentUserLocation()->id);
+		$orders = \App\ViewRequestEntity::query()
+			->where('request_type', $stage)
+			->where('is_lab_kit', 0)
+			->where(function ($query) {
+				$query->where('delete', 0)->orWhereNull('delete');
+			})
+			->where('inventory_location_id', getCurrentUserLocation()->id);
 
-		if($isSomeBody === false){
+		if (Schema::hasColumn('request_entities', 'is_supplement')) {
+			$orders->where(function ($query) {
+				$query->where('is_supplement', 0)->orWhereNull('is_supplement');
+			});
+		}
+
+		if ($isSomeBody === false) {
 			$departmentID = \Auth::user()->department_id;
 			$orders = $orders->where('department_id', $departmentID);
 		}
 
-		if($type == "completed_list"){
+		if ($type == "completed_list") {
 			$orders = $orders->where('status', '=', 'Completed');
 		}
 
-		if($type == "list"){
+		if ($type == "list") {
 			$orders = $orders->where('status', '!=', 'Completed');
 		}
 
-		if($type == "kit_list"){
+		if ($type == "kit_list") {
 			$lab_department_id = getConfigByName('lab_department_id');
 			$lab_department_id = count($lab_department_id) > 0 ? $lab_department_id[0]->value : 0;
 
-			if(\Auth::user()->department_id == $lab_department_id && $stage == "Purchase Request"){
-				$orders =  $orders->where('is_lab_kit', 1);
+			if (\Auth::user()->department_id == $lab_department_id && $stage == "Purchase Request") {
+				$orders = $orders->where('is_lab_kit', 1);
 			}
 
-			if($stage == "Request to Store"){
-				$kit_list =  $orders->where('is_lab_kit', 1);
+			if ($stage == "Request to Store") {
+				$orders = $orders->where('is_lab_kit', 1);
 			}
 		}
 

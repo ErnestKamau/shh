@@ -332,7 +332,11 @@
                         <td class="wide-cell">{{ $normalizedDateTime }}</td>
                     </tr>
                     <tr>
-                        <td>Test Requirement</td>
+                        <td>Test Category</td>
+                        <td class="wide-cell">{{ ($testCategory ?? '') !== '' ? $testCategory : 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tests</td>
                         <td class="wide-cell">{{ $testRequirement }}</td>
                     </tr>
                 </table>

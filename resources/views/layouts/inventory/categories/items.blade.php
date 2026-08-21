@@ -1368,14 +1368,19 @@
 		initAddSupplierSelect2();
 
 		$('.print-barcode').on('click', function(){
-			var restorepage = $('body').html();
 			var printcontent = $(this).parent().find('.barcode').clone();
+			var printWindow = window.open('', '_blank', 'width=600,height=400');
 
-			$('body').empty().html(printcontent);
+			if (!printWindow) {
+				alert('Please allow pop-ups to print the barcode.');
+				return;
+			}
 
-			window.print();
-
-			location.reload();
+			printWindow.document.write('<html><head><title>Print Barcode</title></head><body style="text-align:center;padding:24px;">' + printcontent.html() + '</body></html>');
+			printWindow.document.close();
+			printWindow.focus();
+			printWindow.print();
+			printWindow.close();
 		});
 
 		$('.rating-star').on('click', function(){
@@ -1395,7 +1400,7 @@
 		});
 
 		$('#create-an-order').on('show.bs.modal', function(e) {
-			var subCat = {{ $category->id }}+" "+$(e.relatedTarget).data('subid');
+			var subCat = '{{ $category->id }} ' + $(e.relatedTarget).data('subid');
 
 			$('#create-an-order').find('[name="items[sub_category_id][]"]').val(subCat);
 		});

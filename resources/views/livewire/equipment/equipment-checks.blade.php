@@ -354,7 +354,7 @@
                                     <span class="text-muted">-</span>
                                     @endif
                                 </td>
-                                <td>{{ getInventoryDepartmentByid($item->assigned_department)?->name ?? $item->assigned_department ?? '-' }}</td>
+                                <td>{{ getInventoryDepartmentName($item->assigned_department) ?? '-' }}</td>
 
                                 <td class="text-center">
                                     @if($item->active)

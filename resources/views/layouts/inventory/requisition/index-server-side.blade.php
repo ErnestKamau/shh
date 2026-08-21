@@ -154,7 +154,6 @@
 										<th nowrap>Created On</th>
 										<th nowrap>Approvals</th>
 										<th nowrap>Total Value</th>
-										<th></th>
 									</tr>
 								</thead>
 								<tbody></tbody>
@@ -441,28 +440,28 @@
 					"columnDefs": [
 						{ className: "dt-nowrap", "targets": [ 3,5,6,8,10,11 ] }
 					],
-					"order": ['2', 'desc'],
+					"order": [[2, 'desc']],
 					columns: [
 						{ data: "loop", "searchable": false },
 						{
 							data: null,
 							className: "center",
 							render: function ( data, type, row ) {
-								
-								if(data.created_by == {{ \Auth::user()->id }} && data.status == "In Preparation" || hasProcurement == "Yes"){
-									if(data.status !== "Completed"){
+								var currentUserId = @json((string) \Auth::user()->id);
+								var canManage = (data.created_by == currentUserId && data.status == "In Preparation") || hasProcurement == "Yes";
+
+								if (canManage) {
+									if (data.status !== "Completed") {
 										return `<input type="checkbox" class="downloadable" value="${data.id}" /> <span class="btn btn-sm btn-transparent text-danger" data-toggle="modal"
 											data-target="#delete-entity-modal" data-stage="{{ $stage }}" data-id="${data.id}">
 											<i class="mdi mdi-delete"></i>
 										</span>`;
 									}
-									else{
-										return `<input type="checkbox" class="downloadable" value="${data.id}" />`;
-									}
-								}
-								else{
+
 									return `<input type="checkbox" class="downloadable" value="${data.id}" />`;
 								}
+
+								return `<input type="checkbox" class="downloadable" value="${data.id}" />`;
 							}
 						},
 						{

@@ -124,7 +124,7 @@
 
 								<td>{{$item->manufacturer}}</td>
 
-								<td>{{getInventoryDepartmentByid($item->assigned_department)?->name ?? $item->assigned_department ?? '-'}}</td>
+								<td>{{getInventoryDepartmentName($item->assigned_department) ?? '-'}}</td>
 								<td>
 									@foreach($employees as $employee)
 									@if ($employee->id == $item->assigned_employee_id)

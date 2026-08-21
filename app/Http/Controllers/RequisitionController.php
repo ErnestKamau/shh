@@ -55,18 +55,55 @@ class RequisitionController extends Controller
 
 	private function getFirstUserForRoleGroup($roleGroupName, array $excludedUserIds = [], $departmentId = null)
 	{
+		$excluded = array_map(static fn ($id) => (string) $id, $excludedUserIds);
+
 		return $this->getUsersForRoleGroup($roleGroupName)
-			->reject(function ($user) use ($excludedUserIds) {
-				return in_array((int) $user->id, $excludedUserIds, true);
+			->reject(function ($user) use ($excluded) {
+				return in_array((string) $user->id, $excluded, true);
 			})
-			->when($departmentId !== null, function ($users) use ($departmentId) {
+			->when($departmentId !== null && $departmentId !== '', function ($users) use ($departmentId) {
 				return $users->filter(function ($user) use ($departmentId) {
-					return (int) ($user->department_id ?? 0) === (int) $departmentId;
+					return (string) ($user->department_id ?? '') === (string) $departmentId;
 				});
 			})
 			->sortBy('name')
 			->first();
 	}
+
+	/**
+	 * Legacy table user_departmental_approvals.department_id is integer; current
+	 * inventory departments use UUIDs — skip the lookup when the id is not numeric.
+	 */
+	private function findDepartmentalApprover($roleId, $departmentId): ?\App\UserDepartmentalApproval
+	{
+		if ($roleId === null || $roleId === '' || $departmentId === null || $departmentId === '') {
+			return null;
+		}
+
+		if (! is_numeric($departmentId)) {
+			return null;
+		}
+
+		return \App\UserDepartmentalApproval::query()
+			->where('role_id', $roleId)
+			->where('department_id', (int) $departmentId)
+			->first();
+	}
+
+	/**
+	 * Normalize approval ids posted from the UI (json_encode historically wrapped UUIDs in quotes).
+	 */
+	private function resolvePostedApprovalId(mixed $value): ?string
+	{
+		if ($value === null || $value === '') {
+			return null;
+		}
+
+		$id = trim((string) $value, " \t\n\r\0\x0B\"'");
+
+		return Str::isUuid($id) ? $id : null;
+	}
+
 	/**
 	 * Display a listing of the resource.
 	 *
@@ -245,29 +282,6 @@ class RequisitionController extends Controller
 
 		$isExistingRequest = Str::isUuid((string) $id) && isset($request->id);
 
-		$itempIDs = $isExistingRequest
-			? RequestEntityItem::where('request_id', $id)->select('inventory_sub_category_id')->pluck('inventory_sub_category_id')->toArray()
-			: [];
-
-		$similarItems = $isExistingRequest && count($itempIDs) > 0
-			? RequestEntityItem::join('request_entities as re', 're.id', 'request_id')
-				->select([
-					'request_entity_items.inventory_sub_category_id',
-					'request_entity_items.quantity',
-					'request_entity_items.uom',
-					'request_code',
-					'request_id',
-					DB::raw('(CURRENT_DATE - re.created_at::date) AS days_ago')
-				])->with('sub_category')
-				->whereIn('inventory_sub_category_id', $itempIDs)
-				->where('re.id', '<', $id)
-				->where('request_type', 'Purchase Request')
-				->where('request_entity_items.created_at', '>=', Carbon::now()->subDays(4))
-				->get()
-			: collect();
-
-		// return response()->json($similarItems);
-
 		$criteria = $isExistingRequest
 			? \App\SuppliersRatingCriteria::where('request_id', $id)->where('is_current', 1)->get()
 			: collect();
@@ -282,7 +296,7 @@ class RequisitionController extends Controller
 		$accounts = ChartOfAccount::whereIn('type', ['accounts_payable','cost_of_goods_sold','expense','fixed_asset','other_current_asset','other_expense', 'stock'])
 		->orderBy('name')->get();
 
-		return view('layouts.inventory.requisition.show', compact('ratingReason', 'accounts', 'ratingScores', 'similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
+		return view('layouts.inventory.requisition.show', compact('ratingReason', 'accounts', 'ratingScores', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
 	}
 
 	public function create_goods_receipt($request, $entity)
@@ -956,8 +970,7 @@ class RequisitionController extends Controller
 				$previousApprovers = [];
 
 				foreach ($approvals as $app) {
-					$hasDepartmentalApprovals = \App\UserDepartmentalApproval::where('role_id', $app->role_id)
-						->where('department_id', $CREATOR->department_id)->first();
+					$hasDepartmentalApprovals = $this->findDepartmentalApprover($app->role_id, $CREATOR->department_id);
 
 					if (!isset($hasDepartmentalApprovals->user_id)) {
 						$departmentId = null;
@@ -970,6 +983,10 @@ class RequisitionController extends Controller
 						$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers, $departmentId);
 					} else {
 						$approver = \App\User::find($hasDepartmentalApprovals->user_id);
+					}
+
+					if ($approver === null) {
+						continue;
 					}
 
 					$approverID = $approver->id;
@@ -1105,13 +1122,41 @@ class RequisitionController extends Controller
 		$existsRFQ = \App\RequestEntity::where('parent_request_id', $entity->id)->where('request_type', 'Request for Quotation')->get();
 
 		if ($existsRFQ->count() > 0) {
+			if ($internal) {
+				return $existsRFQ->first();
+			}
+
 			return redirect()->back()->with('error', 'RFQ already created!');
 		}
 
 		$config = "Currency";
 		$module = "Inventory-Management";
-		
-		$defaultCurrency = \App\ModulePreConfigs::where('type', $config)->where('module', $module)->where("name", "KES")->first();
+
+		$defaultCurrency = \App\ModulePreConfigs::query()
+			->where('type', $config)
+			->where('module', $module)
+			->where('name', 'KES')
+			->first()
+			?? \App\ModulePreConfigs::query()
+				->where('type', $config)
+				->where('module', $module)
+				->when(filled($entity->currency), function ($query) use ($entity) {
+					$query->where('id', $entity->currency);
+				})
+				->first()
+			?? \App\ModulePreConfigs::query()
+				->where('type', $config)
+				->where('module', $module)
+				->orderBy('name')
+				->first();
+
+		if ($defaultCurrency === null) {
+			if ($internal) {
+				throw new \RuntimeException('No Inventory-Management currency is configured. Add KES/USD/EUR under Inventory currencies.');
+			}
+
+			return redirect()->back()->with('error', 'No Inventory-Management currency is configured. Add a currency first.');
+		}
 
 		$rfq = $entity->replicate();
 		$rfq->parent_request = $entity->request_type;
@@ -1132,6 +1177,10 @@ class RequisitionController extends Controller
 		$firstApprover = false;
 		foreach ($approvals as $app) {
 			$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers);
+			if ($approver === null) {
+				continue;
+			}
+
 			$approverID = $approver->id;
 
 			$entity_approval = \App\EntityApproval::where('model_id', $rfq->id)->where('approval_id', $app->id)
@@ -2124,14 +2173,18 @@ class RequisitionController extends Controller
 
 		$previousApprovers = [];
 		foreach ($approvals as $app) {
-			$hasDepartmentalApprovals = \App\UserDepartmentalApproval::where('role_id', $app->role_id)
-				->where('department_idd', $CREATOR->department_id)->first();
+			$hasDepartmentalApprovals = $this->findDepartmentalApprover($app->role_id, $CREATOR->department_id);
 
 			if (!isset($hasDepartmentalApprovals->user_id)) {
 				$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers);
 			} else {
 				$approver = \App\User::find($hasDepartmentalApprovals->user_id);
 			}
+
+			if ($approver === null) {
+				continue;
+			}
+
 			$approverID = $approver->id;
 
 			$entity_approval = \App\EntityApproval::where('model_id', $purchaseOrder->id)->where('approval_id', $app->id)
@@ -2439,7 +2492,7 @@ class RequisitionController extends Controller
 					->join('inventory_sub_categories as ics', 'ics.id', '=', 'rei.inventory_sub_category_id')->where('supplier_quotes.request_id', $req->id)->whereIn('supplier_quotes.id', $awarded_quotes);
 
 				if (count($awarded_quotes) > 1) { //Is Kit items
-					$INVitem = $INVitem->selectRaw('rei.catalog_number as code, GROUP_CONCAT(ics.name) as name')
+					$INVitem = $INVitem->selectRaw("rei.catalog_number as code, string_agg(ics.name, ',') as name")
 						->groupBy('rei.catalog_number');
 				} else {
 					$INVitem = $INVitem->selectRaw('ics.code, ics.name');
@@ -2475,14 +2528,23 @@ class RequisitionController extends Controller
 			foreach ($approvals as $app) {
 				$requestInitiator = \App\User::find(isset($req->request_initiator) ? $req->request_initiator : $req->created_by);
 
-				$hasDepartmentalApprovals = \App\UserDepartmentalApproval::where('role_id', $app->role_id)
-					->where('department_id', $requestInitiator->department_id)->first();
+				$hasDepartmentalApprovals = $this->findDepartmentalApprover(
+					$app->role_id,
+					$requestInitiator?->department_id
+				);
 
 				if (!isset($hasDepartmentalApprovals->user_id)) {
-					$departmentId = $app->role_group_name === 'Lab Manager' ? $requestInitiator->department_id : null;
+					$departmentId = $app->role_group_name === 'Lab Manager' ? $requestInitiator?->department_id : null;
 					$APPR_USER = $this->getFirstUserForRoleGroup($app->role_group_name, [], $departmentId);
 				} else {
 					$APPR_USER = \App\User::find($hasDepartmentalApprovals->user_id);
+				}
+
+				if ($APPR_USER === null) {
+					return redirect()->back()->with(
+						'error',
+						'No active user found for approval step "'.$app->title.'" (role: '.($app->role_group_name ?? 'n/a').').'
+					);
 				}
 
 				$entity_approval = \App\EntityApproval::where('model_id', $req->id)->where('approval_id', $app->id)
@@ -2561,7 +2623,7 @@ class RequisitionController extends Controller
 
 					\App\SupplierQuote::where('request_id', $req->id)->where('request_item_id', $i)->update([
 						'awarded_at' => null,
-						'is_awarded' => null,
+						'is_awarded' => false,
 					]);
 				}
 			}
@@ -2623,15 +2685,34 @@ class RequisitionController extends Controller
 
 				$quotes = RequestEntityItem::where('request_id', $req->id)
 					->join('inventory_sub_categories as ics', 'ics.id', '=', 'request_entity_items.inventory_sub_category_id')
-					->selectRaw('GROUP_CONCAT(CONCAT(IFNULL(ics.name,""), " - ", IFNULL(request_entity_items.quantity, ""), "", IFNULL(request_entity_items.uom, ""), " ",
-					IFNULL(request_entity_items.comments, ""))) as kit_item_name, request_entity_items.catalog_number, ics.name, request_entity_items.quantity, request_entity_items.comments, ics.code, ics.unit_type, request_entity_items.brand, COALESCE(request_entity_items.brand, 0) as has_brand')
+					->leftJoin('item_brands as ib', 'ib.id', '=', 'request_entity_items.item_brand_id')
+					->selectRaw("string_agg(
+						CONCAT(
+							COALESCE(ics.name, ''),
+							' - ',
+							COALESCE(request_entity_items.quantity::text, ''),
+							COALESCE(request_entity_items.uom, ''),
+							' ',
+							COALESCE(request_entity_items.comments, '')
+						),
+						','
+					) as kit_item_name, request_entity_items.catalog_number,
+					MIN(ics.name) as name,
+					MIN(request_entity_items.quantity) as quantity,
+					MIN(request_entity_items.comments) as comments,
+					MIN(ics.code) as code,
+					MIN(ics.unit_type) as unit_type,
+					MIN(ib.name) as brand,
+					COALESCE(MIN(ib.name), '0') as has_brand")
 					->where('ammendment', $req->ammendment)->whereIn('ics.id', $supplierItemsArr)->groupBy('request_entity_items.catalog_number')
 					->orderBy('catalog_number', 'asc')->get();
 
 				$quoteItems = array();
 
 				foreach ($quotes as $o => $q) {
-					$isKitRow = !is_numeric($q->catalog_number);
+					$isKitRow = filled($q->catalog_number)
+						&& ! is_numeric($q->catalog_number)
+						&& ! Str::isUuid((string) $q->catalog_number);
 					$o++;
 					$quoteItems[] = '<tr style=" border: 1px solid #aaa !important">
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">' . $o . '</td>
@@ -2727,7 +2808,10 @@ class RequisitionController extends Controller
 
 			$note->save();
 
-			$entity_approval = \App\EntityApproval::find($request->approval_id);
+			$entity_approval = \App\EntityApproval::find($this->resolvePostedApprovalId($request->approval_id));
+			if ($entity_approval === null) {
+				return redirect()->back()->with('error', 'Approval record was not found.');
+			}
 			$entity_approval->status = "Rejected";
 			$entity_approval->approved_at = \Carbon\Carbon::now();
 			$entity_approval->description = $request->reject_reason;
@@ -2801,7 +2885,10 @@ class RequisitionController extends Controller
 		}
 
 		if ($request->has('approve_this')) {
-			$entity_approval = \App\EntityApproval::find($request->approval_id);
+			$entity_approval = \App\EntityApproval::find($this->resolvePostedApprovalId($request->approval_id));
+			if ($entity_approval === null) {
+				return redirect()->back()->with('error', 'Approval record was not found.');
+			}
 			$entity_approval->status = "Approved";
 			$entity_approval->approved_at = \Carbon\Carbon::now();
 			$entity_approval->description = "Approved";
@@ -2849,7 +2936,11 @@ class RequisitionController extends Controller
 
 				$createdRFQ = $this->create_rfq_from_material_requisition($req, true);
 
-				$isMRMessage = "and is " . $createdRFQ->request_code . " has been created from this Purchase Request.";
+				if ($createdRFQ instanceof \App\RequestEntity) {
+					$isMRMessage = "and RFQ " . $createdRFQ->request_code . " has been created from this Purchase Request.";
+				} else {
+					$isMRMessage = "but RFQ creation failed. Please create the RFQ manually.";
+				}
 			}
 
 			if ($req->request_type == "Goods Receipt" && $req->status == "Approval Complete") {
@@ -2894,7 +2985,16 @@ class RequisitionController extends Controller
 				'subject' => $stage . ' ' . $req->request_code . ' Approval Completed'
 			);
 
-			$nextEntity_Approval = \App\EntityApproval::where('id', '>', $request->approval_id)->orderBy('id', 'asc')->first();
+			$approvedApprovalId = $this->resolvePostedApprovalId($request->approval_id);
+			$nextEntity_Approval = \App\EntityApproval::query()
+				->where('model', $stage)
+				->where('model_id', $req->id)
+				->where('status', 'Pending')
+				->when($approvedApprovalId !== null, function ($query) use ($approvedApprovalId) {
+					$query->where('id', '!=', $approvedApprovalId);
+				})
+				->orderBy('created_at', 'asc')
+				->first();
 
 
 			if (isset($nextEntity_Approval->id)) {
@@ -3043,6 +3143,10 @@ class RequisitionController extends Controller
 		}
 
 		if ($stage == "Request for Quotation") {
+			if (blank($request->submission_deadline) || blank($request->valid_until)) {
+				return redirect()->back()->with('error', 'Submission Deadline and Valid Until are required.');
+			}
+
 			$req->submission_deadline = \Carbon\Carbon::parse($request->submission_deadline);
 		}
 
@@ -3053,6 +3157,7 @@ class RequisitionController extends Controller
 
 			$req->request_type = $stage;
 			$req->created_by = \Auth::user()->id;
+			$req->delete = 0;
 			if (in_array($stage, ["Purchase Request", "Request to Store", "Gate Pass"])) {
 				$req->request_initiator = \Auth::user()->id;
 			}
@@ -3074,7 +3179,7 @@ class RequisitionController extends Controller
 		$sentSuppliers = [];
 		if ($request->has('suppliers')) {
 			foreach ($request->suppliers['supplier_rfq_id'] ?? array() as $i => $it) {
-				$suprfqEx = \App\SupplierRFQ::find($it);
+				$suprfqEx = $this->uuidOrNull($it) ? \App\SupplierRFQ::find($it) : null;
 
 				$rfq = $suprfqEx ?? new \App\SupplierRFQ;
 				$rfq->supplier_id = $request->suppliers['id'][$i];
@@ -3089,11 +3194,16 @@ class RequisitionController extends Controller
 		}
 
 		foreach ($request->notes['note_id'] ?? array() as $i => $it) {
-			$noteExist = EntityNote::find($it);
+			$noteExist = $this->uuidOrNull($it) ? EntityNote::find($it) : null;
+
+			$noteDescription = trim((string) ($request->notes['description'][$i] ?? ''));
+			if ($noteDescription === '') {
+				return redirect()->back()->with('error', 'Note description is required.');
+			}
 
 			$note = $noteExist ?? new EntityNote;
 			$note->type = $request->notes['type'][$i];
-			$note->description = $request->notes['description'][$i];
+			$note->description = $noteDescription;
 			$note->model = $stage;
 			$note->model_id = $req->id;
 			if (!isset($noteExist->id)) {
@@ -3108,7 +3218,7 @@ class RequisitionController extends Controller
 		auditableDelete(EntityNote::whereNotIn('id', $notesArray)->where('model', $stage)->where('model_id', $req->id)->get());
 		$grnHasInvoiceUploaded = false;
 		foreach ($request->attachments['attachment_id'] ?? array() as $i => $it) {
-			$attachmentExist = EntityAttachment::find($it);
+			$attachmentExist = $this->uuidOrNull($it) ? EntityAttachment::find($it) : null;
 
 			$attachment = $attachmentExist ?? new EntityAttachment;
 			$attachment->type = $request->attachments['type'][$i];
@@ -3214,7 +3324,11 @@ class RequisitionController extends Controller
 				$item->item_brand_id = $this->uuidOrNull($request->items['item_brand_id'][$i] ?? null);
 				$item->store_id = $this->uuidOrNull($request->items['store_id'][$i] ?? $defaultStoreId);
 				$item->slot_id = $this->uuidOrNull($request->items['slot_id'][$i] ?? $defaultSlotId);
-				$item->uom = $request->items['uom'][$i] ?? null;
+				$item->uom = $request->items['uom'][$i]
+					?? $entityItem?->uom
+					?? $item->uom
+					?? $subCat->unit_type
+					?? null;
 				$item->inventory_sub_category_id = $subCatID;
 
 				if (\Illuminate\Support\Facades\Schema::hasColumn('request_entity_items', 'brand')) {

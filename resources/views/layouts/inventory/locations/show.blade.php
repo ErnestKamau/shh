@@ -1,4 +1,4 @@
-@extends('layouts.personnel.layout.app', ['dataTable'=>true, 'select2'=>true])
+@extends('layouts.inventory.layout.app', ['dataTable'=>true, 'select2'=>true])
 
 @section('title2')
 	<title> {{ $location->name }} | Location</title>

@@ -14,5 +14,14 @@ class UnitOfMeasureConversion extends Model implements Auditable
     public $incrementing = false;
 
 	use \OwenIt\Auditing\Auditable;
-    protected $table = "uom_conversions";
+    protected $table = 'unit_of_measure_conversions';
+
+    protected $fillable = [
+        'uom1',
+        'uom2',
+        'conversion',
+        'material_type_id',
+        'location_id',
+        'description',
+    ];
 }

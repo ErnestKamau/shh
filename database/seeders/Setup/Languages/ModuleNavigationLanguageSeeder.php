@@ -436,6 +436,7 @@ class ModuleNavigationLanguageSeeder extends Seeder
                 'categories' => ['en' => 'Categories', 'sw' => 'Kategoria', 'pt' => 'Categorias', 'ar' => 'الفئات'],
                 'inventory_movement' => ['en' => 'Inventory Movement', 'sw' => 'Mwendo wa Hesabu', 'pt' => 'Movimentação de Inventário', 'ar' => 'حركة المخزون'],
                 'departments' => ['en' => 'Departments', 'sw' => 'Idara', 'pt' => 'Departamentos', 'ar' => 'الأقسام'],
+                'organizational_structure' => ['en' => 'Organizational Structure', 'sw' => 'Muundo wa Shirika', 'pt' => 'Estrutura Organizacional', 'ar' => 'الهيكل التنظيمي'],
                 'suppliers' => ['en' => 'Suppliers', 'sw' => 'Wasambazaji', 'pt' => 'Fornecedores', 'ar' => 'الموردون'],
                 'store' => ['en' => 'Store', 'sw' => 'Ghala', 'pt' => 'Armazém', 'ar' => 'المخزن'],
                 'stock_taking' => ['en' => 'Stock Taking', 'sw' => 'Uchukuzi wa Hesabu', 'pt' => 'Inventário Físico', 'ar' => 'جرد المخزون'],

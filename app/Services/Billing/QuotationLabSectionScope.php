@@ -11,8 +11,11 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
- * Restricts quotation test selection to SampleAnalysisStage lab sections
+ * Restricts quotation parameter (test) selection to SampleAnalysisStage lab sections
  * linked on the quotation header (quotation_header_lab_sections).
+ *
+ * Sample types and analysis types stay unrestricted so analysts can browse the full
+ * catalogue; only analysis elements (tests/parameters) are filtered by lab section.
  *
  * When a quotation has no lab sections, no restriction is applied (legacy quotes).
  */
@@ -40,20 +43,21 @@ final class QuotationLabSectionScope
     }
 
     /**
+     * Analysis types are not restricted by quotation lab sections.
+     *
      * @param  Builder<AnalysisType>  $query
      * @return Builder<AnalysisType>
      */
     public function constrainAnalysisTypes(Builder $query, QuotationHeader $header): Builder
     {
-        $sectionIds = $this->allowedLabSectionIds($header);
-        if ($sectionIds === []) {
-            return $query;
-        }
-
-        return $query->whereIn('lab_section_id', $sectionIds);
+        return $query;
     }
 
     /**
+     * Keep only analysis elements whose effective lab section is on the quotation.
+     * Effective section = element.lab_section_id, else analysis_type.lab_section_id.
+     * Elements with no resolvable lab section are excluded when the quote has sections.
+     *
      * @param  Builder<AnalysisElements>  $query
      * @return Builder<AnalysisElements>
      */
@@ -66,15 +70,18 @@ final class QuotationLabSectionScope
 
         return $query->where(function (Builder $inner) use ($sectionIds): void {
             $inner->whereIn('lab_section_id', $sectionIds)
-                ->orWhereNull('lab_section_id')
-                ->orWhere('lab_section_id', '');
-        })->whereHas('analysis_type', function (Builder $typeQuery) use ($sectionIds): void {
-            $typeQuery->whereIn('lab_section_id', $sectionIds);
+                ->orWhere(function (Builder $fallback) use ($sectionIds): void {
+                    // lab_section_id is UUID on pgsql — never compare to ''.
+                    $fallback->whereNull('lab_section_id')
+                        ->whereHas('analysis_type', function (Builder $typeQuery) use ($sectionIds): void {
+                            $typeQuery->whereIn('lab_section_id', $sectionIds);
+                        });
+                });
         });
     }
 
     /**
-     * Sample types that have at least one analysis type in the quotation's lab sections.
+     * All active sample types (lab sections do not filter the sample type picker).
      *
      * @return Collection<int, SampleType>
      */
@@ -85,56 +92,17 @@ final class QuotationLabSectionScope
             $query->where('active', 1);
         }
 
-        $sectionIds = $this->allowedLabSectionIds($header);
-        if ($sectionIds === []) {
-            return $query->orderBy('name')->get();
-        }
-
-        return $query
-            ->whereHas('analysis_types', function (Builder $typeQuery) use ($sectionIds): void {
-                $typeQuery->whereIn('lab_section_id', $sectionIds);
-            })
-            ->orderBy('name')
-            ->get();
+        return $query->orderBy('name')->get();
     }
 
     /**
+     * Analysis types are not restricted by quotation lab sections.
+     *
      * @param  list<string>  $analysisTypeIds
      */
     public function assertAnalysisTypesAllowed(QuotationHeader $header, array $analysisTypeIds): void
     {
-        $sectionIds = $this->allowedLabSectionIds($header);
-        if ($sectionIds === [] || $analysisTypeIds === []) {
-            return;
-        }
-
-        $analysisTypeIds = array_values(array_unique(array_filter(array_map(
-            static fn ($id): string => trim((string) $id),
-            $analysisTypeIds,
-        ))));
-
-        if ($analysisTypeIds === []) {
-            return;
-        }
-
-        $disallowed = AnalysisType::query()
-            ->whereIn('id', $analysisTypeIds)
-            ->where(function (Builder $query) use ($sectionIds): void {
-                $query->whereNull('lab_section_id')
-                    ->orWhere('lab_section_id', '')
-                    ->orWhereNotIn('lab_section_id', $sectionIds);
-            })
-            ->orderBy('name')
-            ->pluck('name')
-            ->all();
-
-        if ($disallowed !== []) {
-            throw new RuntimeException(
-                'These analysis types are outside this quotation\'s lab section(s): '
-                .implode(', ', $disallowed)
-                .'. Update the quotation lab sections or choose tests from the assigned section(s).'
-            );
-        }
+        // Intentionally no-op: scope applies to tests/parameters only.
     }
 
     /**
@@ -163,16 +131,75 @@ final class QuotationLabSectionScope
 
         $disallowed = [];
         foreach ($elements as $element) {
-            $typeSectionId = trim((string) ($element->analysis_type?->lab_section_id ?? ''));
-            if ($typeSectionId === '' || ! in_array($typeSectionId, $sectionIds, true)) {
+            if (! $this->elementAllowedForSections($element, $sectionIds)) {
                 $disallowed[] = (string) ($element->analyte?->name ?? $element->id);
             }
         }
 
         if ($disallowed !== []) {
             throw new RuntimeException(
-                'Some selected parameters are outside this quotation\'s lab section(s).'
+                'Some selected parameters are outside this quotation\'s lab section(s): '
+                .implode(', ', array_slice($disallowed, 0, 8))
+                .(count($disallowed) > 8 ? '…' : '')
+                .'. Update the quotation lab sections or choose tests from the assigned section(s).'
             );
         }
+    }
+
+    /**
+     * Filter a list of element IDs down to those allowed for the quotation's lab sections.
+     *
+     * @param  list<string>  $elementIds
+     * @return list<string>
+     */
+    public function filterAllowedElementIds(QuotationHeader $header, array $elementIds): array
+    {
+        $sectionIds = $this->allowedLabSectionIds($header);
+        if ($sectionIds === [] || $elementIds === []) {
+            return array_values(array_unique(array_filter(array_map(
+                static fn ($id): string => trim((string) $id),
+                $elementIds,
+            ))));
+        }
+
+        $elementIds = array_values(array_unique(array_filter(array_map(
+            static fn ($id): string => trim((string) $id),
+            $elementIds,
+        ))));
+
+        if ($elementIds === []) {
+            return [];
+        }
+
+        $elements = AnalysisElements::query()
+            ->with('analysis_type')
+            ->whereIn('id', $elementIds)
+            ->get()
+            ->keyBy(static fn (AnalysisElements $element): string => (string) $element->id);
+
+        $allowed = [];
+        foreach ($elementIds as $elementId) {
+            $element = $elements->get($elementId);
+            if ($element !== null && $this->elementAllowedForSections($element, $sectionIds)) {
+                $allowed[] = $elementId;
+            }
+        }
+
+        return $allowed;
+    }
+
+    /**
+     * @param  list<string>  $sectionIds
+     */
+    private function elementAllowedForSections(AnalysisElements $element, array $sectionIds): bool
+    {
+        $elementSectionId = trim((string) ($element->lab_section_id ?? ''));
+        if ($elementSectionId !== '') {
+            return in_array($elementSectionId, $sectionIds, true);
+        }
+
+        $typeSectionId = trim((string) ($element->analysis_type?->lab_section_id ?? ''));
+
+        return $typeSectionId !== '' && in_array($typeSectionId, $sectionIds, true);
     }
 }

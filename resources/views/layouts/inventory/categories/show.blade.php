@@ -179,16 +179,18 @@
 					<input type="text" class="form-control" name="name" value="{{ $category->name }}" placeholder="Name..." required />
 				</div>
 				<div class="form-group">
-					<label class="control-label">Description</label>
-					<textarea class="form-control" name="description" placeholder="Description..." required>{{ $category->description }}</textarea>
+					<label class="control-label">Description <small class="text-muted">(optional)</small></label>
+					<textarea class="form-control" name="description" placeholder="Description...">{{ $category->description }}</textarea>
 				</div>
 				<div class="form-group">
 					<div class="row">
 						<div class="col-sm-4">
-							<img src="{{ $category->image }}" style="width: 100%" />
+							@if($category->image)
+								<img src="{{ $category->image }}" style="width: 100%" />
+							@endif
 						</div>
 						<div class="col-sm-8">
-							<label class="control-label">Image</label>
+							<label class="control-label">Image <small class="text-muted">(optional)</small></label>
 							<input type="file" class="form-control" name="image"  />
 						</div>
 					</div>

@@ -85,11 +85,11 @@
 															<input type="text" class="form-control" name="name" value="{{ $category->name }}" placeholder="Name..." required />
 														</div>
 														<div class="form-group">
-															<label class="control-label">Description</label>
-															<textarea class="form-control" name="description" placeholder="Description..." required>{{ $category->description }}</textarea>
+															<label class="control-label">Description <small class="text-muted">(optional)</small></label>
+															<textarea class="form-control" name="description" placeholder="Description...">{{ $category->description }}</textarea>
 														</div>
 														<div class="form-group">
-															<label class="control-label">Image</label>
+															<label class="control-label">Image <small class="text-muted">(optional)</small></label>
 															<input type="file" class="form-control" name="image"  />
 														</div>
 													</div>
@@ -136,7 +136,7 @@
 				<div class="modal-body">
 					<div class="form-group">
 						<label class="control-label">Select Item</label>
-						<select class="form-control" id="selected-item" name="item" data-placeholder="Select Item..."></select>
+						<select class="form-control no-select2" id="selected-item" name="item" data-placeholder="Select Item..."></select>
 					</div>
 				</div>
 				<div class="modal-footer">
@@ -160,12 +160,12 @@
             <input type="text" class="form-control" name="name" value="" placeholder="Name..." required />
           </div>
           <div class="form-group">
-            <label class="control-label">Description</label>
-            <textarea class="form-control" name="description" placeholder="Description..." required></textarea>
+            <label class="control-label">Description <small class="text-muted">(optional)</small></label>
+            <textarea class="form-control" name="description" placeholder="Description..."></textarea>
           </div>
           <div class="form-group">
-            <label class="control-label">Image</label>
-            <input type="file" class="form-control" name="image" required />
+            <label class="control-label">Image <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control" name="image" />
           </div>
         </div>
         <div class="modal-footer">
@@ -223,7 +223,9 @@
 						return query;
 					}
 				},
-				placeholder: 'Please Select Inventory Item...'
+				placeholder: 'Please Select Inventory Item...',
+				width: '100%',
+				dropdownParent: $('#jump-to-item-modal')
 			});
 		});
 	</script>

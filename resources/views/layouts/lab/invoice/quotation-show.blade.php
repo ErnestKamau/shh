@@ -298,7 +298,7 @@
                                     @endforeach
                                 </select>
                                 <small class="form-text text-muted">
-                                    Analysis lines are limited to tests under the selected lab section(s).
+                                    Analysis lines can use any sample/analysis type; selectable <strong>tests/parameters</strong> are limited to the selected lab section(s).
                                 </small>
                             </div>
                             <div class="form-group">
@@ -434,7 +434,7 @@
                                 </button>
                                 @if($header->labSections->isNotEmpty())
                                     <span class="small text-muted">
-                                        Tests limited to:
+                                        Parameters limited to lab section(s):
                                         {{ $header->labSections->pluck('name')->implode(', ') }}
                                     </span>
                                 @endif

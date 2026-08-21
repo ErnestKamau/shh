@@ -74,9 +74,19 @@ class ModulePreConfigsController extends Controller
 			]);
 		}
 
-		$config_items = ModulePreConfigs::where('type', $config)->where('module', $module)
-			->where('inventory_location_id', getCurrentUserLocation()->id)->orderBy('name', 'asc')->get();
-		// return response()->json($items, 200);
+		// Currencies are shared across locations (same as getCurrencies() used in dropdowns).
+		$query = ModulePreConfigs::where('type', $config)->where('module', $module);
+		if ($config !== 'Currency') {
+			$currentLocation = getCurrentUserLocation();
+			if ($currentLocation?->id) {
+				$query->where('inventory_location_id', $currentLocation->id);
+			}
+		}
+
+		$config_items = $config === 'Currency'
+			? $query->orderBy('level', 'desc')->orderBy('name', 'asc')->get()
+			: $query->orderBy('name', 'asc')->get();
+
 		return view('layouts.personnel.configs.index', compact('config_items', 'config', 'module'));
 	}
 

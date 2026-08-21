@@ -1,4 +1,4 @@
-@extends('layouts.personnel.layout.app', ['dataTable'=>true])
+@extends('layouts.inventory.layout.app', ['dataTable'=>true])
 
 @section('title2')
   <title>Inventory Locations</title>

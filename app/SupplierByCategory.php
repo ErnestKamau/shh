@@ -14,5 +14,9 @@ class SupplierByCategory extends Model implements Auditable
     public $incrementing = false;
 
 	use \OwenIt\Auditing\Auditable;
-    //
+
+    protected $fillable = [
+        'supplier_id',
+        'category_id',
+    ];
 }

@@ -257,7 +257,7 @@
         <div class="modal-body">
           <div class="form-group">
 						<label class="control-label">Select Cost Centers</label>
-						<select name="cost_center[]" class="form-control" placeholder="Select Cost Center..." data-placeholder="Select Cost Center..." multiple>
+						<select name="cost_center[]" class="form-control ls-select2" placeholder="Select Cost Center..." data-placeholder="Select Cost Center..." multiple>
 							@foreach (getCostCenter() as $cc)
 								<option value="{{ $cc }}">{{ $cc }}</option>
 							@endforeach
@@ -303,7 +303,8 @@
         <div class="modal-body">
           <div class="form-group">
 						<label class="control-label">Contact</label>
-						<select name="user_id" class="form-control" placeholder="Select Contact...">
+						<select name="user_id" class="form-control ls-select2" placeholder="Select Contact..." data-placeholder="Select Contact...">
+							<option value=""></option>
 							@foreach (getUsers() as $user)
 								<option value="{{ $user->id }}">{{ $user->name }}</option>
 							@endforeach

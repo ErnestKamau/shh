@@ -251,7 +251,7 @@
 					<select class="form-control" name="uom1" required>
 						<option value="">Select Unit of Measure...</option>
 						@foreach ($systemUnitsofMeasure as $g)
-							<option value="{{ $g['id'] }}" ${data.uom1_id == {{ $g['id'] }} ? 'selected' : '' }>{{ $g['name'] }}</option>
+							<option value="{{ $g['id'] }}" ${data.uom1_id == '{{ $g['id'] }}' ? 'selected' : '' }>{{ $g['name'] }}</option>
 						@endforeach
 					</select>
 				</div>
@@ -260,13 +260,13 @@
 					<select class="form-control" name="uom2" required>
 						<option value="">Select Unit of Measure...</option>
 						@foreach ($systemUnitsofMeasure as $g)
-							<option value="{{ $g['id'] }}" ${data.uom2_id == {{ $g['id'] }} ? 'selected' : '' }>{{ $g['name'] }}</option>
+							<option value="{{ $g['id'] }}" ${data.uom2_id == '{{ $g['id'] }}' ? 'selected' : '' }>{{ $g['name'] }}</option>
 						@endforeach
 					</select>
 				</div>
 				<div class="form-group">
 					<label class="control-label">Conversion</label>
-					<input type="number" step="any" class="form-control" name="conversion" value="${data.conversion}" placeholder="Conversion..." required />
+					<input type="number" step="any" class="form-control" name="conversion" value="${data.conversion || ''}" placeholder="Conversion..." required />
 				</div>
 			`);
 
@@ -274,7 +274,6 @@
 		}
 
 		var getItemStateFields = function(data={}){
-			console.log(data);
 			var $form = $(`
 				<div class="form-group">
 					<label class="control-label">State</label>
@@ -285,13 +284,13 @@
 					<select class="form-control" name="uom" required>
 						<option value="">Select Unit of Measure...</option>
 						@foreach ($systemUnitsofMeasure as $g)
-							<option value="{{ $g['id'] }}" ${data.uom_id == {{ $g['id'] }} ? 'selected' : '' }>{{ $g['name'] }}</option>
+							<option value="{{ $g['id'] }}" ${data.uom_id == '{{ $g['id'] }}' ? 'selected' : '' }>{{ $g['name'] }}</option>
 						@endforeach
 					</select>
 				</div>
 				<div class="form-group">
 					<label class="control-label">
-						<input type="checkbox" name="is_default" value="1" ${data.is_default == "1" ? 'checked' : ''} /> Is default state
+						<input type="checkbox" name="is_default" value="1" ${data.is_default == "1" || data.is_default == 1 ? 'checked' : ''} /> Is default state
 					</label>
 				</div>
 			`);
@@ -301,17 +300,21 @@
 		$(function(){
 			$('#add-conversion-modal').on('show.bs.modal', function(e){
 				var conversion = $(e.relatedTarget).data('item') || {};
+				var $modal = $(this);
 
-				$(this).find('.modal-title .icon').html(conversion.id ? `<i class="mdi mdi-pencil"></i>` : `<i class="mdi mdi-plus"></i>`);
+				$modal.find('.modal-title .icon').html(conversion.id ? `<i class="mdi mdi-pencil"></i>` : `<i class="mdi mdi-plus"></i>`);
 
 				if(conversion.id){
-					$(this).find('form').append(`<input type="hidden" name="conversion_item_id" value="${conversion.id}" />`)
+					$modal.find('form').append(`<input type="hidden" name="conversion_item_id" value="${conversion.id}" />`)
 				}
 
 				var $form = getConversionFields(conversion);
-				$('#add-conversion-modal').find('.modal-body').html($form);
+				$modal.find('.modal-body').html($form);
 
-				$form.find('select').select2();
+				$form.find('select').select2({
+					dropdownParent: $modal,
+					width: '100%'
+				});
 			});
 
 			$('#delete-conversion-modal').on('show.bs.modal', function(e){
@@ -322,17 +325,21 @@
 
 			$('#add-item-state-modal').on('show.bs.modal', function(e){
 				var $state = $(e.relatedTarget).data('item') || {};
+				var $modal = $(this);
 
-				$(this).find('.modal-title .icon').html($state.id ? `<i class="mdi mdi-pencil"></i>` : `<i class="mdi mdi-plus"></i>`);
+				$modal.find('.modal-title .icon').html($state.id ? `<i class="mdi mdi-pencil"></i>` : `<i class="mdi mdi-plus"></i>`);
 
 				if($state.id){
-					$(this).find('form').append(`<input type="hidden" name="state_item_id" value="${$state.id}" />`)
+					$modal.find('form').append(`<input type="hidden" name="state_item_id" value="${$state.id}" />`)
 				}
 
 				var $form = getItemStateFields($state);
-				$('#add-item-state-modal').find('.modal-body').html($form);
+				$modal.find('.modal-body').html($form);
 
-				$form.find('select').select2();
+				$form.find('select').select2({
+					dropdownParent: $modal,
+					width: '100%'
+				});
 			});
 
 			$('#delete-item-state-modal').on('show.bs.modal', function(e){
