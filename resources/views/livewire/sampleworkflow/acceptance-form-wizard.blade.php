@@ -231,16 +231,23 @@
         .acc-wizard-root--acceptance .acc-wizard-backdrop {
             position: fixed;
             inset: 0;
-            z-index: 1050;
+            z-index: 1100;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
-            padding: 1rem;
+            padding: 1.5rem 1rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
             background: rgba(15, 23, 42, 0.52);
             backdrop-filter: blur(4px);
         }
 
-        .acc-wizard-root--acceptance .acc-wizard-dialog { margin: 0; }
+        .acc-wizard-root--acceptance .acc-wizard-dialog {
+            margin: 0 auto;
+            max-height: calc(100vh - 3rem);
+        }
+
         .acc-wizard-root--acceptance .acc-wizard-dialog.modal-lg { max-width: 920px; }
         .acc-wizard-root--acceptance .acc-wizard-dialog.modal-xl { max-width: 1140px; }
 
@@ -248,6 +255,9 @@
             border: none;
             border-radius: 16px;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 3rem);
             box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
         }
 
@@ -293,8 +303,11 @@
         .acc-wizard-root--acceptance .acc-wizard-body {
             padding: 1.25rem 1.5rem;
             background: #fff;
-            max-height: min(75vh, 720px);
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
             overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .acc-wizard-root--acceptance .acc-wizard-summary {

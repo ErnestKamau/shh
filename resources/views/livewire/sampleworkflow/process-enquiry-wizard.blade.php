@@ -58,11 +58,14 @@
                         </button>
                         <div class="acc-wizard-top-nav-actions">
                             <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="closeWizard">Cancel</button>
+                            {{-- Step 1 (review) commented out
                             @if($activeStep === 'review')
                                 <button type="button" class="btn btn-primary btn-sm" wire:click="saveReviewAndContinue">
                                     Next <i class="mdi mdi-arrow-right"></i>
                                 </button>
                             @elseif($activeStep === 'sample_config')
+                            --}}
+                            @if($activeStep === 'sample_config')
                                 <button type="button" class="btn btn-primary btn-sm" wire:click="saveSampleConfigAndContinue">
                                     Next <i class="mdi mdi-arrow-right"></i>
                                 </button>
@@ -99,6 +102,7 @@
                     </div>
 
                     <div class="acc-wizard-body">
+                        {{-- Step 1 (Review request) commented out — restore by uncommenting and re-adding the wizard step
                         @if($activeStep === 'review')
                             <section class="acc-wizard-section">
                                 @include('livewire.partials.process-enquiry-status-alert')
@@ -166,12 +170,15 @@
 
                             </section>
                         @endif
+                        --}}
 
                         @if($activeStep === 'sample_config')
                             @include('livewire.partials.process-enquiry-status-alert')
                             @include('livewire.partials.process-enquiry-customer-review-alert')
 
-                            @include('livewire.partials.acceptance-sample-config-table')
+                            @include('livewire.partials.acceptance-sample-config-table', [
+                                'sampleConfigSectionTitle' => 'Test Hierarchy configuration',
+                            ])
                         @endif
 
                         @if($activeStep === 'pricing')
@@ -334,6 +341,7 @@
                                         <thead>
                                             <tr>
                                                 <th>No</th>
+                                                <th>Sample type</th>
                                                 <th>Parameter</th>
                                                 <th class="text-center" title="Include LOQ column on the quotation PDF">
                                                     LOQ
@@ -370,9 +378,11 @@
                                                     $lineTotal = $sampleCount * $unitPrice;
                                                     $readOnly = $quotationMode === 'use_existing';
                                                     $lineKey = (string) ($line['parameter_key'] ?? $line['analysis_element_id'] ?? $line['line_no'] ?? $index);
+                                                    $sampleTypeLabel = trim((string) ($line['sample_type_name'] ?? ''));
                                                 @endphp
                                                 <tr wire:key="ql-{{ $selectedExistingQuotationId ?? $quotationHeaderId ?? 'new' }}-{{ $lineKey }}-{{ $index }}">
                                                     <td>{{ $index + 1 }}</td>
+                                                    <td>{{ $sampleTypeLabel !== '' ? $sampleTypeLabel : '—' }}</td>
                                                     <td>
                                                         {{ $line['parameter_label'] ?? 'Parameter' }}
                                                         @if(!empty($line['is_package']))
@@ -444,7 +454,7 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="{{ $quotationMode === 'use_existing' ? 8 : 9 }}" class="text-muted text-center py-4">
+                                                    <td colspan="{{ $quotationMode === 'use_existing' ? 9 : 10 }}" class="text-muted text-center py-4">
                                                         @if($quotationMode === 'use_existing')
                                                             Select an existing quotation to preview lines and send.
                                                         @else
@@ -456,11 +466,11 @@
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <th colspan="{{ $quotationMode === 'use_existing' ? 6 : 7 }}" class="text-right">Subtotal</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Subtotal</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['sub_total'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="{{ $quotationMode === 'use_existing' ? 6 : 7 }}" class="text-right">
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">
                                                     Tax
                                                     @if($quotationMode === 'build_new' && $this->taxRate > 0)
                                                         <span class="text-muted small fw-normal">({{ number_format($this->taxRate, 0) }}%)</span>
@@ -469,7 +479,7 @@
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['tax'], 2) }}</th>
                                             </tr>
                                             <tr>
-                                                <th colspan="{{ $quotationMode === 'use_existing' ? 6 : 7 }}" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
+                                                <th colspan="{{ $quotationMode === 'use_existing' ? 7 : 8 }}" class="text-right">Grand total @if($this->currencyDisplay !== '') ({{ $this->currencyDisplay }}) @endif</th>
                                                 <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['total'], 2) }}</th>
                                             </tr>
                                         </tfoot>

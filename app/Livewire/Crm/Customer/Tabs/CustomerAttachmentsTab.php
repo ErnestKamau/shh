@@ -38,8 +38,12 @@ class CustomerAttachmentsTab extends BaseCrmComponent
     public bool $showTypeDropdown = false;
 
     public array $attachmentTypes = [
-        'Agreement',
+        'Quotation',
         'Contract',
+        'Purchase Order',
+        'Sampling Plan',
+        'Amendment',
+        'Agreement',
         'Annual PO',
         'Supporting Document',
     ];

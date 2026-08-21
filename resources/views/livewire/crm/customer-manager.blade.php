@@ -627,6 +627,75 @@
                                 </div>
 
                                 <div class="form-group mb-3">
+                                    <label class="form-label fw-bold d-flex align-items-center flex-wrap" style="gap:6px;">
+                                        <span>{{ __('crm.contract_scope') }} <span class="text-muted">({{ __('crm.optional') }})</span></span>
+                                        <i class="mdi mdi-information-outline text-muted"
+                                           style="cursor:help;font-size:1rem;"
+                                           title="{{ __('crm.contract_scope_tooltip_overview') }}"
+                                           data-toggle="tooltip"
+                                           data-placement="top"
+                                           aria-label="{{ __('crm.contract_scope_tooltip_overview') }}"></i>
+                                    </label>
+                                    <select wire:model.live="customerForm.contract_scope" class="form-control">
+                                        <option value="">{{ __('crm.select_optional') }}</option>
+                                        @foreach(\App\Models\CRM\CrmCustomerContract::contractScopeOptions() as $value => $label)
+                                            @php $scopeTip = \App\Models\CRM\CrmCustomerContract::contractScopeTooltip($value); @endphp
+                                            <option value="{{ $value }}" @if($scopeTip) title="{{ $scopeTip }}" @endif>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <ul class="list-unstyled mb-0 mt-2 small text-muted">
+                                        @foreach(\App\Models\CRM\CrmCustomerContract::contractScopeTooltips() as $value => $tip)
+                                            <li class="d-flex align-items-start mb-1" style="gap:6px;">
+                                                <i class="mdi mdi-help-circle-outline mt-0"
+                                                   style="cursor:help;flex-shrink:0;"
+                                                   title="{{ $tip }}"
+                                                   data-toggle="tooltip"
+                                                   data-placement="top"
+                                                   aria-label="{{ $tip }}"></i>
+                                                <span>
+                                                    <strong class="text-dark">{{ \App\Models\CRM\CrmCustomerContract::contractScopeOptions()[$value] ?? $value }}:</strong>
+                                                    {{ $tip }}
+                                                </span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                    @php
+                                        $selectedCustomerScope = (string) ($customerForm['contract_scope'] ?? '');
+                                        $selectedCustomerScopeTip = \App\Models\CRM\CrmCustomerContract::contractScopeTooltip($selectedCustomerScope);
+                                    @endphp
+                                    @if($selectedCustomerScope !== '' && $selectedCustomerScopeTip)
+                                        <div class="alert alert-light border py-2 px-3 mt-2 mb-0 small">
+                                            <i class="mdi mdi-information-outline text-primary mr-1"></i>
+                                            <strong>{{ \App\Models\CRM\CrmCustomerContract::contractScopeOptions()[$selectedCustomerScope] ?? $selectedCustomerScope }}:</strong>
+                                            {{ $selectedCustomerScopeTip }}
+                                        </div>
+                                    @endif
+                                    @error('customerForm.contract_scope') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" wire:model.live="customerForm.is_scheduled_sampling" class="form-check-input" id="is_scheduled_sampling">
+                                    <label class="form-check-label fw-bold" for="is_scheduled_sampling">
+                                        {{ __('crm.scheduled_sampling_contracts') }}
+                                    </label>
+                                    <small class="text-muted d-block mt-1">{{ __('crm.scheduled_sampling_help') }}</small>
+                                </div>
+
+                                @if(! ($customerForm['is_scheduled_sampling'] ?? false))
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">{{ __('crm.collection_method') }}</label>
+                                        <select wire:model="customerForm.default_collection_method" class="form-control">
+                                            <option value="">{{ __('crm.select_optional') }}</option>
+                                            @foreach(\App\Models\CRM\CrmCustomerContract::collectionMethodOptions() as $value => $label)
+                                                <option value="{{ $value }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted d-block mt-1">{{ __('crm.collection_method_help') }}</small>
+                                        @error('customerForm.default_collection_method') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                @endif
+
+                                <div class="form-group mb-3">
                                     <label class="form-label fw-bold">Contract Document</label>
                                     <input type="file" wire:model="contractFile" class="form-control">
                                     @error('contractFile') <span class="text-danger">{{ $message }}</span> @enderror

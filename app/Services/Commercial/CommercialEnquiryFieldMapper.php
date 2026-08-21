@@ -20,7 +20,44 @@ final class CommercialEnquiryFieldMapper
         'sampling_technique',
         'sampling_source',
         'sample_physical_state',
+        'contract_scope',
+        'is_scheduled_sampling',
+        'collection_method',
     ];
+
+    /**
+     * Merge CRM contract intake fields into enquiry collection_data without wiping TRF values.
+     *
+     * @param  array<string, mixed>  $contractMeta
+     */
+    public function mergeContractMetadataIntoCollectionData(SampleSubmissionRequest $enquiry, array $contractMeta): void
+    {
+        if ($contractMeta === []) {
+            return;
+        }
+
+        $existing = is_array($enquiry->collection_data) ? $enquiry->collection_data : [];
+        $merged = $existing;
+
+        foreach (['contract_scope', 'is_scheduled_sampling', 'collection_method'] as $key) {
+            if (! array_key_exists($key, $contractMeta)) {
+                continue;
+            }
+
+            $value = $contractMeta[$key];
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $merged[$key] = $value;
+        }
+
+        $enquiry->collection_data = $merged;
+
+        if (! empty($merged['is_scheduled_sampling'])) {
+            $enquiry->request_for_sampling = true;
+        }
+    }
 
     /**
      * @param  array<string, mixed>  $formData

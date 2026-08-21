@@ -35,6 +35,25 @@
                         @endif
                         @if($customer->has_contract)
                             <span class="crm-badge crm-badge-info mr-1">{{ __('crm.has_contract') }}</span>
+                            @php
+                                $scopeLabel = \App\Models\CRM\CrmCustomerContract::contractScopeOptions()[(string) ($customer->contract_scope ?? '')] ?? null;
+                            @endphp
+                            @if($scopeLabel)
+                                <span class="crm-badge crm-badge-info mr-1"
+                                      @if($scopeTip = \App\Models\CRM\CrmCustomerContract::contractScopeTooltip((string) ($customer->contract_scope ?? '')))
+                                          title="{{ $scopeTip }}"
+                                          data-toggle="tooltip"
+                                          data-placement="bottom"
+                                      @endif
+                                >{{ $scopeLabel }}</span>
+                            @endif
+                            @if($customer->is_scheduled_sampling)
+                                <span class="crm-badge crm-badge-info mr-1">{{ __('crm.scheduled_sampling') }}</span>
+                            @elseif(filled($customer->default_collection_method))
+                                <span class="crm-badge crm-badge-neutral mr-1">
+                                    {{ \App\Models\CRM\CrmCustomerContract::collectionMethodOptions()[(string) $customer->default_collection_method] ?? $customer->default_collection_method }}
+                                </span>
+                            @endif
                         @endif
                         <span class="badge border text-muted" style="font-size:0.68rem;padding:3px 8px;">{{ __('crm.crm_client') }}</span>
                     </div>

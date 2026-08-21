@@ -88,6 +88,7 @@ class RequestViewPagePresenter
         'contact_phone', 'customer_contact_phone', 'contact_telephone',
         'number_of_samples', 'no_of_samples', 'sample_count',
         'lab_received_by', 'received_by', 'receiving_officer',
+        'lab_received_datetime', 'lab_sample_condition',
         'customer_representative_name', 'customer_rep_name', 'customer_representative', 'customer_rep_contact',
         'crm_contact_id', 'crm_customer_id', 'remarks',
     ];
@@ -252,8 +253,14 @@ class RequestViewPagePresenter
 
         $numberOfSamples = $this->resolvePhysicalSampleCount($indexed, $sampleLines);
 
-        $receivedBy = $this->firstFilledAlias($indexed, 'received_by')
-            ?? $this->nonEmptyString($this->commercialEnquiry?->received_by_full_name ?? null);
+        $hasBeenPhysicallyReceived = filled($this->commercialEnquiry?->received_by_full_name)
+            || filled($this->commercialEnquiry?->received_by_date);
+
+        $receivedBy = null;
+        if ($this->commercialEnquiry === null || $hasBeenPhysicallyReceived) {
+            $receivedBy = $this->firstFilledAlias($indexed, 'received_by')
+                ?? $this->nonEmptyString($this->commercialEnquiry?->received_by_full_name ?? null);
+        }
 
         $customerRepresentative = $this->firstFilledAlias($indexed, 'customer_representative')
             ?? $contactName;

@@ -296,12 +296,30 @@ final class EnquiryQuotationService
     {
         $number = trim((string) ($quotation->quote_number ?? ''));
         $revision = max(1, (int) ($quotation->revision_number ?? 1));
+        $labSections = $quotation->relationLoaded('labSections')
+            ? $quotation->labSections
+            : $quotation->labSections()->get();
+        $labSectionLabel = $labSections
+            ->pluck('name')
+            ->map(static fn ($name): string => trim((string) $name))
+            ->filter()
+            ->implode(', ');
 
-        if ($number === '') {
-            return 'Rev '.$revision;
+        $revisionSuffix = '(Rev '.$revision.')';
+
+        if ($number === '' && $labSectionLabel === '') {
+            return $revisionSuffix;
         }
 
-        return $number.' Rev '.$revision;
+        if ($number === '') {
+            return $labSectionLabel.' '.$revisionSuffix;
+        }
+
+        if ($labSectionLabel === '') {
+            return $number.' '.$revisionSuffix;
+        }
+
+        return $number.' - '.$labSectionLabel.' '.$revisionSuffix;
     }
 
     /**
@@ -316,6 +334,7 @@ final class EnquiryQuotationService
         }
 
         return QuotationHeader::query()
+            ->with('labSections')
             ->where('crm_customer_id', $customerId)
             ->where('status', 'Quote Complete')
             ->whereNotNull('expiring_date')

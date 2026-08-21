@@ -282,4 +282,395 @@
             font-size: 0.68rem;
         }
     }
+
+    .direct-registration-intake .paper-trf-intake__meta {
+        grid-template-columns: 1fr;
+        margin-bottom: 1rem;
+    }
+
+    /* External carousel rails — outside the modal dialog (on the backdrop) */
+    #receive-sample-modal.receive-sample-modal--direct-registration {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .modal-dialog {
+        margin-left: auto;
+        margin-right: auto;
+        max-width: min(1320px, calc(100vw - 8.5rem));
+        width: calc(100% - 8.5rem);
+        height: calc(95vh - 3.5rem);
+        max-height: calc(95vh - 3.5rem);
+        margin-top: 1.75rem;
+        margin-bottom: 1.75rem;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .modal-content {
+        height: 100%;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
+        flex: 1 1 auto;
+        padding: 1.35rem 1.75rem 1.5rem;
+        min-height: 0;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header {
+        padding: 1.15rem 1.75rem 0.85rem;
+    }
+
+    #receive-sample-modal .dr-ext-nav {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1065;
+        width: 3.5rem;
+        height: 7.5rem;
+        border: 0;
+        border-radius: 0.85rem;
+        background: rgba(30, 41, 59, 0.88);
+        color: #f8fafc;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+        transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+        padding: 0.5rem 0.25rem;
+    }
+
+    #receive-sample-modal.show.receive-sample-modal--direct-registration .dr-ext-nav {
+        display: inline-flex;
+    }
+
+    #receive-sample-modal .dr-ext-nav i {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    #receive-sample-modal .dr-ext-nav--left {
+        left: 1.25rem;
+    }
+
+    #receive-sample-modal .dr-ext-nav--right {
+        right: 1.25rem;
+    }
+
+    #receive-sample-modal .dr-ext-nav.is-active:hover {
+        background: var(--color-primary, #6d0a0e);
+        transform: translateY(-50%) scale(1.03);
+    }
+
+    #receive-sample-modal .dr-ext-nav--right.is-active,
+    #receive-sample-modal .dr-ext-nav--right.is-receive-cue {
+        background: var(--color-primary, #6d0a0e);
+        color: #fff;
+        width: 3.65rem;
+        min-height: 8.5rem;
+        height: auto;
+        padding: 0.85rem 0.35rem;
+    }
+
+    #receive-sample-modal .dr-ext-nav--right .dr-ext-nav__cue {
+        display: block;
+        opacity: 1;
+        visibility: visible;
+        color: inherit;
+    }
+
+    #receive-sample-modal .dr-ext-nav.is-disabled,
+    #receive-sample-modal .dr-ext-nav:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    #receive-sample-modal .dr-ext-nav__cue {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: inherit;
+        line-height: 1.15;
+        white-space: nowrap;
+    }
+
+    .dr-select-trf {
+        display: flex;
+        flex-direction: column;
+        min-height: min(28rem, calc(95vh - 14rem));
+        height: 100%;
+    }
+
+    .dr-select-trf__intro {
+        flex: 0 0 auto;
+    }
+
+    .dr-trf-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.15rem;
+        flex: 1 1 auto;
+        align-content: stretch;
+        width: 100%;
+        margin-top: 0.35rem;
+    }
+
+    .dr-trf-card {
+        --dr-card-accent: var(--color-primary, #6d0a0e);
+        --dr-card-accent-soft: var(--color-primary-soft, #f8ecec);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1.25rem;
+        min-height: 11.5rem;
+        height: 100%;
+        padding: 1.35rem 1.25rem 1.2rem;
+        border-radius: 18px;
+        border: 1px solid #e8edf3;
+        background:
+            radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--dr-card-accent) 12%, #fff) 0%, transparent 55%),
+            linear-gradient(165deg, #ffffff 0%, #f7f9fc 100%);
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+        text-align: left;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        width: 100%;
+        cursor: pointer;
+    }
+
+    .dr-trf-card::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--dr-card-accent), color-mix(in srgb, var(--dr-card-accent) 45%, #fff));
+    }
+
+    .dr-trf-card--accent-1 {
+        --dr-card-accent: var(--color-primary, #6d0a0e);
+        --dr-card-accent-soft: var(--color-primary-soft, #f8ecec);
+    }
+
+    .dr-trf-card--accent-2 {
+        --dr-card-accent: #0f766e;
+        --dr-card-accent-soft: #ecfdf5;
+    }
+
+    .dr-trf-card--accent-3 {
+        --dr-card-accent: #1d4ed8;
+        --dr-card-accent-soft: #eff6ff;
+    }
+
+    .dr-trf-card--accent-4 {
+        --dr-card-accent: #9a3412;
+        --dr-card-accent-soft: #fff7ed;
+    }
+
+    .dr-trf-card--accent-5 {
+        --dr-card-accent: #047857;
+        --dr-card-accent-soft: #ecfdf5;
+    }
+
+    .dr-trf-card:hover {
+        transform: translateY(-4px);
+        border-color: color-mix(in srgb, var(--dr-card-accent) 40%, #e8edf3);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    }
+
+    .dr-trf-card:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dr-card-accent) 22%, transparent), 0 18px 40px rgba(15, 23, 42, 0.14);
+    }
+
+    .dr-trf-card__icon {
+        width: 3.35rem;
+        height: 3.35rem;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--dr-card-accent-soft);
+        color: var(--dr-card-accent);
+        font-size: 1.55rem;
+        flex-shrink: 0;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+    }
+
+    .dr-trf-card__body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        width: 100%;
+        margin-top: auto;
+    }
+
+    .dr-trf-card__name {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.3;
+        max-width: 100%;
+    }
+
+    .dr-trf-card__cta {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--dr-card-accent);
+        opacity: 0.9;
+    }
+
+    .dr-all-trfs-btn {
+        border-radius: 999px !important;
+        padding-left: 0.9rem !important;
+        padding-right: 0.95rem !important;
+    }
+
+    .dr-fill-form-chip {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        background: var(--color-primary-soft, #f8ecec);
+        color: var(--color-primary, #6d0a0e);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .dr-success-banner {
+        border: 1px solid #bbf7d0;
+        background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 100%);
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+        gap: 0.75rem;
+        box-shadow: 0 12px 28px rgba(138, 149, 158, 0.12);
+    }
+
+    .dr-success-banner__icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #059669;
+        color: #fff;
+        flex-shrink: 0;
+    }
+
+    .dr-accept-samples-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.45rem 0.85rem;
+        background: var(--color-primary, #6d0a0e);
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(138, 149, 158, 0.2);
+    }
+
+    .dr-accept-samples-badge:hover {
+        filter: brightness(1.05);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .dr-receive-handoff {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 18px 40px rgba(138, 149, 158, 0.14);
+    }
+
+    .dr-receive-handoff__icon {
+        width: 3rem;
+        height: 3rem;
+        margin: 0 auto;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-primary-soft, #f8ecec);
+        color: var(--color-primary, #6d0a0e);
+        font-size: 1.5rem;
+    }
+
+    .direct-registration-intake .walk-in-trf-wizard-shell {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 1rem 1.1rem 1.15rem;
+        box-shadow: 0 12px 28px rgba(138, 149, 158, 0.1);
+    }
+
+    @media (max-width: 991.98px) {
+        #receive-sample-modal.receive-sample-modal--direct-registration .modal-dialog {
+            max-width: calc(100vw - 5.5rem);
+            width: calc(100% - 5.5rem);
+            height: calc(95vh - 2.5rem);
+            max-height: calc(95vh - 2.5rem);
+            margin-top: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        #receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
+            padding: 1.1rem 1.15rem 1.25rem;
+        }
+
+        #receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header {
+            padding: 1rem 1.15rem 0.75rem;
+        }
+
+        #receive-sample-modal .dr-ext-nav {
+            width: 2.85rem;
+            height: 5.5rem;
+        }
+
+        #receive-sample-modal .dr-ext-nav i {
+            font-size: 1.65rem;
+        }
+
+        #receive-sample-modal .dr-ext-nav--left {
+            left: 0.45rem;
+        }
+
+        #receive-sample-modal .dr-ext-nav--right {
+            right: 0.45rem;
+        }
+
+        #receive-sample-modal .dr-ext-nav__cue {
+            display: block;
+            font-size: 0.58rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .dr-trf-card-grid {
+            grid-template-columns: 1fr;
+        }
+
+        #receive-sample-modal .dr-ext-nav {
+            min-height: 4.5rem;
+            height: auto;
+            width: 3.1rem;
+            border-radius: 0.85rem;
+        }
+    }
 </style>

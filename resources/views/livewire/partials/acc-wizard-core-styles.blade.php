@@ -21,7 +21,7 @@
     .acc-wizard-backdrop {
         position: fixed;
         inset: 0;
-        z-index: 1050;
+        z-index: 1100;
         display: flex;
         align-items: center;
         justify-content: center;

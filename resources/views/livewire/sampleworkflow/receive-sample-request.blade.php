@@ -854,35 +854,98 @@
                 </div>
             @endif
         @else
-            <!-- Walk-in only: Sample Type + TRF (modal) -->
-            <div class="{{ $this->isOfflineIntake() ? 'paper-trf-intake' : '' }}">
+            <!-- Direct Registration / walk-in TRF (modal) -->
+            <div class="{{ $this->isOfflineIntake() ? 'direct-registration-intake paper-trf-intake' : '' }}">
                 @if($this->isOfflineIntake())
-                    <div class="paper-trf-intake__meta">
-                        <div class="form-group receive-sample-type-field">
-                            <label for="selectedSampleTypeCategoryId" class="font-weight-bold text-dark">Sample type category <span class="text-danger">*</span></label>
-                            <select id="selectedSampleTypeCategoryId" wire:model.live="selectedSampleTypeCategoryId" class="form-control form-control-sm @error('selectedSampleTypeCategoryId') is-invalid @enderror">
-                                <option value="">-- Select Sample Type Category --</option>
-                                @foreach($this->sampleTypeCategories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->sample_type_category }}</option>
-                                @endforeach
-                            </select>
-                            @error('selectedSampleTypeCategoryId')
-                                <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
-                            @enderror
+                    @include('livewire.partials.walk-in-trf-wizard-styles')
+
+                    @if($directRegistrationStage === 'select_trf')
+                        <div class="dr-select-trf">
+                            <div class="dr-select-trf__intro mb-3">
+                                <h6 class="mb-1 font-weight-bold text-dark">Choose a test request form</h6>
+                                <p class="text-muted small mb-0">
+                                    Fill the full TRF (all sections). After save, the request goes to Ready for Reception — then use Accept samples to continue.
+                                </p>
+                            </div>
+                            @if($formTypeCards->isEmpty())
+                                <div class="alert alert-light border small mb-0">
+                                    No published TRFs are available. Publish a Test Request Form template and ensure it is not hidden from RFT.
+                                </div>
+                            @else
+                                <div class="dr-trf-card-grid">
+                                    @foreach($formTypeCards as $card)
+                                        @php
+                                            $cardAccent = ((int) $loop->index % 5) + 1;
+                                            $fillAction = (($card['start_action'] ?? 'sampleType') === 'form')
+                                                ? "startWalkInForForm('{$card['submission_form_id']}')"
+                                                : "startWalkInForSampleType('{$card['sample_type_id']}')";
+                                            $fillTarget = (($card['start_action'] ?? 'sampleType') === 'form')
+                                                ? 'startWalkInForForm'
+                                                : 'startWalkInForSampleType';
+                                        @endphp
+                                        <button type="button"
+                                            class="dr-trf-card dr-trf-card--accent-{{ $cardAccent }}"
+                                            wire:key="dr-form-card-{{ $card['submission_form_id'] }}"
+                                            wire:click="{{ $fillAction }}"
+                                            wire:loading.attr="disabled"
+                                            wire:target="{{ $fillTarget }}"
+                                            title="Fill {{ $card['name'] }}">
+                                            <div class="dr-trf-card__icon">
+                                                <i class="mdi {{ $card['icon'] }}"></i>
+                                            </div>
+                                            <div class="dr-trf-card__body">
+                                                <h6 class="dr-trf-card__name">{{ $card['name'] }}</h6>
+                                                <span class="dr-trf-card__cta">Open form</span>
+                                            </div>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
-                        <div class="form-group">
-                            @include('livewire.sampleworkflow.test-request-field-render', [
-                                'field' => [
-                                    'name' => 'customer_name',
-                                    'label' => 'Customer',
-                                    'type' => 'client_select',
-                                    'required' => true,
-                                    'readonly' => false,
-                                    'options' => [],
-                                ],
-                            ])
+                    @else
+                        @if($directRegistrationStage === 'post_save')
+                            <div class="dr-success-banner d-flex flex-wrap align-items-center justify-content-between mb-3">
+                                <div class="d-flex align-items-center" style="gap:0.65rem;">
+                                    <span class="dr-success-banner__icon"><i class="mdi mdi-check-circle"></i></span>
+                                    <div>
+                                        <strong class="d-block">{{ $lastSavedTrfName !== '' ? $lastSavedTrfName : 'TRF' }} saved successfully</strong>
+                                        <span class="text-muted small">It is now Ready for Reception.</span>
+                                    </div>
+                                </div>
+                                <button type="button"
+                                    class="dr-accept-samples-badge"
+                                    wire:click="goDirectRegistrationCarousel('right')"
+                                    title="Accept samples">
+                                    <span>Accept samples</span>
+                                    <i class="mdi mdi-arrow-right"></i>
+                                </button>
+                            </div>
+                        @endif
+
+                        <div class="d-flex flex-wrap align-items-center justify-content-between mb-3" style="gap:0.5rem;">
+                            <button type="button"
+                                class="btn btn-sm btn-outline-secondary btn-action-sm dr-all-trfs-btn"
+                                wire:click="backToDirectRegistrationFormCards">
+                                <i class="mdi mdi-arrow-left"></i> All TRFs
+                            </button>
                         </div>
-                    </div>
+
+                        @if(($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm)
+                            <div class="walk-in-trf-wizard-shell mb-0">
+                                @include('livewire.partials.walk-in-trf-wizard-stepper')
+                                @include('livewire.partials.walk-in-trf-capture-sections', [
+                                    'submissionForm' => $submissionForm,
+                                    'formData' => $formData,
+                                    'walkInSections' => $walkInSections,
+                                    'walkInActiveStepIndex' => $walkInActiveStepIndex,
+                                ])
+                            </div>
+                        @elseif($selectedSampleTypeId || $selectedSubmissionFormId)
+                            <div class="alert alert-warning py-2 px-3 mb-0 small">
+                                No active Test Request Form template is linked to this selection. Link a TRF template in Submission Forms, then try again.
+                            </div>
+                        @endif
+                    @endif
                 @else
                     <div class="form-group mb-4 receive-sample-type-field">
                         <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample type <span class="text-danger">*</span></label>
@@ -896,26 +959,24 @@
                             <div class="invalid-feedback d-block font-weight-semibold">{{ $message }}</div>
                         @enderror
                     </div>
-                @endif
 
-            @if(($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm)
-                @include('livewire.partials.walk-in-trf-wizard-styles')
-                <div class="walk-in-trf-wizard-shell {{ $this->isOfflineIntake() ? 'mb-0' : 'mb-3' }}">
-                    @unless($this->isOfflineIntake())
-                        @include('livewire.partials.walk-in-trf-wizard-stepper')
-                    @endunless
-                    @include('livewire.partials.walk-in-trf-capture-sections', [
-                        'submissionForm' => $submissionForm,
-                        'formData' => $formData,
-                        'walkInSections' => $walkInSections,
-                        'walkInActiveStepIndex' => $walkInActiveStepIndex,
-                    ])
-                </div>
-            @elseif($selectedSampleTypeId || $selectedSubmissionFormId)
-                <div class="alert alert-warning py-2 px-3 mb-0 small">
-                    No active Test Request Form template is linked to this selection. Link a TRF template in Submission Forms, then try again.
-                </div>
-            @endif
+                    @if(($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm)
+                        @include('livewire.partials.walk-in-trf-wizard-styles')
+                        <div class="walk-in-trf-wizard-shell mb-3">
+                            @include('livewire.partials.walk-in-trf-wizard-stepper')
+                            @include('livewire.partials.walk-in-trf-capture-sections', [
+                                'submissionForm' => $submissionForm,
+                                'formData' => $formData,
+                                'walkInSections' => $walkInSections,
+                                'walkInActiveStepIndex' => $walkInActiveStepIndex,
+                            ])
+                        </div>
+                    @elseif($selectedSampleTypeId || $selectedSubmissionFormId)
+                        <div class="alert alert-warning py-2 px-3 mb-0 small">
+                            No active Test Request Form template is linked to this selection. Link a TRF template in Submission Forms, then try again.
+                        </div>
+                    @endif
+                @endif
             </div>
         @endif
         @endunless
@@ -1120,39 +1181,66 @@
             </footer>
         @endif
     @elseif (! $showPhysicalConfirmModal)
+        @php
+            $showDirectRegistrationFooterActions = ! $this->isOfflineIntake()
+                || (
+                    $directRegistrationPane === 'register'
+                    && in_array($directRegistrationStage, ['fill_trf', 'post_save'], true)
+                    && ($selectedSampleTypeId || $selectedSubmissionFormId)
+                    && $submissionForm
+                );
+        @endphp
         <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3 flex-wrap rft-gap">
-            @if (($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm && $this->walkInTotalSteps > 0 && ! $this->isOfflineIntake())
+            @if (($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm && $this->walkInTotalSteps > 0)
                 <span class="walk-in-trf-wizard__step-hint mb-0" aria-live="polite">
                     Step {{ $walkInActiveStepIndex + 1 }} of {{ $this->walkInTotalSteps }}
                     · {{ $this->walkInWizardSteps[$walkInActiveStepIndex]['title'] ?? '' }}
                 </span>
+            @elseif ($this->isOfflineIntake() && $directRegistrationStage === 'select_trf')
+                <span class="text-muted small mb-0">Select a published TRF to continue.</span>
+            @elseif ($this->isOfflineIntake() && $directRegistrationStage === 'post_save')
+                <span class="text-muted small mb-0">Saved. Use the right arrow outside to accept samples.</span>
             @else
                 <span></span>
             @endif
 
             <div class="d-flex align-items-center rft-gap">
-                @if (($selectedSampleTypeId || $selectedSubmissionFormId) && $submissionForm && $this->walkInTotalSteps > 0)
+                @if (
+                    $showDirectRegistrationFooterActions
+                    && $directRegistrationStage !== 'post_save'
+                    && ($selectedSampleTypeId || $selectedSubmissionFormId)
+                    && $submissionForm
+                    && $this->walkInTotalSteps > 0
+                )
                     @include('livewire.partials.walk-in-trf-wizard-nav')
                 @else
-                    <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-primary receive-sample-submit-btn"
-                        wire:click="confirmReceive"
-                        wire:loading.attr="disabled"
-                        wire:target="confirmReceive"
-                        onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
-                        @if (!($selectedSampleTypeId || $selectedSubmissionFormId)) disabled @endif
-                    >
-                        <span wire:loading.remove wire:target="confirmReceive">
-                            <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>
-                            {{ $this->isOfflineIntake() ? 'Submit paper TRF' : 'Submit walk-in request' }}
-                        </span>
-                        <span wire:loading wire:target="confirmReceive">
-                            <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
-                            Processing…
-                        </span>
+                    <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">
+                        {{ $this->isOfflineIntake() && $directRegistrationCarouselReady ? 'Close' : 'Cancel' }}
                     </button>
+                    @if (
+                        $showDirectRegistrationFooterActions
+                        && $directRegistrationStage !== 'post_save'
+                        && $this->walkInTotalSteps <= 0
+                    )
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-primary receive-sample-submit-btn"
+                            wire:click="confirmReceive"
+                            wire:loading.attr="disabled"
+                            wire:target="confirmReceive"
+                            onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
+                            @if (!($selectedSampleTypeId || $selectedSubmissionFormId)) disabled @endif
+                        >
+                            <span wire:loading.remove wire:target="confirmReceive">
+                                <i class="mdi mdi-content-save-outline mr-1" aria-hidden="true"></i>
+                                {{ $this->isOfflineIntake() ? 'Save' : 'Submit walk-in request' }}
+                            </span>
+                            <span wire:loading wire:target="confirmReceive">
+                                <span class="spinner-border spinner-border-sm mr-1" role="status"></span>
+                                Processing…
+                            </span>
+                        </button>
+                    @endif
                 @endif
             </div>
         </footer>

@@ -93,7 +93,7 @@
                     'formData' => $formData,
                     'fieldMapper' => $fieldMapper,
                     'hiddenWalkInTrfFields' => $hiddenWalkInTrfFields,
-                    'expandAllSampleCards' => $this->isOfflineIntake(),
+                    'expandAllSampleCards' => false,
                 ])
             @else
                 <div class="table-responsive walk-in-trf-rows-table">

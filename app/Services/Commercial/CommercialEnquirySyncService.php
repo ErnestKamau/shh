@@ -140,6 +140,12 @@ final class CommercialEnquirySyncService
                 ?? $this->resolveCrmCustomerIdFromInstance($instance);
             $enquiry->crm_customer_id = $instance->crm_customer_id ?? $resolvedCustomerId ?? $enquiry->crm_customer_id;
             $enquiry->submission_form_instance_id = $instance->id;
+            $this->fieldMapper->mergeContractMetadataIntoCollectionData(
+                $enquiry,
+                $this->contractCustomerService->contractIntakeMetadata(
+                    $enquiry->crm_customer_id !== null ? (string) $enquiry->crm_customer_id : null
+                ),
+            );
             $enquiry->save();
 
             // Link walk-in/portal TRF so later Process Enquiry sync reuses it

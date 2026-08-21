@@ -96,7 +96,7 @@
         @php
             $conditionChecks = $row['sample_condition_checks'] ?? [];
             $microChemChecks = $row['micro_chem_checks'] ?? [];
-            $testsBySampleType = $row['tests_by_sample_type'] ?? [];
+            $sampleTypeTicks = $row['sample_type_ticks'] ?? [];
             $state = $row['state_of_sample'] ?? [];
         @endphp
         <tr class="trf-data-row">
@@ -106,7 +106,11 @@
             <td class="trf-text-cell">{{ $row['sampling_point'] ?? '' }}</td>
             <td class="trf-center">{{ $row['qty'] ?? '' }}</td>
             @foreach($foodSampleTypeColumns as $sampleTypeColumn)
-                <td class="trf-col-sample-type-cell">{{ $testsBySampleType[$sampleTypeColumn['id']] ?? '' }}</td>
+                <td class="trf-tick-cell trf-col-sample-type-cell">
+                    @if($sampleTypeTicks[$sampleTypeColumn['id']] ?? false)
+                        <span class="trf-tick">&#10003;</span>
+                    @endif
+                </td>
             @endforeach
             @foreach($conditionKeys as $key)
                 <td class="trf-tick-cell">

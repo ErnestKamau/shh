@@ -50,6 +50,28 @@
                             →
                             {{ $currentContract->valid_to ? $currentContract->valid_to->format('d-M-Y') : '—' }}
                         </div>
+                        <div class="d-flex flex-wrap align-items-center mt-2" style="gap:6px;">
+                            @if($currentContract->contractScopeLabel())
+                                <span class="crm-badge crm-badge-info"
+                                      @if($scopeTip = \App\Models\CRM\CrmCustomerContract::contractScopeTooltip((string) $currentContract->contract_scope))
+                                          title="{{ $scopeTip }}"
+                                          data-toggle="tooltip"
+                                          data-placement="top"
+                                      @endif
+                                >{{ $currentContract->contractScopeLabel() }}</span>
+                            @endif
+                            @if($currentContract->is_scheduled_sampling)
+                                <span class="crm-badge crm-badge-info"
+                                      title="{{ __('crm.scheduled_sampling_help') }}"
+                                      data-toggle="tooltip"
+                                      data-placement="top">{{ __('crm.scheduled_sampling') }}</span>
+                            @elseif($currentContract->collectionMethodLabel())
+                                <span class="crm-badge crm-badge-neutral"
+                                      title="{{ __('crm.collection_method_help') }}"
+                                      data-toggle="tooltip"
+                                      data-placement="top">{{ $currentContract->collectionMethodLabel() }}</span>
+                            @endif
+                        </div>
                         @if($currentContract->original_name)
                             <div class="text-muted mt-1" style="font-size:0.8rem;">
                                 <i class="mdi mdi-file-document-outline mr-1"></i>{{ $currentContract->original_name }}
@@ -84,6 +106,8 @@
                     <th>{{ __('crm.status') }}</th>
                     <th>{{ __('crm.valid_from') }}</th>
                     <th>{{ __('crm.valid_to') }}</th>
+                    <th>{{ __('crm.contract_scope') }}</th>
+                    <th>{{ __('crm.sampling_collection') }}</th>
                     <th>{{ __('crm.file') }}</th>
                     <th>{{ __('crm.posted_by') }}</th>
                     <th>{{ __('crm.created_at') }}</th>
@@ -101,6 +125,14 @@
                     </td>
                     <td>{{ $contract->valid_from ? $contract->valid_from->format('d-M-Y') : '—' }}</td>
                     <td>{{ $contract->valid_to ? $contract->valid_to->format('d-M-Y') : '—' }}</td>
+                    <td>{{ $contract->contractScopeLabel() ?: '—' }}</td>
+                    <td>
+                        @if($contract->is_scheduled_sampling)
+                            {{ __('crm.scheduled_sampling') }}
+                        @else
+                            {{ $contract->collectionMethodLabel() ?: '—' }}
+                        @endif
+                    </td>
                     <td>{{ $contract->original_name ?: '—' }}</td>
                     <td>{{ $contract->posted_by ?: '—' }}</td>
                     <td>{{ $contract->created_at ? $contract->created_at->format('d-M-Y H:i') : '—' }}</td>
@@ -122,7 +154,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="9">
                         <x-crm.empty-state
                             icon="mdi-file-sign"
                             :message="__('crm.no_contracts_for_client')"
@@ -168,6 +200,71 @@
                             <input type="date" wire:model="valid_to" class="form-control" />
                             @error('valid_to') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
+                        <div class="form-group">
+                            <label class="d-flex align-items-center flex-wrap" style="gap:6px;">
+                                <span>{{ __('crm.contract_scope') }} <span class="text-muted">({{ __('crm.optional') }})</span></span>
+                                <i class="mdi mdi-information-outline text-muted"
+                                   style="cursor:help;font-size:1rem;"
+                                   title="{{ __('crm.contract_scope_tooltip_overview') }}"
+                                   data-toggle="tooltip"
+                                   data-placement="top"
+                                   aria-label="{{ __('crm.contract_scope_tooltip_overview') }}"></i>
+                            </label>
+                            <select wire:model.live="contract_scope" class="form-control">
+                                <option value="">{{ __('crm.select_optional') }}</option>
+                                @foreach($contractScopeOptions as $value => $label)
+                                    @php $scopeTip = \App\Models\CRM\CrmCustomerContract::contractScopeTooltip($value); @endphp
+                                    <option value="{{ $value }}" @if($scopeTip) title="{{ $scopeTip }}" @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <ul class="list-unstyled mb-0 mt-2 small text-muted">
+                                @foreach(\App\Models\CRM\CrmCustomerContract::contractScopeTooltips() as $value => $tip)
+                                    <li class="d-flex align-items-start mb-1" style="gap:6px;">
+                                        <i class="mdi mdi-help-circle-outline mt-0"
+                                           style="cursor:help;flex-shrink:0;"
+                                           title="{{ $tip }}"
+                                           data-toggle="tooltip"
+                                           data-placement="top"
+                                           aria-label="{{ $tip }}"></i>
+                                        <span>
+                                            <strong class="text-dark">{{ $contractScopeOptions[$value] ?? $value }}:</strong>
+                                            {{ $tip }}
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                            @if(filled($contract_scope) && ($selectedScopeTip = \App\Models\CRM\CrmCustomerContract::contractScopeTooltip($contract_scope)))
+                                <div class="alert alert-light border py-2 px-3 mt-2 mb-0 small">
+                                    <i class="mdi mdi-information-outline text-primary mr-1"></i>
+                                    <strong>{{ $contractScopeOptions[$contract_scope] ?? $contract_scope }}:</strong>
+                                    {{ $selectedScopeTip }}
+                                </div>
+                            @endif
+                            @error('contract_scope') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="contract_is_scheduled_sampling"
+                                    wire:model.live="is_scheduled_sampling">
+                                <label class="custom-control-label" for="contract_is_scheduled_sampling">
+                                    {{ __('crm.scheduled_sampling_contracts') }}
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">{{ __('crm.scheduled_sampling_help') }}</small>
+                        </div>
+                        @if(! $is_scheduled_sampling)
+                            <div class="form-group">
+                                <label>{{ __('crm.collection_method') }}:</label>
+                                <select wire:model="default_collection_method" class="form-control">
+                                    <option value="">{{ __('crm.select_optional') }}</option>
+                                    @foreach($collectionMethodOptions as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted d-block mt-1">{{ __('crm.collection_method_help') }}</small>
+                                @error('default_collection_method') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        @endif
                         <div class="form-group mb-0">
                             <label>{{ __('crm.contract_document') }}:</label>
                             <input type="file" wire:model="contractFile" class="form-control" />

@@ -8,7 +8,6 @@ use App\Models\CRM\SamplePoint;
 use App\Models\SamplePoint as MasterSamplePoint;
 use App\Models\System\SystemConfiguration;
 use App\Models\SubmissionFormInstance;
-use App\AnalysisElements;
 use App\SampleHeader;
 use App\SampleType;
 use App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver;
@@ -375,14 +374,49 @@ class TestRequestFormReportDataBuilder
     public static function normalizeCheckboxGroup($value, array $allOptions): array
     {
         $selected = self::normalizeToSelectedList($value);
-        $selectedUpper = array_map(static fn ($item) => strtoupper(trim((string) $item)), $selected);
+        $selectedCanon = array_values(array_filter(array_map(
+            static fn ($item): string => self::checkboxCanonical((string) $item),
+            $selected
+        )));
+        $optionCanons = [];
+        foreach ($allOptions as $option) {
+            $optionCanons[$option] = self::checkboxCanonical((string) $option);
+        }
+        $exactOptionCanons = array_values(array_filter($optionCanons));
 
         $result = [];
         foreach ($allOptions as $option) {
-            $result[$option] = in_array(strtoupper($option), $selectedUpper, true);
+            $optionCanon = $optionCanons[$option];
+            $matched = $optionCanon !== '' && in_array($optionCanon, $selectedCanon, true);
+
+            if (! $matched && $optionCanon !== '') {
+                foreach ($selectedCanon as $selCanon) {
+                    // Prefer exact option matches (e.g. MICROBIOLOGY) over prefixing a longer
+                    // label (e.g. MICROBIOLOGY + CHEMISTRY) when the slug equals an option.
+                    if (in_array($selCanon, $exactOptionCanons, true)) {
+                        continue;
+                    }
+
+                    // Form slugs → PDF labels: haccp→HACCP REQUIREMENT, chiller→CHILLER VEHICLE
+                    if (strlen($selCanon) >= 4 && str_starts_with($optionCanon, $selCanon)) {
+                        $matched = true;
+                        break;
+                    }
+                }
+            }
+
+            $result[$option] = $matched;
         }
 
         return $result;
+    }
+
+    /**
+     * Canonical form for checkbox matching (strips spaces, punctuation, underscores).
+     */
+    public static function checkboxCanonical(string $value): string
+    {
+        return preg_replace('/[^A-Z0-9]+/', '', strtoupper(trim($value))) ?? '';
     }
 
     /**
@@ -606,7 +640,10 @@ class TestRequestFormReportDataBuilder
                     'expiration_date' => $this->formatDate($row['expiration_date'] ?? ''),
                     'batch_number' => (string) ($row['batch_number'] ?? ''),
                     'micro_chem_checks' => self::foodMicroChemChecks($row['test_category'] ?? null),
-                    'tests_by_sample_type' => $this->resolveFoodTestsBySampleType($row),
+                    'sample_type_checks' => self::sampleTypeChecks(
+                        is_string($row['sample_type'] ?? null) ? $row['sample_type'] : null
+                    ),
+                    'sample_type_ticks' => $this->resolveFoodSampleTypeTicks($row),
                     'state_of_sample' => self::stateOfSampleChecks($row['state_of_sample'] ?? null),
                 ];
                 continue;
@@ -803,18 +840,44 @@ class TestRequestFormReportDataBuilder
             $enquiry = $submission->sampleSubmissionRequest;
         }
 
-        $receivedAt = $formData['lab_received_datetime'] ?? '';
-        if ($receivedAt === '' && $enquiry?->received_by_date) {
-            $date = optional($enquiry->received_by_date)->format('Y-m-d')
-                ?? (string) $enquiry->received_by_date;
-            $time = trim((string) ($enquiry->received_by_time ?? ''));
-            $receivedAt = trim($date.' '.$time);
+        $labCondition = self::normalizeSingleSelect(
+            $formData['lab_sample_condition'] ?? '',
+            self::FOOD_OPTIONS['lab_sample_condition']
+        );
+
+        $configs = is_array($enquiry?->enquiry_sample_configuration)
+            ? $enquiry->enquiry_sample_configuration
+            : [];
+
+        // Received Date/Time and Received By are filled only after Receive Samples
+        // (Ready for Reception). Do not fall back to submit time or form creator.
+        $hasBeenPhysicallyReceived = filled($enquiry?->received_by_full_name)
+            || filled($enquiry?->received_by_date);
+
+        if ($enquiry !== null && ! $hasBeenPhysicallyReceived) {
+            return [
+                'lab_received_datetime' => '',
+                'lab_received_by' => '',
+                'lab_sample_condition' => $labCondition,
+            ];
         }
-        if ($receivedAt === '' && $submission?->reviewed_at) {
-            $receivedAt = $submission->reviewed_at;
-        }
-        if ($receivedAt === '' && $submission?->submitted_at) {
-            $receivedAt = $submission->submitted_at;
+
+        $receivedAt = '';
+        $receivedBy = '';
+
+        if ($hasBeenPhysicallyReceived || $enquiry === null) {
+            $receivedAt = $formData['lab_received_datetime'] ?? '';
+            if ($receivedAt === '' && $enquiry?->received_by_date) {
+                $date = optional($enquiry->received_by_date)->format('Y-m-d')
+                    ?? (string) $enquiry->received_by_date;
+                $time = trim((string) ($enquiry->received_by_time ?? ''));
+                $receivedAt = trim($date.' '.$time);
+            }
+
+            $receivedBy = trim((string) ($formData['lab_received_by'] ?? ''));
+            if ($receivedBy === '') {
+                $receivedBy = trim((string) ($enquiry?->received_by_full_name ?? ''));
+            }
         }
 
         if ($receivedAt !== '') {
@@ -824,25 +887,6 @@ class TestRequestFormReportDataBuilder
                 $receivedAt = (string) $receivedAt;
             }
         }
-
-        $receivedBy = trim((string) ($formData['lab_received_by'] ?? ''));
-        if ($receivedBy === '') {
-            $receivedBy = trim((string) ($enquiry?->received_by_full_name ?? ''));
-        }
-        if ($receivedBy === '') {
-            $receivedBy = trim((string) ($creator?->name ?? ''));
-        }
-
-        $labCondition = self::normalizeSingleSelect(
-            $formData['lab_sample_condition'] ?? '',
-            self::FOOD_OPTIONS['lab_sample_condition']
-        );
-
-        $configs = is_array($enquiry?->enquiry_sample_configuration)
-            ? $enquiry->enquiry_sample_configuration
-            : [];
-        $hasBeenPhysicallyReceived = filled($enquiry?->received_by_full_name)
-            || ($submission instanceof SubmissionFormInstance && $submission->reviewed_at !== null);
 
         if ($hasBeenPhysicallyReceived && $configs !== []) {
             $labCondition = TrfLabUseFieldsService::labSampleConditionFromConfigs($configs);
@@ -1402,43 +1446,19 @@ class TestRequestFormReportDataBuilder
     }
 
     /**
+     * Tick map for food SAMPLE TYPE columns (selected sample_type_id values only).
+     *
      * @param  array<string, mixed>  $row
-     * @return array<string, string>
+     * @return array<string, bool>
      */
-    private function resolveFoodTestsBySampleType(array $row): array
+    private function resolveFoodSampleTypeTicks(array $row): array
     {
-        $resolver = app(AnalysisReferenceLabelResolver::class);
-        $parameterTokens = $resolver->extractTokens($row['parameters'] ?? null);
-        if ($parameterTokens === []) {
-            return [];
+        $ticks = [];
+        foreach ($this->extractReferenceTokens($row['sample_type_id'] ?? null) as $id) {
+            $ticks[$id] = true;
         }
 
-        $elements = AnalysisElements::query()
-            ->whereIn('id', $parameterTokens)
-            ->with(['analysis_type', 'analyte'])
-            ->get();
-
-        $labelsBySampleType = [];
-        foreach ($elements as $element) {
-            $sampleTypeId = trim((string) ($element->analysis_type?->sample_type_id ?? ''));
-            if ($sampleTypeId === '') {
-                continue;
-            }
-
-            $label = $resolver->resolveReportDisplayToken((string) $element->id);
-            if ($label === '') {
-                continue;
-            }
-
-            $labelsBySampleType[$sampleTypeId][] = $label;
-        }
-
-        $result = [];
-        foreach ($labelsBySampleType as $sampleTypeId => $labels) {
-            $result[$sampleTypeId] = implode(', ', array_values(array_unique($labels)));
-        }
-
-        return $result;
+        return $ticks;
     }
 
     /**

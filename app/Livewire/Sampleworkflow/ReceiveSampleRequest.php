@@ -119,8 +119,18 @@ class ReceiveSampleRequest extends Component
     /** Resolved CRM customer for walk-in contact/point actions (avoids fragile name-only matching). */
     public ?string $selectedCrmCustomerId = null;
 
-    /** Request origin for staff capture: walk_in (default) or offline paper TRF. */
+    /** Request origin for staff capture: walk_in (default) or offline direct registration. */
     public string $intakeChannel = CommercialEnquirySyncService::SOURCE_WALK_IN;
+
+    /** Direct Registration modal stages: select_trf | fill_trf | post_save */
+    public string $directRegistrationStage = 'select_trf';
+
+    /** Direct Registration carousel pane: register | receive */
+    public string $directRegistrationPane = 'register';
+
+    public bool $directRegistrationCarouselReady = false;
+
+    public string $lastSavedTrfName = '';
 
     /** Open Drafts / Today tab on the RFT list page (or pending/filled for planner). */
     public string $rftInstancesTab = 'today';
@@ -326,15 +336,6 @@ class ReceiveSampleRequest extends Component
         $sections = app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
             ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage')
             ->reject(fn ($section) => SubmissionFormSchemaHelper::isBuilderHiddenSection($section));
-
-        if ($this->isOfflineIntake()) {
-            $sampleSections = $sections->filter(
-                fn ($section): bool => $this->walkInSectionUsesSampleCards($section)
-            );
-            if ($sampleSections->isNotEmpty()) {
-                $sections = $sampleSections;
-            }
-        }
 
         return $sections->values();
     }
@@ -809,6 +810,12 @@ class ReceiveSampleRequest extends Component
 
         $this->selectedSampleTypeId = $sampleTypeId;
         $this->selectedSubmissionFormId = null;
+
+        if ($this->isOfflineIntake()) {
+            $this->directRegistrationStage = 'fill_trf';
+            $this->directRegistrationPane = 'register';
+            $this->walkInActiveStepIndex = 0;
+        }
     }
 
     public function startWalkInForForm(string $submissionFormId): void
@@ -834,6 +841,12 @@ class ReceiveSampleRequest extends Component
             ->find($submissionFormId);
         if ($form !== null) {
             $this->initializeFormDataFromSubmissionForm($form);
+        }
+
+        if ($this->isOfflineIntake()) {
+            $this->directRegistrationStage = 'fill_trf';
+            $this->directRegistrationPane = 'register';
+            $this->walkInActiveStepIndex = 0;
         }
     }
 
@@ -3258,17 +3271,98 @@ class ReceiveSampleRequest extends Component
 
     public function openOfflinePaperTrfCapture(): void
     {
+        $this->openDirectRegistration();
+    }
+
+    public function openDirectRegistration(): void
+    {
         $this->intakeChannel = CommercialEnquirySyncService::SOURCE_OFFLINE;
         $this->selectedFormInstanceIds = [];
         $this->selectedSampleTypeId = null;
         $this->selectedSampleTypeCategoryId = null;
+        $this->selectedSubmissionFormId = null;
         $this->walkInActiveStepIndex = 0;
+        $this->directRegistrationStage = 'select_trf';
+        $this->directRegistrationPane = 'register';
+        $this->directRegistrationCarouselReady = false;
+        $this->lastSavedTrfName = '';
+        $this->lastGeneratedSfiIds = [];
         $this->handleReceiveModalOpen([], []);
+        $this->dispatch(
+            'direct-registration-carousel-state',
+            ready: false,
+            pane: 'register',
+        );
     }
 
     public function isOfflineIntake(): bool
     {
         return $this->intakeChannel === CommercialEnquirySyncService::SOURCE_OFFLINE;
+    }
+
+    public function backToDirectRegistrationFormCards(): void
+    {
+        if (! $this->isOfflineIntake()) {
+            return;
+        }
+
+        $this->selectedSubmissionFormId = null;
+        $this->selectedSampleTypeId = null;
+        $this->selectedSampleTypeCategoryId = null;
+        $this->formData = [];
+        $this->walkInActiveStepIndex = 0;
+        $this->directRegistrationStage = 'select_trf';
+        $this->directRegistrationPane = 'register';
+        $this->resetValidation();
+    }
+
+    public function goDirectRegistrationCarousel(mixed $direction = 'right'): void
+    {
+        if (is_array($direction)) {
+            $direction = $direction['direction'] ?? 'right';
+        }
+
+        if (! $this->isOfflineIntake() || ! $this->directRegistrationCarouselReady) {
+            return;
+        }
+
+        $direction = strtolower(trim((string) $direction));
+
+        if ($direction === 'left') {
+            $this->directRegistrationPane = 'register';
+            $this->dispatch(
+                'direct-registration-carousel-state',
+                ready: true,
+                pane: 'register',
+            );
+
+            return;
+        }
+
+        if ($direction !== 'right') {
+            return;
+        }
+
+        $sfiId = $this->lastGeneratedSfiIds[0] ?? null;
+        if ($sfiId === null || $sfiId === '') {
+            return;
+        }
+
+        $instance = SubmissionFormInstance::query()
+            ->with('sampleSubmissionRequest')
+            ->find($sfiId);
+        $submissionRequestId = $instance?->sampleSubmissionRequest?->id
+            ?? (filled($instance?->portal_request_id) ? (string) $instance->portal_request_id : null);
+
+        $this->dispatch(
+            'open-acceptance-wizard',
+            submissionFormInstanceId: (string) $sfiId,
+            submissionRequestId: $submissionRequestId,
+            mode: 'receive_only',
+        )->to(AcceptanceFormWizard::class);
+
+        $this->dispatch('direct-registration-handoff-to-receive');
+        $this->dispatch('hide-receive-sample-modal');
     }
 
     private function walkInSourceChannel(): string
@@ -3298,6 +3392,10 @@ class ReceiveSampleRequest extends Component
         $this->showPhysicalConfirmModal = false;
         if (! $this->isPhysicalCheckIn) {
             $this->intakeChannel = CommercialEnquirySyncService::SOURCE_WALK_IN;
+            $this->directRegistrationStage = 'select_trf';
+            $this->directRegistrationPane = 'register';
+            $this->directRegistrationCarouselReady = false;
+            $this->lastSavedTrfName = '';
         }
     }
 
@@ -3307,6 +3405,7 @@ class ReceiveSampleRequest extends Component
             'receive-modal-open' => 'handleReceiveModalOpen',
             'hide-receive-sample-modal' => 'onHideReceiveSampleModal',
             'open-offline-paper-trf' => 'openOfflinePaperTrfCapture',
+            'go-direct-registration-carousel' => 'goDirectRegistrationCarousel',
         ];
     }
 
@@ -3476,7 +3575,7 @@ class ReceiveSampleRequest extends Component
                 $submissionForm,
                 $payload,
                 $crmCustomerId !== null ? (string) $crmCustomerId : null,
-                (string) $this->selectedSampleTypeId,
+                filled($this->selectedSampleTypeId) ? (string) $this->selectedSampleTypeId : null,
                 $this->walkInSourceChannel(),
                 $schedule?->id !== null ? (string) $schedule->id : null,
             );
@@ -3496,10 +3595,16 @@ class ReceiveSampleRequest extends Component
 
         $this->lastGeneratedSfiIds = [$instance->id];
 
+        $trfName = trim((string) ($submissionForm->name ?? 'TRF'));
+        if ($trfName === '') {
+            $trfName = 'TRF';
+        }
+        $this->lastSavedTrfName = $trfName;
+
         $successMessage = $this->plannerMode
             ? 'Sampling form submitted and linked to the schedule successfully.'
             : ($this->isOfflineIntake()
-                ? 'Paper test request submitted. It is now Ready for Reception.'
+                ? $trfName.' saved successfully'
                 : 'Walk-in test request submitted successfully.');
         if ($this->plannerMode && isset($progress)) {
             $successMessage = $progress['is_complete']
@@ -3511,7 +3616,7 @@ class ReceiveSampleRequest extends Component
             'success',
             $successMessage,
         );
-        $this->dispatch('receive-completed', sfiIds: $this->lastGeneratedSfiIds);
+        $this->dispatch('receive-completed', sfiIds: $this->lastGeneratedSfiIds, keepModalOpen: $this->isOfflineIntake());
 
         if ($this->pageMode) {
             if ($this->plannerMode) {
@@ -3530,6 +3635,20 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
+        if ($this->isOfflineIntake()) {
+            $this->directRegistrationStage = 'post_save';
+            $this->directRegistrationPane = 'register';
+            $this->directRegistrationCarouselReady = true;
+            $this->dispatch('notify', type: 'success', message: $successMessage);
+            $this->dispatch(
+                'direct-registration-carousel-state',
+                ready: true,
+                pane: 'register',
+            );
+
+            return;
+        }
+
         $this->dispatch('notify', type: 'success', message: $successMessage);
         $this->dispatch('hide-receive-sample-modal');
     }
@@ -3543,7 +3662,7 @@ class ReceiveSampleRequest extends Component
         }
 
         if ($this->isOfflineIntake()) {
-            return 'Could not submit the paper test request. Check the customer, sample type category, and sample rows, then try again.';
+            return 'Could not submit the direct registration. Check the customer and sample rows, then try again.';
         }
 
         return 'Could not submit the walk-in request. Please try again.';
@@ -3555,9 +3674,10 @@ class ReceiveSampleRequest extends Component
 
         if ($this->isOfflineIntake()) {
             $this->validate([
-                'selectedSampleTypeCategoryId' => 'required|exists:sample_type_categories,id',
+                'selectedSubmissionFormId' => 'required_without:selectedSampleTypeId',
+                'selectedSampleTypeId' => 'nullable|exists:sample_types,id',
             ], [
-                'selectedSampleTypeCategoryId.required' => 'Please select a Sample Type Category.',
+                'selectedSubmissionFormId.required_without' => 'Please choose a test request form to fill.',
             ]);
         } else {
             $this->validate([
@@ -3574,13 +3694,6 @@ class ReceiveSampleRequest extends Component
             $this->dispatch('notify', type: 'error', message: $message);
 
             return;
-        }
-
-        if ($this->isOfflineIntake()) {
-            $this->validateWalkInCustomerInfo();
-            if ($this->getErrorBag()->isNotEmpty()) {
-                throw ValidationException::withMessages($this->getErrorBag()->toArray());
-            }
         }
 
         foreach ($this->walkInSections->values() as $stepIndex => $section) {
@@ -3684,14 +3797,8 @@ class ReceiveSampleRequest extends Component
         if ($customerName === '' && $this->resolveSelectedCustomerId() === null) {
             $this->addError(
                 'formData.customer_name',
-                $this->isOfflineIntake()
-                    ? 'Select a customer.'
-                    : 'Customer name is required in Customer details.',
+                'Customer name is required in Customer details.',
             );
-        }
-
-        if ($this->isOfflineIntake()) {
-            return;
         }
 
         if (array_key_exists('contact_person', $this->formData)
@@ -4081,15 +4188,10 @@ class ReceiveSampleRequest extends Component
 
     private function prepareLabUseFields(): void
     {
-        $user = Auth::user();
-
-        if (empty($this->formData['lab_received_datetime'])) {
-            $this->formData['lab_received_datetime'] = now()->format('Y-m-d\TH:i');
-        }
-
-        if (empty($this->formData['lab_received_by']) && $user instanceof User) {
-            $this->formData['lab_received_by'] = $user->name;
-        }
+        // lab_received_datetime / lab_received_by stay empty until Receive Samples
+        // in Ready for Reception (TrfLabUseFieldsService::applyAfterPhysicalReceive).
+        $this->formData['lab_received_datetime'] = '';
+        $this->formData['lab_received_by'] = '';
 
         $this->applyCustomerRepresentativeFromSelectedContact();
     }
@@ -4300,7 +4402,7 @@ class ReceiveSampleRequest extends Component
         return view('livewire.sampleworkflow.receive-sample-request', [
             'submissionForm' => $this->submissionForm,
             'walkInSections' => $this->walkInSections,
-            'formTypeCards' => $this->pageMode ? $this->formTypeCards : collect(),
+            'formTypeCards' => ($this->pageMode || $this->isOfflineIntake()) ? $this->formTypeCards : collect(),
             'hasHiddenRftForms' => $this->pageMode && ! $this->plannerMode ? $this->hasHiddenRftForms : false,
             'rftInstances' => $this->pageMode && ! $this->wizardOnly && ! $this->plannerMode ? $this->rftInstances : collect(),
             'plannerSchedules' => $this->pageMode && ! $this->wizardOnly && $this->plannerMode ? $this->plannerSchedules : collect(),

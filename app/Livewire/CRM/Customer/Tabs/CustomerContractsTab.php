@@ -22,6 +22,12 @@ class CustomerContractsTab extends BaseCrmComponent
 
     public string $valid_to = '';
 
+    public string $contract_scope = '';
+
+    public bool $is_scheduled_sampling = false;
+
+    public string $default_collection_method = '';
+
     public $contractFile = null;
 
     public ?string $viewingContractId = null;
@@ -71,9 +77,24 @@ class CustomerContractsTab extends BaseCrmComponent
     {
         $this->checkPermission('crm.customers.edit');
 
-        $this->reset(['valid_from', 'valid_to', 'contractFile']);
+        $this->reset([
+            'valid_from',
+            'valid_to',
+            'contract_scope',
+            'is_scheduled_sampling',
+            'default_collection_method',
+            'contractFile',
+        ]);
+        $this->is_scheduled_sampling = false;
         $this->resetValidation();
         $this->dispatch('show-customer-contract-modal');
+    }
+
+    public function updatedIsScheduledSampling(bool $value): void
+    {
+        if ($value) {
+            $this->default_collection_method = '';
+        }
     }
 
     public function openViewContractModal(string $contractId): void
@@ -103,9 +124,23 @@ class CustomerContractsTab extends BaseCrmComponent
     {
         $this->checkPermission('crm.customers.edit');
 
+        $scopeKeys = implode(',', array_keys(CrmCustomerContract::contractScopeOptions()));
+        $collectionKeys = implode(',', array_keys(CrmCustomerContract::collectionMethodOptions()));
+
         $this->validate([
             'valid_from' => 'nullable|date',
             'valid_to' => 'nullable|date|after_or_equal:valid_from',
+            'contract_scope' => 'nullable|in:'.$scopeKeys,
+            'is_scheduled_sampling' => 'boolean',
+            'default_collection_method' => [
+                'nullable',
+                'in:'.$collectionKeys,
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($this->is_scheduled_sampling && filled($value)) {
+                        $fail(__('crm.collection_method_not_for_scheduled'));
+                    }
+                },
+            ],
             'contractFile' => 'nullable|file|max:20480',
         ], [
             'valid_to.after_or_equal' => __('crm.contract_end_after_start'),
@@ -120,6 +155,11 @@ class CustomerContractsTab extends BaseCrmComponent
             $contract->crm_customer_id = $this->customer->id;
             $contract->valid_from = $this->valid_from !== '' ? $this->valid_from : null;
             $contract->valid_to = $this->valid_to !== '' ? $this->valid_to : null;
+            $contract->contract_scope = $this->contract_scope !== '' ? $this->contract_scope : null;
+            $contract->is_scheduled_sampling = $this->is_scheduled_sampling;
+            $contract->default_collection_method = (! $this->is_scheduled_sampling && $this->default_collection_method !== '')
+                ? $this->default_collection_method
+                : null;
             $contract->posted_by = Auth::user()->name ?? 'System';
             $contract->is_current = true;
 
@@ -140,6 +180,9 @@ class CustomerContractsTab extends BaseCrmComponent
             $this->customer->has_contract = true;
             $this->customer->contract_valid_from = $contract->valid_from;
             $this->customer->contract_valid_to = $contract->valid_to;
+            $this->customer->contract_scope = $contract->contract_scope;
+            $this->customer->is_scheduled_sampling = (bool) $contract->is_scheduled_sampling;
+            $this->customer->default_collection_method = $contract->default_collection_method;
             $this->customer->save();
 
             DB::commit();
@@ -151,7 +194,15 @@ class CustomerContractsTab extends BaseCrmComponent
         }
 
         $this->customer->refresh()->load('currentContract');
-        $this->reset(['valid_from', 'valid_to', 'contractFile']);
+        $this->reset([
+            'valid_from',
+            'valid_to',
+            'contract_scope',
+            'is_scheduled_sampling',
+            'default_collection_method',
+            'contractFile',
+        ]);
+        $this->is_scheduled_sampling = false;
         $this->resetValidation();
 
         $this->showSuccess(__('crm.contract_created_previous_invalidated'));
@@ -165,6 +216,8 @@ class CustomerContractsTab extends BaseCrmComponent
             'contracts' => $this->contracts,
             'currentContract' => $this->currentContract,
             'viewingContract' => $this->viewingContract,
+            'contractScopeOptions' => CrmCustomerContract::contractScopeOptions(),
+            'collectionMethodOptions' => CrmCustomerContract::collectionMethodOptions(),
         ]);
     }
 }

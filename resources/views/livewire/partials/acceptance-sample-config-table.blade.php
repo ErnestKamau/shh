@@ -1,6 +1,6 @@
 <section class="acc-wizard-section acc-sample-config-section">
     <div class="acc-sample-config-toolbar mb-3">
-        <h6 class="acc-wizard-section-title mb-0">Sample configuration</h6>
+        <h6 class="acc-wizard-section-title mb-0">{{ $sampleConfigSectionTitle ?? 'Sample configuration' }}</h6>
         @if($allowAddRemoveConfig ?? true)
             <div class="acc-sample-config-toolbar-actions">
                 @if(method_exists($this, 'syncFromCustomerPricelist') || method_exists($this, 'syncFromContractPricelist'))

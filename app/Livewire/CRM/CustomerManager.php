@@ -57,6 +57,9 @@ class CustomerManager extends Component
         'has_contract' => false,
         'contract_valid_from' => '',
         'contract_valid_to' => '',
+        'contract_scope' => '',
+        'is_scheduled_sampling' => false,
+        'default_collection_method' => '',
     ];
 
     public $contractFile = null;
@@ -157,6 +160,13 @@ class CustomerManager extends Component
             'customerForm.contract_valid_from' => $hasContract ? 'nullable|date' : 'nullable',
             'customerForm.contract_valid_to' => $hasContract
                 ? 'nullable|date|after_or_equal:customerForm.contract_valid_from'
+                : 'nullable',
+            'customerForm.contract_scope' => $hasContract
+                ? 'nullable|in:'.implode(',', array_keys(CrmCustomerContract::contractScopeOptions()))
+                : 'nullable',
+            'customerForm.is_scheduled_sampling' => 'boolean',
+            'customerForm.default_collection_method' => $hasContract
+                ? 'nullable|in:'.implode(',', array_keys(CrmCustomerContract::collectionMethodOptions()))
                 : 'nullable',
             'contractFile' => [
                 'nullable',
@@ -525,6 +535,9 @@ class CustomerManager extends Component
             'contract_valid_to' => ($currentContract?->valid_to ?? $customer->contract_valid_to)
                 ? substr((string) ($currentContract?->valid_to ?? $customer->contract_valid_to), 0, 10)
                 : '',
+            'contract_scope' => (string) ($currentContract?->contract_scope ?? $customer->contract_scope ?? ''),
+            'is_scheduled_sampling' => (bool) ($currentContract?->is_scheduled_sampling ?? $customer->is_scheduled_sampling ?? false),
+            'default_collection_method' => (string) ($currentContract?->default_collection_method ?? $customer->default_collection_method ?? ''),
         ];
 
         $this->contractFile = null;
@@ -551,7 +564,17 @@ class CustomerManager extends Component
         if (! $value) {
             $this->customerForm['contract_valid_from'] = '';
             $this->customerForm['contract_valid_to'] = '';
+            $this->customerForm['contract_scope'] = '';
+            $this->customerForm['is_scheduled_sampling'] = false;
+            $this->customerForm['default_collection_method'] = '';
             $this->contractFile = null;
+        }
+    }
+
+    public function updatedCustomerFormIsScheduledSampling($value): void
+    {
+        if ($value) {
+            $this->customerForm['default_collection_method'] = '';
         }
     }
 
@@ -644,6 +667,14 @@ class CustomerManager extends Component
                 : null;
             $customer->contract_valid_to = $hasContract
                 ? ($this->customerForm['contract_valid_to'] ?: null)
+                : null;
+            $isScheduledSampling = $hasContract && (bool) ($this->customerForm['is_scheduled_sampling'] ?? false);
+            $customer->contract_scope = $hasContract
+                ? ($this->customerForm['contract_scope'] ?: null)
+                : null;
+            $customer->is_scheduled_sampling = $isScheduledSampling;
+            $customer->default_collection_method = ($hasContract && ! $isScheduledSampling)
+                ? ($this->customerForm['default_collection_method'] ?: null)
                 : null;
             
             // Handle zoho_customer_id as JSON array
@@ -775,6 +806,11 @@ class CustomerManager extends Component
         $current = $customer->contracts()->where('is_current', true)->latest('created_at')->first();
         $validFrom = $this->customerForm['contract_valid_from'] ?: null;
         $validTo = $this->customerForm['contract_valid_to'] ?: null;
+        $contractScope = $this->customerForm['contract_scope'] ?: null;
+        $isScheduledSampling = (bool) ($this->customerForm['is_scheduled_sampling'] ?? false);
+        $collectionMethod = (! $isScheduledSampling && filled($this->customerForm['default_collection_method'] ?? null))
+            ? $this->customerForm['default_collection_method']
+            : null;
         $postedBy = Auth::user()->name ?? 'System';
 
         if ($this->contractFile) {
@@ -788,6 +824,9 @@ class CustomerManager extends Component
             $contract->crm_customer_id = $customer->id;
             $contract->valid_from = $validFrom;
             $contract->valid_to = $validTo;
+            $contract->contract_scope = $contractScope;
+            $contract->is_scheduled_sampling = $isScheduledSampling;
+            $contract->default_collection_method = $collectionMethod;
             $contract->posted_by = $postedBy;
             $contract->is_current = true;
             $contract->original_name = $this->contractFile->getClientOriginalName();
@@ -803,6 +842,9 @@ class CustomerManager extends Component
         if ($current) {
             $current->valid_from = $validFrom;
             $current->valid_to = $validTo;
+            $current->contract_scope = $contractScope;
+            $current->is_scheduled_sampling = $isScheduledSampling;
+            $current->default_collection_method = $collectionMethod;
             $current->posted_by = $postedBy;
             $current->save();
 
@@ -813,6 +855,9 @@ class CustomerManager extends Component
         $contract->crm_customer_id = $customer->id;
         $contract->valid_from = $validFrom;
         $contract->valid_to = $validTo;
+        $contract->contract_scope = $contractScope;
+        $contract->is_scheduled_sampling = $isScheduledSampling;
+        $contract->default_collection_method = $collectionMethod;
         $contract->posted_by = $postedBy;
         $contract->is_current = true;
         $contract->save();
@@ -872,6 +917,9 @@ class CustomerManager extends Component
             'has_contract' => false,
             'contract_valid_from' => '',
             'contract_valid_to' => '',
+            'contract_scope' => '',
+            'is_scheduled_sampling' => false,
+            'default_collection_method' => '',
         ];
         $this->contractFile = null;
         $this->logoFile = null;

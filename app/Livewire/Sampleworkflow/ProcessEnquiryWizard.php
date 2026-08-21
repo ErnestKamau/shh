@@ -32,7 +32,7 @@ class ProcessEnquiryWizard extends Component
 
     public bool $useReceivingTheme = false;
 
-    public string $activeStep = 'review';
+    public string $activeStep = 'sample_config';
 
     public ?string $enquiryId = null;
 
@@ -201,8 +201,9 @@ class ProcessEnquiryWizard extends Component
     public function getWizardStepsProperty(): array
     {
         return [
-            ['key' => 'review', 'label' => 'Review request'],
-            ['key' => 'sample_config', 'label' => 'Sample configuration'],
+            // Step 1 hidden for now — keep for easy restore:
+            // ['key' => 'review', 'label' => 'Review request'],
+            ['key' => 'sample_config', 'label' => 'Test Hierarchy configuration'],
             ['key' => 'pricing', 'label' => 'Parameters & pricing'],
         ];
     }
@@ -385,6 +386,7 @@ class ProcessEnquiryWizard extends Component
         }
 
         $this->loadSampleConfigs($enquiry);
+        $this->ensureRequestedParametersSelected($enquiry);
         $this->normalizeSampleConfigs();
 
         if (! $this->quotationBuilt && $this->sampleConfigs !== [] && $this->crmCustomerId !== '') {
@@ -421,8 +423,14 @@ class ProcessEnquiryWizard extends Component
 
     public function goToStep(string $step): void
     {
+        // 'review' kept for commented-out step 1 restore; not offered in wizardSteps.
         if (! in_array($step, ['review', 'sample_config', 'pricing'], true)) {
             return;
+        }
+
+        if ($step === 'review') {
+            // Step 1 is commented out — land on sample config instead.
+            $step = 'sample_config';
         }
 
         if ($step === 'pricing') {
@@ -482,9 +490,10 @@ class ProcessEnquiryWizard extends Component
             $this->setStatus('info', '');
         }
 
-        if ($step === 'review') {
-            $this->setStatus('info', '');
-        }
+        // Step 1 (review) commented out:
+        // if ($step === 'review') {
+        //     $this->setStatus('info', '');
+        // }
 
         $this->activeStep = $step;
     }
@@ -824,6 +833,8 @@ class ProcessEnquiryWizard extends Component
 
     public function saveReviewAndContinue(): void
     {
+        // Step 1 (Review request) is commented out in the wizard UI.
+        // Method kept so it can be restored with the review step.
         if ($this->enquiryId === null) {
             return;
         }
@@ -1704,12 +1715,14 @@ class ProcessEnquiryWizard extends Component
             return 'pricing';
         }
 
-        $storedConfig = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
-        if ($storedConfig !== []) {
-            return 'sample_config';
-        }
-
-        return 'review';
+        // Step 1 (review) is commented out — always open on sample config when no quotation yet.
+        return 'sample_config';
+        // $storedConfig = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+        // if ($storedConfig !== []) {
+        //     return 'sample_config';
+        // }
+        //
+        // return 'review';
     }
 
     /**

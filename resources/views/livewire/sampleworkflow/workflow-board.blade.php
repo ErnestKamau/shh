@@ -708,13 +708,165 @@
 		}
 	}
 
-	#receive-sample-modal.receive-sample-modal--paper-trf .receive-sample-modal-header {
+	#receive-sample-modal.receive-sample-modal--paper-trf .receive-sample-modal-header,
+	#receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header {
 		align-items: flex-start;
-		padding-bottom: 0.65rem;
+		padding: 1.15rem 1.75rem 0.85rem;
 	}
 
-	#receive-sample-modal.receive-sample-modal--paper-trf .receive-sample-modal-header .modal-title {
+	#receive-sample-modal.receive-sample-modal--paper-trf .receive-sample-modal-header .modal-title,
+	#receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header .modal-title {
 		font-weight: 700;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .modal-dialog {
+		max-width: min(1320px, calc(100vw - 8.5rem));
+		width: calc(100% - 8.5rem);
+		height: calc(95vh - 3.5rem);
+		max-height: calc(95vh - 3.5rem);
+		margin: 1.75rem auto;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .modal-content {
+		height: 100%;
+		max-height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
+		flex: 1 1 auto;
+		padding: 1.35rem 1.75rem 1.5rem;
+		min-height: 0;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-footer {
+		padding: 1rem 0 0.25rem;
+		margin-top: 0.5rem;
+	}
+
+	#receive-sample-modal .dr-ext-nav {
+		position: fixed;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 1065;
+		width: 3.25rem;
+		height: 4.75rem;
+		border: 0;
+		border-radius: 0.75rem;
+		background: rgba(55, 65, 81, 0.72);
+		color: #f8fafc;
+		display: none;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.25rem;
+		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.28);
+		transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+		padding: 0.35rem 0.2rem;
+	}
+
+	#receive-sample-modal.show.receive-sample-modal--direct-registration .dr-ext-nav:not(.d-none) {
+		display: inline-flex;
+	}
+
+	#receive-sample-modal .dr-ext-nav i {
+		font-size: 1.85rem;
+		line-height: 1;
+	}
+
+	#receive-sample-modal .dr-ext-nav--left {
+		left: 1.25rem;
+	}
+
+	#receive-sample-modal .dr-ext-nav--right {
+		right: 1.25rem;
+	}
+
+	#receive-sample-modal .dr-ext-nav.is-active {
+		background: #fff;
+		color: #111827;
+	}
+
+	#receive-sample-modal .dr-ext-nav--right.is-active,
+	#receive-sample-modal .dr-ext-nav--right.is-receive-cue {
+		background: var(--color-primary, #6d0a0e);
+		color: #fff;
+		width: 3.65rem;
+		min-height: 8.5rem;
+		height: auto;
+		padding: 0.85rem 0.35rem;
+	}
+
+	#receive-sample-modal .dr-ext-nav--right .dr-ext-nav__cue {
+		display: block;
+		opacity: 1;
+		visibility: visible;
+	}
+
+	#receive-sample-modal .dr-ext-nav.is-active:hover {
+		background: #f8fafc;
+		transform: translateY(-50%) scale(1.04);
+	}
+
+	#receive-sample-modal .dr-ext-nav--right.is-active:hover,
+	#receive-sample-modal .dr-ext-nav--right.is-receive-cue:hover {
+		background: color-mix(in srgb, var(--color-primary, #6d0a0e) 88%, #000);
+		color: #fff;
+	}
+
+	#receive-sample-modal .dr-ext-nav.is-disabled,
+	#receive-sample-modal .dr-ext-nav:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
+
+	#receive-sample-modal .dr-ext-nav__cue {
+		writing-mode: vertical-rl;
+		transform: rotate(180deg);
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		line-height: 1.15;
+		white-space: nowrap;
+	}
+
+	@media (max-width: 991.98px) {
+		#receive-sample-modal.receive-sample-modal--direct-registration .modal-dialog {
+			max-width: calc(100vw - 5.5rem);
+			width: calc(100% - 5.5rem);
+			height: calc(95vh - 2.5rem);
+			max-height: calc(95vh - 2.5rem);
+			margin: 1.25rem auto;
+		}
+
+		#receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
+			padding: 1.1rem 1.15rem 1.25rem;
+		}
+
+		#receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header {
+			padding: 1rem 1.15rem 0.75rem;
+		}
+
+		#receive-sample-modal .dr-ext-nav {
+			width: 2.75rem;
+			height: 3.75rem;
+		}
+
+		#receive-sample-modal .dr-ext-nav--left {
+			left: 0.45rem;
+		}
+
+		#receive-sample-modal .dr-ext-nav--right {
+			right: 0.45rem;
+		}
+
+		#receive-sample-modal .dr-ext-nav__cue {
+			display: block !important;
+			font-size: 0.58rem;
+		}
 	}
 
 	#receive-sample-modal .modal-content,
@@ -1077,11 +1229,32 @@
 						</div>
 						--}}
 						<div class="btn-group workflow-actions-dropdown"
-							x-data="{ actionsOpen: false }"
-							@click.outside="actionsOpen = false">
+							x-data="{
+								actionsOpen: false,
+								closeTimer: null,
+								openActions() {
+									clearTimeout(this.closeTimer);
+									this.actionsOpen = true;
+								},
+								scheduleCloseActions() {
+									clearTimeout(this.closeTimer);
+									this.closeTimer = setTimeout(() => { this.actionsOpen = false; }, 150);
+								},
+								toggleActions() {
+									clearTimeout(this.closeTimer);
+									this.actionsOpen = !this.actionsOpen;
+								},
+								closeActions() {
+									clearTimeout(this.closeTimer);
+									this.actionsOpen = false;
+								}
+							}"
+							@mouseenter="openActions()"
+							@mouseleave="scheduleCloseActions()"
+							@click.outside="closeActions()">
 							<button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
 								id="workflowActionsDropdownToggle"
-								@click.stop="actionsOpen = !actionsOpen"
+								@click.stop="toggleActions()"
 								:aria-expanded="actionsOpen"
 								aria-haspopup="true">
 								<i class="mdi mdi-dots-horizontal"></i> Actions
@@ -1089,7 +1262,7 @@
 							<ul class="dropdown-menu dropdown-menu-right"
 								:class="{ 'show': actionsOpen }"
 								aria-labelledby="workflowActionsDropdownToggle"
-								@click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { actionsOpen = false; }">
+								@click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { closeActions(); }">
 								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Receiving", "Samples Request Review", "Samples Reception", "Samples In Lab")))
 									<li>
 										<button type="button" class="dropdown-item initiate-interlab" data-toggle="modal"
@@ -1442,11 +1615,11 @@
 									style="gap: 8px;">
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
 										<button type="button"
-											class="btn btn-sm btn-outline-primary"
-											data-sf-trigger="workflow-enter-paper-trf"
+											class="btn btn-sm btn-primary btn-action-sm"
+											data-sf-trigger="workflow-direct-registration"
 											wire:click="openOfflinePaperTrfCapture"
-											title="Transcribe a paper test request form">
-											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Enter paper TRF
+											title="Register a walk-in request under an active contract">
+											<i class="mdi mdi-clipboard-plus-outline mr-1"></i> Direct Registration
 										</button>
 									@endif
 								<div class="d-flex align-items-center flex-wrap"
@@ -1732,6 +1905,7 @@
 													<option value="">All Origins</option>
 													<option value="scheduled">Scheduled Sampling</option>
 													<option value="walk-in">Walk-in</option>
+													<option value="offline">Direct Registration</option>
 												</select>
 											</div>
 										</div>
@@ -2756,7 +2930,7 @@
 																@elseif($originChannel === 'walk_in')
 																	<span class="badge badge-info"><i class="mdi mdi-walk mr-1"></i> Walk-in</span>
 																@elseif($originChannel === 'offline')
-																	<span class="badge badge-secondary"><i class="mdi mdi-file-edit-outline mr-1"></i> Offline</span>
+																	<span class="badge badge-secondary"><i class="mdi mdi-clipboard-plus-outline mr-1"></i> Direct Registration</span>
 																@elseif($originChannel === 'scheduled')
 																	<span class="badge badge-success"><i class="mdi mdi-calendar-clock mr-1"></i> Scheduled</span>
 																	<span class="badge badge-light border text-dark ml-1">Sampling contract</span>
@@ -3613,6 +3787,14 @@
 		@endif
 		@if ($status === 'Samples Receiving')
 			<div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
+				<button type="button"
+					id="dr-carousel-left"
+					class="dr-ext-nav dr-ext-nav--left is-disabled d-none"
+					disabled
+					title="Back to Direct Registration"
+					aria-label="Back to Direct Registration">
+					<i class="mdi mdi-chevron-left"></i>
+				</button>
 				<div id="receive-sample-modal-dialog" class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
 						<div class="modal-header receive-sample-modal-header border-0">
@@ -3632,6 +3814,14 @@
 						</div>
 					</div>
 				</div>
+				<button type="button"
+					id="dr-carousel-right"
+					class="dr-ext-nav dr-ext-nav--right is-disabled d-none"
+					disabled
+					aria-label="Accept samples">
+					<span class="dr-ext-nav__cue">Accept samples</span>
+					<i class="mdi mdi-chevron-right"></i>
+				</button>
 			</div>
 			<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 			<div id="request-additional-info-modal" class="modal fade" tabindex="-1" role="dialog">
@@ -6600,20 +6790,24 @@
 				const iconEl = document.getElementById('receive-sample-modal-icon');
 				const subtitleEl = document.getElementById('receive-sample-modal-subtitle');
 				const intakeChannel = data.intakeChannel ?? '';
+				const leftNav = document.getElementById('dr-carousel-left');
+				const rightNav = document.getElementById('dr-carousel-right');
 
 				if (modalEl) {
 					modalEl.classList.remove('receive-sample-modal--compact');
-					modalEl.classList.toggle('receive-sample-modal--paper-trf', intakeChannel === 'offline');
+					const isDirectRegistration = intakeChannel === 'offline';
+					modalEl.classList.toggle('receive-sample-modal--paper-trf', isDirectRegistration);
+					modalEl.classList.toggle('receive-sample-modal--direct-registration', isDirectRegistration);
 				}
 				if (dialogEl) {
 					dialogEl.classList.add('modal-xl', 'modal-dialog-scrollable');
 				}
 				if (titleEl && iconEl) {
 					if (intakeChannel === 'offline') {
-						titleEl.textContent = 'Paper test request';
-						iconEl.className = 'mdi mdi-file-document-edit-outline text-primary mr-2';
+						titleEl.textContent = 'Direct Registration';
+						iconEl.className = 'mdi mdi-clipboard-plus-outline text-primary mr-2';
 						if (subtitleEl) {
-							subtitleEl.textContent = 'Enter batch and sample details from the paper TRF.';
+							subtitleEl.textContent = 'Choose a published TRF, fill it, then accept samples without leaving this window.';
 							subtitleEl.classList.remove('d-none');
 						}
 					} else {
@@ -6625,6 +6819,18 @@
 						}
 					}
 				}
+
+				if (leftNav && rightNav) {
+					if (intakeChannel === 'offline') {
+						leftNav.classList.remove('d-none');
+						rightNav.classList.remove('d-none');
+						window.syncDirectRegistrationCarouselNav({ ready: false, pane: 'register' });
+					} else {
+						leftNav.classList.add('d-none');
+						rightNav.classList.add('d-none');
+					}
+				}
+
 				$('#receive-sample-modal').modal('show');
 				setTimeout(function () {
 					if (typeof window.initTrfSignaturePads === 'function') {
@@ -6634,6 +6840,130 @@
 						window.initWalkInTrfParameterSelects();
 					}
 				}, 200);
+			});
+
+			window.syncDirectRegistrationCarouselNav = function (state) {
+				const leftNav = document.getElementById('dr-carousel-left');
+				const rightNav = document.getElementById('dr-carousel-right');
+				const cue = rightNav ? rightNav.querySelector('.dr-ext-nav__cue') : null;
+				const ready = !!(state && state.ready);
+				const pane = (state && state.pane) ? String(state.pane) : 'register';
+
+				[leftNav, rightNav].forEach(function (btn) {
+					if (! btn) {
+						return;
+					}
+					btn.disabled = ! ready;
+					btn.classList.toggle('is-disabled', ! ready);
+					btn.classList.toggle('is-active', ready);
+				});
+
+				if (rightNav) {
+					rightNav.classList.toggle('is-receive-cue', ready && pane !== 'receive');
+				}
+
+				if (cue) {
+					cue.classList.remove('d-none');
+				}
+			};
+
+			Livewire.on('direct-registration-carousel-state', function (payload) {
+				const data = Array.isArray(payload) ? (payload[0] ?? {}) : (payload ?? {});
+				window.syncDirectRegistrationCarouselNav(data);
+			});
+
+			document.getElementById('dr-carousel-left')?.addEventListener('click', function () {
+				if (this.disabled) {
+					return;
+				}
+				Livewire.dispatch('go-direct-registration-carousel', { direction: 'left' });
+			});
+
+			document.getElementById('dr-carousel-right')?.addEventListener('click', function () {
+				if (this.disabled) {
+					return;
+				}
+				Livewire.dispatch('go-direct-registration-carousel', { direction: 'right' });
+			});
+
+			Livewire.on('direct-registration-handoff-to-receive', function () {
+				window.closeDirectRegistrationForReceiveHandoff();
+			});
+
+			window.clearBootstrapModalOverlay = function (options) {
+				const keepBodyLock = !!(options && options.keepBodyLock);
+				document.querySelectorAll('body > .modal-backdrop').forEach(function (el) {
+					el.remove();
+				});
+				document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+					el.remove();
+				});
+				document.body.classList.remove('modal-open', 'dr-receive-samples-open');
+				document.body.style.removeProperty('padding-right');
+				if (keepBodyLock) {
+					document.body.style.overflow = 'hidden';
+				} else {
+					document.body.style.removeProperty('overflow');
+				}
+			};
+
+			window.closeDirectRegistrationForReceiveHandoff = function () {
+				window.__drHandoffScrollY = window.scrollY || window.pageYOffset || 0;
+				const modalEl = document.getElementById('receive-sample-modal');
+				const leftNav = document.getElementById('dr-carousel-left');
+				const rightNav = document.getElementById('dr-carousel-right');
+
+				if (leftNav) {
+					leftNav.classList.add('d-none');
+				}
+				if (rightNav) {
+					rightNav.classList.add('d-none');
+				}
+
+				if (modalEl && typeof $ !== 'undefined') {
+					$(modalEl).off('hidden.bs.modal.drHandoff').one('hidden.bs.modal.drHandoff', function () {
+						window.clearBootstrapModalOverlay({ keepBodyLock: true });
+						window.scrollTo(0, window.__drHandoffScrollY || 0);
+						if (modalEl) {
+							modalEl.style.display = 'none';
+							modalEl.classList.remove('show', 'receive-sample-modal--direct-registration', 'receive-sample-modal--paper-trf');
+							modalEl.setAttribute('aria-hidden', 'true');
+						}
+					});
+					$(modalEl).modal('hide');
+				}
+
+				window.clearBootstrapModalOverlay({ keepBodyLock: true });
+				window.scrollTo(0, window.__drHandoffScrollY || 0);
+				setTimeout(function () {
+					window.clearBootstrapModalOverlay({ keepBodyLock: true });
+					window.scrollTo(0, window.__drHandoffScrollY || 0);
+				}, 50);
+				setTimeout(function () {
+					window.clearBootstrapModalOverlay({ keepBodyLock: true });
+					window.scrollTo(0, window.__drHandoffScrollY || 0);
+				}, 350);
+			};
+
+			Livewire.on('acceptance-wizard-opened', function () {
+				window.clearBootstrapModalOverlay({ keepBodyLock: true });
+				window.scrollTo(0, window.__drHandoffScrollY || window.scrollY || 0);
+				setTimeout(function () {
+					window.clearBootstrapModalOverlay({ keepBodyLock: true });
+					window.scrollTo(0, window.__drHandoffScrollY || window.scrollY || 0);
+					const backdrop = document.querySelector('.acc-wizard-root--acceptance .acc-wizard-backdrop');
+					const body = document.querySelector('.acc-wizard-root--acceptance .acc-wizard-body');
+					if (backdrop) {
+						backdrop.scrollTop = 0;
+					}
+					if (body) {
+						body.scrollTop = 0;
+					}
+				}, 50);
+			});
+
+			Livewire.on('acceptance-wizard-closed', function () {
+				window.clearBootstrapModalOverlay();
 			});
 
 			Livewire.on('trf-reinit-parameter-selects', function (payload) {
@@ -6702,7 +7032,17 @@
 				const modalEl = document.getElementById('receive-sample-modal');
 				const dialogEl = document.getElementById('receive-sample-modal-dialog');
 				if (modalEl) {
-					modalEl.classList.remove('receive-sample-modal--compact', 'receive-sample-modal--paper-trf');
+					modalEl.classList.remove('receive-sample-modal--compact', 'receive-sample-modal--paper-trf', 'receive-sample-modal--direct-registration');
+				}
+				const leftNav = document.getElementById('dr-carousel-left');
+				const rightNav = document.getElementById('dr-carousel-right');
+				if (leftNav && rightNav) {
+					leftNav.classList.add('d-none', 'is-disabled');
+					rightNav.classList.add('d-none', 'is-disabled');
+					leftNav.disabled = true;
+					rightNav.disabled = true;
+					leftNav.classList.remove('is-active');
+					rightNav.classList.remove('is-active');
 				}
 				if (dialogEl) {
 					dialogEl.classList.add('modal-xl', 'modal-dialog-scrollable');

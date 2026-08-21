@@ -423,6 +423,7 @@ class AcceptanceFormWizard extends Component
     {
         $this->showModal = false;
         $this->resetWizard();
+        $this->dispatch('acceptance-wizard-closed');
     }
 
     public function submitDualAccept(): void

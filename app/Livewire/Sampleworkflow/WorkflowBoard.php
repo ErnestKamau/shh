@@ -87,10 +87,47 @@ class WorkflowBoard extends Component
 
     /**
      * Sub-tab for status pages that split Requests vs Received.
+     * Synced to `?tab=` so breadcrumb deep-links stay accurate when switching tabs.
      */
     public string $workflowSubTab = 'requests';
 
     public string $subcontractingDispatchStatus = SampleSubmissionRequest::SUBCONTRACT_DISPATCH_AWAITING;
+
+    /**
+     * Keep the active receiving / review sub-tab in the browser URL.
+     *
+     * @return array<string, array{as: string, history: bool, except: string}>
+     */
+    protected function queryString(): array
+    {
+        return [
+            'workflowSubTab' => [
+                'as' => 'tab',
+                'history' => true,
+                'except' => $this->defaultWorkflowSubTab(),
+            ],
+        ];
+    }
+
+    /**
+     * Default sub-tab for the current workflow status (omitted from the URL via queryString except).
+     */
+    protected function defaultWorkflowSubTab(): string
+    {
+        $status = $this->status !== ''
+            ? $this->status
+            : rawurldecode((string) (request()->route('status') ?? ''));
+
+        if ($status === 'Samples Receiving') {
+            return 'submitted';
+        }
+
+        if ($status === 'Samples Request Review') {
+            return 'in_review';
+        }
+
+        return 'requests';
+    }
 
     /**
      * Initial filters passed from the controller (query string).
@@ -261,7 +298,6 @@ class WorkflowBoard extends Component
 
         $requestedTab = strtolower((string) ($this->initialFilters['tab'] ?? request()->query('tab', 'requests')));
         if ($this->status === 'Samples Receiving') {
-            $defaultTab = 'submitted';
             // Legacy In Review folds into Integrity Accept; received → Ready for Reception rename path.
             if ($requestedTab === 'in_review') {
                 $requestedTab = 'sample_integrity_check';
@@ -271,15 +307,17 @@ class WorkflowBoard extends Component
             }
             $this->workflowSubTab = in_array($requestedTab, array_keys(self::receivingRequestTabs()), true)
                 ? $requestedTab
-                : $defaultTab;
+                : $this->defaultWorkflowSubTab();
         } elseif ($this->status === 'Samples Request Review') {
             $legacyTabMap = ['requests' => 'in_review', 'received' => 'accepted'];
             $requestedTab = $legacyTabMap[$requestedTab] ?? $requestedTab;
             $this->workflowSubTab = in_array($requestedTab, array_keys(self::requestReviewTabs()), true)
                 ? $requestedTab
-                : 'in_review';
+                : $this->defaultWorkflowSubTab();
         } else {
-            $this->workflowSubTab = in_array($requestedTab, ['requests', 'received'], true) ? $requestedTab : 'requests';
+            $this->workflowSubTab = in_array($requestedTab, ['requests', 'received'], true)
+                ? $requestedTab
+                : $this->defaultWorkflowSubTab();
         }
 
         $this->allFilter = $this->defaultAllSamplesFilter();
@@ -2025,15 +2063,21 @@ SQL);
             if (in_array($tab, ['received', 'in_review'], true)) {
                 $tab = 'ready_for_reception';
             }
-            $this->workflowSubTab = in_array($tab, $this->receivingRequestTabKeys(), true) ? $tab : 'submitted';
+            $this->workflowSubTab = in_array($tab, $this->receivingRequestTabKeys(), true)
+                ? $tab
+                : $this->defaultWorkflowSubTab();
             $this->selectedFormInstanceIds = [];
             $this->resetPage('forms_page');
         } elseif ($this->isSamplesRequestReview()) {
-            $this->workflowSubTab = in_array($tab, $this->requestReviewTabKeys(), true) ? $tab : 'in_review';
+            $this->workflowSubTab = in_array($tab, $this->requestReviewTabKeys(), true)
+                ? $tab
+                : $this->defaultWorkflowSubTab();
             $this->selectedFormInstanceIds = [];
             $this->resetPage('forms_page');
         } else {
-            $this->workflowSubTab = in_array($tab, ['requests', 'received'], true) ? $tab : 'requests';
+            $this->workflowSubTab = in_array($tab, ['requests', 'received'], true)
+                ? $tab
+                : $this->defaultWorkflowSubTab();
             $this->resetPage('batches_page');
             $this->resetPage('portal_submissions_page');
         }
@@ -2940,19 +2984,30 @@ SQL);
         $this->onProcessEnquiryCompleted();
     }
 
-    public function onReceiveCompleted(array $trfiIds = []): void
+    public function onReceiveCompleted(array $sfiIds = [], bool $keepModalOpen = false): void
     {
         $this->bustReceivingCountsCache();
         $this->selectedFormInstanceIds = [];
         $this->receiveFormSummaries = [];
-        $this->dispatch('hide-receive-sample-modal');
 
-        if ($this->isSamplesReceiving()) {
+        if (! $keepModalOpen) {
+            $this->dispatch('hide-receive-sample-modal');
+        }
+
+        if ($this->isSamplesReceiving() && $this->workflowSubTab !== 'ready_for_reception') {
             $this->setWorkflowSubTab('ready_for_reception');
         }
 
-        if ($trfiIds !== []) {
-            $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $trfiIds[0]));
+        if ($sfiIds !== [] && ! $keepModalOpen) {
+            $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $sfiIds[0]));
+        }
+
+        if ($keepModalOpen) {
+            $this->dispatch(
+                'direct-registration-carousel-state',
+                ready: true,
+                pane: 'register',
+            );
         }
     }
 
@@ -3198,6 +3253,12 @@ SQL);
     public function openOfflinePaperTrfCapture(): void
     {
         $this->dispatch('open-offline-paper-trf')->to(ReceiveSampleRequest::class);
+    }
+
+    #[Renderless]
+    public function openDirectRegistration(): void
+    {
+        $this->openOfflinePaperTrfCapture();
     }
 
     #[Renderless]

@@ -28,6 +28,7 @@ class CRMCustomer extends Model implements Auditable
 		'has_contract' => 'boolean',
 		'requires_sampling' => 'boolean',
 		'is_one_time' => 'boolean',
+		'is_scheduled_sampling' => 'boolean',
 		'quotation_acceptance_tat_minutes' => 'integer',
 		'code' => \App\Casts\SafeEncrypted::class,
 		'contact_person' => \App\Casts\SafeEncrypted::class,
