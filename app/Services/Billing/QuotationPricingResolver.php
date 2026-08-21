@@ -10,6 +10,24 @@ use App\QuotationHeader;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 
+/**
+ * Quotation line commercial pricing (Amspec UAE prep model).
+ *
+ * Formula (package / sample block):
+ *   Total price = No. of samples × Unit price
+ *
+ * It is NOT:
+ *   - number of tests × unit price
+ *   - sum of a separate unit price per test
+ *
+ * So one sample package (e.g. Potable Water) can list 20+ tests for scope
+ * (LOQ, MU, method, accreditation) and still bill a single unit price once
+ * for that sample package. PDF/prep UI lists every test under the block;
+ * commercial columns (qty, unit price, total) belong to the package, not each test.
+ *
+ * PRICING_MODE_PER_TEST is the explicit exception that splits one prep line
+ * into per-test billed rows. AUTO / PER_PACKAGE keep one commercial line.
+ */
 class QuotationPricingResolver
 {
     public const PRICING_MODE_AUTO = 'auto';
@@ -24,10 +42,30 @@ class QuotationPricingResolver
         private readonly UncertaintyBudgetResolver $uncertaintyBudgetResolver,
     ) {}
 
-    public function resolvePricelist(?string $customerId): ?Pricelist
+    public function resolvePricelist(?string $customerId, ?QuotationHeader $header = null): ?Pricelist
     {
-        return $this->acceptanceFormPricingService->resolveCustomerAssignedPricelist($customerId)
-            ?? $this->acceptanceFormPricingService->resolvePricelist($customerId);
+        if ($header !== null && ! empty($header->pricelist_id)) {
+            $selected = Pricelist::query()->find($header->pricelist_id);
+            if ($selected !== null) {
+                $eligibleIds = collect(
+                    $this->acceptanceFormPricingService->eligiblePricelistsForCustomer($customerId)
+                )->map(fn (Pricelist $p): string => (string) $p->id)->all();
+
+                if (in_array((string) $selected->id, $eligibleIds, true)) {
+                    return $selected;
+                }
+            }
+        }
+
+        $assigned = $this->acceptanceFormPricingService->resolveCustomerAssignedPricelist($customerId);
+        if ($assigned !== null) {
+            return $assigned;
+        }
+
+        // No unassigned master / random active fallback — customer must be assigned.
+        $eligible = $this->acceptanceFormPricingService->eligiblePricelistsForCustomer($customerId);
+
+        return $eligible[0] ?? null;
     }
 
     /**
@@ -49,7 +87,7 @@ class QuotationPricingResolver
             ];
         }
 
-        $pricelist = $this->resolvePricelist($header->crm_customer_id);
+        $pricelist = $this->resolvePricelist($header->crm_customer_id, $header);
         $pricelistPrice = $this->acceptanceFormPricingService->resolveLinePrice(
             $pricelist,
             $sampleTypeId,
@@ -160,7 +198,7 @@ class QuotationPricingResolver
         string $analysisTypeIdsCsv,
     ): array {
         $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
-        $pricelist = $this->resolvePricelist($header->crm_customer_id);
+        $pricelist = $this->resolvePricelist($header->crm_customer_id, $header);
 
         $elementIds = [];
         $foundAny = false;
@@ -388,7 +426,7 @@ class QuotationPricingResolver
             $covered = $package['covered_element_ids'];
             $packagePrice = (float) $item->selling_price;
             $extras = array_values(array_diff($elementIds, $covered));
-            $pricelist = $package['pricelist'] ?? $this->resolvePricelist($header->crm_customer_id);
+            $pricelist = $package['pricelist'] ?? $this->resolvePricelist($header->crm_customer_id, $header);
             $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
             $defaultAnalysisTypeId = $analysisTypeIds[0] ?? '';
 
@@ -438,7 +476,7 @@ class QuotationPricingResolver
             ];
         }
 
-        $pricelist = $this->resolvePricelist($header->crm_customer_id);
+        $pricelist = $this->resolvePricelist($header->crm_customer_id, $header);
         $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
         $defaultAnalysisTypeId = $analysisTypeIds[0] ?? '';
 
@@ -477,9 +515,14 @@ class QuotationPricingResolver
     }
 
     /**
-     * Prefer a single package detail row when selected tests fully cover a pricelist package.
-     * Extra uncovered tests remain as individual rows. Manual overrides still split across tests.
-     * Line tax always comes from pricelist vat + active tax regime; the $tax argument is ignored.
+     * Build commercial quotation_details row payload(s) from one prep UI line.
+     *
+     * Amspec UAE package math (default AUTO / PER_PACKAGE):
+     *   Total price = No. of samples × Unit price   (ONCE for the sample package)
+     * Individual selected tests stay on that same line for LOQ / MU / method / PDF
+     * scope — they do NOT each receive a separate billed unit price.
+     *
+     * Only PRICING_MODE_PER_TEST splits into one billed row per analysis element.
      *
      * @param  list<string>  $elementIds
      * @param  array<string, string>  $loqOverrides  element_id => loq string
@@ -501,9 +544,11 @@ class QuotationPricingResolver
         array $loqOverrides = [],
         string $showLoqAnalytes = '',
         string $showMuAnalytes = '',
+        string $quantityRequired = '',
     ): array {
         unset($tax);
         $pricingMode = $this->normalizePricingMode($pricingMode);
+        $quantityRequired = trim($quantityRequired);
         $suggestion = $this->suggestManualLinePricing(
             $header,
             $sampleTypeId,
@@ -512,7 +557,6 @@ class QuotationPricingResolver
             $pricingMode,
         );
 
-        $usePackage = (bool) ($suggestion['is_package'] ?? false);
         $resolvedUnitPrice = $unitPrice > 0 ? $unitPrice : (float) $suggestion['unit_price'];
         $resolvedTax = (float) $suggestion['tax'];
         $showLoqList = array_values(array_filter(array_map('trim', explode(',', $showLoqAnalytes))));
@@ -522,6 +566,8 @@ class QuotationPricingResolver
             return [[
                 'sample_type' => $sampleTypeId,
                 'quantity' => $quantity,
+                // Free-text package note (e.g. "Per Sample Swab") — not a price multiplier.
+                'quantity_required' => $quantityRequired !== '' ? $quantityRequired : null,
                 'unit_price' => $resolvedUnitPrice,
                 'tax' => $resolvedTax,
                 'part_no' => $analysisTypeIdsCsv,
@@ -540,17 +586,112 @@ class QuotationPricingResolver
             ]];
         }
 
-        $pricelist = $this->resolvePricelist($header->crm_customer_id);
         $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
+        if ($analysisTypeIds === []) {
+            $analysisTypeIds = AnalysisElements::query()
+                ->whereIn('id', $elementIds)
+                ->pluck('analysis_type_id')
+                ->map(fn ($id) => trim((string) $id))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
         $defaultAnalysisTypeId = $analysisTypeIds[0] ?? '';
+        $partNoCsv = implode(',', $analysisTypeIds);
+
+        // Default Amspec path: one commercial line for the whole sample package.
+        if ($pricingMode !== self::PRICING_MODE_PER_TEST) {
+            $packageMatch = $this->findPackageMatch($header, $sampleTypeId, $partNoCsv, $elementIds);
+            $isPackage = $packageMatch !== null
+                && (
+                    (bool) ($suggestion['is_package'] ?? false)
+                    || $pricingMode === self::PRICING_MODE_PER_PACKAGE
+                    || $unitPrice <= 0
+                    || abs($unitPrice - (float) $packageMatch['item']->selling_price) < 0.02
+                );
+
+            if ($isPackage && $unitPrice <= 0) {
+                $resolvedUnitPrice = (float) $packageMatch['item']->selling_price;
+            }
+
+            $csvs = $this->exclusiveParameterCsvs(
+                $elementIds,
+                $accreditedAnalytes,
+                $subcontractedAnalytes,
+                $defaultAnalytes,
+                $subAccAnalytes,
+            );
+
+            $analysisTypeName = $defaultAnalysisTypeId !== ''
+                ? (string) (AnalysisType::find($defaultAnalysisTypeId)?->name ?? 'Analysis')
+                : 'Analysis';
+
+            $packageTax = $resolvedTax;
+            if ($isPackage && $packageMatch !== null) {
+                $packageTax = $packageMatch['item']->vat
+                    ? $this->quotationLineTaxResolver->activeTaxRegimePercent()
+                    : 0.0;
+            }
+
+            // Aggregate LOQ/MU display hints for PDF toggles; per-test metrics stay on elements.
+            $loqParts = [];
+            $muParts = [];
+            $methodParts = [];
+            foreach ($elementIds as $elementId) {
+                $element = AnalysisElements::query()->find($elementId);
+                $metrics = $element
+                    ? $this->uncertaintyBudgetResolver->resolveLabMetricsForElement($element)
+                    : ['loq' => '', 'mu_percent' => '', 'test_method' => ''];
+                $loqVal = array_key_exists($elementId, $loqOverrides)
+                    ? trim((string) $loqOverrides[$elementId])
+                    : (string) ($metrics['loq'] ?? '');
+                if ($loqVal !== '') {
+                    $loqParts[] = $loqVal;
+                }
+                $muVal = (string) ($metrics['mu_percent'] ?? '');
+                if ($muVal !== '') {
+                    $muParts[] = $muVal;
+                }
+                $methodVal = (string) ($metrics['test_method'] ?? '');
+                if ($methodVal !== '') {
+                    $methodParts[] = $methodVal;
+                }
+            }
+
+            return [[
+                'sample_type' => $sampleTypeId,
+                'quantity' => $quantity,
+                // Total = quantity (no. of samples) × this unit_price — once for the package.
+                'quantity_required' => $quantityRequired !== '' ? $quantityRequired : null,
+                'unit_price' => $resolvedUnitPrice,
+                'tax' => $packageTax,
+                'part_no' => $partNoCsv !== '' ? $partNoCsv : $analysisTypeIdsCsv,
+                'accredited_analytes' => $csvs['accredited'],
+                'subcontracted_analytes' => $csvs['subcontracted'],
+                'default_analytes' => $csvs['default'],
+                'sub_acc_analytes' => $csvs['sub_acc'],
+                'is_package' => $isPackage,
+                'loq' => implode('; ', array_values(array_unique($loqParts))),
+                'mu_percent' => implode('; ', array_values(array_unique($muParts))),
+                'show_loq_analytes' => implode(',', array_values(array_intersect($showLoqList, $elementIds))),
+                'show_mu_analytes' => implode(',', array_values(array_intersect($showMuList, $elementIds))),
+                'test_method' => implode('; ', array_values(array_unique($methodParts))),
+                'tat' => $suggestion['max_tat'],
+                'description' => $isPackage
+                    ? $analysisTypeName.' package ('.count($elementIds).' parameters)'
+                    : '',
+            ]];
+        }
+
+        // Explicit per-test billing only (not the Amspec package default).
+        $pricelist = $this->resolvePricelist($header->crm_customer_id, $header);
         $accreditedList = array_values(array_filter(array_map('trim', explode(',', $accreditedAnalytes))));
         $subcontractedList = array_values(array_filter(array_map('trim', explode(',', $subcontractedAnalytes))));
-        $defaultList = array_values(array_filter(array_map('trim', explode(',', $defaultAnalytes))));
         $subAccList = array_values(array_filter(array_map('trim', explode(',', $subAccAnalytes))));
 
         $pricelistPrices = [];
         $pricelistTotal = 0.0;
-
         foreach ($elementIds as $elementId) {
             $element = AnalysisElements::query()->find($elementId);
             $analysisTypeId = (string) ($element?->analysis_type_id ?? $defaultAnalysisTypeId);
@@ -563,144 +704,7 @@ class QuotationPricingResolver
             $pricelistPrices[$elementId] = $price;
             $pricelistTotal += $price;
         }
-
         $pricelistTotal = round($pricelistTotal, 2);
-
-        $packageMatch = $pricingMode === self::PRICING_MODE_PER_TEST
-            ? null
-            : $this->findPackageMatch($header, $sampleTypeId, $analysisTypeIdsCsv, $elementIds);
-        $packagePrice = $packageMatch !== null ? (float) $packageMatch['item']->selling_price : 0.0;
-        $shouldSplitPackageExtras = $packageMatch !== null
-            && (
-                $usePackage
-                || $unitPrice <= 0
-                || abs($unitPrice - $packagePrice) < 0.02
-                || abs($unitPrice - $pricelistTotal) < 0.02
-                || abs($resolvedUnitPrice - $packagePrice) < 0.02
-                || ($suggestion['source'] ?? '') === 'pricelist_package'
-            );
-
-        if ($shouldSplitPackageExtras && $packageMatch !== null) {
-            $coveredElementIds = $packageMatch['covered_element_ids'];
-            $extras = array_values(array_diff($elementIds, $coveredElementIds));
-            $analysisTypeName = $defaultAnalysisTypeId !== ''
-                ? (string) (AnalysisType::find($defaultAnalysisTypeId)?->name ?? 'Analysis')
-                : 'Analysis';
-            $packageTax = $packageMatch['item']->vat
-                ? $this->quotationLineTaxResolver->activeTaxRegimePercent()
-                : 0.0;
-
-            if ($pricingMode === self::PRICING_MODE_PER_PACKAGE || $extras === []) {
-                $csvs = $this->exclusiveParameterCsvs(
-                    $elementIds,
-                    $accreditedAnalytes,
-                    $subcontractedAnalytes,
-                    $defaultAnalytes,
-                    $subAccAnalytes,
-                );
-
-                return [[
-                    'sample_type' => $sampleTypeId,
-                    'quantity' => $quantity,
-                    'unit_price' => $resolvedUnitPrice > 0 ? $resolvedUnitPrice : $packagePrice,
-                    'tax' => $packageTax,
-                    'part_no' => $defaultAnalysisTypeId !== '' ? $defaultAnalysisTypeId : $analysisTypeIdsCsv,
-                    'accredited_analytes' => $csvs['accredited'],
-                    'subcontracted_analytes' => $csvs['subcontracted'],
-                    'default_analytes' => $csvs['default'],
-                    'sub_acc_analytes' => $csvs['sub_acc'],
-                    'is_package' => true,
-                    'loq' => '',
-                    'mu_percent' => '',
-                    'show_loq_analytes' => implode(',', array_values(array_intersect($showLoqList, $elementIds))),
-                    'show_mu_analytes' => implode(',', array_values(array_intersect($showMuList, $elementIds))),
-                    'test_method' => '',
-                    'tat' => $suggestion['max_tat'],
-                    'description' => $analysisTypeName.' package ('.count($coveredElementIds).' parameters)',
-                ]];
-            }
-
-            $packageCsvs = $this->exclusiveParameterCsvs(
-                $coveredElementIds,
-                $accreditedAnalytes,
-                '',
-                $defaultAnalytes,
-                '',
-            );
-
-            $rows = [[
-                'sample_type' => $sampleTypeId,
-                'quantity' => $quantity,
-                'unit_price' => $packagePrice,
-                'tax' => $packageTax,
-                'part_no' => $defaultAnalysisTypeId,
-                'accredited_analytes' => $packageCsvs['accredited'],
-                'subcontracted_analytes' => '',
-                'default_analytes' => $packageCsvs['default'],
-                'sub_acc_analytes' => '',
-                'is_package' => true,
-                'loq' => '',
-                'mu_percent' => '',
-                'show_loq_analytes' => implode(',', array_values(array_intersect($showLoqList, $coveredElementIds))),
-                'show_mu_analytes' => implode(',', array_values(array_intersect($showMuList, $coveredElementIds))),
-                'test_method' => '',
-                'tat' => $suggestion['max_tat'],
-                'description' => $analysisTypeName.' package ('.count($coveredElementIds).' parameters)',
-            ]];
-
-            foreach ($extras as $elementId) {
-                $element = AnalysisElements::query()->find($elementId);
-                $analysisTypeId = (string) ($element?->analysis_type_id ?? $defaultAnalysisTypeId);
-                $metrics = $element
-                    ? $this->uncertaintyBudgetResolver->resolveLabMetricsForElement($element)
-                    : ['loq' => '', 'mu_percent' => '', 'test_method' => ''];
-                $loq = array_key_exists($elementId, $loqOverrides)
-                    ? trim((string) $loqOverrides[$elementId])
-                    : (string) ($metrics['loq'] ?? '');
-
-                $rows[] = [
-                    'sample_type' => $sampleTypeId,
-                    'quantity' => $quantity,
-                    'unit_price' => $pricelistPrices[$elementId] ?? 0.0,
-                    'tax' => $resolvedTax > 0
-                        ? $resolvedTax
-                        : $this->quotationLineTaxResolver->resolveLineTaxPercent(
-                            $pricelist,
-                            $sampleTypeId,
-                            $analysisTypeId,
-                            $elementId,
-                        ),
-                    'part_no' => $analysisTypeId,
-                    'accredited_analytes' => in_array($elementId, $accreditedList, true)
-                        && ! in_array($elementId, $subcontractedList, true)
-                        && ! in_array($elementId, $subAccList, true)
-                        ? $elementId
-                        : '',
-                    'subcontracted_analytes' => in_array($elementId, $subcontractedList, true)
-                        && ! in_array($elementId, $accreditedList, true)
-                        && ! in_array($elementId, $subAccList, true)
-                        ? $elementId
-                        : '',
-                    'default_analytes' => ! in_array($elementId, $accreditedList, true)
-                        && ! in_array($elementId, $subcontractedList, true)
-                        && ! in_array($elementId, $subAccList, true)
-                        ? $elementId
-                        : '',
-                    'sub_acc_analytes' => in_array($elementId, $subAccList, true) ? $elementId : '',
-                    'is_package' => false,
-                    'loq' => $loq,
-                    'mu_percent' => (string) ($metrics['mu_percent'] ?? ''),
-                    'show_loq_analytes' => in_array($elementId, $showLoqList, true) ? $elementId : '',
-                    'show_mu_analytes' => in_array($elementId, $showMuList, true) ? $elementId : '',
-                    'test_method' => (string) ($metrics['test_method'] ?? ''),
-                    'tat' => $this->elementTat($element, $analysisTypeId),
-                    'description' => '',
-                ];
-            }
-
-            return $rows;
-        }
-
         $usePerTestPricelist = $resolvedUnitPrice <= 0 || abs($resolvedUnitPrice - $pricelistTotal) < 0.02;
 
         $rows = [];
@@ -750,6 +754,7 @@ class QuotationPricingResolver
             $rows[] = [
                 'sample_type' => $sampleTypeId,
                 'quantity' => $quantity,
+                'quantity_required' => $quantityRequired !== '' ? $quantityRequired : null,
                 'unit_price' => $rowPrice,
                 'tax' => $rowTax,
                 'part_no' => $analysisTypeId,
@@ -818,7 +823,7 @@ class QuotationPricingResolver
         array $elementIds,
     ): ?array {
         $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
-        $pricelist = $this->resolvePricelist($header->crm_customer_id);
+        $pricelist = $this->resolvePricelist($header->crm_customer_id, $header);
 
         foreach ($analysisTypeIds as $analysisTypeId) {
             $match = $this->acceptanceFormPricingService->resolvePackageForGroup(

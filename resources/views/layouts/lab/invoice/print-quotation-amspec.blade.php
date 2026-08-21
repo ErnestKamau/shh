@@ -27,7 +27,7 @@
         .lines-table th, .lines-table td {
             border: 1px solid #333;
             padding: 4px 5px;
-            font-size: 8px;
+            font-size: 7.5px;
             vertical-align: top;
         }
         .th-maroon { background: #8B1538; color: #fff; font-weight: bold; }
@@ -46,7 +46,7 @@
             padding: 4px 5px;
         }
         .totals-label { text-align: right; }
-        .totals-value { text-align: right; width: 14%; }
+        .totals-value { text-align: right; width: 12%; }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .subcontract { font-style: italic; font-size: 7px; }
@@ -64,7 +64,12 @@
 
 {{-- Watermark is painted on every page by ReportWatermarkService::applyToPdf. --}}
 
-{{-- Page 1 --}}
+{{--
+  Amspec package layout:
+    Per test: Test, Method, (LOQ/MU if toggled)
+    Merged per package block: Quantity Required, TAT, No. of Samples, Unit Price, Total
+  Total = No. of samples × Unit price (ONCE) — never × number of tests.
+--}}
 @include('layouts.lab.invoice.partials.amspec-quotation-header')
 
 <table class="meta-table">
@@ -111,34 +116,48 @@
     <p>{{ $intro_body }}</p>
 </div>
 
+@php
+    $showMu = $show_mu_column ?? true;
+    $showLoq = $show_loq_column ?? true;
+    $showUnit = $show_unit_price_column ?? true;
+    $colCount = 3 // sample + test + method
+        + ($showMu ? 1 : 0)
+        + ($showLoq ? 1 : 0)
+        + 2 // quantity required + TAT
+        + 1 // no. of samples
+        + ($showUnit ? 1 : 0)
+        + 1; // total
+    $labelColspan = $colCount - 1;
+@endphp
+
 <table class="lines-table">
     <thead>
         <tr>
-            <th class="th-maroon" style="width: 14%;">Sample Description</th>
-            <th class="th-maroon" style="width: 22%;">Test Parameters</th>
-            <th class="th-maroon" style="width: 18%;">Test Method</th>
-            @if($show_mu_column ?? true)
-                <th class="th-green text-center" style="width: 9%;">Uncertainty</th>
+            <th class="th-maroon" style="width: 12%;">Sample Description</th>
+            <th class="th-maroon" style="width: 18%;">Test Parameters</th>
+            <th class="th-maroon" style="width: 14%;">Test Method</th>
+            @if($showMu)
+                <th class="th-green text-center" style="width: 7%;">Uncertainty</th>
             @endif
-            @if($show_loq_column ?? true)
-                <th class="th-maroon text-center" style="width: 9%;">LOQ</th>
+            @if($showLoq)
+                <th class="th-maroon text-center" style="width: 7%;">LOQ</th>
             @endif
-            @if($show_unit_price_column ?? true)
-                <th class="th-green text-right" style="width: 11%;">Unit Price ({{ $currency_code }})</th>
+            <th class="th-maroon text-center" style="width: 9%;">Quantity Required</th>
+            <th class="th-maroon text-center" style="width: 7%;">TAT (Working Days)</th>
+            <th class="th-maroon text-center" style="width: 7%;">No. Of Samples</th>
+            @if($showUnit)
+                <th class="th-green text-right" style="width: 9%;">Unit Price ({{ $currency_code }})</th>
             @endif
-            <th class="th-maroon text-right" style="width: 11%;">Total Price ({{ $currency_code }})</th>
+            <th class="th-maroon text-right" style="width: 9%;">Total Price ({{ $currency_code }})</th>
         </tr>
     </thead>
     <tbody>
-        @php
-            $legacyColCount = 4
-                + (($show_mu_column ?? true) ? 1 : 0)
-                + (($show_loq_column ?? true) ? 1 : 0)
-                + (($show_unit_price_column ?? true) ? 1 : 0);
-            $legacyLabelColspan = $legacyColCount - 1;
-        @endphp
         @foreach($grouped_lines as $group)
             @foreach($group['rows'] as $rowIndex => $row)
+                @php
+                    $emitCommercial = (bool) ($row['is_package_first'] ?? true);
+                    $rowspan = max(1, (int) ($row['package_rowspan'] ?? 1));
+                @endphp
                 <tr>
                     @if($rowIndex === 0)
                         <td rowspan="{{ count($group['rows']) }}" style="font-weight: bold; vertical-align: top;">{{ $group['category'] }}</td>
@@ -150,29 +169,34 @@
                         @endif
                     </td>
                     <td>{{ $row['method'] ?: '-' }}</td>
-                    @if($show_mu_column ?? true)
+                    @if($showMu)
                         <td class="text-center">{{ $row['mu'] ?: '-' }}</td>
                     @endif
-                    @if($show_loq_column ?? true)
+                    @if($showLoq)
                         <td class="text-center">{{ $row['loq'] ?: '-' }}</td>
                     @endif
-                    @if($show_unit_price_column ?? true)
-                        <td class="text-right">{{ number_format($row['unit_price'], 2) }}</td>
+                    @if($emitCommercial)
+                        <td class="text-center" @if($rowspan > 1) rowspan="{{ $rowspan }}" @endif>{{ $row['quantity_required'] !== '' ? $row['quantity_required'] : '-' }}</td>
+                        <td class="text-center" @if($rowspan > 1) rowspan="{{ $rowspan }}" @endif>{{ $row['tat'] !== '' ? $row['tat'] : '-' }}</td>
+                        <td class="text-center" @if($rowspan > 1) rowspan="{{ $rowspan }}" @endif>{{ $row['quantity'] }}</td>
+                        @if($showUnit)
+                            <td class="text-right" @if($rowspan > 1) rowspan="{{ $rowspan }}" @endif>{{ number_format($row['unit_price'], 2) }}</td>
+                        @endif
+                        <td class="text-right" @if($rowspan > 1) rowspan="{{ $rowspan }}" @endif>{{ number_format($row['total_price'], 2) }}</td>
                     @endif
-                    <td class="text-right">{{ number_format($row['total_price'], 2) }}</td>
                 </tr>
             @endforeach
         @endforeach
         <tr class="totals-row">
-            <td colspan="{{ $legacyLabelColspan }}" class="totals-label">Net Amount</td>
+            <td colspan="{{ $labelColspan }}" class="totals-label">Net Amount</td>
             <td class="totals-value">{{ number_format($net_amount, 2) }}</td>
         </tr>
         <tr class="totals-row">
-            <td colspan="{{ $legacyLabelColspan }}" class="totals-label">Vat Amount ({{ number_format($vat_rate, 2) }}%)</td>
+            <td colspan="{{ $labelColspan }}" class="totals-label">Vat Amount ({{ number_format($vat_rate, 2) }}%)</td>
             <td class="totals-value">{{ number_format($vat_amount, 2) }}</td>
         </tr>
         <tr class="totals-row">
-            <td colspan="{{ $legacyLabelColspan }}" class="totals-label">Total Amount</td>
+            <td colspan="{{ $labelColspan }}" class="totals-label">Total Amount</td>
             <td class="totals-value">{{ number_format($total_amount, 2) }}</td>
         </tr>
     </tbody>

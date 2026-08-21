@@ -33,11 +33,13 @@ use App\SampleType;
 use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Billing\QuotationPricingResolver;
 use App\Services\Billing\QuotationLabSectionScope;
+use App\Services\Billing\QuotationPrepImportService;
 use App\Services\Billing\QuotationReportService;
 use App\Services\Billing\QuotationRevisionService;
 use App\Exports\Billing\QuotationKpiExport;
 use App\Services\Billing\QuotationStatisticsService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
+use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Commercial\EnquiryFromQuotationService;
 use App\Services\Commercial\EnquiryQuotationService;
@@ -58,67 +60,46 @@ class QuotationController extends Controller
         private readonly EnquiryFromQuotationService $enquiryFromQuotationService,
         private readonly EnquiryQuotationService $enquiryQuotationService,
         private readonly QuotationLabSectionScope $quotationLabSectionScope,
+        private readonly AcceptanceFormPricingService $acceptanceFormPricingService,
+        private readonly QuotationPrepImportService $quotationPrepImportService,
     ) {
         $this->middleware('auth');
     }
 
     public function index($stage = false)
     {
-        $isApprovalSettings = $stage === 'approval-settings';
+        $stagePathFilters = [
+            'Quote In Preparation',
+            'Quote In Approval',
+            'Quote Complete',
+            'approval-settings',
+        ];
 
-        if ($isApprovalSettings) {
-            $quotations = collect();
-            $drafts = collect();
-            $stage = 'approval-settings';
-        } elseif ($stage != false) {
-            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])
-                ->where('is_draft', 0)
-                ->where('status', $stage)
-                ->orderBy('id', 'desc')
-                ->get();
-            $drafts = QuotationHeaderView::with(['preparedBy', 'labSections'])
-                ->where('is_draft', 1)
-                ->where('status', $stage)
-                ->orderBy('id', 'desc')
-                ->get();
-        } else {
-            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])
-                ->where('is_draft', 0)
-                ->orderBy('id', 'desc')
-                ->get();
-            $drafts = QuotationHeaderView::with(['preparedBy', 'labSections'])
-                ->where('is_draft', 1)
-                ->orderBy('id', 'desc')
-                ->get();
-            $stage = 'All Quotations';
+        if ($stage !== false && $stage !== null && $stage !== '') {
+            $query = in_array($stage, $stagePathFilters, true)
+                ? ['stage_filter' => $stage]
+                : [];
+
+            return redirect()->route('quotation-index', $query);
         }
 
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
-        $sample_types = SampleType::where('active', 1)->get();
         $labSections = $this->activeLabSectionsForQuotation();
+        $drafts = QuotationHeaderView::with(['preparedBy'])
+            ->where('is_draft', 1)
+            ->orderBy('id', 'desc')
+            ->limit(15)
+            ->get();
 
         $metrics = $this->quotationStatisticsService->getOverviewMetrics();
         $kpiPeriod = $this->resolveKpiPeriodMetrics(request());
 
-        $stageCounts = $this->quotationStageCounts();
-        $quotationSampleCounts = QuotationDetails::query()
-            ->whereIn('quotation_header_id', $quotations->pluck('id'))
-            ->selectRaw('quotation_header_id, MAX(quantity) as sample_count')
-            ->groupBy('quotation_header_id')
-            ->pluck('sample_count', 'quotation_header_id');
-
         return view('layouts.lab.invoice.quotation-index', compact(
             'customers',
-            'quotations',
             'drafts',
-            'stage',
-            'sample_types',
             'labSections',
             'metrics',
             'kpiPeriod',
-            'stageCounts',
-            'quotationSampleCounts',
-            'isApprovalSettings',
         ));
     }
 
@@ -244,58 +225,7 @@ class QuotationController extends Controller
 
     public function filterQuotations(Request $request)
     {
-
-
-        $drafts = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 1)->orderBy('id', 'desc')->get();
-        if ($request->quote_type == 'Analysis') {
-            $quotations_d = QuotationDetails::query();
-            $quotations_d = $request->sample_type_id != '' ? $quotations_d->where('sample_type', $request->sample_type_id) : $quotations_d;
-            $analysis_detail_ids = $request->analysis_type_id != '' ? QuotationDetailAnalysisSplit::where('id', $request->analysis_type_id)->pluck('quotation_detail_id')->toArray() : [];
-            $quotations_d = sizeof($analysis_detail_ids) > 0 ? $quotations_d->whereIn('id', $analysis_detail_ids) : $quotations_d;
-            $quotations_d_ids = $quotations_d->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0)->whereIn('id', $quotations_d_ids);
-
-            $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
-            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc');
-        } elseif ($request->quote_type == 'General') {
-            $quotations_d = QuotationDetails::where('description', 'LIKE', '%' . $request->item_description . '%')->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0)->whereIn('id', $quotations_d);
-
-            $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
-            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc');
-        } else {
-            $quotations = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0)->orderBy('id', 'desc');
-        }
-
-        if ($request->filled('lab_section_id')) {
-            $labSectionId = (string) $request->input('lab_section_id');
-            $quotations = $quotations->whereHas('labSections', function ($query) use ($labSectionId): void {
-                $query->where('sample_analysis_stages.id', $labSectionId);
-            });
-        }
-
-        $quotations = $quotations->get();
-
-
-        $stage = 'All Quotations';
-        $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
-        $sample_types = SampleType::where('active', 1)->get();
-        $labSections = $this->activeLabSectionsForQuotation();
-        $metrics = $this->quotationStatisticsService->getOverviewMetrics();
-        $kpiPeriod = $this->resolveKpiPeriodMetrics($request);
-        $stageCounts = $this->quotationStageCounts();
-
-        return view('layouts.lab.invoice.quotation-index', compact(
-            'customers',
-            'quotations',
-            'drafts',
-            'stage',
-            'sample_types',
-            'labSections',
-            'metrics',
-            'kpiPeriod',
-            'stageCounts',
-        ));
+        return redirect()->route('quotation-index');
     }
 
     /**
@@ -674,6 +604,10 @@ class QuotationController extends Controller
         } else {
             // return response()->json($request->all(),200);
 
+            // Analysis quotation lines: Amspec package math —
+            // Total = quantity (no. of samples) × unit_price ONCE per sample package.
+            // Selected tests stay on that line for LOQ/MU/method/PDF; they are not billed per test
+            // unless pricing_mode is explicitly per_test (see QuotationPricingResolver).
             $count = 0;
             if (! $hasNewAnalysisLines) {
                 return redirect()->back()->with('success', 'Quotation configuration saved successfully.');
@@ -692,6 +626,22 @@ class QuotationController extends Controller
                     'trim',
                     explode(',', (string) ($request->part_number_final[$count] ?? ''))
                 )));
+
+                // Analysis Type column removed: derive from selected elements when hidden CSV is empty.
+                if ($analysisTypeIds === [] && $elementIds !== []) {
+                    $analysisTypeIds = AnalysisElements::query()
+                        ->whereIn('id', $elementIds)
+                        ->pluck('analysis_type_id')
+                        ->map(fn ($id) => trim((string) $id))
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
+                }
+
+                $partNumberFinal = $analysisTypeIds !== []
+                    ? implode(',', $analysisTypeIds)
+                    : (string) ($request->part_number_final[$count] ?? '');
 
                 try {
                     $this->quotationLabSectionScope->assertAnalysisTypesAllowed($header, $analysisTypeIds);
@@ -714,7 +664,7 @@ class QuotationController extends Controller
                 $normalizedRows = $this->quotationPricingResolver->normalizeManualDetailRows(
                     $header,
                     $request->sample_type[$count],
-                    (string) $request->part_number_final[$count],
+                    $partNumberFinal,
                     $elementIds,
                     (int) $request->quantity[$count],
                     $unitPrice,
@@ -727,6 +677,7 @@ class QuotationController extends Controller
                     $loqOverrides,
                     '',
                     '',
+                    (string) ($request->quantity_required[$count] ?? ''),
                 );
 
                 foreach ($normalizedRows as $rowPayload) {
@@ -736,6 +687,7 @@ class QuotationController extends Controller
                     $detail->tax = $rowPayload['tax'];
                     $detail->part_no = $rowPayload['part_no'];
                     $detail->quantity = $rowPayload['quantity'];
+                    $detail->quantity_required = $rowPayload['quantity_required'] ?? null;
                     $detail->accredited_analytes = $rowPayload['accredited_analytes'];
                     $detail->subcontracted_analytes = $rowPayload['subcontracted_analytes'] ?? '';
                     $detail->default_analytes = $rowPayload['default_analytes'];
@@ -981,6 +933,10 @@ class QuotationController extends Controller
         $detail->unit_price = $unitPrice;
         $detail->tax = $taxRate;
         $detail->quantity = $request->quantity;
+        if ($request->has('quantity_required')) {
+            $qtyRequired = trim((string) $request->input('quantity_required', ''));
+            $detail->quantity_required = $qtyRequired !== '' ? $qtyRequired : null;
+        }
         $detail->save();
 
         $this->recalculateQuotationTotals($header);
@@ -1062,6 +1018,7 @@ class QuotationController extends Controller
             $new->tax = $detail->tax;
             $new->part_no = $detail->part_no;
             $new->quantity = $detail->quantity;
+            $new->quantity_required = $detail->quantity_required;
             $new->analyte_id = $detail->analyte_id;
             // return response()->json($request->analysis_id,200);
             $new->quotation_header_id = $header_clone->id;
@@ -1165,6 +1122,98 @@ class QuotationController extends Controller
         );
 
         return response()->json($suggestion);
+    }
+
+    /**
+     * Eligible pricelists for the quotation customer (chooser data for prep UI).
+     * needs_choice=true when multiple lists → shaking icon / modal (UI by other agent).
+     */
+    public function eligiblePricelists(string $id)
+    {
+        $header = QuotationHeader::query()->findOrFail($id);
+        $payload = $this->acceptanceFormPricingService->buildPricelistChooserPayload(
+            $header->crm_customer_id ? (string) $header->crm_customer_id : null,
+            $header->pricelist_id ? (string) $header->pricelist_id : null,
+        );
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Bind the quotation to one eligible pricelist (user choice from chooser modal).
+     */
+    public function selectPricelist(\Illuminate\Http\Request $request, string $id)
+    {
+        $header = QuotationHeader::query()->findOrFail($id);
+        $pricelistId = (string) $request->input('pricelist_id', '');
+        $eligible = $this->acceptanceFormPricingService->eligiblePricelistsForCustomer(
+            $header->crm_customer_id ? (string) $header->crm_customer_id : null
+        );
+        $match = collect($eligible)->first(fn ($p) => (string) $p->id === $pricelistId);
+        if ($match === null) {
+            return response()->json(['error' => 'Selected pricelist is not assigned to this customer.'], 422);
+        }
+
+        $header->pricelist_id = $match->id;
+        if (empty($header->currency_id) && $match->currency_id) {
+            $header->currency_id = $match->currency_id;
+        }
+        $header->save();
+
+        return response()->json([
+            'ok' => true,
+            'pricelist_id' => (string) $match->id,
+            'code' => (string) ($match->code ?? ''),
+            'description' => (string) ($match->description ?? ''),
+        ]);
+    }
+
+    /**
+     * Import quotation prep lines from Excel or PDF (logic only; UI by other agent).
+     */
+    public function importPrepLines(\Illuminate\Http\Request $request, string $id)
+    {
+        $header = QuotationHeader::query()->findOrFail($id);
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv,pdf|max:20480',
+            'format' => 'nullable|in:excel,pdf',
+        ]);
+
+        $format = (string) $request->input('format', '');
+        if ($format === '') {
+            $ext = strtolower($request->file('file')->getClientOriginalExtension());
+            $format = $ext === 'pdf' ? 'pdf' : 'excel';
+        }
+
+        try {
+            $result = $this->quotationPrepImportService->import(
+                $header,
+                $request->file('file'),
+                $format,
+            );
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'error' => $exception->getMessage(),
+                'pdf_import' => $this->quotationPrepImportService->pdfImportCapability(),
+            ], 422);
+        }
+
+        $this->recalculateQuotationTotals($header);
+
+        return response()->json(array_merge($result, [
+            'pdf_import' => $this->quotationPrepImportService->pdfImportCapability(),
+        ]));
+    }
+
+    /**
+     * Whether PDF (pdftotext) import is available on this host; Excel always is.
+     */
+    public function importPrepCapability()
+    {
+        return response()->json([
+            'excel' => true,
+            'pdf' => $this->quotationPrepImportService->pdfImportCapability(),
+        ]);
     }
 
     public function packageDefaults(PackageDefaultsRequest $request, string $id)

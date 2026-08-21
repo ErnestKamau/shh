@@ -80,6 +80,7 @@ class QuotationRevisionService
                     'quotation_header_id' => $header->id,
                     'sample_type' => $detail->sample_type,
                     'quantity' => $detail->quantity,
+                    'quantity_required' => $detail->quantity_required,
                     'unit_price' => $detail->unit_price,
                     'tax' => $detail->tax,
                     'part_no' => $detail->part_no,

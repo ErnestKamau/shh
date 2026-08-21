@@ -296,4 +296,42 @@ class PricelistItemController extends Controller
 
 		return redirect()->back()->with('success', 'Pricelist document updated.');
 	}
+
+	/**
+	 * Import package / per-test items from Excel or PDF (logic for other agent UI).
+	 * Tax defaults to true. Quantity stays on quotation lines, not pricelist items.
+	 */
+	public function importItems(Request $request, string $id, \App\Services\Billing\PricelistPackageImportService $importService)
+	{
+		$pricelist = Pricelist::query()->findOrFail($id);
+		$request->validate([
+			'file' => 'required|file|mimes:xlsx,xls,csv,pdf|max:20480',
+			'format' => 'nullable|in:excel,pdf',
+			'pricing_mode' => 'nullable|in:per_package,per_test',
+		]);
+
+		$format = (string) $request->input('format', '');
+		if ($format === '') {
+			$ext = strtolower($request->file('file')->getClientOriginalExtension());
+			$format = $ext === 'pdf' ? 'pdf' : 'excel';
+		}
+
+		try {
+			$result = $importService->import(
+				$pricelist,
+				$request->file('file'),
+				$format,
+				(string) $request->input('pricing_mode', 'per_package'),
+			);
+		} catch (\RuntimeException $exception) {
+			return response()->json([
+				'error' => $exception->getMessage(),
+				'pdf_import' => $importService->pdfImportCapability(),
+			], 422);
+		}
+
+		return response()->json(array_merge($result, [
+			'pdf_import' => $importService->pdfImportCapability(),
+		]));
+	}
 }

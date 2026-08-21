@@ -7,7 +7,7 @@
             'sublabel' => 'Active quotes (non-draft)',
             'icon' => 'mdi-file-document-multiple',
             'color' => '#3498db',
-            'link' => route('quotation-index'),
+            'livewireStage' => '',
         ],
         [
             'key' => 'in_preparation',
@@ -15,7 +15,7 @@
             'sublabel' => 'Being configured',
             'icon' => 'mdi-file-edit',
             'color' => '#17a2b8',
-            'link' => route('quotation-index', ['stage' => 'Quote In Preparation']),
+            'livewireStage' => 'Quote In Preparation',
         ],
         [
             'key' => 'finalised',
@@ -23,7 +23,7 @@
             'sublabel' => 'Quote complete',
             'icon' => 'mdi-check-decagram',
             'color' => '#28a745',
-            'link' => route('quotation-index', ['stage' => 'Quote Complete']),
+            'livewireStage' => 'Quote Complete',
         ],
         [
             'key' => 'drafts',
@@ -31,7 +31,7 @@
             'sublabel' => 'Saved as draft',
             'icon' => 'mdi-file-document-edit-outline',
             'color' => '#6c757d',
-            'link' => route('quotation-index', ['stage' => 'Quote In Preparation']),
+            'livewireStage' => 'Quote In Preparation',
         ],
         [
             'key' => 'from_enquiry',
@@ -47,7 +47,7 @@
             'sublabel' => 'Delivered quotes',
             'icon' => 'mdi-email-check',
             'color' => '#20c997',
-            'link' => route('quotation-index', ['stage' => 'Quote Complete']),
+            'livewireStage' => 'Quote Complete',
         ],
         [
             'key' => 'pdf_generated',
@@ -55,7 +55,7 @@
             'sublabel' => 'Processed documents',
             'icon' => 'mdi-printer-check',
             'color' => '#fd7e14',
-            'link' => route('quotation-index', ['stage' => 'Quote Complete']),
+            'livewireStage' => 'Quote Complete',
         ],
         [
             'key' => 'total_value_formatted',
@@ -63,7 +63,7 @@
             'sublabel' => 'Sum of complete quotes',
             'icon' => 'mdi-cash-multiple',
             'color' => '#e83e8c',
-            'link' => route('quotation-index', ['stage' => 'Quote Complete']),
+            'livewireStage' => 'Quote Complete',
             'is_formatted' => true,
         ],
     ];

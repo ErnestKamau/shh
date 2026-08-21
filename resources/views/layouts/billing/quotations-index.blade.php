@@ -5,7 +5,9 @@
 @endsection
 
 @section('content2')
-    <main class="container-fluid lab-surface-theme ls-admin-page" data-ls-type="plex">
+    <main class="container-fluid lab-surface-theme ls-admin-page ls-quotation-shell ls-ui-kit" data-ls-type="plex">
+        @include('layouts.lab.partials.lab-surface-theme-styles')
+        @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
         <?php
             $items = [
                 [
@@ -21,11 +23,11 @@
             ];
         ?>
         <x-bread-crumb :items="$items"></x-bread-crumb>
-        
-        @livewire('billing.quotation-manager')
+
+        @livewire('billing.quotation-manager', ['embedded' => false])
     </main>
 
-        @include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers, 'labSections' => $labSections ?? collect()])
+    @include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers, 'labSections' => $labSections ?? collect()])
 @endsection
 
 @section('script2')

@@ -2,6 +2,21 @@
     $variant = $variant ?? 'secondary';
     $type = $action['type'] ?? 'href';
     $isDropdown = in_array($variant, ['dropdown', 'dropdown-danger'], true);
+    $label = (string) ($action['label'] ?? '');
+    $wire = strtolower((string) ($action['wire'] ?? ''));
+    $labelLower = strtolower($label);
+    $isAccTone = $isDropdown && (
+        str_contains($labelLower, 'accept')
+        || str_contains($labelLower, 'approve')
+        || str_contains($wire, 'accept')
+        || str_contains($wire, 'approve')
+    );
+    $isDangerTone = $isDropdown && (
+        $variant === 'dropdown-danger'
+        || str_contains($labelLower, 'reject')
+        || str_contains($labelLower, 'delete')
+        || str_contains($labelLower, 'cancel')
+    );
     // Use rv-action-item (not Bootstrap .dropdown-item) so theme :active burgundy cannot apply.
     $classes = match ($variant) {
         'primary' => 'rv-action-btn rv-action-btn--accent',
@@ -10,6 +25,11 @@
         'danger' => 'rv-action-btn rv-action-btn--danger',
         default => 'rv-action-btn rv-action-btn--secondary',
     };
+    if ($isAccTone) {
+        $classes .= ' rv-action-item--acc';
+    } elseif ($isDangerTone) {
+        $classes .= ' rv-action-item--danger';
+    }
     $icon = (string) ($action['icon'] ?? 'mdi-circle-small');
 @endphp
 
@@ -22,20 +42,20 @@
         @if(!empty($action['confirm']))
             onclick="return confirm(@json($action['confirm']));"
         @endif>
-        <i class="mdi {{ $icon }}{{ $isDropdown ? ' mr-2' : '' }}" aria-hidden="true"></i>{{ $action['label'] }}
+        <i class="mdi {{ $icon }}" aria-hidden="true"></i>{{ $action['label'] }}
     </button>
 @elseif($type === 'modal')
     <button type="button"
         class="{{ $classes }}"
         data-toggle="modal"
         data-target="{{ $action['modal'] }}">
-        <i class="mdi {{ $icon }}{{ $isDropdown ? ' mr-2' : '' }}" aria-hidden="true"></i>{{ $action['label'] }}
+        <i class="mdi {{ $icon }}" aria-hidden="true"></i>{{ $action['label'] }}
     </button>
 @elseif($type === 'create_samples')
     <a href="#"
         class="{{ $classes }} create-samples-btn"
         data-instance-id="{{ $instance->id }}">
-        <i class="mdi {{ $icon }}{{ $isDropdown ? ' mr-2' : '' }}" aria-hidden="true"></i>{{ $action['label'] }}
+        <i class="mdi {{ $icon }}" aria-hidden="true"></i>{{ $action['label'] }}
     </a>
 @elseif($type === 'form_post')
     @if($isDropdown)
@@ -45,7 +65,7 @@
             {{-- type=button avoids global button[type=submit] burgundy theme hammer --}}
             <button type="button" class="{{ $classes }}"
                 onclick="this.closest('form').requestSubmit()">
-                <i class="mdi {{ $icon }} mr-2" aria-hidden="true"></i>{{ $action['label'] }}
+                <i class="mdi {{ $icon }}" aria-hidden="true"></i>{{ $action['label'] }}
             </button>
         </form>
     @else
@@ -66,7 +86,7 @@
             @method('DELETE')
             <button type="button" class="{{ $classes }}"
                 onclick="this.closest('form').requestSubmit()">
-                <i class="mdi {{ $icon }} mr-2" aria-hidden="true"></i>{{ $action['label'] }}
+                <i class="mdi {{ $icon }}" aria-hidden="true"></i>{{ $action['label'] }}
             </button>
         </form>
     @else
@@ -84,6 +104,6 @@
     <a href="{{ $action['href'] }}"
         class="{{ $classes }}"
         @if(!empty($action['target_blank'])) target="_blank" rel="noopener" @endif>
-        <i class="mdi {{ $icon }}{{ $isDropdown ? ' mr-2' : '' }}" aria-hidden="true"></i>{{ $action['label'] }}
+        <i class="mdi {{ $icon }}" aria-hidden="true"></i>{{ $action['label'] }}
     </a>
 @endif

@@ -61,73 +61,98 @@
                 <div class="rv-modal-body rv-trf-edit-body">
                     @if($trfEditSlide === 'customer')
                         <div class="rv-trf-edit-section">
-                            <h5 class="rv-trf-edit-section-title">Customer Details</h5>
+                            <h5 class="rv-trf-edit-section-title ls-type-label">Customer Details</h5>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label small font-weight-bold text-secondary mb-1">Client</label>
-                                    <div class="form-control form-control-sm bg-light">{{ $trfEditClientName !== '' ? $trfEditClientName : '—' }}</div>
+                                    @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+                                        'label' => 'Client',
+                                        'id' => 'trf-edit-client',
+                                        'name' => 'trf_edit_client',
+                                        'value' => $trfEditClientName !== '' ? $trfEditClientName : '—',
+                                        'disabled' => true,
+                                        'success' => filled($trfEditClientName),
+                                    ])
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label small font-weight-bold text-secondary mb-1" for="trf-edit-unit">Company unit / Site</label>
-                                    <div wire:ignore class="rv-sample-row-select2-wrap">
-                                        <select id="trf-edit-unit"
-                                            class="form-control form-control-sm livewire-select2"
-                                            data-wire-field="trfEditCompanyUnitId"
-                                            data-select-live="1"
-                                            data-placeholder="Select unit"
-                                            data-selected-values="{{ json_encode(array_values(array_filter([$trfEditCompanyUnitId]))) }}">
-                                            <option value="">Select unit</option>
-                                            @foreach($trfEditUnitOptions as $unit)
-                                                <option value="{{ $unit['id'] }}" @selected($trfEditCompanyUnitId === (string) $unit['id'])>
-                                                    {{ $unit['text'] }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                    @php
+                                        $unitSearchOptions = collect($trfEditUnitOptions)->map(fn ($unit) => [
+                                            'value' => (string) ($unit['id'] ?? ''),
+                                            'label' => (string) ($unit['text'] ?? ''),
+                                        ])->filter(fn ($o) => $o['value'] !== '')->values()->all();
+                                    @endphp
+                                    @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+                                        'label' => 'Company unit / Site',
+                                        'id' => 'trf-edit-unit',
+                                        'name' => 'trfEditCompanyUnitId',
+                                        'wireModel' => 'trfEditCompanyUnitId',
+                                        'wireLive' => true,
+                                        'placeholder' => 'Search company unit…',
+                                        'options' => $unitSearchOptions,
+                                        'selected' => $trfEditCompanyUnitId !== '' ? $trfEditCompanyUnitId : null,
+                                        'success' => $trfEditCompanyUnitId !== '',
+                                    ])
                                 </div>
                             </div>
                         </div>
                         <div class="rv-trf-edit-section">
-                            <h5 class="rv-trf-edit-section-title">Contact</h5>
+                            <h5 class="rv-trf-edit-section-title ls-type-label">Contact</h5>
                             <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label small font-weight-bold text-secondary mb-1" for="trf-edit-contact">Contact name</label>
-                                    <div wire:ignore class="rv-sample-row-select2-wrap">
-                                        <select id="trf-edit-contact"
-                                            class="form-control form-control-sm livewire-select2"
-                                            data-wire-field="trfEditContactId"
-                                            data-select-live="1"
-                                            data-placeholder="Select contact"
-                                            data-selected-values="{{ json_encode(array_values(array_filter([$trfEditContactId]))) }}">
-                                            <option value="">Select contact</option>
-                                            @foreach($trfEditContactOptions as $contact)
-                                                <option value="{{ $contact['id'] }}"
-                                                    @selected($trfEditContactId === (string) $contact['id'])>
-                                                    {{ $contact['text'] }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                <div class="col-md-4 mb-3" wire:key="trf-edit-contact-{{ $trfEditCompanyUnitId }}-{{ count($trfEditContactOptions) }}">
+                                    @php
+                                        $contactSearchOptions = collect($trfEditContactOptions)->map(fn ($contact) => [
+                                            'value' => (string) ($contact['id'] ?? ''),
+                                            'label' => (string) ($contact['text'] ?? ''),
+                                            'meta' => [
+                                                'email' => (string) ($contact['email'] ?? ''),
+                                                'phone' => (string) ($contact['phone'] ?? ''),
+                                            ],
+                                        ])->filter(fn ($o) => $o['value'] !== '')->values()->all();
+                                    @endphp
+                                    @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+                                        'label' => 'Contact name',
+                                        'id' => 'trf-edit-contact',
+                                        'name' => 'trfEditContactId',
+                                        'wireModel' => 'trfEditContactId',
+                                        'wireLive' => true,
+                                        'placeholder' => $trfEditCompanyUnitId !== ''
+                                            ? 'Search contacts for this unit…'
+                                            : 'Select a company unit first…',
+                                        'options' => $contactSearchOptions,
+                                        'selected' => $trfEditContactId !== '' ? $trfEditContactId : null,
+                                        'success' => $trfEditContactId !== '',
+                                        'hint' => $trfEditCompanyUnitId === ''
+                                            ? 'Contacts are filtered by the selected company unit.'
+                                            : (count($contactSearchOptions) === 0
+                                                ? 'No CRM contacts linked to this company unit.'
+                                                : null),
+                                    ])
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label small font-weight-bold text-secondary mb-1" for="trf-edit-contact-email">Email</label>
-                                    <input id="trf-edit-contact-email"
-                                        type="email"
-                                        class="form-control form-control-sm"
-                                        wire:model.defer="trfEditContactEmail">
+                                    @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+                                        'label' => 'Email',
+                                        'id' => 'trf-edit-contact-email',
+                                        'name' => 'trfEditContactEmail',
+                                        'type' => 'email',
+                                        'wireModel' => 'trfEditContactEmail',
+                                        'placeholder' => 'Email',
+                                        'success' => filled($trfEditContactEmail),
+                                    ])
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label small font-weight-bold text-secondary mb-1" for="trf-edit-contact-phone">Phone</label>
-                                    <input id="trf-edit-contact-phone"
-                                        type="text"
-                                        class="form-control form-control-sm"
-                                        wire:model.defer="trfEditContactPhone">
+                                    @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+                                        'label' => 'Phone',
+                                        'id' => 'trf-edit-contact-phone',
+                                        'name' => 'trfEditContactPhone',
+                                        'wireModel' => 'trfEditContactPhone',
+                                        'placeholder' => 'Phone',
+                                        'success' => filled($trfEditContactPhone),
+                                    ])
                                 </div>
                             </div>
                         </div>
                     @elseif($trfEditSlide === 'collection')
                         <div class="rv-trf-edit-section">
-                            <h5 class="rv-trf-edit-section-title">Sample Collection Data</h5>
+                            <h5 class="rv-trf-edit-section-title ls-type-label">Sample Collection Data</h5>
                             <div class="row rv-trf-collection-grid">
                                 @php
                                     $collectionByName = collect($trfEditCollectionDefinitions)
@@ -241,28 +266,28 @@
                         </div>
                     @else
                         <div class="rv-trf-edit-section">
-                            <h5 class="rv-trf-edit-section-title">Sample Details</h5>
-                            <p class="rv-trf-edit-section-hint">Open a sample to edit its details. You can edit sample data, state of sample , condition and tests to be perfomed</p>
+                            <h5 class="rv-trf-edit-section-title ls-type-label">Sample Details</h5>
+                            <p class="rv-trf-edit-section-hint ls-type-caption">Open a sample to edit its details. You can edit sample data, state of sample , condition and tests to be perfomed</p>
                             <div class="rv-trf-sample-list">
                                 @forelse($trfEditSampleSummaries as $sampleSummary)
                                     @php
                                         $sampleIndex = (int) $sampleSummary['index'];
                                         $isExpanded = $trfEditExpandedSampleIndex === $sampleIndex;
                                     @endphp
-                                    <div class="rv-trf-sample-card {{ $isExpanded ? 'is-expanded' : '' }}"
+                                    <div class="rv-trf-sample-card ls-trf-sample-panel {{ $isExpanded ? 'is-expanded' : '' }}"
                                          data-trf-sample-index="{{ $sampleIndex }}"
                                          x-data="{ open: {{ $isExpanded ? 'true' : 'false' }} }"
                                          x-on:trf-sample-card-toggled.window="if ($event.detail.rowIndex === {{ $sampleIndex }}) open = !!$event.detail.open"
                                          :class="{ 'is-expanded': open }">
                                         <button type="button"
-                                            class="rv-trf-sample-card-toggle"
+                                            class="rv-trf-sample-card-toggle ls-trf-sample-panel__header"
                                             @click="
                                                 open = !open;
                                                 $wire.expandTrfSample({{ $sampleIndex }}, open);
                                             "
                                             :aria-expanded="open ? 'true' : 'false'">
-                                            <span>{{ $sampleSummary['summary'] }}</span>
-                                            <i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+                                            <span class="ls-trf-sample-panel__title">{{ $sampleSummary['summary'] }}</span>
+                                            <i class="mdi ls-soft-card__chevron" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                                         </button>
 
                                         @if($isExpanded)
@@ -345,7 +370,7 @@
 
                                                         @if($fieldName === 'sample_quantity')
                                                             <div class="col-md-6 mb-3">
-                                                                <label class="form-label small font-weight-bold text-secondary mb-1">Qty / Unit</label>
+                                                                <label class="ls-field__label">Qty / Unit</label>
                                                                 @include('livewire.submission-forms.request-view.partials.sample-row-qty-unit')
                                                             </div>
                                                             @continue
@@ -367,20 +392,20 @@
                                                         ])
                                                     @endif
 
-                                                    {{-- Same Bootstrap columns as Batch | Production: Test category | Sample condition + temp --}}
-                                                    @if($testCategoryField)
-                                                        <div class="col-md-6 mb-3">
-                                                            @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                'field' => $testCategoryField,
-                                                                'hideOuterCol' => true,
-                                                            ])
-                                                        </div>
-                                                    @endif
-                                                    @if($conditionField || $tempField)
-                                                        <div class="col-md-6 mb-3">
-                                                            <div class="rv-trf-condition-temp-row">
+                                                    {{-- One row: Test category | Sample condition | Sample Temp --}}
+                                                    @if($testCategoryField || $conditionField || $tempField)
+                                                        <div class="col-12 mb-3">
+                                                            <div class="rv-trf-category-condition-temp-row">
+                                                                @if($testCategoryField)
+                                                                    <div class="rv-trf-category-condition-temp-row__category">
+                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                                            'field' => $testCategoryField,
+                                                                            'hideOuterCol' => true,
+                                                                        ])
+                                                                    </div>
+                                                                @endif
                                                                 @if($conditionField)
-                                                                    <div class="rv-trf-condition-temp-row__condition">
+                                                                    <div class="rv-trf-category-condition-temp-row__condition">
                                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                                             'field' => $conditionField,
                                                                             'hideOuterCol' => true,
@@ -388,7 +413,7 @@
                                                                     </div>
                                                                 @endif
                                                                 @if($tempField)
-                                                                    <div class="rv-trf-condition-temp-row__temp">
+                                                                    <div class="rv-trf-category-condition-temp-row__temp">
                                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                                             'field' => $tempField,
                                                                             'hideOuterCol' => true,
@@ -397,9 +422,6 @@
                                                                 @endif
                                                             </div>
                                                         </div>
-                                                    @elseif($testCategoryField)
-                                                        {{-- Keep row balance when only category exists --}}
-                                                        <div class="col-md-6 mb-3"></div>
                                                     @endif
 
                                                     {{-- Description last --}}

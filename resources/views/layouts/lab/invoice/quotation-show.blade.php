@@ -3,84 +3,16 @@
 
 
 @section('title2')
-<title> Lab-Invoice </title>
-<style type="text/css">
-    .tab-card {
-        border: 1px solid #eee;
-    }
-
-    .tab-card-header {
-        background: none;
-    }
-
-    /* Default mode */
-    .tab-card-header>.nav-tabs {
-        border: none;
-        margin: 0px;
-    }
-
-    .tab-card-header>.nav-tabs>li {
-        margin-right: 2px;
-    }
-
-    .tab-card-header>.nav-tabs>li>a {
-        border: 0;
-        border-bottom: 2px solid transparent;
-        margin-right: 0;
-        color: #737373;
-        padding: 2px 20px;
-    }
-
-    .tab-card-header>.nav-tabs>li>a.show {
-        border-bottom: 2px solid #007bff;
-        color: #007bff;
-    }
-
-    .tab-card-header>.nav-tabs>li>a:hover {
-        color: #007bff;
-    }
-
-    .tab-card .nav-link.active {
-        background-color: #dadccd !important;
-        border: 1px solid #cccebf !important;
-    }
-
-    .tab-card-header>.tab-content {
-        padding-bottom: 0;
-    }
-
-    .my-small-text {
-        font-size: 13px !important;
-    }
-
-    .removeThis {
-        z-index: 12;
-        position: absolute;
-        cursor: pointer;
-        top: 0px;
-        right: 2px;
-        padding: 1px 4px;
-        font-size: 12px;
-        background-color: red;
-        border-radius: 50%;
-        color: #fff;
-        box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.08);
-    }
-
-    .select2-selection {
-        min-width: 200px !important;
-    }
-
-    .quotation-lines-toolbar {
-        min-height: 38px;
-        position: relative;
-        z-index: 2;
-    }
-</style>
+<title>Lab — Quotation {{ $header->quote_number }}</title>
 @endsection
 @section('content2')
-<main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
-    @include('layouts.lab.partials.lab-panel-theme-styles')
+<main class="container-fluid lab-surface-theme ls-admin-page quotation-show-page ls-quotation-shell ls-ui-kit" data-ls-type="plex">
+    @include('layouts.lab.partials.lab-surface-theme-styles')
+    @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
+    @include('layouts.lab.partials.ls-ui.quotation.ls-quotation-overview-styles')
+    @include('layouts.lab.invoice.partials.quotation-show-styles')
+    @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
+
     <?php
     $items = array(
         array(
@@ -108,270 +40,158 @@
     );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
-    <h2 class="p-4 quotation-preview-hover-parent">
-        <span class="float-left">
-            <i class="mdi mdi-file-table"></i>Billing | Quotations
-        </span>
 
-        <div class="nav-item dropdown float-right" style="margin-top: 0px !important;">
-            <a class="nav-link dropdown-toggle btn btn-sm btn-outline-secondary" href="#" id="quotationActionsDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <i class="mdi mdi-dots-vertical"></i> Actions
-            </a>
-            <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;" aria-labelledby="quotationActionsDropdown">
-                @if(sizeof($details) > 0)
-                <a class="dropdown-item" href="{{ route('quotation.preview', ['id' => $header->id]) }}" target="_blank" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
-                <span class="dropdown-item" style="cursor: pointer;" data-target="#print-quotation" data-header="{{$header->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
-                @else
-                <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-file-eye"></i> Preview Quote</span>
-                <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-printer"></i> Process PDF</span>
-                @endif
-                @if(sizeof($details)>0)
-                <div class="dropdown-divider"></div>
-                <form action="{{ route('create_quotation_revision', ['id' => $header->id]) }}" method="POST" class="px-0 m-0">
-                    @csrf
-                    <button type="submit" class="dropdown-item" style="cursor: pointer;"><i class="mdi mdi-source-branch"></i> Create Revision</button>
-                </form>
-                @endif
-                @if($header->status == "Quote In Preparation")
-                <span class="dropdown-item" style="cursor: pointer;" data-target="#save-draft" data-toggle="modal"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
-                <span class="dropdown-item text-danger" style="cursor: pointer;" data-target="#delete-quotation" data-toggle="modal"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
-                @if(sizeof($details)>0)
-                <div class="dropdown-divider"></div>
-                <span class="dropdown-item text-dark" style="cursor: pointer;" data-target="#request-approval" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Request For Approval</span>
-                @endif
-                @endif
-                @if($header->status == 'Quote In Approval' && sizeof($details)>0 && (int) $header->is_approved !== 1 && (string) $header->approved_by === (string) auth()->id())
-                <div class="dropdown-divider"></div>
-                <span class="dropdown-item text-success" style="cursor: pointer;" data-target="#approve-quote" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Approve Quotation</span>
-                @endif
-            </div>
-        </div>
-        @if($header->status == 'Quote In Approval')
-            @if((int) $header->is_approved === 1)
-                <span class="badge badge-pill ml-2 bg-white text-success p-2 float-right mt-1 {{ $header->approved_by < 0 ? 'hidden' : '' }}" style="font-size: 10px;"><i class="mdi mdi-thumb-up"></i> Approved</span>
-            @else
-                <span class="badge badge-pill bg-white ml-2 text-primary p-2 float-right mt-1" style="font-size: 10px;"><i class="mdi mdi-alert-decagram"></i> Awaiting Approval</span>
-                @if((string) $header->approved_by !== (string) auth()->id())
-                <span class="badge badge-pill bg-white ml-2 text-danger p-2 float-right mt-1" style="font-size: 10px;"><i class="mdi mdi-alert-decagram"></i> Required Approver — {{ getUserById($header->approved_by)->name ?? '-' }}</span>
-                @endif
-            @endif
-        @endif
-        <div class="nav-item dropdown float-right mr-2" style="margin-top: 0px !important;">
-            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <i class="mdi mdi-compare-vertical"></i> Move To workflow
-            </a>
-            <div class="dropdown-menu" style="font-size: 13px;" aria-labelledby="navbarDropdown">
-                <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Preparation'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Preparation</a>
-                @if(in_array($header->status,['Quote In Approval','Quote Complete'], true))
-                <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Approval'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Approval</a>
-                <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation Complete</a>
-                @endif
-
-            </div>
-        </div>
-    </h2>
-    <div class="card mt-5" style="clear: both;">
-
-        <h3 class=" text-center card-header">
-            <i class="mdi mdi-check-decagram mb-1" style="position: absolute;left:47.4%"></i><br> Quotation | {{$header->quote_number}}
-            @if(($header->revision_number ?? 1) > 1)
-                <span class="badge badge-info ml-1">Rev. {{ $header->revision_number }}</span>
-            @endif
-            @if($header->isSuperseded())
-                <span class="badge badge-secondary ml-1">Superseded</span>
-            @endif
-        </h3>
-
-        @if(($revisionFamily ?? collect())->count() > 1)
-        <div class="card-body border-bottom py-2">
-            <small class="text-muted d-block mb-1"><strong>Revision history</strong></small>
-            <ul class="mb-0 pl-3" style="font-size: 12px;">
-                @foreach($revisionFamily as $revision)
-                    <li>
-                        @if($revision->id === $header->id)
-                            <strong>{{ $revision->quote_number }} Rev {{ $revision->revision_number ?? 1 }} (viewing)</strong>
-                        @else
-                            <a href="{{ route('add-qoute-details-view', ['id' => $revision->id]) }}">{{ $revision->quote_number }} Rev {{ $revision->revision_number ?? 1 }}</a>
-                            @if($revision->isSuperseded())
-                                <span class="text-muted">(superseded)</span>
-                            @endif
-                        @endif
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-
-        @if(($linkedEnquiryEngagements ?? collect())->isNotEmpty())
-        <div class="card-body border-bottom py-2">
-            <small class="text-muted d-block mb-1"><strong>Linked enquiries</strong></small>
-            <ul class="mb-0 pl-3" style="font-size: 12px;">
-                @foreach($linkedEnquiryEngagements as $engagement)
-                    <li>
-                        @if($engagement->enquiry)
-                            <a href="{{ $engagement->enquiry->staffViewUrl() }}">{{ $engagement->enquiry->reference_number ?? $engagement->enquiry->id }}</a>
-                            <span class="text-muted">— {{ $engagement->enquiry->status }}</span>
-                            @if($engagement->sent_to_customer_at)
-                                <span class="text-muted">· sent {{ $engagement->sent_to_customer_at->format('Y-m-d') }}</span>
-                            @endif
-                            @if($engagement->accepted_at)
-                                <span class="text-muted">· accepted {{ $engagement->accepted_at->format('Y-m-d') }}</span>
-                            @endif
-                        @endif
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-
-        <div class="card-body">
-
-            <div class="row no-gutter">
-
-                <div class="col-xl-4 col-sm-4">
-                    <form action="{{route('add-quotation-header')}}" method="POST" class="bg-light ">
-                        @csrf
-                        <div class="card-body p-2">
-                            <div class="form-group">
-                                <label class="control-label">Quotation Number</label>
-                                <input type="text" name="quote_code" readonly value="{{$header->quote_number}}" id="" class="form-control">
-                                <input type="hidden" name="quote_id" value="{{$header->id}}">
-                            </div>
-
-                            <div class="form-group">
-                                <label class="control-label">Client *</label>
-                                <select name="client" class="form-control no-select2" id="select-client" data-contact="{{ $header->crm_customer_contact_id }}" data-zoho-customer-id="{{$header->customer->zoho_customer_id ?? ''}}" required>
-                                    <option value="" disabled {{ empty($header->crm_customer_id) ? 'selected' : '' }}>Choose Client...</option>
-                                    @foreach($customers as $customer)
-                                    <option value="{{$customer->id}}" data-zoho-customer-id="{{$customer->zoho_customer_id}}" {{$customer->id == $header->crm_customer_id ? 'selected':''}}>{{$customer->name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="form-group contacts" id="choose-client">
-                                <label class="control-label">Client Contact *</label>
-                                <select name="client_contact" id="select-client-contact" class="form-control no-select2" required>
-                                    @php
-                                    $client_contacts = getQuotationCustomerContacts(
-                                        (string) $header->crm_customer_id,
-                                        $header->crm_customer_contact_id ? (string) $header->crm_customer_contact_id : null
-                                    );
-                                    @endphp
-                                    @if($client_contacts->isEmpty())
-                                    <option value="" disabled selected>No contacts available</option>
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 ls-quotation-header-card">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start" style="gap: 12px;">
+                        <div>
+                            <h2 class="mb-1 quotation-preview-hover-parent">
+                                <i class="mdi mdi-file-document-edit-outline text-primary"></i>
+                                Quotation {{ $header->quote_number }}
+                                @if(($header->revision_number ?? 1) > 1)
+                                    <span class="badge badge-info ml-1">Rev. {{ $header->revision_number }}</span>
+                                @endif
+                                @if($header->isSuperseded())
+                                    <span class="badge badge-secondary ml-1">Superseded</span>
+                                @endif
+                            </h2>
+                            <p class="text-muted mb-0">{{ $header->status }} · Configure header, lines, and terms</p>
+                            <div class="d-flex flex-wrap mt-2" style="gap: 0.35rem;">
+                                @if($header->status == 'Quote In Approval')
+                                    @if((int) $header->is_approved === 1)
+                                        <span class="ls-quotation-meta-chip ls-quotation-meta-chip--ok"><i class="mdi mdi-thumb-up"></i> Approved</span>
                                     @else
-                                    @if(empty($header->crm_customer_contact_id))
-                                    <option value="" disabled selected>Select Client Contact...</option>
+                                        <span class="ls-quotation-meta-chip ls-quotation-meta-chip--warn"><i class="mdi mdi-alert-decagram"></i> Awaiting Approval</span>
+                                        @if((string) $header->approved_by !== (string) auth()->id())
+                                            <span class="ls-quotation-meta-chip ls-quotation-meta-chip--danger"><i class="mdi mdi-account-alert"></i> Approver — {{ getUserById($header->approved_by)->name ?? '-' }}</span>
+                                        @endif
                                     @endif
-                                    @foreach($client_contacts as $contact)
-                                    <option value="{{$contact->id}}" {{ (string) $contact->id === (string) $header->crm_customer_contact_id ? 'selected' : '' }}>{{ trim($contact->first_name . ' ' . ($contact->middle_name ?? '') . ' ' . $contact->last_name) }}</option>
-                                    @endforeach
-                                    @endif
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="control-label">Currency</label>
-                                <input type="text" id="display-currency-edit" class="form-control" readonly placeholder="Set via Quote Currency..." value="{{$header->currency ? $header->currency->code . ' - ' . $header->currency->description : ''}}" style="background-color: #f5f5f5;">
-                                <input type="hidden" name="currency_id" id="currency-id-edit" value="{{$header->currency_id ?? ''}}" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="control-label">Quotation Type</label>
-                                <select name="quotation_type" required class="form-control no-select2">
-                                    <option value="">Choose Quotation Type</option>
-                                    <option value="General" {{$header->quotation_type == 'General' ? 'selected' : '' }}>General Quotation</option>
-                                    <option value="Analysis" {{$header->quotation_type == 'Analysis' ? 'selected' : '' }}>Analysis Quotation</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Lab Section(s)</label>
-                                @php
-                                    $selectedLabSectionIds = $header->labSections->pluck('id')->map(fn ($id) => (string) $id)->all();
-                                @endphp
-                                <select name="lab_section_ids[]" class="form-control ls-select2" multiple data-placeholder="Select lab section(s)...">
-                                    @foreach($labSections ?? [] as $section)
-                                        <option value="{{ $section->id }}" @selected(in_array((string) $section->id, $selectedLabSectionIds, true))>
-                                            {{ $section->name }}@if($section->code) ({{ $section->code }})@endif
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <small class="form-text text-muted">
-                                    Analysis lines can use any sample/analysis type; selectable <strong>tests/parameters</strong> are limited to the selected lab section(s).
-                                </small>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Quotation Date *</label>
-                                <input type="date" name="quotation_date" class="form-control" placeholder="Quotation Date..." value="{{$header->quote_date}}" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Expiry Date *</label>
-                                <input type="date" name="expire_date" class="form-control" placeholder="Expiration Date..." value="{{$header->expiring_date}}" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Prepared By</label>
-                                <input type="text" name="prepared_by" readonly value="{{$header->prepared_by_name}}" id="" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Laboratory Ref</label>
-                                <input type="text" name="laboratory_ref" class="form-control" value="{{ $header->laboratory_ref }}" placeholder="Auto-generated if empty">
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Subject</label>
-                                <input type="text" name="subject" class="form-control" value="{{ $header->subject }}" placeholder="Quotation for ...">
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Company Unit</label>
-                                <select name="crm_company_unit_id" id="quote-company-unit" class="form-control no-select2">
-                                    <option value="">Select company unit...</option>
-                                    @foreach($companyUnits ?? [] as $unit)
-                                        <option value="{{ $unit->id }}" {{ (string) $header->crm_company_unit_id === (string) $unit->id ? 'selected' : '' }}>
-                                            {{ $unit->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Sampling Location</label>
-                                <select name="sample_point_id" id="quote-sample-point" class="form-control no-select2">
-                                    <option value="">Select sample point...</option>
-                                    @foreach($samplePoints ?? [] as $point)
-                                        <option
-                                            value="{{ $point->id }}"
-                                            data-unit-id="{{ $point->crm_company_unit_id }}"
-                                            {{ (string) $header->sample_point_id === (string) $point->id ? 'selected' : '' }}
-                                        >
-                                            {{ $point->display_name ?? $point->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @endif
                             </div>
                         </div>
-
-                        <div class="card-footer text-center">
-                            <button style="width:70%;" class="btn btn-outline-success" type="submit">Save</button>
+                        <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
+                            <div class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle btn btn-sm btn-outline-secondary" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="mdi mdi-compare-vertical"></i> Move To workflow
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;" aria-labelledby="navbarDropdown">
+                                    <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Preparation'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Preparation</a>
+                                    @if(in_array($header->status,['Quote In Approval','Quote Complete'], true))
+                                    <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Approval'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Approval</a>
+                                    <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation Complete</a>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle btn btn-sm btn-outline-secondary" href="#" id="quotationActionsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="mdi mdi-dots-vertical"></i> Actions
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;" aria-labelledby="quotationActionsDropdown">
+                                    @if(sizeof($details) > 0)
+                                    <a class="dropdown-item" href="{{ route('quotation.preview', ['id' => $header->id]) }}" target="_blank" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
+                                    <span class="dropdown-item" style="cursor: pointer;" data-target="#print-quotation" data-header="{{$header->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
+                                    @else
+                                    <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-file-eye"></i> Preview Quote</span>
+                                    <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-printer"></i> Process PDF</span>
+                                    @endif
+                                    @if(sizeof($details)>0)
+                                    <div class="dropdown-divider"></div>
+                                    <form action="{{ route('create_quotation_revision', ['id' => $header->id]) }}" method="POST" class="px-0 m-0">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item" style="cursor: pointer;"><i class="mdi mdi-source-branch"></i> Create Revision</button>
+                                    </form>
+                                    @endif
+                                    @if($header->status == "Quote In Preparation")
+                                    <span class="dropdown-item" style="cursor: pointer;" data-target="#save-draft" data-toggle="modal"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
+                                    <span class="dropdown-item text-danger" style="cursor: pointer;" data-target="#delete-quotation" data-toggle="modal"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
+                                    @if(sizeof($details)>0)
+                                    <div class="dropdown-divider"></div>
+                                    <span class="dropdown-item text-dark" style="cursor: pointer;" data-target="#request-approval" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Request For Approval</span>
+                                    @endif
+                                    @endif
+                                    @if($header->status == 'Quote In Approval' && sizeof($details)>0 && (int) $header->is_approved !== 1 && (string) $header->approved_by === (string) auth()->id())
+                                    <div class="dropdown-divider"></div>
+                                    <span class="dropdown-item text-success" style="cursor: pointer;" data-target="#approve-quote" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Approve Quotation</span>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
-                    </form>
-
-
+                    </div>
                 </div>
-                <div class="col-xl-8 col-sm-8">
-                    <form action="{{ route('add_quotation_detail',['id'=>$header->id]) }}" method="POST" enctype="multipart/form-data" class="bg-light p-1">
-                        @csrf
+            </div>
+        </div>
+    </div>
+
+    @if(($revisionFamily ?? collect())->count() > 1)
+    <div class="ls-form-panel mb-3">
+        <h4 class="ls-form-panel__title"><i class="mdi mdi-source-branch"></i> Revision history</h4>
+        <ul class="mb-0 pl-3" style="font-size: 12px;">
+            @foreach($revisionFamily as $revision)
+                <li>
+                    @if($revision->id === $header->id)
+                        <strong>{{ $revision->quote_number }} Rev {{ $revision->revision_number ?? 1 }} (viewing)</strong>
+                    @else
+                        <a href="{{ route('add-qoute-details-view', ['id' => $revision->id]) }}">{{ $revision->quote_number }} Rev {{ $revision->revision_number ?? 1 }}</a>
+                        @if($revision->isSuperseded())
+                            <span class="text-muted">(superseded)</span>
+                        @endif
+                    @endif
+                </li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
+    @if(($linkedEnquiryEngagements ?? collect())->isNotEmpty())
+    <div class="ls-form-panel mb-3">
+        <h4 class="ls-form-panel__title"><i class="mdi mdi-link-variant"></i> Linked enquiries</h4>
+        <ul class="mb-0 pl-3" style="font-size: 12px;">
+            @foreach($linkedEnquiryEngagements as $engagement)
+                <li>
+                    @if($engagement->enquiry)
+                        <a href="{{ $engagement->enquiry->staffViewUrl() }}">{{ $engagement->enquiry->reference_number ?? $engagement->enquiry->id }}</a>
+                        <span class="text-muted">— {{ $engagement->enquiry->status }}</span>
+                        @if($engagement->sent_to_customer_at)
+                            <span class="text-muted">· sent {{ $engagement->sent_to_customer_at->format('Y-m-d') }}</span>
+                        @endif
+                        @if($engagement->accepted_at)
+                            <span class="text-muted">· accepted {{ $engagement->accepted_at->format('Y-m-d') }}</span>
+                        @endif
+                    @endif
+                </li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
+    <div class="row ls-quotation-workspace">
+        <div class="col-12 col-xl-4 col-lg-5 mb-3 mb-lg-0">
+            @include('layouts.lab.invoice.partials.quotation-show-header')
+        </div>
+        <div class="col-12 col-xl-8 col-lg-7">
+    <div class="ls-quotation-lines-panel mb-4">
+        <h4 class="ls-quotation-lines-panel__title">
+            <i class="mdi mdi-playlist-edit"></i>
+            Line items &amp; terms
+        </h4>
+        <form action="{{ route('add_quotation_detail',['id'=>$header->id]) }}" method="POST" enctype="multipart/form-data" class="ls-quotation-lines-form">
+            @csrf
+            {{-- PHASE_A_LINES_ANCHOR_START --}}
                         @if($header->quotation_type == 'General')
                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 quotation-lines-toolbar" style="gap: 8px;">
-                            <button type="submit" class="btn btn-outline-success btn-sm">
-                                Save <i class="mdi mdi-share-circle"></i>
+                            <button type="submit" class="btn btn-quotation-primary btn-sm">
+                                <i class="mdi mdi-content-save-outline"></i> Save lines
                             </button>
-                            <button type="button" class="btn btn-outline-info btn-sm" onclick="addrowgeneral()">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addrowgeneral()">
                                 <i class="mdi mdi-plus"></i> Add line
                             </button>
                         </div>
-                        <div class="table-responsive">
+                        <div class="table-responsive ls-quotation-table-scroll">
 
-                            <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm livewire-table" style="min-width: 180%;">
-                                <thead class="bg-light">
+                            <table class="table table-hover ls-table ls-table--dense my-small-text livewire-table mb-0" style="min-width: 180%;">
+                                <thead>
                                     <th></th>
 
                                     <th style="min-width: 10%;">Part No</th>
@@ -446,15 +266,6 @@
                         @else
                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 mt-2 quotation-lines-toolbar" style="gap: 8px;">
                             <div class="d-flex flex-wrap align-items-center" style="gap: 16px;">
-                                <button type="submit" class="btn btn-outline-success btn-sm">
-                                    Save <i class="mdi mdi-share-circle"></i>
-                                </button>
-                                @if($header->labSections->isNotEmpty())
-                                    <span class="small text-muted">
-                                        Parameters limited to lab section(s):
-                                        {{ $header->labSections->pluck('name')->implode(', ') }}
-                                    </span>
-                                @endif
                                 <label class="mb-0 small text-muted" title="Include LOQ column on the quotation PDF">
                                     <input type="hidden" name="show_loq_column" value="0">
                                     <input type="checkbox" name="show_loq_column" value="1" class="mr-1"
@@ -468,91 +279,134 @@
                                     Show MU column
                                 </label>
                             </div>
-                            @if($header->status == 'Quote In Preparation')
-                            <button type="button" class="btn btn-outline-info btn-sm" id="add-row">
-                                <i class="mdi mdi-plus"></i> Add line
-                            </button>
-                            @endif
+                            <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
+                                @if($header->status == 'Quote In Preparation')
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="ls-quote-import-open" data-toggle="modal" data-target="#ls-quote-import-modal">
+                                    <i class="mdi mdi-file-upload-outline"></i> Import
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="add-row">
+                                    <i class="mdi mdi-plus"></i> Add line
+                                </button>
+                                @endif
+                                <button type="submit" class="btn btn-quotation-primary btn-sm">
+                                    <i class="mdi mdi-content-save-outline"></i> Save lines
+                                </button>
+                            </div>
                         </div>
-                        <div class="table-responsive quotation-analysis-lines">
+                        @include('layouts.lab.invoice.partials.quotation-import-modal')
+                        @include('layouts.lab.invoice.partials.quotation-analysis-line-prototype')
+                        <div class="table-responsive quotation-analysis-lines ls-quotation-table-scroll">
 
-                            <table class="table table-condensed table-striped table-hover table-bordered table-sm mb-0 livewire-table" style="width: 100%; min-width: 980px;">
-                                <thead class="bg-light">
-
-                                    <th style="width: 48px;">No</th>
-                                    <th nowrap>Sample Type <span class="text-danger">*</span></th>
-                                    <th nowrap>Analysis Type <span class="text-danger">*</span></th>
-                                    <th nowrap>Parameters<span class="text-danger">*</span></th>
-                                    <th nowrap style="width: 88px;">Quantity<span class="text-danger">*</span></th>
-                                    <th nowrap style="width: 130px;">Unit Price</th>
-                                    <th nowrap style="width: 90px;">Tax%</th>
-
-
-
+                            <table class="table table-hover ls-table ls-table--dense mb-0 livewire-table ls-quote-analysis-table">
+                                <colgroup>
+                                    <col class="ls-quote-col--no" style="width:5%">
+                                    <col class="ls-quote-col--sample" style="width:22%">
+                                    <col class="ls-quote-col--params" style="width:42%">
+                                    <col class="ls-quote-col--qty-req" style="width:14%">
+                                    <col class="ls-quote-col--qty" style="width:10%">
+                                    <col class="ls-quote-col--price" style="width:12%">
+                                    <col class="ls-quote-col--total" style="width:12%">
+                                    <col class="ls-quote-col--tax" style="width:9%">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th nowrap>Sample Type <span class="text-danger">*</span></th>
+                                        <th nowrap>Parameters<span class="text-danger">*</span></th>
+                                        <th nowrap>Quantity Required</th>
+                                        <th nowrap>No. of Samples<span class="text-danger">*</span></th>
+                                        <th nowrap>Unit Price</th>
+                                        <th nowrap>Total Price</th>
+                                        <th nowrap>Tax%</th>
+                                    </tr>
                                 </thead>
                                 <tbody id="create-detail">
                                     @foreach($details as $detail)
                                     <tr>
-                                        <td class="text-nowrap align-middle">
-
-                                            <span style="font-size:11px;" data-sample="{{$detail->sample_type_name}}" data-detail={{$detail->id}} data-toggle="modal" data-target="#detail-edit-mode" class="btn btn-sm p-0 mdi mdi-pencil" data-toggle="tooltip" title="Edit"></span>
-
-                                            <span style="font-size:12px;" data-toggle="modal" data-target="#delete-detail-{{$detail->id}}" class="btn btn-sm p-0 mdi mdi-delete-empty text-danger" data-toggle="tooltip" title="Delete"></span>
-
-
-                                        </td>
-                                        <td class="align-middle" style="min-width: 120px;">
-
-                                            <div class="form-group mb-0" id="">
-                                                <input type="text" class="form-control form-control-sm" value="{{$detail->sample_type_name}}" disabled id="">
-
-                                            </div>
-
-                                        </td>
-                                        <td class="align-middle" style="min-width: 140px;">
-                                            <span class="small">{{$detail->part_no_final}}</span>
-                                        </td>
-                                        <td class="align-middle" style="min-width: 220px; max-width: 320px;">
-                                            <p class="mb-0 small"><b>{{$detail->sample_type_name}}</b></p>
-                                            <p class="mb-1 small text-muted">Parameters:</p>
-                                            <div class="small" style="white-space: normal;">
-                                            @foreach($detail->default as $da)
-                                            <span>{{$da}}, </span>
-                                            @endforeach
-                                            @foreach($detail->sub_acc as $sb)
-                                            <span>{{$sb}}* <img src="/images/tick.png" height="8" width="8" alt="">, </span>
-                                            @endforeach
-                                            @foreach($detail->sub_analytes as $sa)
-                                            <span>{{$sa}}*, </span>
-
-                                            @endforeach
-                                            @foreach($detail->acc_analytes as $acc)
-                                            <span class="">{{$acc}} <img src="/images/tick.png" height="8" width="8" alt="">, </span>
-                                            @endforeach
-                                            </div>
-
-
-                                        </td>
-
-                                        <td class="align-middle">
-                                            <div class="form-group mb-0">
-                                                <input type="number" id="" class="form-control form-control-sm" value="{{$detail->quantity}}" disabled>
-                                            </div>
-                                        </td>
-                                        <td class="align-middle text-right">
-
-                                            <div class="form-group mb-0">
-                                                <input type="text" class="form-control form-control-sm text-right" value="{{number_format($detail->unit_price,2)}}" disabled>
-                                            </div>
-
+                                        <td class="align-middle ls-quote-line-actions">
+                                            <button type="button" class="ls-quote-icon-btn" data-sample="{{$detail->sample_type_name}}" data-detail="{{$detail->id}}" data-toggle="modal" data-target="#detail-edit-mode" title="Edit">
+                                                <i class="mdi mdi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="ls-quote-icon-btn ls-quote-icon-btn--danger" data-toggle="modal" data-target="#delete-detail-{{$detail->id}}" title="Delete">
+                                                <i class="mdi mdi-delete-empty"></i>
+                                            </button>
                                         </td>
                                         <td class="align-middle">
-
-                                            <div class="form-group mb-0">
-                                                <input type="text" value="{{$detail->tax}}" readonly class="form-control form-control-sm" disabled>
+                                            <div class="ls-field ls-compact is-disabled mb-0">
+                                                <div class="ls-field__control">
+                                                    <input type="text" class="ls-field__input" value="{{$detail->sample_type_name}}" disabled>
+                                                </div>
                                             </div>
-
-
+                                        </td>
+                                        <td class="align-middle" style="min-width: 220px; max-width: 340px;">
+                                            @php
+                                                $paramCount = count($detail->default ?? [])
+                                                    + count($detail->sub_acc ?? [])
+                                                    + count($detail->sub_analytes ?? [])
+                                                    + count($detail->acc_analytes ?? []);
+                                                $paramsCollapsed = $paramCount > 7;
+                                                $lineTotal = round((float) $detail->unit_price * (int) $detail->quantity, 2);
+                                            @endphp
+                                            {{-- Amspec: tests listed for scope; commercial qty×price is on the line, not per chip. --}}
+                                            <div class="ls-quote-params {{ $paramsCollapsed ? 'is-collapsed' : '' }}" data-param-count="{{ $paramCount }}">
+                                                <div class="ls-quote-params__toolbar">
+                                                    <button type="button" class="ls-quote-params__title js-quote-params-toggle" @if($paramsCollapsed) title="Show parameters" @endif>
+                                                        {{ $detail->sample_type_name }}
+                                                        @if($paramsCollapsed)
+                                                            <span class="ls-quote-params__count">{{ $paramCount }}</span>
+                                                        @endif
+                                                    </button>
+                                                </div>
+                                                <div class="ls-select2-view ls-quote-params__chips">
+                                                    @foreach($detail->default as $da)
+                                                        <span class="ls-select2-view__chip ls-quote-param-chip">{{ $da }}</span>
+                                                    @endforeach
+                                                    @foreach($detail->sub_acc as $sb)
+                                                        <span class="ls-select2-view__chip ls-quote-param-chip ls-quote-param-chip--acc ls-quote-param-chip--sub">{{ $sb }} <i class="mdi mdi-asterisk" title="Subcontracted"></i><i class="mdi mdi-check-decagram" title="Accredited"></i></span>
+                                                    @endforeach
+                                                    @foreach($detail->sub_analytes as $sa)
+                                                        <span class="ls-select2-view__chip ls-quote-param-chip ls-quote-param-chip--sub">{{ $sa }} <i class="mdi mdi-asterisk" title="Subcontracted"></i></span>
+                                                    @endforeach
+                                                    @foreach($detail->acc_analytes as $acc)
+                                                        <span class="ls-select2-view__chip ls-quote-param-chip ls-quote-param-chip--acc">{{ $acc }} <i class="mdi mdi-check-decagram" title="Accredited"></i></span>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="ls-field ls-compact is-disabled mb-0">
+                                                <div class="ls-field__control">
+                                                    <input type="text" class="ls-field__input" value="{{ $detail->quantity_required }}" disabled>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="ls-field ls-compact is-disabled mb-0">
+                                                <div class="ls-field__control">
+                                                    <input type="number" class="ls-field__input" value="{{$detail->quantity}}" disabled>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="ls-field ls-compact is-disabled mb-0">
+                                                <div class="ls-field__control">
+                                                    <input type="text" class="ls-field__input text-right" value="{{number_format($detail->unit_price,2)}}" disabled>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="ls-field ls-compact is-disabled mb-0">
+                                                <div class="ls-field__control">
+                                                    <input type="text" class="ls-field__input text-right" value="{{ number_format($lineTotal, 2) }}" disabled>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="ls-field ls-compact is-disabled mb-0">
+                                                <div class="ls-field__control">
+                                                    <input type="text" class="ls-field__input" value="{{$detail->tax}}" disabled>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                     @endforeach
@@ -561,22 +415,29 @@
                         </div>
                         @endif
 
-                        <h5 style="font-size: 11px; margin-top:15px"><b><u>Terms of Sale</u></b></h5>
+                        <div class="ls-form-panel mt-3 mb-3">
+                        <h4 class="ls-form-panel__title"><i class="mdi mdi-file-document-outline"></i> Terms of Sale</h4>
 
-                        <div class="terms ml-4">
-                            <div class="form-group">
-                                <label class="control-label">Quote Currency <span class="text-danger">*</span></label>
-                                <select name="currency_id" class="form-control" required>
+                        <div class="terms">
+                            <div class="ls-form-grid ls-form-grid--2">
+                            <div class="ls-field">
+                                <label class="ls-field__label">Quote Currency <span class="ls-req">*</span></label>
+                                <div class="ls-field__control">
+                                <select name="currency_id" class="ls-field__input form-control" required>
                                     <option value="">Choose Currency...</option>
                                     @foreach($currencies as $currency)
                                     <option value="{{ $currency->id }}" {{ $header->currency_id == $currency->id ? 'selected' : '' }}>{{ $currency->code }} - {{ $currency->description }}</option>
                                     @endforeach
                                 </select>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label class="control-label">Delivery of results</label>
-                                <textarea class="form-control" rows="2" name="service_delivery" placeholder="Delivery of results...">{{ $termsOfSale['service_delivery'] ?? '' }}</textarea>
+                            <div class="ls-field">
+                                <label class="ls-field__label">Delivery of results</label>
+                                <div class="ls-field__control">
+                                <textarea class="ls-field__input form-control" rows="2" name="service_delivery" placeholder="Delivery of results...">{{ $termsOfSale['service_delivery'] ?? '' }}</textarea>
+                                </div>
+                            </div>
                             </div>
                             @php
                                 $paymentOptions = collect($accountPaymentOptions ?? []);
@@ -599,9 +460,11 @@
                                     }
                                 }
                             @endphp
-                            <div class="form-group">
-                                <label class="control-label">Payments</label>
-                                <select name="payments_account_id" id="quote-payments" class="form-control">
+                            <div class="ls-form-grid ls-form-grid--2 mt-2">
+                            <div class="ls-field">
+                                <label class="ls-field__label">Payments</label>
+                                <div class="ls-field__control">
+                                <select name="payments_account_id" id="quote-payments" class="ls-field__input form-control">
                                     <option value="">Choose payment terms...</option>
                                     @foreach($paymentOptions as $option)
                                         <option
@@ -612,43 +475,55 @@
                                         >{{ $option['label'] }}</option>
                                     @endforeach
                                 </select>
+                                </div>
                             </div>
-                            <div class="form-group" id="quote-payments-custom-wrap" style="{{ $showPaymentsCustom ? '' : 'display:none;' }}">
-                                <label class="control-label">Custom payment terms</label>
-                                <textarea class="form-control" rows="3" name="payments_custom" id="quote-payments-custom" placeholder="Enter custom payment terms for this quotation...">{{ $paymentsCustomValue }}</textarea>
-                                <small class="text-muted">Shown when “Other” is selected. Saved on this quotation only.</small>
+                            <div class="ls-field" id="quote-payments-custom-wrap" style="{{ $showPaymentsCustom ? '' : 'display:none;' }}">
+                                <label class="ls-field__label">Custom payment terms</label>
+                                <div class="ls-field__control">
+                                <textarea class="ls-field__input form-control" rows="3" name="payments_custom" id="quote-payments-custom" placeholder="Enter custom payment terms for this quotation...">{{ $paymentsCustomValue }}</textarea>
+                                </div>
+                                <p class="ls-field__hint">Shown when “Other” is selected. Saved on this quotation only.</p>
                             </div>
-                            <div class="form-group">
-                                <label class="control-label">Proposal Acceptance</label>
-                                <textarea class="form-control" rows="2" name="quote_specification" placeholder="Proposal Acceptance...">{{ $termsOfSale['quote_specification'] ?? '' }}</textarea>
+                            </div>
+                            <div class="ls-field mt-2">
+                                <label class="ls-field__label">Proposal Acceptance</label>
+                                <div class="ls-field__control">
+                                <textarea class="ls-field__input form-control" rows="2" name="quote_specification" placeholder="Proposal Acceptance...">{{ $termsOfSale['quote_specification'] ?? '' }}</textarea>
+                                </div>
                             </div>
 
                         </div>
-                        <small style="font-size: 11px;"><b><u>Additional Information</u></b></small>
+                        </div>
 
-                        <div class="additional-info ml-4">
-                            <div class="form-group">
-                                <label class="control-label">Technical questions / Inquiries / Complaints</label>
-                                <textarea class="form-control" rows="2" name="additional_info" placeholder="Technical questions / Inquiries / Complaints...">{{ $termsOfSale['additional_info'] ?? '' }}</textarea>
+                        <div class="ls-form-panel mb-0">
+                        <h4 class="ls-form-panel__title"><i class="mdi mdi-information-outline"></i> Additional Information</h4>
+
+                        <div class="additional-info">
+                            <div class="ls-field">
+                                <label class="ls-field__label">Technical questions / Inquiries / Complaints</label>
+                                <div class="ls-field__control">
+                                <textarea class="ls-field__input form-control" rows="2" name="additional_info" placeholder="Technical questions / Inquiries / Complaints...">{{ $termsOfSale['additional_info'] ?? '' }}</textarea>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label class="control-label">Information for Purchase Order / Sample Shipment</label>
-                                <textarea class="form-control" rows="5" name="payment_info" placeholder="Information for Purchase Order / Sample Shipment...">{{ $termsOfSale['payment_info'] ?? '' }}</textarea>
+                            <div class="ls-field mt-2">
+                                <label class="ls-field__label">Information for Purchase Order / Sample Shipment</label>
+                                <div class="ls-field__control">
+                                <textarea class="ls-field__input form-control" rows="5" name="payment_info" placeholder="Information for Purchase Order / Sample Shipment...">{{ $termsOfSale['payment_info'] ?? '' }}</textarea>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label class="control-label">Quotation T&amp;C Override <small class="text-muted">(optional — one term per line)</small></label>
-                                <textarea class="form-control" rows="4" name="terms_override" placeholder="Leave blank to use system Quotation Terms and Conditions">{{ $header->terms_override }}</textarea>
+                            <div class="ls-field mt-2">
+                                <label class="ls-field__label">Quotation T&amp;C Override <span class="text-muted" style="font-weight:500;">(optional — one term per line)</span></label>
+                                <div class="ls-field__control">
+                                <textarea class="ls-field__input form-control" rows="4" name="terms_override" placeholder="Leave blank to use system Quotation Terms and Conditions">{{ $header->terms_override }}</textarea>
+                                </div>
                             </div>
+                        </div>
                         </div>
 
                     </form>
-                </div>
-
-            </div>
+    </div>
         </div>
     </div>
-
-
 
 </main>
 
@@ -657,11 +532,12 @@
 <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 @endsection
 @section('script2')
-<div class="modal fade" id="print-quotation" data-backdrop="static" data-keyboard="false">
-    <div class="modal-dialog">
+@include('layouts.lab.invoice.partials.quotation-show-header-scripts')
+<div class="modal fade ls-quotation-workflow-modal" id="print-quotation" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="mdi mdi-printer"></i> Quote {{$header->quote_number}} PDF Proccessing </h5>
+                <h5 class="modal-title"><i class="mdi mdi-printer"></i> Quote {{$header->quote_number}} PDF Processing</h5>
             </div>
             <div class="modal-body text-center">
                 <div class="loading">
@@ -669,14 +545,14 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <a href="/billing-add-quote-detail-index/{{$header->id}}" class="btn  btn-sm btn-outline-danger">Close</a>
+                <a href="/billing-add-quote-detail-index/{{$header->id}}" class="btn btn-sm btn-outline-secondary">Close</a>
                 
             </div>
         </div>
     </div>
 </div>
-<div class="modal fade" id="request-approval" role="dialog">
-    <div class="modal-dialog">
+<div class="modal fade ls-quotation-workflow-modal" id="request-approval" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form action="{{ route('approve-workflow')}}" method="post">
                 @csrf
@@ -688,9 +564,10 @@
                 <div class="modal-body">
                     <input type="hidden" name="header_id" value="{{$header->id}}">
                     <input type="hidden" name="stage" value="Quote In Approval">
-                    <div class="form-group">
-                        <label class="control-label">To Be Approved BY: <span class="text-danger">*</span> </label>
-                        <select name="user_id" class="form-control" required>
+                    <div class="ls-field">
+                        <label class="ls-field__label">To Be Approved By <span class="ls-req">*</span></label>
+                        <div class="ls-field__control">
+                        <select name="user_id" class="ls-field__input form-control" required>
                             <option value="">Select Approver...</option>
                             @foreach($users as $user)
                             @if($user->id != $header->prepared_by_id)
@@ -698,166 +575,154 @@
                             @endif
                             @endforeach
                         </select>
+                        </div>
                     </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" class="form-control" name="notification" />
-                        <label class="form-check-label">
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="notification" id="req-approval-email" />
+                        <label class="form-check-label" for="req-approval-email">
                             Send Email Notification
                         </label>
                     </div>
-                    <br>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
-                        <label class="form-check-label">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="send_message" id="req-approval-msg" />
+                        <label class="form-check-label" for="req-approval-msg">
                             Send Message
                         </label>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-content-save"></i> Approve</button>
-                    <button type="button" class="btn btn-sm btn-outline-danger" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-quotation-primary"><i class="mdi mdi-share-circle"></i> Request</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-<div class="modal fade" id="approve-quote" role="dialog">
-    <div class="modal-dialog">
+<div class="modal fade ls-quotation-workflow-modal" id="approve-quote" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form action="{{ route('approve-workflow')}}" method="post">
             @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="mdi mdi-check-decagram"></i> Approve Quotation</h5>
+                </div>
                 <div class="modal-body">
                     <input type="hidden" name="header_id" value="{{$header->id}}">
                     <input type="hidden" name="stage" value="Quote Complete">
                     @if($header->approved_by == Auth::user()->id)
-                    <div class="alert alert-success">
-                       <i class="mdi mdi-alert-decagram"></i> Notify {{getUserById($header->prepared_by_id)->name}} that you have approved Quote {{$header->quote_number}} by ?
+                    <div class="alert alert-success mb-3">
+                       <i class="mdi mdi-alert-decagram"></i> Notify {{getUserById($header->prepared_by_id)->name}} that you have approved Quote {{$header->quote_number}}?
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" class="form-control" name="notification" />
-                        <label class="form-check-label">
+                        <input class="form-check-input" type="checkbox" name="notification" id="approve-email" />
+                        <label class="form-check-label" for="approve-email">
                             Send Email Notification
                         </label>
                     </div>
-                    <br>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
-                        <label class="form-check-label">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="send_message" id="approve-msg" />
+                        <label class="form-check-label" for="approve-msg">
                             Send Message
                         </label>
                     </div>
                     @else
-                    <div class="alert alert-danger">
+                    <div class="alert alert-danger mb-0">
                         <i class="mdi mdi-alert-decagram"></i> You are not allowed to approve this quotation.
                     </div>
                     @endif
                     
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Close</button>
                     @if($header->approved_by == Auth::user()->id)
-                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-content-save"></i> Approve</button>
+                    <button type="submit" class="btn btn-sm btn-quotation-primary"><i class="mdi mdi-check"></i> Approve</button>
                     @endif
-                    <button type="button" class="btn btn-sm btn-outline-danger" data-dismiss="modal">Close</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-<div class="modal fade" id="delete-quotation" role="dialog">
-    <div class="modal-dialog">
+<div class="modal fade ls-quotation-workflow-modal" id="delete-quotation" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form action="{{route('delete_quotation',['id'=>$header->id])}}" method="post">
                 @csrf
                 <div class="modal-header">
                     <h4 class="modal-title">
-
-                        <i class="mdi mdi-delete-empty text-danger"></i> Delete Item {{$header->quote_number}}
-
+                        <i class="mdi mdi-delete-empty"></i> Delete Quotation {{$header->quote_number}}
                     </h4>
                 </div>
                 <div class="modal-body text-center">
-
                     <input type="hidden" name="header_id" value="{{$header->id}}" class="form-control">
                     Are you sure you want to delete Quotation {{$header->quote_number}}?
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-outline-success"><i class="mdi mdi-content-save"></i> Yes</button>
-                    <button type="button" class="btn btn-outline-danger" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-quotation-primary"><i class="mdi mdi-delete-empty"></i> Yes, delete</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-<div class="modal fade" id="save-draft" role="dialog">
-    <div class="modal-dialog">
+<div class="modal fade ls-quotation-workflow-modal" id="save-draft" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form action="{{route('save_draft',['id'=>$header->id])}}" method="post">
                 @csrf
                 <div class="modal-header">
-                    <h4 class="modal-title"><i class="mdi mdi-download-outline text-warning"></i> Save As Draft Quotation {{$header->quote_number}}</h4>
+                    <h4 class="modal-title"><i class="mdi mdi-download-outline"></i> Save As Draft — {{$header->quote_number}}</h4>
                 </div>
                 <div class="modal-body">
-                    <div class="card p-3" style="background-color: turquoise;">
+                    <div class="alert alert-warning mb-0">
+                        <i class="mdi mdi-alert-outline"></i>
                         Ensure you have saved all the details first before saving as draft.
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-outline-primary"><i class="mdi mdi-content-save"></i>Save</button>
-                    <button type="button" class="btn btn-outline-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-quotation-primary"><i class="mdi mdi-content-save"></i> Save draft</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-<div class="modal fade" id="detail-edit-mode" role="dialog">
-    <div class="modal-dialog">
+<div class="modal fade ls-quotation-workflow-modal" id="detail-edit-mode" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <form method="post" action="{{route('edit_quotation_detail')}}" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title"></h5>
-                    <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-content-save"></i>Save</button>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-success text-center">
-                        kindly wait for the page to load!
+                    <div class="alert alert-success text-center mb-0">
+                        Kindly wait for the page to load…
                     </div>
                 </div>
                 <div class="modal-footer">
-
-                    <button type="button" class="btn btn-outline-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-quotation-primary btn-sm"><i class="mdi mdi-content-save-outline"></i> Save</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-<div class="modal fade" id="edit-detail-analytes" role="dialog">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-light">
+<div class="modal fade ls-quotation-workflow-modal ls-quote-params-modal" id="edit-detail-analytes" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="mdi mdi-pencil text-primary"></i> Edit Quotation Parameters
+                    <i class="mdi mdi-pencil"></i> Edit Quotation Parameters
                 </h5>
-                <button type="button" class="btn btn-success float-right btn-sm" id="save-edit"><i class="mdi mdi-content-save"></i> Save</button>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table style="width: 100%;" class="table-condensed table-hover table-stripped table-sm table-bordered">
-                        <thead class="bg-light">
-                            <th>No <input type="checkbox" class="float-right" id="edit-analyte-all"></th>
-                            <th>Analyte Name</th>
-                            <th>Accredited <input type="checkbox" id="edit-accreditted" class="float-right"></th>
-                            <th>Sub-Contracted <input type="checkbox" id="edit-sub" class="float-right"></th>
-                            <th nowrap>LOQ</th>
-                            <th nowrap>MU%</th>
-                            <th nowrap title="Turnaround time (days)">TAT</th>
-                        </thead>
-                        <tbody id="edit-description"></tbody>
-                    </table>
-                </div>
+            <div class="modal-body ls-quote-params-modal-body">
+                @include('layouts.lab.invoice.partials.quotation-params-modal-panel', ['prefix' => 'edit'])
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-quotation-primary btn-sm" id="save-edit"><i class="mdi mdi-content-save-outline"></i> Save</button>
             </div>
         </div>
     </div>
@@ -955,32 +820,21 @@
 
 
 @endforeach
-<div class="modal fade" id="quote-description-analytes" role="dialog">
-    <div class="modal-dialog modal-lg">
+<div class="modal fade ls-quotation-workflow-modal ls-quote-params-modal" id="quote-description-analytes" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="mdi mdi-google-circles-extended text-success"></i> Quotation Parameters
+                    <i class="mdi mdi-flask-outline"></i> Quotation Parameters
                 </h5>
-                <button type="button" id="save-analytes" class="btn btn-outline-success btn-sm float-right"><i class="mdi mdi-content-save"></i> Save</button>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table-condensed table-hover table-stripped table-sm table-bordered" style="width: 100%;">
-                        <thead class="bg-light">
-                            <th>No <input type="checkbox" id="select-analyte-all" class="float-right"></th>
-                            <th>Analyte </th>
-                            <th>Accredited <input type="checkbox" id="select-accredited-all" class="float-right"></th>
-                            <th>Subcontracted <input type="checkbox" id="select-sub-all" class="float-right"></th>
-                            <th nowrap>LOQ</th>
-                            <th nowrap>MU%</th>
-                            <th nowrap title="Turnaround time (days)">TAT</th>
-                        </thead>
-                        <tbody id="analysis-analytes-holder">
-
-                        </tbody>
-                    </table>
-                </div>
+            <div class="modal-body ls-quote-params-modal-body">
+                @include('layouts.lab.invoice.partials.quotation-params-modal-panel', ['prefix' => 'quote'])
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+                <button type="button" id="save-analytes" class="btn btn-quotation-primary btn-sm"><i class="mdi mdi-content-save-outline"></i> Save</button>
             </div>
         </div>
     </div>
@@ -988,33 +842,14 @@
 <script>
     var analysis = [];
     $(function() {
-        function filterQuoteSamplePointsByUnit() {
-            var unitId = String($('#quote-company-unit').val() || '');
-            var $points = $('#quote-sample-point');
-            var selected = String($points.val() || '');
-            var keepSelected = false;
-
-            $points.find('option').each(function () {
-                var $opt = $(this);
-                if (!$opt.val()) {
-                    $opt.prop('hidden', false).prop('disabled', false);
-                    return;
-                }
-                var optUnit = String($opt.data('unit-id') || '');
-                var visible = unitId === '' || optUnit === '' || optUnit === unitId;
-                $opt.prop('hidden', !visible).prop('disabled', !visible);
-                if (visible && $opt.val() === selected) {
-                    keepSelected = true;
-                }
+        // Keep prototype fields out of HTML5 validation/submit (disabled controls are skipped).
+        var proto = document.getElementById('ls-quote-analysis-line-prototype');
+        if (proto) {
+            Array.prototype.forEach.call(proto.querySelectorAll('input, select, textarea, button'), function (el) {
+                el.disabled = true;
+                el.required = false;
             });
-
-            if (!keepSelected) {
-                $points.val('');
-            }
         }
-
-        $('#quote-company-unit').on('change', filterQuoteSamplePointsByUnit);
-        filterQuoteSamplePointsByUnit();
 
         var quotationPricingConfig = {
             suggestUrl: @json(route('quotation.suggest_line_pricing', $header->id)),
@@ -1022,7 +857,371 @@
             updateLoqUrl: @json(route('quotation.update_element_loq')),
             quotationHeaderId: @json((string) $header->id),
             csrf: @json(csrf_token()),
+            labSectionNames: @json($header->labSections->pluck('name')->values()->all()),
         };
+
+        var quotationImportConfig = {
+            importUrl: @json(route('quotation.import_prep_lines', $header->id)),
+            capabilityUrl: @json(route('quotation.import_prep_capability')),
+            csrf: quotationPricingConfig.csrf,
+            format: 'excel',
+        };
+
+        (function initQuoteImportUi() {
+            var $fmtBtns = $('.ls-quote-import-fmt');
+            var $file = $('#ls-quote-import-file');
+            var $err = $('#ls-quote-import-error');
+            var $ok = $('#ls-quote-import-success');
+            var $pdfHint = $('#ls-quote-import-pdf-hint');
+            var $excelHint = $('#ls-quote-import-excel-hint');
+            var $pdfBtn = $('#ls-quote-import-fmt-pdf');
+
+            function setFormat(fmt) {
+                quotationImportConfig.format = fmt;
+                $fmtBtns.removeClass('is-active btn-secondary').addClass('btn-outline-secondary');
+                $fmtBtns.filter('[data-format="' + fmt + '"]').addClass('is-active btn-secondary').removeClass('btn-outline-secondary');
+                if (fmt === 'pdf') {
+                    $file.attr('accept', '.pdf,application/pdf');
+                    $excelHint.prop('hidden', true);
+                    $pdfHint.prop('hidden', false);
+                } else {
+                    $file.attr('accept', '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                    $excelHint.prop('hidden', false);
+                    $pdfHint.prop('hidden', true);
+                }
+                $err.prop('hidden', true).text('');
+                $ok.prop('hidden', true).text('');
+            }
+
+            $fmtBtns.on('click', function () {
+                var fmt = $(this).data('format');
+                if (fmt === 'pdf' && $pdfBtn.prop('disabled')) {
+                    return;
+                }
+                setFormat(fmt);
+            });
+
+            $.getJSON(quotationImportConfig.capabilityUrl)
+                .done(function (data) {
+                    var pdf = (data && data.pdf) ? data.pdf : {};
+                    if (pdf.available) {
+                        $pdfHint.text(pdf.hint || 'PDF import is available.').prop('hidden', true);
+                        $pdfBtn.prop('disabled', false);
+                    } else {
+                        $pdfBtn.prop('disabled', true).attr('title', pdf.hint || 'Install poppler-utils');
+                        $pdfHint.text(pdf.hint || 'PDF import unavailable — use Excel.').prop('hidden', false);
+                    }
+                });
+
+            $('#ls-quote-import-submit').on('click', function () {
+                var fileInput = $file.get(0);
+                $err.prop('hidden', true).text('');
+                $ok.prop('hidden', true).text('');
+                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                    $err.text('Choose a file to import.').prop('hidden', false);
+                    return;
+                }
+
+                var fd = new FormData();
+                fd.append('file', fileInput.files[0]);
+                fd.append('format', quotationImportConfig.format);
+                fd.append('_token', quotationImportConfig.csrf);
+
+                var $btn = $(this);
+                $btn.prop('disabled', true);
+                $.ajax({
+                    url: quotationImportConfig.importUrl,
+                    method: 'POST',
+                    data: fd,
+                    processData: false,
+                    contentType: false,
+                }).done(function (res) {
+                    var created = (res && res.created) ? res.created : 0;
+                    var warnings = (res && res.warnings) ? res.warnings : [];
+                    var msg = 'Imported ' + created + ' line(s).';
+                    if (warnings.length) {
+                        msg += ' Warnings: ' + warnings.slice(0, 3).join(' ');
+                    }
+                    $ok.text(msg).prop('hidden', false);
+                    setTimeout(function () { window.location.reload(); }, 700);
+                }).fail(function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.error)
+                        ? xhr.responseJSON.error
+                        : 'Import failed.';
+                    $err.text(msg).prop('hidden', false);
+                }).always(function () {
+                    $btn.prop('disabled', false);
+                });
+            });
+
+            setFormat('excel');
+        })();
+
+        function escapeQuoteHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function buildParamChipHtml(label, accredited, subcontracted) {
+            var classes = 'ls-select2-view__chip ls-quote-param-chip';
+            if (accredited) { classes += ' ls-quote-param-chip--acc'; }
+            if (subcontracted) { classes += ' ls-quote-param-chip--sub'; }
+            var badges = '';
+            if (subcontracted) {
+                badges += ' <i class="mdi mdi-asterisk" title="Subcontracted"></i>';
+            }
+            if (accredited) {
+                badges += ' <i class="mdi mdi-check-decagram" title="Accredited"></i>';
+            }
+            return '<span class="' + classes + '">' + escapeQuoteHtml(label) + badges + '</span>';
+        }
+
+        /**
+         * Parameters card under a quotation line.
+         * Amspec math: chips are scope (tests); commercial total = qty × unit price once.
+         * When chip count > 7, start collapsed with a numeric badge only (e.g. "12").
+         */
+        function buildParamsPanelHtml(title, rowNo, sampleTypeId, sampleTypeName, chipsHtml, openIcon) {
+            var icon = openIcon || 'mdi-pencil';
+            var safeTitle = escapeQuoteHtml(title || sampleTypeName || 'Parameters');
+            var safeCode = escapeQuoteHtml(sampleTypeName || '');
+            var $tmp = $('<div>' + (chipsHtml || '') + '</div>');
+            var chipCount = $tmp.find('.ls-quote-param-chip').length;
+            var collapsed = chipCount > 7;
+            var countBadge = collapsed
+                ? '<span class="ls-quote-params__count">' + chipCount + '</span>'
+                : '';
+            return '' +
+                '<div class="ls-quote-params' + (collapsed ? ' is-collapsed' : '') + '" data-param-count="' + chipCount + '">' +
+                    '<div class="ls-quote-params__toolbar">' +
+                        '<button type="button" class="ls-quote-params__title js-quote-params-toggle" title="' + (collapsed ? 'Show parameters' : 'Hide parameters') + '">' +
+                            safeTitle + countBadge +
+                        '</button>' +
+                        '<button type="button" class="ls-btn ls-quote-params__edit" data-target="#quote-description-analytes" data-row="' + rowNo + '" data-samplecode="' + safeCode + '" data-toggle="modal" data-sampletype="' + escapeQuoteHtml(sampleTypeId || '') + '" title="Edit parameters">' +
+                            '<i class="mdi ' + icon + '"></i>' +
+                        '</button>' +
+                    '</div>' +
+                    '<div class="ls-select2-view ls-quote-params__chips">' + (chipsHtml || '<span class="text-muted small">No parameters</span>') + '</div>' +
+                '</div>';
+        }
+
+        $(document).on('click', '.js-quote-params-toggle', function(e) {
+            e.preventDefault();
+            var $card = $(this).closest('.ls-quote-params');
+            $card.toggleClass('is-collapsed');
+            var collapsed = $card.hasClass('is-collapsed');
+            $(this).attr('title', collapsed ? 'Show parameters' : 'Hide parameters');
+            var count = parseInt($card.attr('data-param-count'), 10) || 0;
+            var $badge = $(this).find('.ls-quote-params__count');
+            if (collapsed && count > 0) {
+                if (!$badge.length) {
+                    $(this).append($('<span class="ls-quote-params__count"></span>').text(count));
+                } else {
+                    $badge.text(count);
+                }
+            } else {
+                $badge.remove();
+            }
+        });
+
+        function initLsSampleTypeSelect($el) {
+            if (!$.fn.select2 || !$el.length) { return; }
+            if ($el.data('select2') || $el.hasClass('select2-hidden-accessible')) {
+                try { $el.select2('destroy'); } catch (err) {}
+            }
+            $el.addClass('ls-select2-multi-dropdown-search-el');
+            var isSingle = $el.data('ls-single') === 1 || $el.data('ls-single') === '1' || !$el.prop('multiple');
+            $el.select2({
+                width: '100%',
+                placeholder: $el.data('placeholder') || 'Choose sample type…',
+                allowClear: true,
+                closeOnSelect: isSingle,
+                dropdownCssClass: 'ls-select2-dropdown-search',
+                templateResult: function (data) {
+                    if (!data.id) { return data.text; }
+                    if (isSingle) { return data.text; }
+                    var selected = ($el.val() || []).indexOf(String(data.id)) !== -1;
+                    var $row = $('<span class="ls-select2-meta-row"><span class="ls-select2-check">' + (selected ? '✓' : '') + '</span><span class="ls-select2-meta-row__label"></span></span>');
+                    $row.find('.ls-select2-meta-row__label').text(data.text);
+                    return $row;
+                },
+                escapeMarkup: function (m) { return m; },
+            });
+            $el.off('select2:open.lsSampleDd select2:close.lsSampleDd select2:select.lsSampleDd select2:unselect.lsSampleDd')
+                .on('select2:open.lsSampleDd', function () {
+                    var $container = $el.next('.select2-container');
+                    $container.find('.select2-search--inline .select2-search__field').attr(
+                        'style',
+                        'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;'
+                    );
+                    $container.css({ maxWidth: '100%', overflow: 'hidden' });
+                    var $dropdown = $('.select2-container--open .select2-dropdown');
+                    if ($dropdown.find('.ls-dd-search').length) {
+                        $dropdown.find('.ls-dd-search input').val('').trigger('focus');
+                        return;
+                    }
+                    var $box = $('<div class="ls-dd-search"><i class="mdi mdi-magnify" aria-hidden="true"></i><input type="search" placeholder="Search…" autocomplete="off"></div>');
+                    $dropdown.prepend($box);
+                    $box.find('input').on('input keyup', function () {
+                        var q = $(this).val();
+                        var $hidden = $el.data('select2') && $el.data('select2').$selection
+                            ? $el.data('select2').$selection.find('.select2-search__field')
+                            : $('.select2-container--open .select2-search--inline .select2-search__field');
+                        $hidden.val(q).trigger('input').trigger('keyup');
+                    });
+                    setTimeout(function () { $box.find('input').trigger('focus'); }, 0);
+                })
+                .on('select2:close.lsSampleDd select2:select.lsSampleDd select2:unselect.lsSampleDd', function () {
+                    var $container = $el.next('.select2-container');
+                    $container.find('.select2-search--inline .select2-search__field').attr(
+                        'style',
+                        'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;'
+                    );
+                });
+        }
+
+        function initLsPartSelect($el) {
+            if (!$.fn.select2 || !$el.length) { return; }
+            if ($el.data('select2') || $el.hasClass('select2-hidden-accessible')) {
+                try { $el.select2('destroy'); } catch (err) {}
+            }
+            $el.addClass('ls-select2-multi-dropdown-search-el');
+            $el.select2({
+                width: '100%',
+                placeholder: $el.data('placeholder') || 'Select analysis type…',
+                closeOnSelect: false,
+                dropdownCssClass: 'ls-select2-dropdown-search',
+                templateResult: function (data) {
+                    if (!data.id) { return data.text; }
+                    var selected = ($el.val() || []).indexOf(String(data.id)) !== -1;
+                    var $row = $('<span class="ls-select2-meta-row"><span class="ls-select2-check">' + (selected ? '✓' : '') + '</span><span class="ls-select2-meta-row__label"></span></span>');
+                    $row.find('.ls-select2-meta-row__label').text(data.text);
+                    return $row;
+                },
+                escapeMarkup: function (m) { return m; },
+            });
+            $el.off('select2:open.lsLineDd select2:close.lsLineDd select2:select.lsLineDd select2:unselect.lsLineDd')
+                .on('select2:open.lsLineDd', function () {
+                    var $container = $el.next('.select2-container');
+                    $container.find('.select2-search--inline .select2-search__field').attr(
+                        'style',
+                        'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;'
+                    );
+                    $container.css({ maxWidth: '100%', overflow: 'hidden' });
+                    var $dropdown = $('.select2-container--open .select2-dropdown');
+                    if ($dropdown.find('.ls-dd-search').length) {
+                        $dropdown.find('.ls-dd-search input').val('').trigger('focus');
+                        return;
+                    }
+                    var $box = $('<div class="ls-dd-search"><i class="mdi mdi-magnify" aria-hidden="true"></i><input type="search" placeholder="Search…" autocomplete="off"></div>');
+                    $dropdown.prepend($box);
+                    $box.find('input').on('input keyup', function () {
+                        var q = $(this).val();
+                        var $hidden = $el.data('select2') && $el.data('select2').$selection
+                            ? $el.data('select2').$selection.find('.select2-search__field')
+                            : $('.select2-container--open .select2-search--inline .select2-search__field');
+                        $hidden.val(q).trigger('input').trigger('keyup');
+                    });
+                    setTimeout(function () { $box.find('input').trigger('focus'); }, 0);
+                })
+                .on('select2:close.lsLineDd select2:select.lsLineDd select2:unselect.lsLineDd', function () {
+                    var $container = $el.next('.select2-container');
+                    $container.find('.select2-search--inline .select2-search__field').attr(
+                        'style',
+                        'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;'
+                    );
+                });
+        }
+
+        function countAnalytePayload(data) {
+            var count = 0;
+            if (!data || typeof data !== 'object') {
+                return 0;
+            }
+            Object.keys(data).forEach(function (key) {
+                var rows = data[key];
+                if (Array.isArray(rows)) {
+                    count += rows.length;
+                }
+            });
+            return count;
+        }
+
+        function labSectionHintText() {
+            var names = quotationPricingConfig.labSectionNames || [];
+            if (!names.length) {
+                return '';
+            }
+            return 'This quotation is limited to lab section(s): ' + names.join(', ') + '.';
+        }
+
+        function showQuoteParamsEmpty(title, message) {
+            var $empty = $('#quote-params-empty');
+            var $wrap = $('#quote-params-table-wrap');
+            var $skel = $('#quote-params-skeleton');
+            $('#quote-params-empty-title').text(title || 'No parameters available');
+            $('#quote-params-empty-text').text(message || '');
+            $empty.prop('hidden', false).removeAttr('hidden');
+            $wrap.prop('hidden', true).attr('hidden', 'hidden');
+            $skel.prop('hidden', true).attr('hidden', 'hidden');
+            $('#save-analytes').prop('disabled', true);
+        }
+
+        function showQuoteParamsSkeleton() {
+            $('#quote-params-empty').prop('hidden', true).attr('hidden', 'hidden');
+            $('#quote-params-table-wrap').prop('hidden', true).attr('hidden', 'hidden');
+            $('#quote-params-skeleton').prop('hidden', false).removeAttr('hidden');
+            $('#save-analytes').prop('disabled', true);
+        }
+
+        function showQuoteParamsTable() {
+            $('#quote-params-empty').prop('hidden', true).attr('hidden', 'hidden');
+            $('#quote-params-skeleton').prop('hidden', true).attr('hidden', 'hidden');
+            $('#quote-params-table-wrap').prop('hidden', false).removeAttr('hidden');
+            $('#save-analytes').prop('disabled', false);
+        }
+
+        function showEditParamsEmpty(title, message) {
+            var $empty = $('#edit-params-empty');
+            var $wrap = $('#edit-params-table-wrap');
+            var $skel = $('#edit-params-skeleton');
+            if (!$empty.length) {
+                return;
+            }
+            $('#edit-params-empty-title').text(title || 'No parameters available');
+            $('#edit-params-empty-text').text(message || '');
+            $empty.prop('hidden', false);
+            $wrap.prop('hidden', true);
+            $skel.prop('hidden', true);
+            $('#save-edit').prop('disabled', true);
+        }
+
+        function showEditParamsSkeleton() {
+            $('#edit-params-empty').prop('hidden', true);
+            $('#edit-params-table-wrap').prop('hidden', true);
+            $('#edit-params-skeleton').prop('hidden', false);
+            $('#save-edit').prop('disabled', true);
+        }
+
+        function showEditParamsTable() {
+            var $empty = $('#edit-params-empty');
+            var $wrap = $('#edit-params-table-wrap');
+            var $skel = $('#edit-params-skeleton');
+            if ($empty.length) {
+                $empty.prop('hidden', true);
+            }
+            if ($skel.length) {
+                $skel.prop('hidden', true);
+            }
+            if ($wrap.length) {
+                $wrap.prop('hidden', false);
+            }
+            $('#save-edit').prop('disabled', false);
+        }
 
         function applyPricelistSuggestionToRow($row, data) {
             $row.data('pricelistSuggestion', data);
@@ -1036,16 +1235,32 @@
                     parseFloat(data.tax) > 0 ? parseFloat(data.tax).toFixed(2) + '%' : '0%'
                 );
             }
+            updateQuoteLineTotal($row);
         }
+
+        function updateQuoteLineTotal($row) {
+            var qty = parseFloat($row.find('.quotation-qty, input[name="quantity[]"]').val()) || 0;
+            var unit = parseFloat($row.find('.quotation-unit-price').val()) || 0;
+            // Amspec: Total = No. of samples × Unit price (once per package line).
+            $row.find('.quotation-line-total').val((qty * unit).toFixed(2));
+        }
+
+        $(document).on('input change', '#create-detail .quotation-qty, #create-detail .quotation-unit-price', function () {
+            updateQuoteLineTotal($(this).closest('tr'));
+        });
 
         function clearRowParameterFields($row) {
             var $desc = $row.find('#quote-description');
-            $desc.find('input[name="accreditted_analytes[]"], input[name="sub_analytes[]"], input[name="sub_acc[]"], input[name="default_analytes[]"], input[name="element_loq_json[]"]').remove();
+            $desc.empty().append(
+                $('<div class="ls-quote-params ls-quote-params--empty"><span class="text-muted small">Select sample type, then Parameters</span></div>')
+            );
+            $row.find('input.select-part-final').val('');
             $row.find('.quotation-unit-price').val(0);
             $row.find('.quotation-tax').val(0);
             $row.find('.quotation-tax-display').text('0%');
             $row.removeData('pricelistSuggestion');
-            $row.find('.quotation-price-hint').text('Pick tests in Parameters to load pricelist total.');
+            $row.find('.quotation-price-hint').text('Pick tests in Parameters to load package / pricelist price.');
+            updateQuoteLineTotal($row);
         }
 
         function writePackageDefaultsToRow($row, data, sampleTypeId, sampleTypeName) {
@@ -1063,26 +1278,14 @@
                 defaultIds = elementIds.filter(function(id) { return !accreditedSet[String(id)]; });
             }
 
-            var header = $(`
-                <p class="mb-0"><b>${sampleTypeName || 'Parameters'}</b>
-                <span data-target="#quote-description-analytes" data-row="${rowNo}" data-samplecode="${sampleTypeName || ''}" data-toggle="modal" data-sampletype="${sampleTypeId}" class="btn btn-outline-success btn-sm mdi mdi-pencil float-right"></span>
-                </p>
-                <p class="mb-0"><b>Parameters:</b></p>
-            `);
-            $desc.append(header);
-
+            var chipsHtml = '';
             if (parameters.length) {
                 parameters.forEach(function(param) {
                     var label = param.label || param.id || '';
-                    if (param.accredited) {
-                        $desc.append($(`<span>${label} <img src="/images/tick.png" alt="tick" height="8" width="8">, </span>`));
-                    } else {
-                        $desc.append($(`<span>${label}, </span>`));
-                    }
+                    chipsHtml += buildParamChipHtml(label, !!param.accredited, false);
                 });
-            } else {
-                $desc.append($('<span class="text-muted">No parameters</span>'));
             }
+            $desc.append(buildParamsPanelHtml(sampleTypeName, rowNo, sampleTypeId, sampleTypeName, chipsHtml, 'mdi-pencil'));
 
             $desc.append($('<input type="hidden" name="accreditted_analytes[]">').val(accreditedIds.toString()));
             $desc.append($('<input type="hidden" name="sub_analytes[]">').val(''));
@@ -1095,13 +1298,22 @@
 
         function refreshPackageDefaultsForRow($row) {
             var sampleTypeId = $row.find('select[name="sample_type[]"]').val() || '';
-            var analysisTypeIds = $row.find('input#select-part-final, input[name="part_number_final[]"]').val() || '';
+            var analysisTypeIds = $row.find('input.select-part-final, input[name="part_number_final[]"]').val() || '';
             var sampleTypeName = $row.find('select[name="sample_type[]"] option:selected').text() || '';
             var $hint = $row.find('.quotation-price-hint');
 
-            if (!sampleTypeId || !analysisTypeIds) {
+            if (!sampleTypeId) {
                 clearRowParameterFields($row);
-                $hint.text('Select sample type and analysis type.');
+                $hint.text('Select sample type, then open Parameters.');
+                return;
+            }
+
+            if (!analysisTypeIds) {
+                var rowNoEmpty = $row.attr('id').replace('detail-row-', '');
+                var $descEmpty = $row.find('#quote-description');
+                $descEmpty.empty().removeClass('text-center');
+                $descEmpty.append($(buildParamsPanelHtml(sampleTypeName, rowNoEmpty, sampleTypeId, sampleTypeName, '', 'mdi-eye-outline')));
+                $hint.text('Open Parameters to select tests for this sample type.');
                 return;
             }
 
@@ -1123,14 +1335,12 @@
 
                 if (!hasManualParams) {
                     $desc.empty().removeClass('text-center');
-                    $desc.append($(
-                        `<span data-target="#quote-description-analytes" data-row="${rowNo}" data-samplecode="${sampleTypeName}" data-toggle="modal" data-sampletype="${sampleTypeId}" class="btn btn-outline-success btn-sm mdi mdi-eye"></span>`
-                    ));
+                    $desc.append($(buildParamsPanelHtml(sampleTypeName, rowNo, sampleTypeId, sampleTypeName, '', 'mdi-eye-outline')));
                     $row.find('.quotation-unit-price').val(0);
                     $row.find('.quotation-tax').val(0);
                     $row.find('.quotation-tax-display').text('0%');
                     $row.removeData('pricelistSuggestion');
-                    $hint.text(data && data.hint ? data.hint : 'Pick tests in Parameters to load pricelist total.');
+                    $hint.text(data && data.hint ? data.hint : 'Pick tests in Parameters to load package / pricelist price.');
                 } else {
                     refreshQuotationRowPricingHint($row, true);
                 }
@@ -1161,7 +1371,7 @@
 
         function refreshQuotationRowPricingHint($row, applyValues) {
             var sampleTypeId = $row.find('select[name="sample_type[]"]').val() || '';
-            var analysisTypeIds = $row.find('input#select-part-final, input[name="part_number_final[]"]').val() || '';
+            var analysisTypeIds = $row.find('input.select-part-final, input#select-part-final, input[name="part_number_final[]"]').val() || '';
             var elementIds = collectElementIdsFromRow($row);
             var $hint = $row.find('.quotation-price-hint');
 
@@ -1204,12 +1414,21 @@
             refreshQuotationRowPricingHint($row, true);
         });
 
-        $('select[name="currency_id"]').on('change', function() {
-            var selected = $(this).find('option:selected');
+        $('form.ls-quotation-lines-form select[name="currency_id"]').on('change', function() {
             var currencyId = $(this).val();
-            var label = selected.text();
-            $('#currency-id-edit').val(currencyId || '');
+            var label = $(this).find('option:selected').text();
+            var hidden = document.getElementById('currency-id-edit');
+            if (hidden) {
+                hidden.value = currencyId || '';
+                hidden.dispatchEvent(new Event('change', { bubbles: true }));
+            }
             $('#display-currency-edit').val(currencyId ? label : '');
+            var root = hidden ? hidden.closest('[data-ls-search-basic]') : null;
+            if (root && window.Alpine && typeof Alpine.$data === 'function') {
+                var data = Alpine.$data(root);
+                data.selected = currencyId ? String(currencyId) : null;
+                data.q = currencyId ? label : '';
+            }
         });
 
         $('#print-quotation').on('show.bs.modal', function(e) {
@@ -1242,57 +1461,7 @@
             })
         })
 
-        $('#select-client').on('change', function() {
-            var client = $(this).val();
-            var contact = $(this).data('contact');
-            var $selectedOption = $(this).find('option:selected');
-            var zohoCustomerId = $selectedOption.data('zoho-customer-id');
-            var $contactSelect = $('#select-client-contact');
-
-            $.ajax({
-                url: '/fetch-customer-contacts/' + client + (contact ? '?assigned=' + encodeURIComponent(contact) : ''),
-                beforeSend: function() {
-                    $contactSelect.empty();
-                },
-                success: function(data) {
-                    if (!data || data.length === 0) {
-                        $contactSelect.append('<option value="" disabled selected>No contacts available</option>');
-                        return;
-                    }
-
-                    var hasSelected = false;
-                    $.each(data, function(j, s) {
-                        var label = [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ').trim();
-                        var isSelected = contact && String(s.id) === String(contact);
-                        if (isSelected) {
-                            hasSelected = true;
-                        }
-                        $contactSelect.append(
-                            $('<option></option>')
-                                .val(s.id)
-                                .text(label || 'Contact')
-                                .prop('selected', isSelected)
-                        );
-                    });
-
-                    if (!hasSelected) {
-                        $contactSelect.prepend('<option value="" disabled selected>Select Client Contact...</option>');
-                    }
-                },
-                error: function() {
-                    $contactSelect.append('<option value="" disabled selected>Unable to load contacts</option>');
-                }
-            });
-            
-            // Pre-select Dynamics customer if linked
-            if(zohoCustomerId) {
-                $('#select-zoho-customer-edit').val(zohoCustomerId).trigger('change');
-            } else {
-                $('#select-zoho-customer-edit').val('');
-                $('#display-currency-edit').val('');
-                $('#currency-id-edit').val('');
-            }
-        });
+        // Client / contact / location handled by quotation-show-header-scripts
 
         // Handle Dynamics customer selection and auto-populate currency for edit form
         $('#select-zoho-customer-edit').on('change', function() {
@@ -1312,7 +1481,16 @@
                     success: function(currency) {
                         if(currency) {
                             $('#display-currency-edit').val(currency.code + ' - ' + currency.description);
-                            $('#currency-id-edit').val(currency.id);
+                            var hidden = document.getElementById('currency-id-edit');
+                            if (hidden) {
+                                hidden.value = currency.id;
+                            }
+                            var root = hidden ? hidden.closest('[data-ls-search-basic]') : null;
+                            if (root && window.Alpine && typeof Alpine.$data === 'function') {
+                                var data = Alpine.$data(root);
+                                data.selected = String(currency.id);
+                                data.q = currency.code + ' - ' + currency.description;
+                            }
                         } else {
                             $('#display-currency-edit').val('Currency not found');
                             $('#currency-id-edit').val('');
@@ -1332,126 +1510,64 @@
 
         $('#add-row').on('click', function() {
 
-            // console.log(len2);
-
             var roeNo = $('#create-detail').find('tr').length + 1;
+            var $row = $('#ls-quote-analysis-line-prototype').clone(false, false);
+            $row.attr('id', 'detail-row-' + roeNo);
+            $row.find('.ls-quote-line-no').text(roeNo);
+            $row.find('.quote-description-cell').attr('id', 'quote-description');
+            $row.find('.select-part-final').attr('id', 'select-part-final').val('');
+            $row.find('select.select-sample-type').attr('id', 'select-sample-type').val('');
+            // Destroy any residual select2 markup from a previous accidental init on the prototype.
+            $row.find('.select2-container').remove();
+            $row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
+            $row.find('select option').removeAttr('data-select2-id');
+            // Prototype controls are disabled so they never block HTML5 submit; re-enable on real rows.
+            $row.find('input, select, textarea, button').prop('disabled', false);
+            $row.find('input[data-ls-quote-required="1"]').prop('required', true);
 
-            var $row = $(`
-                <tr id="detail-row-${roeNo}">
-                                    <td class="text-center ">${roeNo}
-                                    <span class="mdi mdi-minus-circle-outline text-danger btn " id="delete-row"></span>
-                                    </td> 
-                                    <td>      
-                                        <div class="form-group">
-                                            <select name="sample_type[]" class="form-control" id ="select-sample-type">
-                                                <option value ="">Choose Sample Type</option>
-                                                @foreach($sample_types as $type)
-                                                <option value="{{$type->id}}">{{$type->name}}</option>
-                                                @endforeach
-                                            </select> 
-                                        </div> 
-                                    </td>
-                                    <td>
-                                        <div class="form-group">
-                                            <select name="part_number[]" class="form-control select2 select-part" multiple required>
-                                                
-                                            </select>
-                                            <input type="hidden" class="form-control" value="" name ="part_number_final[]" id="select-part-final">
-                                        </div>
-                                    </td>
-                                    <td class="text-center" id="quote-description" >
-                                        <span>-</span>
-                                    </td>
-                                    <td>
-                                        <div class="form-group">
-                                            <input type="number" name="quantity[]" id="" class="form-control" value="" required>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="form-group mb-1">
-                                            <div class="input-group input-group-sm">
-                                                <input type="number" name="unit_price[]" class="form-control quotation-unit-price" min="0" step="0.01" value="0" placeholder="0 = pricelist">
-                                                <div class="input-group-append">
-                                                    <button type="button" class="btn btn-outline-secondary quotation-apply-pricelist" title="Apply pricelist suggestion">$</button>
-                                                </div>
-                                            </div>
-                                            <small class="text-muted quotation-price-hint d-block"></small>
-                                        </div>
-                                    </td>
-                                    <td >
-                                        <div class="form-group mb-0">
-                                            <input type="hidden" name="tax[]" class="quotation-tax" value="0">
-                                            <span class="form-control-plaintext quotation-tax-display px-2">0%</span>
-                                        </div>
-                                    </td>
-                                    </tr>
-                `).clone();
-            $row.find('#delete-row').on('click', function() {
+            initLsSampleTypeSelect($row.find('select.select-sample-type'));
+
+            $row.find('.js-delete-line').on('click', function() {
                 if (confirm("Are you sure you want to delete this row?")) {
-                    var row = $(this).parents('tr');
-                    $(row).remove();
+                    $(this).closest('tr').remove();
                 }
             });
 
-
-            $row.find('#select-sample-type').on('change', function(analysis) {
+            $row.find('select.select-sample-type').on('change', function() {
                 $(this).addClass('choose');
                 var sample_type = $(this).val();
+                var sample_code = $(this).find('option:selected').text() || '';
                 if (sample_type != '') {
-
-                    $.ajax({
-                        url: '/fetch-sample-type/' + sample_type + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
-                        beforeSend: function() {
-                            $('#part-number-test').empty();
-                            analysis = [];
-                        },
-                        success: function(data) {
-                            analysis = data['analysis']
-
-                            quotationDetailRow(data['analysis'], sample_type, roeNo, data['sample_type']);
-                            $('#create-detail').find('tr#detail-row-' + roeNo).find('select.select-part').select2();
-                        },
-                        error: function(data) {
-                            console.log(data);
-                        }
-                    })
+                    $row.find('input.select-part-final').val('');
+                    $row.find('#quote-description').empty().append(
+                        $(buildParamsPanelHtml(sample_code, roeNo, sample_type, sample_code, '', 'mdi-eye-outline'))
+                    );
+                    $row.find('.quotation-unit-price').val(0);
+                    $row.find('.quotation-tax').val(0);
+                    $row.find('.quotation-tax-display').text('0%');
+                    $row.removeData('pricelistSuggestion');
+                    $row.find('.quotation-price-hint').text('Open Parameters to select tests (package billed as qty × unit price once).');
+                } else {
+                    clearRowParameterFields($row);
                 }
-
-
-            });
-            $row.find('select.select-part').on('change', function() {
-                var value = $(this).val();
-                $row.find('input#select-part-final').val(value ? value.toString() : '');
-                refreshPackageDefaultsForRow($row);
             });
 
             $('#create-detail').append($row);
 
         });
 
-        var quotationDetailRow = function(data, sample_type, rowNo, sample_code) {
-            var $partSelect = $('#create-detail').find('tr#detail-row-' + rowNo).find('select.select-part');
-            $partSelect.empty();
-            $.each(data, function(i, e) {
-                $partSelect.append(`<option value ="${e.id}">${e.name}</option>`);
-            });
-            // Leave analysis type unselected so the analyst chooses; package defaults run on change.
-            $partSelect.val(null).trigger('change.select2');
-            $('#create-detail').find('tr#detail-row-' + rowNo).find('input#select-part-final').val('');
-            $partSelect.select2();
-
-            var text = $(`
-                <span data-target="#quote-description-analytes" data-row = ${rowNo} data-samplecode = "${sample_code}"  data-toggle="modal" data-sampletype=${sample_type} class="btn btn-outline-success btn-sm mdi mdi-eye"></span>
-            `);
+        var quotationDetailProp = function(data, sample_type, rowNo, sample_code) {
             var $row = $('#create-detail').find('tr#detail-row-' + rowNo);
-            $row.find('#quote-description').empty().append(text);
-            $row.find('.quotation-price-hint').text('Select analysis type to load package parameters.');
+            $row.find('input.select-part-final').val('');
+            $row.find('#quote-description').empty().append($(buildParamsPanelHtml(sample_code, rowNo, sample_type, sample_code, '', 'mdi-eye-outline')));
+            $row.find('.quotation-price-hint').text('Open Parameters to select tests for this sample type.');
         }
+
         $('#detail-edit-mode').on('show.bs.modal', function(e) {
             var detail_data = $(e.relatedTarget).data('detail')
             var sample_name = $(e.relatedTarget).data('sample');
             $(this).find('.modal-title').empty();
-            var header = $(`<span><i class="mdi mdi-pencil text-primary"></i> Edit ${sample_name} Details </span>`)
+            var header = $(`<span><i class="mdi mdi-pencil"></i> Edit ${escapeQuoteHtml(sample_name)} Details</span>`)
             $(this).find('.modal-title').append(header);
             if (detail_data != '') {
                 $.ajax({
@@ -1472,67 +1588,75 @@
             }
         })
         var detail_edit_body = function(data, analysis) {
+            var taxLabel = (data.tax !== null && typeof data.tax !== 'undefined')
+                ? parseFloat(data.tax).toFixed(2)
+                : '0.00';
             var editRow = $(`
-            <div class="form-group">
-                <label class="cotrol-label">Sample Type</label>
-                <span class="form-control">${data.sample_type_name}</span>
-                <input type="hidden" id="sample-type-id" value="${data.sample_type}">
-                <input type="hidden" name="detail_id" id="detail-id" value="${data.id}">
-            </div>
-            <div class="form-group">
-                <label class="control-label">Analysis Type</label>
-                <select class="form-group select2" name="part_no[]" multiple id="edit-part-no">
-                   
-                    
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="control-label">Quantity</label>
-                <input type="text" name="quantity" value="${data.quantity}" class="form-control">
-            </div>
-            <div class="form-group">
-                <label class="control-label">Unit Price</label>
-                <input type="number" name="unit_price" value="${data.unit_price}" class="form-control" min="0" step="0.01" placeholder="0 = pricelist">
-                <small class="text-muted">Leave 0 to use pricelist on save.</small>
-            </div>
-            <div class="form-group">
-                <label class="control-label">Tax %</label>
-                <input type="hidden" name="tax" value="${data.tax}" class="quotation-tax">
-                <span class="form-control-plaintext">${data.tax !== null && typeof data.tax !== 'undefined' ? parseFloat(data.tax).toFixed(2) : '0.00'}% (from pricelist)</span>
-            </div>
-            <div class="form-group">
-                <label class="control-label">Parameters</label>
-                <span data-toggle="modal" data-target="#edit-detail-analytes" class="float-right" ><i class="mdi mdi-pencil"></i></span>
-                <div class="description-analytes p-2" style="border:1px solid grey;">
+            <div class="ls-form-grid ls-form-grid--2">
+                <div class="ls-field ls-compact is-disabled">
+                    <label class="ls-field__label">Sample Type</label>
+                    <div class="ls-field__control">
+                        <input type="text" class="ls-field__input" value="${escapeQuoteHtml(data.sample_type_name || '')}" disabled>
+                    </div>
+                    <input type="hidden" id="sample-type-id" value="${data.sample_type}">
+                    <input type="hidden" name="detail_id" id="detail-id" value="${data.id}">
+                </div>
+                <div class="ls-field ls-compact">
+                    <label class="ls-field__label" for="edit-part-no">Analysis Type</label>
+                    <div class="ls-select2-multi ls-select2-slate">
+                        <select class="ls-select2-view-edit-el form-control" name="part_no[]" multiple id="edit-part-no" data-placeholder="Select analysis type…" style="width:100%;"></select>
+                    </div>
+                </div>
+                <div class="ls-field ls-compact">
+                    <label class="ls-field__label">Quantity Required</label>
+                    <div class="ls-field__control">
+                        <input type="text" name="quantity_required" value="${escapeQuoteHtml(data.quantity_required || '')}" class="ls-field__input" placeholder="e.g. Per Sample Swab">
+                    </div>
+                </div>
+                <div class="ls-field ls-compact">
+                    <label class="ls-field__label">No. of Samples</label>
+                    <div class="ls-field__control">
+                        <input type="text" name="quantity" value="${data.quantity}" class="ls-field__input">
+                    </div>
+                </div>
+                <div class="ls-field ls-compact">
+                    <label class="ls-field__label">Unit Price</label>
+                    <div class="ls-field__control">
+                        <input type="number" name="unit_price" value="${data.unit_price}" class="ls-field__input" min="0" step="1" placeholder="0 = pricelist">
+                    </div>
+                    <p class="ls-field__hint">Total = samples × unit price (once per package).</p>
+                </div>
+                <div class="ls-field ls-compact">
+                    <label class="ls-field__label">Tax %</label>
+                    <input type="hidden" name="tax" value="${data.tax}" class="quotation-tax">
+                    <span class="ls-quote-tax-display">${taxLabel}% (from pricelist)</span>
                 </div>
             </div>
-            
+            <div class="ls-field ls-compact mt-3 mb-0">
+                <div class="ls-quote-params__toolbar mb-2">
+                    <label class="ls-field__label mb-0">Parameters</label>
+                    <button type="button" class="ls-btn ls-quote-params__edit" data-toggle="modal" data-target="#edit-detail-analytes" title="Edit parameters">
+                        <i class="mdi mdi-pencil"></i>
+                    </button>
+                </div>
+                <div class="description-analytes ls-quote-params ls-quote-params__chips-host">
+                    <div class="ls-select2-view ls-quote-params__chips"></div>
+                </div>
+            </div>
             `).clone();
-            $(editRow).find('#edit-part-no').select2();
+
+            var $part = $(editRow).find('#edit-part-no');
             $.each(analysis, function(j, s) {
-                // console.log(s);
-                var option_text = $(`<option value="${s.id}">${s.name}</option>`)
-                $(editRow).find('#edit-part-no').append(option_text);
-            })
+                $part.append($(`<option value="${s.id}">${s.name}</option>`));
+            });
+            $part.val(data.part_no_value);
+            initLsPartSelect($part);
 
-            $(editRow).find('#edit-part-no').val(data.part_no_value)
-
-            $.each(data.sub_analytes, function(i, e) {
-                var text = $(`<span>${e}*, </span>`);
-                $(editRow).find('.description-analytes').append(text);
-            });
-            $.each(data.acc_analytes, function(i, e) {
-                var text = $(`<span>${e} <img src="/images/tick.png" height="8" width="8">, </span>`);
-                $(editRow).find('.description-analytes').append(text);
-            });
-            $.each(data.sub_acc, function(i, e) {
-                var text = $(`<span>${e}* <img src="/images/tick.png" height="8" width="8">, </span>`);
-                $(editRow).find('.description-analytes').append(text);
-            });
-            $.each(data.default, function(i, e) {
-                var text = $(`<span>${e} , </span>`);
-                $(editRow).find('.description-analytes').append(text);
-            });
+            var $chips = $(editRow).find('.ls-quote-params__chips');
+            $.each(data.default || [], function(i, e) { $chips.append($(buildParamChipHtml(e, false, false))); });
+            $.each(data.acc_analytes || [], function(i, e) { $chips.append($(buildParamChipHtml(e, true, false))); });
+            $.each(data.sub_analytes || [], function(i, e) { $chips.append($(buildParamChipHtml(e, false, true))); });
+            $.each(data.sub_acc || [], function(i, e) { $chips.append($(buildParamChipHtml(e, true, true))); });
 
             var $analyteHolder = $(editRow).find('.description-analytes');
             $analyteHolder.append($('<input type="hidden" name="accreditted_analytes">').val(data.accredited_analytes || ''));
@@ -1547,29 +1671,62 @@
             var analysis_s = $('#detail-edit-mode').find('#edit-part-no').val();
             var detail = $('#detail-edit-mode').find('#detail-id').val();
             var savedState = readRowParameterState($('#detail-edit-mode'));
+            var sectionHint = labSectionHintText();
+
+            $('#edit-description').empty();
+            $('#edit-analyte-all, #edit-accreditted, #edit-sub').prop('checked', false);
+            showEditParamsSkeleton();
+
+            if (!sample_type) {
+                showEditParamsEmpty('Sample type required', 'This line is missing a sample type.');
+                return;
+            }
+            if (!analysis_s || (Array.isArray(analysis_s) && analysis_s.length === 0)) {
+                showEditParamsEmpty(
+                    'Analysis type required',
+                    'Select at least one analysis type before editing parameters.'
+                    + (sectionHint ? ' ' + sectionHint : '')
+                );
+                return;
+            }
 
             $.ajax({
-                url: '/fetch-sample-analytes/' + sample_type + '/' + analysis_s.toString() + '/' + detail + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
+                url: '/fetch-sample-analytes/' + sample_type + '/' + encodeURIComponent(analysis_s.toString()) + '/' + detail + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
                 beforeSend: function() {
                     $('#edit-description').empty();
                     $('#edit-analyte-all, #edit-accreditted, #edit-sub').prop('checked', false);
+                    showEditParamsSkeleton();
                 },
                 success: function(data) {
+                    if (countAnalytePayload(data) === 0) {
+                        var msg = 'No tests/parameters were found for the selected analysis type.';
+                        if (sectionHint) {
+                            msg = sectionHint
+                                + ' No matching parameters exist for this analysis type within those section(s). '
+                                + 'Try another analysis type, or update the quotation lab section(s) in the header.';
+                        }
+                        showEditParamsEmpty('No parameters available', msg);
+                        return;
+                    }
+                    showEditParamsTable();
                     $.each(data, function(i, e) {
-                        var analysis_text = $(`<tr>
-                                <td colspan="7"><b>${i}</b></td>
-                            </tr>`)
+                        var analysis_text = $(`<tr class="ls-quote-analyte-group"><td colspan="7">${escapeQuoteHtml(i)}</td></tr>`);
                         $('#edit-description').append(analysis_text);
                         $.each(e, function(j, s) {
                             var rows = quoteAnalytesRow(s);
                             $('#edit-description').append(rows);
-                        })
+                        });
                     });
-                    // Prefer in-modal edits that have not been submitted yet.
                     applyParameterStateToModal($('#edit-detail-analytes'), savedState);
+                },
+                error: function() {
+                    showEditParamsEmpty(
+                        'Could not load parameters',
+                        'Something went wrong while loading parameters. Check analysis type and lab section settings, then try again.'
+                    );
                 }
-            })
-        })
+            });
+        });
 
         var quoteDescriptionModalRowNo = null;
         var quoteDescriptionModalSampleCode = null;
@@ -1666,6 +1823,7 @@
                 var isSub = isBoth || !!subSet[elementId];
                 $tr.find('.analyte-accredited').prop('checked', isAcc);
                 $tr.find('.analyte-subcontracted').prop('checked', isSub);
+                syncMethodPillAccreditation($tr);
 
                 if (Object.prototype.hasOwnProperty.call(state.loqMap, elementId)) {
                     var $loq = $tr.find('input.analyte-loq');
@@ -1681,6 +1839,7 @@
             var analyte_sub = [];
             var sub_acc = [];
             var default_analytes = [];
+            var analysisTypeIds = [];
             var loqMap = {};
             var maxTat = null;
             var spans = [];
@@ -1692,8 +1851,16 @@
                     return;
                 }
 
-                var analyte_name = parent_tr.find('.analyte-name').val();
+                var analyte_name = String(
+                    parent_tr.find('.ls-quote-analyte-row__label').first().text()
+                    || parent_tr.find('.analyte-name').val()
+                    || ''
+                ).trim();
                 var analyte_id = String($selected.val() || '');
+                var analysisTypeId = String(parent_tr.attr('data-analysis-type-id') || '').trim();
+                if (analysisTypeId && analysisTypeIds.indexOf(analysisTypeId) === -1) {
+                    analysisTypeIds.push(analysisTypeId);
+                }
                 var loqInput = parent_tr.find('input.analyte-loq');
                 if (analyte_id) {
                     loqMap[analyte_id] = String(loqInput.val() || '').trim();
@@ -1705,21 +1872,16 @@
 
                 var isAcc = parent_tr.find('.analyte-accredited').prop('checked');
                 var isSub = parent_tr.find('.analyte-subcontracted').prop('checked');
-                var analyte_text = '';
                 if (isAcc && !isSub) {
-                    analyte_text = `<span>${analyte_name} <img src="/images/tick.png" alt="tick" height="8" width="8">, </span>`;
                     analytes_accreditted.push(analyte_id);
                 } else if (isSub && !isAcc) {
-                    analyte_text = `<span>${analyte_name}*, </span>`;
                     analyte_sub.push(analyte_id);
                 } else if (isAcc && isSub) {
-                    analyte_text = `<span>${analyte_name} * <img src="/images/tick.png" alt="tick" height="8" width="8">,</span> `;
                     sub_acc.push(analyte_id);
                 } else {
-                    analyte_text = `<span>${analyte_name}, </span>`;
                     default_analytes.push(analyte_id);
                 }
-                spans.push(analyte_text);
+                spans.push(buildParamChipHtml(analyte_name, isAcc, isSub));
             });
 
             return {
@@ -1727,6 +1889,7 @@
                 analyte_sub: analyte_sub,
                 sub_acc: sub_acc,
                 default_analytes: default_analytes,
+                analysisTypeIds: analysisTypeIds,
                 loqMap: loqMap,
                 maxTat: maxTat,
                 spans: spans,
@@ -1740,9 +1903,7 @@
                 var state = collectSelectedAnalyteState($modal);
                 var $holder = $('#detail-edit-mode').find('.description-analytes').first();
                 $holder.empty();
-                state.spans.forEach(function(html) {
-                    $holder.append(html);
-                });
+                $holder.append($('<div class="ls-select2-view ls-quote-params__chips"></div>').append(state.spans.join('')));
                 $holder.append($('<input type="hidden" name="accreditted_analytes">').val(state.analytes_accreditted.toString()));
                 $holder.append($('<input type="hidden" name="sub_analytes">').val(state.analyte_sub.toString()));
                 $holder.append($('<input type="hidden" name="sub_acc">').val(state.sub_acc.toString()));
@@ -1759,33 +1920,60 @@
             quoteDescriptionModalSampleCode = sample_code;
             quoteDescriptionModalTypeName = type_name;
             var $detailRow = $('#create-detail').find('tr#detail-row-' + row_no);
-            var part_no_analysis = $detailRow.find('#select-part-final').val();
+            // Load ALL analysis types for this sample (lab-section filtered). Analysis type is derived from selected tests.
+            var part_no_analysis = 'all';
             var savedState = readRowParameterState($detailRow);
-            if (sample_code != '') {
-                $.ajax({
-                    url: '/fetch-sample-analytes/' + sample_code + '/' + part_no_analysis + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
-                    beforeSend: function() {
-                        $('#analysis-analytes-holder').empty();
-                        $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
-                    },
-                    success: function(data) {
-                        $.each(data, function(i, e) {
-                            var analysis_text = $(`<tr>
-                                <td colspan="7"><b>${i}</b></td>
-                            </tr>`);
-                            $('#analysis-analytes-holder').append(analysis_text);
-                            $.each(e, function(j, s) {
-                                var rows = quoteAnalytesRow(s);
-                                $('#analysis-analytes-holder').append(rows);
-                            });
-                        });
-                        applyParameterStateToModal($('#quote-description-analytes'), savedState);
-                    },
-                    error: function(data) {
-                        console.log(data);
-                    }
-                });
+            var sectionHint = labSectionHintText();
+
+            $('#analysis-analytes-holder').empty();
+            $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
+            showQuoteParamsSkeleton();
+
+            if (!sample_code) {
+                showQuoteParamsEmpty(
+                    'Sample type required',
+                    'Choose a sample type on this line before opening Quotation Parameters.'
+                );
+                return;
             }
+
+            $.ajax({
+                url: '/fetch-sample-analytes/' + sample_code + '/' + encodeURIComponent(part_no_analysis) + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
+                beforeSend: function() {
+                    $('#analysis-analytes-holder').empty();
+                    $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
+                    showQuoteParamsSkeleton();
+                },
+                success: function(data) {
+                    var analyteCount = countAnalytePayload(data);
+                    if (analyteCount === 0) {
+                        var msg = 'No tests/parameters were found for this sample type.';
+                        if (sectionHint) {
+                            msg = sectionHint
+                                + ' No matching parameters exist for this sample within those section(s). '
+                                + 'Update the quotation lab section(s) in the header, or check sample setup.';
+                        }
+                        showQuoteParamsEmpty('No parameters available', msg);
+                        return;
+                    }
+                    showQuoteParamsTable();
+                    $.each(data, function(i, e) {
+                        var analysis_text = $(`<tr class="ls-quote-analyte-group"><td colspan="7">${escapeQuoteHtml(i)}</td></tr>`);
+                        $('#analysis-analytes-holder').append(analysis_text);
+                        $.each(e, function(j, s) {
+                            var rows = quoteAnalytesRow(s);
+                            $('#analysis-analytes-holder').append(rows);
+                        });
+                    });
+                    applyParameterStateToModal($('#quote-description-analytes'), savedState);
+                },
+                error: function() {
+                    showQuoteParamsEmpty(
+                        'Could not load parameters',
+                        'Something went wrong while loading parameters. Check the sample type and lab section settings, then try again.'
+                    );
+                }
+            });
         });
 
         $('#save-analytes').off('click').on('click', function(e) {
@@ -1800,18 +1988,19 @@
             var $modal = $('#quote-description-analytes');
             persistEditedLoqs($modal).always(function() {
                 var state = collectSelectedAnalyteState($modal);
+                var selectedCount = (state.analytes_accreditted.length
+                    + state.analyte_sub.length
+                    + state.sub_acc.length
+                    + state.default_analytes.length);
+                if (selectedCount === 0) {
+                    window.alert('Select at least one test (left checkbox / Select all) before saving parameters.');
+                    return;
+                }
+
                 var $desc = $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description');
                 $desc.empty().removeClass('text-center');
-                var header = $(`
-                                <p class="mb-0"><b>${type_name}</b>
-                                <span data-target="#quote-description-analytes" data-row="${row_no}" data-samplecode="${type_name}" data-toggle="modal" data-sampletype="${sample_code}" class="btn btn-outline-success btn-sm mdi mdi-pencil float-right"></span>
-                                </p>
-                                <p class="mb-0"><b>Parameters:</b></p>
-                            `);
-                $desc.append(header);
-                state.spans.forEach(function(html) {
-                    $desc.append(html);
-                });
+                // Append HTML string directly — $(html) can drop content for large chip lists.
+                $desc.append(buildParamsPanelHtml(type_name, row_no, sample_code, type_name, state.spans.join(''), 'mdi-pencil'));
                 $desc.append($('<input type="hidden" name="accreditted_analytes[]">').val(state.analytes_accreditted.toString()));
                 $desc.append($('<input type="hidden" name="sub_analytes[]">').val(state.analyte_sub.toString()));
                 $desc.append($('<input type="hidden" name="sub_acc[]">').val(state.sub_acc.toString()));
@@ -1819,6 +2008,8 @@
                 $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(state.loqMap)));
 
                 var $row = $('#create-detail').find('tr#detail-row-' + row_no);
+                // Derive analysis type IDs from selected elements (no Analysis Type column).
+                $row.find('input.select-part-final').val((state.analysisTypeIds || []).join(','));
                 refreshQuotationRowPricingHint($row, true);
                 $('#quote-description-analytes').modal('hide');
             });
@@ -1858,33 +2049,96 @@
                 : '';
             var tatDisplay = reportingTime !== '' ? reportingTime : '—';
             var elementId = data.id || '';
+            var analyteLabel = escapeQuoteHtml(data.analyte_name);
+            var analysisTypeId = escapeQuoteHtml(data.analysis_type_id || '');
+            var labSection = String(data.lab_section_name || '').trim();
+            var methodLabel = String(data.method_label || data.test_method || '').trim();
+            var isAccredited = check_acc === 'checked';
+            var metaPills = '';
+            if (labSection) {
+                metaPills += '<span class="ls-quote-meta-pill ls-quote-meta-pill--lab" title="Lab section (sample analysis stage)">' + escapeQuoteHtml(labSection) + '</span>';
+            }
+            if (methodLabel) {
+                var methodPillClass = 'ls-quote-meta-pill ls-quote-meta-pill--method'
+                    + (isAccredited ? '' : ' is-non-accredited');
+                var methodTitle = isAccredited ? 'Method (accredited)' : 'Method (not accredited)';
+                metaPills += '<span class="' + methodPillClass + '" title="' + methodTitle + '">' + escapeQuoteHtml(methodLabel) + '</span>';
+            }
 
             return $(`
-                <tr data-reporting-time="${reportingTime}" data-element-id="${elementId}">
-                    <td><input type="checkbox" class="analyte-selected" name="selected_analyte[]" value="${elementId}" ${selected}></td>
-                    <td>
-                        <input type="text" name="analyte_name[]" class="analyte-name border-0" readonly="true" value="${data.analyte_name}" >
-                        <input type="hidden" name="analyte_id[]" class="analyte-analyte-id border-0" readonly="true" value="${data.analyte_id}" >
+                <tr class="ls-quote-analyte-row" data-reporting-time="${reportingTime}" data-element-id="${elementId}" data-analysis-type-id="${analysisTypeId}">
+                    <td class="ls-quote-analyte-row__select">
+                        <label class="ls-quote-check">
+                            <input type="checkbox" class="analyte-selected" name="selected_analyte[]" value="${elementId}" ${selected}>
+                            <span class="ls-quote-check__box" aria-hidden="true"></span>
+                        </label>
                     </td>
-                    <td><input type="checkbox" class="analyte-accredited" name="accreditted" ${check_acc}></td>
-                    <td><input type="checkbox" class="analyte-subcontracted" name="sub_contracted" ${check_sub}></td>
-                    <td style="min-width: 110px;">
-                        <input type="text" class="form-control form-control-sm analyte-loq" name="analyte_loq[]" value="${loqVal}" data-original-loq="${loqVal}" data-element-id="${elementId}">
+                    <td class="ls-quote-analyte-row__name">
+                        <div class="ls-quote-analyte-row__name-inner">
+                            <span class="ls-quote-analyte-row__label">${analyteLabel}</span>
+                            <span class="ls-quote-analyte-row__meta">${metaPills}</span>
+                        </div>
+                        <input type="hidden" name="analyte_name[]" class="analyte-name" value="${analyteLabel}">
+                        <input type="hidden" name="analyte_id[]" class="analyte-analyte-id" value="${data.analyte_id}">
                     </td>
-                    <td class="text-center align-middle">
-                        <span class="analyte-mu text-muted">${muVal !== '' ? muVal : '—'}</span>
+                    <td class="ls-quote-analyte-row__flag">
+                        <label class="ls-quote-check ls-quote-check--acc">
+                            <input type="checkbox" class="analyte-accredited" name="accreditted" ${check_acc}>
+                            <span class="ls-quote-check__box" aria-hidden="true"></span>
+                        </label>
                     </td>
-                    <td class="text-center align-middle" style="min-width: 56px;" title="Element TAT (days); line uses the highest selected">
-                        <span class="font-weight-bold">${tatDisplay}</span>
+                    <td class="ls-quote-analyte-row__flag">
+                        <label class="ls-quote-check ls-quote-check--sub">
+                            <input type="checkbox" class="analyte-subcontracted" name="sub_contracted" ${check_sub}>
+                            <span class="ls-quote-check__box" aria-hidden="true"></span>
+                        </label>
+                    </td>
+                    <td class="ls-quote-analyte-row__loq">
+                        <input type="text" class="ls-quote-analyte-loq analyte-loq" name="analyte_loq[]" value="${escapeQuoteHtml(loqVal)}" data-original-loq="${escapeQuoteHtml(loqVal)}" data-element-id="${elementId}" placeholder="—">
+                    </td>
+                    <td class="ls-quote-analyte-row__mu">
+                        <span class="ls-quote-metric">${muVal !== '' ? escapeQuoteHtml(muVal) : '—'}</span>
+                    </td>
+                    <td class="ls-quote-analyte-row__tat" title="Element TAT (days); line uses the highest selected">
+                        <span class="ls-quote-tat">${tatDisplay}${reportingTime !== '' ? 'd' : ''}</span>
                     </td>
                 </tr>
             `);
         }
+        function syncMethodPillAccreditation($row) {
+            if (!$row || !$row.length) {
+                return;
+            }
+            var $pill = $row.find('.ls-quote-meta-pill--method');
+            if (!$pill.length) {
+                return;
+            }
+            var accredited = !!$row.find('.analyte-accredited').prop('checked');
+            $pill.toggleClass('is-non-accredited', !accredited);
+            $pill.attr('title', accredited ? 'Method (accredited)' : 'Method (not accredited)');
+        }
+
+        // Acc/Sub toggles must not collapse/hide the parameters table (flex+[hidden] race).
+        $(document).on('change', '#quote-description-analytes .analyte-accredited, #edit-detail-analytes .analyte-accredited', function(e) {
+            e.stopPropagation();
+            syncMethodPillAccreditation($(this).closest('tr.ls-quote-analyte-row'));
+            if ($('#quote-description-analytes').hasClass('show')) {
+                showQuoteParamsTable();
+            }
+        });
+
+        $(document).on('click', '#quote-description-analytes .ls-quote-check--acc, #edit-detail-analytes .ls-quote-check--acc', function(e) {
+            e.stopPropagation();
+        });
+
         $('#select-analyte-all').on('change', function() {
             $('#quote-description-analytes').find('.analyte-selected').prop('checked', $(this).is(':checked'));
         });
         $('#select-accredited-all').on('change', function() {
-            $('#quote-description-analytes').find('.analyte-accredited').prop('checked', $(this).is(':checked'));
+            var checked = $(this).is(':checked');
+            $('#quote-description-analytes').find('.analyte-accredited').prop('checked', checked).each(function() {
+                syncMethodPillAccreditation($(this).closest('tr'));
+            });
         });
         $('#select-sub-all').on('change', function() {
             $('#quote-description-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
@@ -1893,7 +2147,10 @@
             $('#edit-detail-analytes').find('.analyte-subcontracted').prop('checked', $(this).is(':checked'));
         });
         $('#edit-accreditted').on('change', function() {
-            $('#edit-detail-analytes').find('.analyte-accredited').prop('checked', $(this).is(':checked'));
+            var checked = $(this).is(':checked');
+            $('#edit-detail-analytes').find('.analyte-accredited').prop('checked', checked).each(function() {
+                syncMethodPillAccreditation($(this).closest('tr'));
+            });
         });
         $('#edit-analyte-all').on('change', function() {
             $('#edit-detail-analytes').find('.analyte-selected').prop('checked', $(this).is(':checked'));
@@ -2017,7 +2274,7 @@
                                <td>
                                    
                                    <div class="form-group">
-                                    <input type="number" name="unit_price[]" class="form-control" min="0" step="0.01" value="0" placeholder="0 = pricelist">
+                                    <input type="number" name="unit_price[]" class="form-control" min="0" step="1" value="0" placeholder="0 = pricelist">
                                 </div>
                                    
                                </td>

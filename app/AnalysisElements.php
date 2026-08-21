@@ -31,7 +31,8 @@ class AnalysisElements extends Model implements Auditable
   protected $fillable = [
     'lab_section_id',
     'analysis_type_id',
-    'analyte_id', 
+    'analyte_id',
+    'report_display_name',
     'method', 
     'equipment_id',
     'operator_id',
@@ -89,6 +90,11 @@ class AnalysisElements extends Model implements Auditable
   public function analyte(){
     return $this->belongsTo('App\Analyte');
 	}
+
+  public function labSection()
+  {
+      return $this->belongsTo(\App\LabSection::class, 'lab_section_id');
+  }
 
   public function method(){
     return AnalysisMethod::find($this->method);

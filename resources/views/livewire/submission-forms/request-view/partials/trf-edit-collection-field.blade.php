@@ -28,27 +28,91 @@
 
 @if($fieldName !== '')
     <div class="{{ trim((($hideOuterCol ?? false) ? '' : ($colClass ?? '')).' '.($outerColExtraClass ?? '')) }}">
-        <label class="form-label small font-weight-bold text-secondary mb-1">{{ $fieldLabel }}</label>
+        <div class="ls-field {{ filled($trfEditCollectionFields[$fieldName] ?? null) && ! is_array($trfEditCollectionFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+            <label class="ls-field__label" for="trf-edit-{{ $fieldName }}">{{ $fieldLabel }}</label>
 
         @if($fieldName === 'sampling_location' || in_array($fieldType, ['customer_sample_point_select', 'sample_point_select'], true))
-            <div wire:ignore class="rv-sample-row-select2-wrap">
-                <select id="trf-edit-{{ $fieldName }}"
-                    class="form-control form-control-sm livewire-select2"
-                    data-wire-field="trfEditCollectionFields.{{ $fieldName }}"
-                    data-placeholder="Select sampling location"
-                    data-selected-values="{{ json_encode(array_values(array_filter([(string) ($trfEditCollectionFields[$fieldName] ?? '')]))) }}">
-                    <option value="">Select sampling location</option>
-                    @foreach($trfEditSamplePointOptions as $point)
-                        <option value="{{ $point['value'] }}"
-                            @selected((string) ($trfEditCollectionFields[$fieldName] ?? '') === (string) $point['value'])>
-                            {{ $point['label'] }}
-                        </option>
-                    @endforeach
-                </select>
+            @php
+                $locationOptions = collect($trfEditSamplePointOptions ?? [])->map(fn ($point) => [
+                    'value' => (string) ($point['value'] ?? ''),
+                    'label' => (string) ($point['label'] ?? $point['value'] ?? ''),
+                ])->filter(fn ($o) => $o['value'] !== '')->values()->all();
+                $locationSelected = (string) ($trfEditCollectionFields[$fieldName] ?? '');
+                $locationMatch = collect($locationOptions)->firstWhere('value', $locationSelected);
+                $locationLabel = is_array($locationMatch)
+                    ? (string) ($locationMatch['label'] ?? $locationSelected)
+                    : $locationSelected;
+            @endphp
+            <div
+                class="ls-field ls-combo ls-search-basic ls-compact {{ $locationSelected !== '' ? 'is-success' : '' }}"
+                wire:key="trf-edit-location-{{ $trfEditCompanyUnitId }}-{{ count($locationOptions) }}"
+                x-data="{
+                    open: false,
+                    q: @js($locationLabel),
+                    selected: @js($locationSelected !== '' ? $locationSelected : null),
+                    options: @js($locationOptions),
+                    get filtered() {
+                        const q = (this.q || '').trim().toLowerCase();
+                        if (!q || this.selected === this.q) return this.options;
+                        return this.options.filter(o => o.label.toLowerCase().includes(q));
+                    },
+                    pick(opt) {
+                        this.selected = opt.value;
+                        this.q = opt.label;
+                        this.open = false;
+                        $wire.set('trfEditCollectionFields.{{ $fieldName }}', opt.value);
+                    },
+                    clear() {
+                        this.q = '';
+                        this.selected = null;
+                        this.open = true;
+                        $wire.set('trfEditCollectionFields.{{ $fieldName }}', '');
+                    }
+                }"
+                :class="{ 'is-open': open, 'is-success': !!selected && !open }"
+                @click.outside="open = false"
+            >
+                <div class="ls-field__control">
+                    <div class="ls-combo__search-wrap">
+                        <i class="mdi mdi-magnify"></i>
+                        <input
+                            id="trf-edit-{{ $fieldName }}"
+                            type="text"
+                            x-model="q"
+                            @focus="open = true"
+                            @input="open = true; selected = null"
+                            placeholder="Search sampling location…"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button type="button" class="ls-field__icon-btn" x-show="q" @click="clear()" aria-label="Clear">
+                        <i class="mdi mdi-close-circle"></i>
+                    </button>
+                    <i class="mdi mdi-check-circle" x-show="selected && !open" style="padding-right:0.45rem;"></i>
+                    <button type="button" class="ls-field__icon-btn" @click="open = !open" aria-label="Toggle">
+                        <i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                    </button>
+                </div>
+                <div class="ls-combo__menu" role="listbox">
+                    <template x-for="opt in filtered" :key="opt.value">
+                        <button type="button" class="ls-combo__item" :class="{ 'is-active': selected === opt.value }" @click="pick(opt)">
+                            <span x-text="opt.label"></span>
+                            <i class="mdi mdi-check" x-show="selected === opt.value"></i>
+                        </button>
+                    </template>
+                </div>
             </div>
             @if(($trfEditCompanyUnitId ?? '') === '')
-                <div class="small text-muted mt-1">Select a company unit on the Customer step first.</div>
+                <p class="ls-field__hint mt-1 mb-0">Select a company unit on the Customer step first.</p>
             @endif
+        @elseif($fieldName === 'thermometer_id')
+            <div class="ls-field__control">
+                <input id="trf-edit-{{ $fieldName }}"
+                    type="text"
+                    class="ls-field__input"
+                    wire:model.defer="trfEditCollectionFields.{{ $fieldName }}"
+                    placeholder="Optional">
+            </div>
         @elseif($fieldType === 'checkbox' || in_array($fieldName, ['sampling_apparatus', 'method_of_sampling'], true))
             <div class="{{ $optionGridClass }}">
                 @foreach($checkboxOptions as $optionKey => $optionText)
@@ -73,25 +137,38 @@
                 @endforeach
             </div>
         @elseif($isDateField)
-            <input type="date"
-                class="form-control form-control-sm"
-                wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
+            <div class="ls-field__control">
+                <input id="trf-edit-{{ $fieldName }}"
+                    type="date"
+                    class="ls-field__input"
+                    wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
+            </div>
         @elseif($isTimeField)
-            <input type="time"
-                class="form-control form-control-sm"
-                wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
+            <div class="ls-field__control">
+                <input id="trf-edit-{{ $fieldName }}"
+                    type="time"
+                    class="ls-field__input"
+                    wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
+            </div>
         @elseif($fieldType === 'select' && $checkboxOptions !== [])
-            <select class="form-control form-control-sm"
-                wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
-                <option value="">— Select —</option>
-                @foreach($checkboxOptions as $optionKey => $optionText)
-                    <option value="{{ $optionKey }}">{{ $optionText }}</option>
-                @endforeach
-            </select>
+            <div class="ls-field__control">
+                <select id="trf-edit-{{ $fieldName }}"
+                    class="ls-field__input"
+                    wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
+                    <option value="">— Select —</option>
+                    @foreach($checkboxOptions as $optionKey => $optionText)
+                        <option value="{{ $optionKey }}">{{ $optionText }}</option>
+                    @endforeach
+                </select>
+            </div>
         @else
-            <input type="text"
-                class="form-control form-control-sm"
-                wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
+            <div class="ls-field__control">
+                <input id="trf-edit-{{ $fieldName }}"
+                    type="text"
+                    class="ls-field__input"
+                    wire:model.defer="trfEditCollectionFields.{{ $fieldName }}">
+            </div>
         @endif
+        </div>
     </div>
 @endif

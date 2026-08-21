@@ -122,6 +122,7 @@
 
 
 @section('content')
+@include('layouts.lab.partials.lab-chrome-slice1-styles')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
 	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
@@ -643,15 +644,16 @@
 	</div>
 	@endif
 
-	<div class="list-group-item copyright-lims p-4 text-center">
-		Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
-	</div>
-	<!-- Submenu content -->
+	{{-- Shell foot lives outside the scrollable list so nested collapses stay untouched --}}
 	</ul>
+
+	@include('layouts.lab.partials.lab-sidebar-shell-foot')
 
 	<!-- List Group END-->
 </div>
 <!-- sidebar-container END -->
+
+@include('layouts.lab.partials.lab-module-switcher-modal')
 
 <!-- MAIN -->
 <div class="py-3" id="main-container-body">

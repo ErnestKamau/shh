@@ -1,4 +1,4 @@
-{{-- Lab console context rail — identity, refs, documents (Sample collection is a canvas tab) --}}
+{{-- Lab console context rail — identity, job/sample refs when present, documents (Sample collection is a canvas tab) --}}
 @php
     $identity = $contextRail['identity'] ?? [];
     $contact = $contextRail['contact'] ?? [];
@@ -9,26 +9,43 @@
     $canEditTrf = $canEditSampleRows ?? false;
 @endphp
 
-<aside class="rv-console-rail" aria-label="Request context">
+<aside class="rv-console-rail" aria-label="Client info">
     <div class="rv-rail-panel">
         @if(count($identity) > 0 || count($when) > 0 || count($contact) > 0)
             <section class="rv-rail-section">
                 <div class="rv-rail-section-heading">
                     <h3 class="rv-rail-section-title mb-0">
                         <i class="mdi mdi-account-tie-outline" aria-hidden="true"></i>
-                        Request
+                        Client info
                     </h3>
                     @if($canEditTrf)
+                        <div class="d-inline-flex align-items-center rv-rail-icon-actions">
+                            <button type="button"
+                                class="rv-rail-edit-btn rv-rail-edit-btn--icon"
+                                wire:click="openTrfViewer('customer')"
+                                title="View customer & contact"
+                                aria-label="View customer & contact">
+                                <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+                            </button>
+                            <button type="button"
+                                class="rv-rail-edit-btn rv-rail-edit-btn--icon"
+                                wire:click="openTrfEditor('customer')"
+                                title="Edit customer & contact"
+                                aria-label="Edit customer & contact">
+                                <i class="mdi mdi-pencil-outline" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    @else
                         <button type="button"
-                            class="rv-rail-edit-btn"
-                            wire:click="openTrfEditor('customer')"
-                            title="Edit customer & contact">
-                            <i class="mdi mdi-pencil-outline" aria-hidden="true"></i>
-                            Edit
+                            class="rv-rail-edit-btn rv-rail-edit-btn--icon"
+                            wire:click="openTrfViewer('customer')"
+                            title="View customer & contact"
+                            aria-label="View customer & contact">
+                            <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
                         </button>
                     @endif
                 </div>
-                <div class="rv-rail-identity-grid">
+                <div class="rv-rail-identity-stack">
                     <dl class="rv-rail-fields">
                         @foreach($identity as $field)
                             <div class="rv-rail-field">
@@ -36,23 +53,21 @@
                                 <dd class="{{ ($field['name'] ?? '') === 'client_name' ? 'rv-rail-value--emphasis' : '' }}">{{ $field['value'] }}</dd>
                             </div>
                         @endforeach
-                        @foreach($when as $field)
+                        @foreach($contact as $field)
                             <div class="rv-rail-field">
                                 <dt>{{ $field['label'] }}</dt>
-                                <dd>{{ $field['value'] }}</dd>
+                                <dd>
+                                    {{ $field['value'] }}
+                                    @if(($field['name'] ?? '') === 'contact_name' && ! empty($field['email']))
+                                        <span class="rv-rail-contact-email" title="{{ $field['email'] }}">
+                                            <i class="mdi mdi-email-outline" aria-hidden="true"></i>
+                                            <span>{{ $field['email'] }}</span>
+                                        </span>
+                                    @endif
+                                </dd>
                             </div>
                         @endforeach
                     </dl>
-                    @if(count($contact) > 0)
-                        <dl class="rv-rail-fields">
-                            @foreach($contact as $field)
-                                <div class="rv-rail-field">
-                                    <dt>{{ $field['label'] }}</dt>
-                                    <dd>{{ $field['value'] }}</dd>
-                                </div>
-                            @endforeach
-                        </dl>
-                    @endif
                 </div>
             </section>
         @endif

@@ -135,8 +135,12 @@ class RequestViewPagePresenter
     {
         $stage = $this->enquiryDisplayStatus();
 
-        $requestNumber = null;
-        if ($this->commercialEnquiry !== null) {
+        // Prefer TRF document control number (e.g. TRFW007/26) over commercial REQ-… on the header.
+        $requestNumber = $this->nonEmptyString(
+            $this->instance->getDocumentControlNumber() ?? $this->instance->form_number
+        );
+
+        if ($requestNumber === null && $this->commercialEnquiry !== null) {
             $requestNumber = $this->commercialEnquiry->formatted_number
                 ?? ($this->commercialEnquiry->request_number !== null
                     ? 'REQ-'.str_pad((string) $this->commercialEnquiry->request_number, 4, '0', STR_PAD_LEFT)
@@ -344,35 +348,22 @@ class RequestViewPagePresenter
         $clientName = $this->firstFilledAlias($indexed, 'client_name')
             ?? $this->nonEmptyString($this->commercialEnquiry?->customer?->name ?? $this->instance->crmCustomer?->name);
 
-        $site = $this->firstFilledAlias($indexed, 'site');
-        $sourceChannel = $this->sourceChannelLabel();
+        $companyUnitLabel = $this->resolveCompanyUnitLabel($indexed);
 
         $identity = [];
         if ($clientName !== null) {
             $identity[] = ['label' => 'Client', 'value' => $clientName, 'name' => 'client_name'];
         }
-        if ($site !== null) {
-            $identity[] = ['label' => 'Site / location', 'value' => $site, 'name' => 'site'];
-        }
-        if ($sourceChannel !== null) {
-            $identity[] = ['label' => 'Source', 'value' => $sourceChannel, 'name' => 'source_channel'];
+        if ($companyUnitLabel !== null) {
+            $identity[] = ['label' => 'Company unit', 'value' => $companyUnitLabel, 'name' => 'company_unit'];
         }
 
         $when = [];
-        $submittedAt = $this->instance->submitted_at ?? $this->instance->created_at;
-        if ($submittedAt !== null) {
-            $when[] = [
-                'label' => 'Submitted',
-                'value' => $submittedAt->format('Y-m-d H:i'),
-                'name' => 'submitted_at',
-            ];
-        }
 
+        // References: Job / Sample nos. after they exist (accepted quotes). TRF form no. lives in the header.
         $refs = [];
-        $docControl = $this->nonEmptyString($this->instance->getDocumentControlNumber() ?? $this->instance->form_number);
-        if ($docControl !== null) {
-            $refs[] = ['label' => 'Form no.', 'value' => $docControl, 'name' => 'form_number'];
-        }
+
+        $this->instance->loadMissing(['batches.samples']);
 
         $jobCodes = $this->instance->batches
             ->pluck('batch_code')
@@ -385,6 +376,21 @@ class RequestViewPagePresenter
                 'label' => count($jobCodes) === 1 ? 'Job no.' : 'Job nos.',
                 'value' => implode(', ', $jobCodes),
                 'name' => 'job_numbers',
+            ];
+        }
+
+        $sampleCodes = $this->instance->batches
+            ->flatMap(fn ($batch) => $batch->relationLoaded('samples') ? $batch->samples : collect())
+            ->pluck('sample_code')
+            ->filter(fn ($code): bool => $this->nonEmptyString($code) !== null)
+            ->unique()
+            ->values()
+            ->all();
+        if ($sampleCodes !== []) {
+            $refs[] = [
+                'label' => count($sampleCodes) === 1 ? 'Sample no.' : 'Sample nos.',
+                'value' => implode(', ', $sampleCodes),
+                'name' => 'sample_numbers',
             ];
         }
 
@@ -417,13 +423,15 @@ class RequestViewPagePresenter
             ?? $this->nonEmptyString($resolvedContact?->mobile ?? $resolvedContact?->telephone ?? null);
 
         if ($contactName !== null) {
-            $contact[] = ['label' => 'Contact name', 'value' => $contactName, 'name' => 'contact_name'];
-        }
-        if ($contactEmail !== null) {
-            $contact[] = ['label' => 'Email', 'value' => $contactEmail, 'name' => 'contact_email'];
+            $contact[] = [
+                'label' => 'Contact person',
+                'value' => $contactName,
+                'name' => 'contact_name',
+                'email' => $contactEmail,
+            ];
         }
         if ($contactPhone !== null) {
-            $contact[] = ['label' => 'Phone', 'value' => $contactPhone, 'name' => 'contact_phone'];
+            $contact[] = ['label' => 'Mobile no.', 'value' => $contactPhone, 'name' => 'contact_phone'];
         }
 
         $sampleCollection = $this->sampleCollectionRailFields($formData);
@@ -445,7 +453,7 @@ class RequestViewPagePresenter
             self::REQUEST_INFO_FIELD_ALIASES['contact_phone'],
             self::REQUEST_INFO_FIELD_ALIASES['email'],
             self::REQUEST_INFO_FIELD_ALIASES['mobile'],
-            ['sample_type', 'number_of_samples'],
+            ['company_unit', 'sampling_location', 'sample_type', 'number_of_samples'],
         )));
 
         $moreFields = [];
@@ -1128,8 +1136,8 @@ class RequestViewPagePresenter
         $groups = [];
 
         if ($ids !== []) {
-            $elements = \App\AnalysisElements::query()
-                ->with(['analyte', 'analysis_type'])
+                $elements = \App\AnalysisElements::query()
+                ->with(['analyte', 'analysis_type', 'mmethod', 'ltmethod', 'labSection'])
                 ->whereIn('id', array_values(array_unique($ids)))
                 ->get();
 
@@ -1139,9 +1147,21 @@ class RequestViewPagePresenter
                     $analysisType = 'Parameters';
                 }
 
-                $code = trim((string) ($element->analyte?->code ?? ''));
                 $name = trim((string) ($element->analyte?->name ?? ''));
-                if ($code === '' && $name === '') {
+                $reportDisplay = trim((string) ($element->report_display_name ?? ''));
+                if ($reportDisplay === '') {
+                    $reportDisplay = trim((string) ($element->analyte?->plainReportDisplay() ?? $element->analyte?->code ?? ''));
+                }
+                $methodName = trim((string) ($element->mmethod?->name ?? $element->ltmethod?->name ?? ''));
+                $reportingUnit = trim((string) ($element->reporting_unit ?? ''));
+                $tat = $element->reporting_time !== null && $element->reporting_time !== ''
+                    ? (string) $element->reporting_time
+                    : '';
+                $loq = $element->hod !== null && $element->hod !== ''
+                    ? (string) $element->hod
+                    : '';
+
+                if ($name === '' && $reportDisplay === '') {
                     continue;
                 }
 
@@ -1153,8 +1173,14 @@ class RequestViewPagePresenter
                 }
 
                 $groups[$analysisType]['parameters'][] = [
-                    'code' => $code !== '' ? $code : $name,
-                    'name' => $name !== '' ? $name : $code,
+                    'name' => $name !== '' ? $name : $reportDisplay,
+                    'report_display_name' => $reportDisplay !== '' ? $reportDisplay : '—',
+                    'method' => $methodName !== '' ? $methodName : '—',
+                    'reporting_unit' => $reportingUnit !== '' ? $reportingUnit : '—',
+                    'tat' => $tat !== '' ? $tat.'d' : '—',
+                    'loq' => $loq !== '' ? $loq : '—',
+                    // Legacy keys kept for older Alpine markup.
+                    'code' => $reportDisplay !== '' ? $reportDisplay : $name,
                 ];
             }
         }
@@ -1224,11 +1250,13 @@ class RequestViewPagePresenter
         $knownKeys = [
             'analysis_element_ids', 'test_requirements', 'parameters', 'test_category', 'food_sample_type',
             'sample_temp', 'sample_temperature', 'field_sample_temp', 'sampling_point_manual',
+            'contact', 'contact_person', 'contact_name', 'crm_contact_id', 'customer_contact',
         ];
         $knownLabels = [
             'Customer sample ID', 'Sample quantity', 'Sample temp (°C)', 'SampleTemp(°C)', 'State of sample', 'Batch number',
             'Production date', 'Expiration date', 'Sampling point / location', 'Sampling point', 'Test category', 'Sample type',
             'Analysis type', 'Sample description', 'Sample condition', 'Tests', 'Field Sample Temp',
+            'Contact', 'Contact Person', 'Contact Name', 'Customer Contact',
         ];
 
         $columns = [];
@@ -1367,6 +1395,59 @@ class RequestViewPagePresenter
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, array{label: string, value: string, name: ?string, element_type: string, icon: string}>  $indexed
+     */
+    private function resolveCompanyUnitLabel(array $indexed): ?string
+    {
+        $raw = $this->firstFilledAlias($indexed, 'site');
+        if ($raw === null) {
+            $enquiryUnitId = $this->nonEmptyString($this->commercialEnquiry?->crm_company_unit_id ?? null);
+            $raw = $enquiryUnitId;
+        }
+
+        if ($raw === null) {
+            return null;
+        }
+
+        if (Str::isUuid($raw)) {
+            $name = \App\Models\CRM\CRMCompanyUnit::query()->whereKey($raw)->value('name');
+
+            return $this->nonEmptyString($name) ?? $raw;
+        }
+
+        return $raw;
+    }
+
+    /**
+     * @param  array<string, array{label: string, value: string, name: ?string, element_type: string, icon: string}>  $indexed
+     * @param  array<string, mixed>  $formData
+     */
+    private function resolveSamplingLocationLabel(array $indexed, array $formData): ?string
+    {
+        $raw = $this->nonEmptyString($indexed['sampling_location']['value'] ?? null);
+        if ($raw === null) {
+            foreach ($this->sampleCollectionRailFields($formData) as $field) {
+                if (($field['name'] ?? '') === 'sampling_location') {
+                    $raw = $this->nonEmptyString($field['value'] ?? null);
+                    break;
+                }
+            }
+        }
+
+        if ($raw === null) {
+            return null;
+        }
+
+        if (Str::isUuid($raw)) {
+            $point = \App\Models\CRM\SamplePoint::query()->find($raw);
+
+            return $this->nonEmptyString($point?->display_name ?? $point?->name) ?? $raw;
+        }
+
+        return $raw;
     }
 
     /**

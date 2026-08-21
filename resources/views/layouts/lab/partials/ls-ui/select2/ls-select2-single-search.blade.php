@@ -1,6 +1,6 @@
 {{--
 	ls-select2-single-search — Select2 single searchable shell.
-	Props: $label, $name, $options, $selected, $hint, $id
+	Props: $label, $name, $options, $selected, $hint, $id, $extraSelectClass, $compact
 --}}
 @php
 	$id = $id ?? ($name ?? 'ls-s2s-'.uniqid());
@@ -9,8 +9,9 @@
 		'candice' => 'Candice Cano',
 		'alex' => 'Alex Rivera',
 	];
+	$fieldClass = 'ls-field'.(! empty($compact) ? ' ls-compact' : '');
 @endphp
-<div class="ls-field">
+<div class="{{ $fieldClass }} mb-0">
 	@if(! empty($label))
 		<label class="ls-field__label" for="{{ $id }}">{{ $label }}</label>
 	@endif
@@ -19,13 +20,13 @@
 		<select
 			id="{{ $id }}"
 			name="{{ $name ?? $id }}"
-			class="ls-select2-single-el form-control"
+			class="ls-select2-single-el form-control {{ $extraSelectClass ?? '' }}"
 			data-placeholder="{{ $placeholder ?? 'Search…' }}"
 			style="width: 100%;"
 		>
 			<option value=""></option>
 			@foreach($options as $value => $optLabel)
-				<option value="{{ $value }}" @selected(($selected ?? null) === $value)>{{ $optLabel }}</option>
+				<option value="{{ $value }}" @selected((string) ($selected ?? '') === (string) $value)>{{ $optLabel }}</option>
 			@endforeach
 		</select>
 	</div>

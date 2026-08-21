@@ -21,6 +21,7 @@ class QuotationDetails extends Model implements Auditable
         'invoicable_item_id',
         'analyte_id',
         'quantity',
+        'quantity_required',
         'part_no',
         'unit_price',
         'tax',

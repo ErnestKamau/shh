@@ -1,21 +1,48 @@
-<div class="workflow-board-panel-body flush-top px-0">
+<div class="rv-notes-tab workflow-board-panel-body flush-top px-0">
+    <div class="rv-tab-panel-header">
+        <div>
+            <h5 class="rv-sample-collection-tab__title mb-1">
+                <span class="ls-icon-tile__glyph ls-icon--burgundy rv-tab-title-icon" aria-hidden="true">
+                    <i class="mdi mdi-comment-text-outline"></i>
+                </span>
+                Notes
+            </h5>
+            <p class="rv-sample-collection-tab__hint mb-0">
+                Internal or public notes for this request.
+            </p>
+        </div>
+    </div>
+
     <div class="request-notes-composer">
-        <h6><i class="mdi mdi-comment-plus-outline"></i> Add note</h6>
+        <h6 class="ls-type-label mb-2">
+            <i class="mdi mdi-comment-plus-outline" aria-hidden="true"></i>
+            Add note
+        </h6>
         <form wire:submit="addNote">
-            <div class="form-group mb-3">
-                <label for="noteBody" class="small font-weight-bold text-muted">Message</label>
-                <textarea wire:model="noteBody" id="noteBody" class="form-control @error('noteBody') is-invalid @enderror" rows="3" placeholder="Write a note for this request…"></textarea>
+            <div class="ls-field mb-3">
+                <label class="ls-field__label" for="noteBody">Message</label>
+                <textarea
+                    wire:model="noteBody"
+                    id="noteBody"
+                    class="ls-textarea @error('noteBody') is-invalid @enderror"
+                    rows="3"
+                    placeholder="Write a note for this request…"
+                ></textarea>
                 @error('noteBody')
-                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                    <p class="ls-field__msg ls-field__msg--error"><i class="mdi mdi-alert-circle-outline"></i> {{ $message }}</p>
                 @enderror
             </div>
             <div class="form-row align-items-end">
                 <div class="form-group col-md-4 mb-md-0">
-                    <label for="noteVisibility" class="small font-weight-bold text-muted">Visibility</label>
-                    <select wire:model="noteVisibility" id="noteVisibility" class="form-control form-control-sm">
-                        <option value="internal">Internal (lab only)</option>
-                        <option value="public">Public (notify customer)</option>
-                    </select>
+                    <div class="ls-field">
+                        <label class="ls-field__label" for="noteVisibility">Visibility</label>
+                        <div class="ls-field__control">
+                            <select wire:model="noteVisibility" id="noteVisibility" class="ls-field__input">
+                                <option value="internal">Internal (lab only)</option>
+                                <option value="public">Public (notify customer)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group col-md-8 text-md-right mb-0">
                     <button type="submit" class="btn btn-primary btn-sm" wire:loading.attr="disabled">
@@ -28,10 +55,10 @@
     </div>
 
     @if($instance->notes->isEmpty())
-        <p class="text-muted mb-0 py-2">No notes yet.</p>
+        <p class="rv-tab-empty text-muted mb-0 py-2 px-3">No notes yet.</p>
     @else
         <div class="table-responsive">
-            <table class="table table-hover workflow-table mb-0">
+            <table class="table table-hover workflow-table rv-tab-table mb-0">
                 <thead>
                     <tr>
                         <th>Author</th>

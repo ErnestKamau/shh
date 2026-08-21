@@ -2,17 +2,20 @@
 
 namespace App\Livewire\Billing;
 
+use App\Livewire\Concerns\WithToastNotifications;
 use App\Models\Billing\Pricelist;
 use App\Models\Currency;
 use App\Services\Billing\PricelistNumberGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class PricelistManager extends Component
 {
     use WithPagination;
+    use WithToastNotifications;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -42,6 +45,15 @@ class PricelistManager extends Component
             'pricelistForm.is_master' => 'boolean',
             'pricelistForm.active' => 'boolean',
             'pricelistForm.status' => 'nullable|string|max:255',
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'pricelistForm.description.required' => 'Description is required.',
+            'pricelistForm.currency_id.required' => 'Select a currency from the list (typing alone is not enough).',
+            'pricelistForm.currency_id.exists' => 'Select a valid currency from the list.',
         ];
     }
 
@@ -315,7 +327,14 @@ class PricelistManager extends Component
 
     public function savePricelist(): void
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
+            $this->toastValidationErrors($exception);
+
+            return;
+        }
 
         try {
             DB::transaction(function (): void {
@@ -353,12 +372,33 @@ class PricelistManager extends Component
                 }
             });
 
-            $this->showMessage($this->editingPricelist ? 'Pricelist updated successfully.' : 'Pricelist created successfully.', 'success');
+            $successMessage = $this->editingPricelist
+                ? 'Pricelist updated successfully.'
+                : 'Pricelist created successfully.';
+
+            $this->showMessage($successMessage, 'success');
+            $this->imaraToast('success', 'Pricelist saved', $successMessage);
             $this->closePricelistModal();
             $this->resetPage();
         } catch (\Throwable $e) {
-            $this->showMessage('Failed to save pricelist: ' . $e->getMessage(), 'danger');
+            $failureMessage = 'Failed to save pricelist: ' . $e->getMessage();
+            $this->showMessage($failureMessage, 'danger');
+            $this->imaraToast('error', 'Could not save pricelist', $e->getMessage());
         }
+    }
+
+    private function toastValidationErrors(ValidationException $exception): void
+    {
+        $messages = collect($exception->validator->errors()->all())
+            ->filter(fn ($message): bool => is_string($message) && trim($message) !== '')
+            ->unique()
+            ->values();
+
+        $body = $messages->isEmpty()
+            ? 'Please fill in all required fields.'
+            : $messages->implode(' ');
+
+        $this->imaraToast('error', 'Please fix the form', $body);
     }
 
     public function openPricelist(string $id)

@@ -44,6 +44,7 @@ class ElementManager extends Component
     // Element Form
     public $elementForm = [
         'analyte_id' => null,
+        'report_display_name' => null,
         'method' => null,
         'equipment_id' => null,
         'operator_id' => null,
@@ -142,6 +143,7 @@ class ElementManager extends Component
 
     protected $rules = [
         'elementForm.analyte_id' => 'required|exists:analytes,id',
+        'elementForm.report_display_name' => 'nullable|string|max:255',
         'elementForm.method' => 'nullable|exists:analysis_methods,id',
         'elementForm.equipment_id' => 'nullable|exists:equipment,id',
         'elementForm.operator_id' => 'nullable|exists:users,id',
@@ -385,6 +387,7 @@ class ElementManager extends Component
         // Then populate with element data
         $this->elementForm = [
             'analyte_id' => $element->analyte_id,
+            'report_display_name' => $element->report_display_name,
             'method' => $element->method,
             'equipment_id' => $element->equipment_id,
             'operator_id' => $element->operator_id,
@@ -514,6 +517,7 @@ class ElementManager extends Component
     {
         $this->elementForm = [
             'analyte_id' => null,
+            'report_display_name' => null,
             'method' => null,
             'equipment_id' => null,
             'operator_id' => null,
@@ -589,6 +593,7 @@ class ElementManager extends Component
     {
         $this->elementForm = [
             'analyte_id' => null,
+            'report_display_name' => null,
             'method' => null,
             'equipment_id' => null,
             'operator_id' => null,
@@ -852,6 +857,14 @@ class ElementManager extends Component
      */
     protected function prefillElementFormFromAnalyte(Analyte $analyte): void
     {
+        $reportDisplay = trim($analyte->plainReportDisplay());
+        if ($reportDisplay === '') {
+            $reportDisplay = trim((string) ($analyte->code ?? ''));
+        }
+        if ($reportDisplay !== '') {
+            $this->elementForm['report_display_name'] = $reportDisplay;
+        }
+
         if ($analyte->decimal_places !== null && is_numeric($analyte->decimal_places)) {
             $this->elementForm['decimal_places'] = (int) $analyte->decimal_places;
         }
@@ -886,6 +899,7 @@ class ElementManager extends Component
     public function clearAnalyte(): void
     {
         $this->elementForm['analyte_id'] = null;
+        $this->elementForm['report_display_name'] = null;
         $this->selectedAnalyteName = '';
         $this->analyteSearch = '';
         $this->methodSequences = collect([]);

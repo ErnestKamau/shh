@@ -44,14 +44,17 @@
     if ($isTestRequirements && $checkboxOptions === [] && $this->isWaterTrf()) {
         $checkboxOptions = $this->waterTestRequirementOptions();
     }
+    $usesLsSelectInclude = in_array($fieldName, ['parameters', 'sample_type_id', 'analysis_type_id'], true);
+    $isTempField = in_array($fieldName, ['sample_temp', 'field_sample_temp'], true);
+    $isStateOfSample = $fieldName === 'state_of_sample';
 @endphp
 
 <div class="{{ ($hideOuterCol ?? false) ? '' : $colClass.' mb-3' }}">
-    @if(! ($hideLabel ?? false))
-        <label class="form-label small font-weight-bold text-secondary mb-1" for="edit-row-{{ $fieldName }}">
+    @if(! ($hideLabel ?? false) && ! $usesLsSelectInclude && ! $isTempField && ! $isStateOfSample)
+        <label class="ls-field__label" for="edit-row-{{ $fieldName }}">
             {{ $fieldLabel }}
             @if($field['required'] ?? false)
-                <span class="text-danger">*</span>
+                <span class="ls-req">*</span>
             @endif
         </label>
     @endif
@@ -66,10 +69,14 @@
             'height' => 160,
         ])
     @elseif($fieldType === 'textarea')
-        <textarea id="edit-row-{{ $fieldName }}"
-            class="form-control form-control-sm"
-            rows="3"
-            wire:model.defer="editingRowFields.{{ $fieldName }}"></textarea>
+        <div class="ls-field">
+            <div class="ls-field__control">
+                <textarea id="edit-row-{{ $fieldName }}"
+                    class="ls-field__input"
+                    rows="3"
+                    wire:model.defer="editingRowFields.{{ $fieldName }}"></textarea>
+            </div>
+        </div>
     @elseif($fieldType === 'checkbox' || $isTestRequirements)
         <div class="d-flex flex-wrap rv-test-requirements-checkboxes" style="gap: 12px;">
             @foreach($checkboxOptions as $optionKey => $optionText)
@@ -80,6 +87,118 @@
                     <span class="form-check-label">{{ $optionText }}</span>
                 </label>
             @endforeach
+        </div>
+    @elseif($fieldName === 'parameters')
+        @include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-columns', [
+            'label' => $fieldLabel,
+            'id' => 'edit-row-parameters',
+            'name' => 'editingRowFields_parameters',
+            'required' => (bool) ($field['required'] ?? false),
+            'placeholder' => 'Search and add tests…',
+            'options' => $selectOptions,
+            'selected' => $selectedParameters,
+            'wireIgnore' => true,
+            'dataWireField' => 'editingRowFields.parameters',
+            'extraSelectClass' => 'livewire-select2 rv-trf-catalog-select',
+            'selectedValuesJson' => json_encode($selectedParameters),
+        ])
+    @elseif(in_array($fieldName, ['sample_type_id', 'analysis_type_id'], true))
+        @include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-dropdown-search', [
+            'label' => $fieldLabel,
+            'id' => 'edit-row-'.$fieldName,
+            'name' => 'editingRowFields_'.$fieldName,
+            'required' => (bool) ($field['required'] ?? false),
+            'placeholder' => $fieldName === 'sample_type_id' ? 'Search sample type…' : 'Search analysis type…',
+            'options' => $selectOptions,
+            'selected' => $fieldName === 'sample_type_id' ? $selectedSampleTypes : $selectedAnalysisTypes,
+            'variant' => 'slate',
+            'wireIgnore' => true,
+            'dataWireField' => 'editingRowFields.'.$fieldName,
+            'dataSelectLive' => '1',
+            'extraSelectClass' => 'livewire-select2 rv-trf-catalog-select',
+            'selectedValuesJson' => json_encode($fieldName === 'sample_type_id' ? $selectedSampleTypes : $selectedAnalysisTypes),
+        ])
+    @elseif($isStateOfSample)
+        @php
+            $stateOptions = collect($checkboxOptions)->map(fn ($label, $value) => [
+                'value' => (string) $value,
+                'label' => (string) $label,
+            ])->values()->all();
+            $stateSelected = (string) ($editingRowFields[$fieldName] ?? '');
+            $stateSelectedLabel = $checkboxOptions[$stateSelected] ?? $stateSelected;
+        @endphp
+        <div
+            class="ls-field ls-combo ls-search-basic ls-compact {{ $stateSelected !== '' ? 'is-success' : '' }}"
+            x-data="{
+                open: false,
+                q: @js($stateSelectedLabel),
+                selected: @js($stateSelected !== '' ? $stateSelected : null),
+                options: @js($stateOptions),
+                get filtered() {
+                    const q = (this.q || '').trim().toLowerCase();
+                    if (!q || this.selected === this.q) return this.options;
+                    return this.options.filter(o => o.label.toLowerCase().includes(q));
+                },
+                pick(opt) {
+                    this.selected = opt.value;
+                    this.q = opt.label;
+                    this.open = false;
+                    $wire.set('editingRowFields.{{ $fieldName }}', opt.value);
+                },
+                clear() {
+                    this.q = '';
+                    this.selected = null;
+                    this.open = true;
+                    $wire.set('editingRowFields.{{ $fieldName }}', '');
+                }
+            }"
+            :class="{ 'is-open': open, 'is-success': !!selected && !open }"
+            @click.outside="open = false"
+        >
+            <label class="ls-field__label" for="edit-row-{{ $fieldName }}">{{ $fieldLabel }}</label>
+            <div class="ls-field__control">
+                <div class="ls-combo__search-wrap">
+                    <i class="mdi mdi-magnify"></i>
+                    <input
+                        id="edit-row-{{ $fieldName }}"
+                        type="text"
+                        x-model="q"
+                        @focus="open = true"
+                        @input="open = true; selected = null"
+                        placeholder="Search…"
+                        autocomplete="off"
+                    >
+                </div>
+                <button type="button" class="ls-field__icon-btn" x-show="q" @click="clear()" aria-label="Clear">
+                    <i class="mdi mdi-close-circle"></i>
+                </button>
+                <i class="mdi mdi-check-circle" x-show="selected && !open" style="padding-right:0.45rem;"></i>
+                <button type="button" class="ls-field__icon-btn" @click="open = !open" aria-label="Toggle">
+                    <i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                </button>
+            </div>
+            <div class="ls-combo__menu" role="listbox">
+                <template x-for="opt in filtered" :key="opt.value">
+                    <button type="button" class="ls-combo__item" :class="{ 'is-active': selected === opt.value }" @click="pick(opt)">
+                        <span x-text="opt.label"></span>
+                        <i class="mdi mdi-check" x-show="selected === opt.value"></i>
+                    </button>
+                </template>
+            </div>
+        </div>
+    @elseif($isTempField)
+        <div class="ls-field {{ filled($editingRowFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+            <label class="ls-field__label" for="edit-row-{{ $fieldName }}">{{ $fieldLabel }}</label>
+            <div class="ls-field__control">
+                <span class="ls-field__affix ls-field__affix--prefix"><i class="mdi mdi-thermometer"></i></span>
+                <input id="edit-row-{{ $fieldName }}"
+                    type="number"
+                    step="any"
+                    class="ls-field__input"
+                    wire:model.defer="editingRowFields.{{ $fieldName }}"
+                    placeholder="Temp">
+                <span class="ls-field__affix ls-field__affix--suffix">°C</span>
+            </div>
         </div>
     @elseif($usesSelect2)
         @php
@@ -123,31 +242,47 @@
             </select>
         </div>
     @elseif($fieldType === 'date')
-        <input id="edit-row-{{ $fieldName }}"
-            type="date"
-            class="form-control form-control-sm"
-            wire:model.defer="editingRowFields.{{ $fieldName }}">
+        <div class="ls-field {{ filled($editingRowFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+            <div class="ls-field__control">
+                <input id="edit-row-{{ $fieldName }}"
+                    type="date"
+                    class="ls-field__input"
+                    wire:model.defer="editingRowFields.{{ $fieldName }}">
+            </div>
+        </div>
     @elseif($fieldType === 'number')
-        <input id="edit-row-{{ $fieldName }}"
-            type="number"
-            step="any"
-            class="form-control form-control-sm"
-            wire:model.defer="editingRowFields.{{ $fieldName }}">
+        <div class="ls-field {{ filled($editingRowFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+            <div class="ls-field__control">
+                <input id="edit-row-{{ $fieldName }}"
+                    type="number"
+                    step="any"
+                    class="ls-field__input"
+                    wire:model.defer="editingRowFields.{{ $fieldName }}">
+            </div>
+        </div>
     @elseif(in_array($fieldType, ['select', 'radio'], true) && $checkboxOptions !== [])
-        <select id="edit-row-{{ $fieldName }}"
-            class="form-control form-control-sm"
-            wire:model.defer="editingRowFields.{{ $fieldName }}">
-            <option value="">— Select —</option>
-            @foreach($checkboxOptions as $optionKey => $optionText)
-                <option value="{{ $optionKey }}" @selected((string) ($editingRowFields[$fieldName] ?? '') === (string) $optionKey)>
-                    {{ $optionText }}
-                </option>
-            @endforeach
-        </select>
+        <div class="ls-field {{ filled($editingRowFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+            <div class="ls-field__control">
+                <select id="edit-row-{{ $fieldName }}"
+                    class="ls-field__input"
+                    wire:model.defer="editingRowFields.{{ $fieldName }}">
+                    <option value="">— Select —</option>
+                    @foreach($checkboxOptions as $optionKey => $optionText)
+                        <option value="{{ $optionKey }}" @selected((string) ($editingRowFields[$fieldName] ?? '') === (string) $optionKey)>
+                            {{ $optionText }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
     @else
-        <input id="edit-row-{{ $fieldName }}"
-            type="text"
-            class="form-control form-control-sm"
-            wire:model.defer="editingRowFields.{{ $fieldName }}">
+        <div class="ls-field {{ filled($editingRowFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+            <div class="ls-field__control">
+                <input id="edit-row-{{ $fieldName }}"
+                    type="text"
+                    class="ls-field__input"
+                    wire:model.defer="editingRowFields.{{ $fieldName }}">
+            </div>
+        </div>
     @endif
 </div>

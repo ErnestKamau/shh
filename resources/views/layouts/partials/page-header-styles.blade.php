@@ -149,13 +149,14 @@
 		z-index: 30;
 	}
 
+	/* Scenario G: burgundy×blue pill — white request/form text */
 	.request-view-page .request-view-title {
-		color: #fff;
+		color: #ffffff;
 	}
 
 	.request-view-page .request-view-form-name,
 	.request-view-page .request-view-meta .text-muted {
-		color: rgba(255, 255, 255, 0.82) !important;
+		color: rgba(255, 255, 255, 0.92) !important;
 	}
 
 	.batch-show-page .batch-header-bar {

@@ -12,9 +12,14 @@ use App\Models\Billing\PricelistItem;
 use App\Models\Billing\PricelistItemElement;
 use App\Models\Currency;
 use App\Models\System\SystemConfiguration;
+use App\SampleAnalysisStage;
 use App\SampleType;
 use App\Services\Billing\PricelistNumberGenerator;
+use App\Services\Billing\PricelistPackageImportService;
 use App\Services\Billing\QuotationLineTaxResolver;
+use App\Services\Billing\QuotationPricingResolver;
+use App\Services\Billing\PdfTextExtractor;
+use App\Livewire\Concerns\WithToastNotifications;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +31,7 @@ use Livewire\Features\SupportFileUploads\WithFileUploads;
 class PricelistShowManager extends Component
 {
     use WithFileUploads;
+    use WithToastNotifications;
 
     public string $pricelistId;
     public string $activeTab = 'customer-assignment';
@@ -51,6 +57,9 @@ class PricelistShowManager extends Component
     public array $itemElementRows = [];
     public ?string $editingItemId = null;
 
+    /** True while Add Item modal is open (keeps Active default on until user turns it off). */
+    public bool $itemModalCreating = false;
+
     public bool $showItemSampleTypeDropdown = false;
 
     public bool $showItemAnalysisTypeDropdown = false;
@@ -58,6 +67,16 @@ class PricelistShowManager extends Component
     public string $itemSampleTypeSearch = '';
 
     public string $itemAnalysisTypeSearch = '';
+
+    public bool $itemParamsSelectAll = false;
+
+    public bool $showImportModal = false;
+
+    public string $importFormat = 'excel';
+
+    public string $importPricingMode = 'per_test';
+
+    public $importFile = null;
 
     public $selectedItemIds = [];
     public $showCloneModal = false;
@@ -136,7 +155,6 @@ class PricelistShowManager extends Component
     protected function itemRules(): array
     {
         $rules = [
-            'itemForm.analysis_id' => 'required|exists:analysis_types,id',
             'itemForm.sample_type_id' => 'required|exists:sample_types,id',
             'itemForm.internal_use' => 'boolean',
             'itemForm.external_view' => 'boolean',
@@ -144,22 +162,42 @@ class PricelistShowManager extends Component
             'itemForm.is_package' => 'boolean',
             'itemElementRows' => 'required|array|min:1',
             'itemElementRows.*.analysis_element_id' => 'required|exists:analysis_elements,id',
+            'itemElementRows.*.included' => 'boolean',
         ];
 
         if (! empty($this->itemForm['is_package'])) {
             $rules['itemForm.package_cost_price'] = 'required|numeric|min:0';
             $rules['itemForm.package_selling_price'] = 'required|numeric|min:0';
             $rules['itemForm.package_vat'] = 'boolean';
-            $rules['itemElementRows.*.included'] = 'boolean';
 
             return $rules;
         }
 
-        $rules['itemElementRows.*.cost_price'] = 'required|numeric|min:0';
-        $rules['itemElementRows.*.selling_price'] = 'required|numeric|min:0';
+        $rules['itemElementRows.*.cost_price'] = 'nullable|numeric|min:0';
+        $rules['itemElementRows.*.selling_price'] = 'nullable|numeric|min:0';
         $rules['itemElementRows.*.vat'] = 'boolean';
 
         return $rules;
+    }
+
+    public function getItemParamsMaxTatProperty(): ?int
+    {
+        $tats = collect($this->itemElementRows)
+            ->filter(fn (array $row): bool => ! empty($row['included']) && isset($row['tat']) && $row['tat'] !== null)
+            ->pluck('tat');
+
+        if ($tats->isEmpty()) {
+            return null;
+        }
+
+        return (int) $tats->max();
+    }
+
+    public function updatedItemParamsSelectAll(bool $value): void
+    {
+        foreach ($this->itemElementRows as $index => $row) {
+            $this->itemElementRows[$index]['included'] = $value;
+        }
     }
 
     protected function cloneRules(): array
@@ -209,16 +247,21 @@ class PricelistShowManager extends Component
         $items = PricelistItem::query()
             ->with([
                 'sampleType:id,name,code',
-                'analysisType:id,name,code',
-                'analysisElement:id,analyte_id',
+                'analysisType:id,name,code,reporting_time',
+                'analysisElement:id,analyte_id,method,reporting_time,analysis_type_id',
                 'analysisElement.analyte:id,name,code',
+                'analysisElement.mmethod:id,name,code',
+                'packageElements.analysisElement:id,analyte_id,method,reporting_time,analysis_type_id',
                 'packageElements.analysisElement.analyte:id,name,code',
+                'packageElements.analysisElement.mmethod:id,name,code',
             ])
             ->where('pricelist_id', $this->pricelistId)
             ->get();
 
+        $pricingResolver = app(QuotationPricingResolver::class);
+
         return $items
-            ->map(function (PricelistItem $item) {
+            ->map(function (PricelistItem $item) use ($pricingResolver) {
                 $sampleType = $item->sampleType;
                 $analysisType = $item->analysisType;
                 $analyte = $item->analysisElement?->analyte;
@@ -233,13 +276,19 @@ class PricelistShowManager extends Component
                 $packageParameters = [];
                 if ($item->is_package) {
                     $packageParameters = $item->packageElements
-                        ->map(function ($packageElement): array {
-                            $analyte = $packageElement->analysisElement?->analyte;
+                        ->map(function ($packageElement) use ($pricingResolver): array {
+                            $element = $packageElement->analysisElement;
+                            $analyte = $element?->analyte;
+                            $methodLabel = trim((string) ($element?->mmethod?->code ?? $element?->mmethod?->name ?? ''));
 
                             return [
                                 'id' => (string) ($packageElement->analysis_element_id ?? ''),
                                 'name' => (string) ($analyte?->name ?? 'Parameter'),
                                 'code' => (string) ($analyte?->code ?? ''),
+                                'method_label' => $methodLabel !== '' ? $methodLabel : null,
+                                'tat' => $element
+                                    ? $pricingResolver->maxTatForElements([(string) $element->id], (string) ($element->analysis_type_id ?? ''))
+                                    : null,
                             ];
                         })
                         ->filter(fn (array $row): bool => $row['id'] !== '')
@@ -248,6 +297,18 @@ class PricelistShowManager extends Component
                         ->all();
                 }
                 $coveredCount = count($packageParameters);
+
+                $methodLabel = trim((string) ($item->analysisElement?->mmethod?->code ?? $item->analysisElement?->mmethod?->name ?? ''));
+                $tat = null;
+                if ($item->is_package) {
+                    $elementIds = array_column($packageParameters, 'id');
+                    $tat = $pricingResolver->maxTatForElements($elementIds, (string) ($item->analysis_id ?? ''));
+                } elseif ($item->analysisElement) {
+                    $tat = $pricingResolver->maxTatForElements(
+                        [(string) $item->analysis_element_id],
+                        (string) ($item->analysis_id ?? '')
+                    );
+                }
 
                 $item->sample_type_name = $sampleType->name ?? null;
                 $item->sample_type_code = $sampleType->code ?? null;
@@ -264,6 +325,8 @@ class PricelistShowManager extends Component
                 $item->has_pending_change = abs($selling - $changed) > 0.004;
                 $item->package_element_count = $coveredCount;
                 $item->package_parameters = $packageParameters;
+                $item->method_label = $methodLabel !== '' ? $methodLabel : null;
+                $item->tat = $tat;
 
                 return $item;
             })
@@ -896,7 +959,8 @@ class PricelistShowManager extends Component
     public function getSampleTypesProperty()
     {
         return SampleType::query()
-            ->select('id', 'code', 'name')
+            ->with('sampleTypeCategory')
+            ->select('id', 'code', 'name', 'sample_type_category')
             ->where('active', true)
             ->orderBy('name')
             ->get();
@@ -1382,7 +1446,9 @@ class PricelistShowManager extends Component
     {
         $this->editingItem = false;
         $this->editingItemId = null;
+        $this->itemModalCreating = true;
         $this->resetItemForm();
+        $this->itemForm['active'] = true;
         $this->showItemModal = true;
     }
 
@@ -1396,6 +1462,7 @@ class PricelistShowManager extends Component
 
         $this->editingItem = true;
         $this->editingItemId = (string) $item->id;
+        $this->itemModalCreating = false;
         $this->showItemSampleTypeDropdown = false;
         $this->showItemAnalysisTypeDropdown = false;
         $this->itemSampleTypeSearch = '';
@@ -1427,6 +1494,20 @@ class PricelistShowManager extends Component
         $this->refreshItemElementRows();
     }
 
+    public function setItemPricingMode(bool $isPackage): void
+    {
+        $this->itemForm['is_package'] = $isPackage;
+
+        // Create flow: keep Active on by default when leaving package mode.
+        if (! $isPackage && $this->itemModalCreating) {
+            $this->itemForm['active'] = true;
+            $this->itemForm['external_view'] = true;
+            $this->itemForm['internal_use'] = false;
+        }
+
+        $this->refreshItemElementRows();
+    }
+
     public function setItemSampleTypeDropdown(bool $open): void
     {
         $this->showItemSampleTypeDropdown = $open;
@@ -1447,23 +1528,27 @@ class PricelistShowManager extends Component
         }
     }
 
-    public function selectItemSampleType(string $id): void
+    public function updatedItemFormSampleTypeId(?string $value): void
     {
-        $this->itemForm['sample_type_id'] = $id;
+        $sampleTypeId = trim((string) ($value ?? ''));
+        $this->itemForm['analysis_id'] = '';
         $this->showItemSampleTypeDropdown = false;
         $this->itemSampleTypeSearch = '';
 
-        if (!empty($this->itemForm['analysis_id'])) {
-            $analysisType = AnalysisType::query()
-                ->where('id', $this->itemForm['analysis_id'])
-                ->first(['id', 'sample_type_id']);
+        if ($sampleTypeId === '') {
+            $this->itemElementRows = [];
+            $this->itemParamsSelectAll = false;
 
-            if (!$analysisType || (string) $analysisType->sample_type_id !== (string) $id) {
-                $this->itemForm['analysis_id'] = '';
-            }
+            return;
         }
 
+        $this->itemForm['sample_type_id'] = $sampleTypeId;
         $this->refreshItemElementRows();
+    }
+
+    public function selectItemSampleType(string $id): void
+    {
+        $this->updatedItemFormSampleTypeId($id);
     }
 
     public function selectItemAnalysisType(string $id): void
@@ -1479,6 +1564,7 @@ class PricelistShowManager extends Component
         $this->itemForm['sample_type_id'] = '';
         $this->itemForm['analysis_id'] = '';
         $this->itemElementRows = [];
+        $this->itemParamsSelectAll = false;
         $this->itemSampleTypeSearch = '';
         $this->showItemSampleTypeDropdown = false;
     }
@@ -1496,31 +1582,39 @@ class PricelistShowManager extends Component
         $this->validate($this->itemRules());
 
         if (count($this->itemElementRows) === 0) {
-            $this->showMessage('No analysis elements found for the selected analysis type.', 'danger');
+            $this->showMessage('No analysis elements found for the selected sample type.', 'danger');
             return;
         }
 
-        if (! empty($this->itemForm['is_package'])) {
-            $includedCount = collect($this->itemElementRows)
-                ->filter(fn (array $row): bool => ! empty($row['included']))
-                ->count();
+        $includedRows = collect($this->itemElementRows)
+            ->filter(fn (array $row): bool => ! empty($row['included']))
+            ->values();
 
-            if ($includedCount === 0) {
-                $this->showMessage('Select at least one analysis element for the package.', 'danger');
+        if ($includedRows->isEmpty()) {
+            $this->showMessage('Select at least one parameter.', 'danger');
 
-                return;
+            return;
+        }
+
+        if (empty($this->itemForm['is_package'])) {
+            foreach ($includedRows as $row) {
+                if (! is_numeric($row['cost_price'] ?? null) || ! is_numeric($row['selling_price'] ?? null)) {
+                    $this->showMessage('Cost and selling price are required for each selected parameter.', 'danger');
+
+                    return;
+                }
             }
         }
 
         try {
-            DB::transaction(function (): void {
+            DB::transaction(function () use ($includedRows): void {
                 if (! empty($this->itemForm['is_package'])) {
-                    $this->savePackageItem();
+                    $this->savePackageItem($includedRows);
 
                     return;
                 }
 
-                $this->saveParameterItems();
+                $this->saveParameterItems($includedRows);
             });
 
             $this->showMessage($this->editingItem ? 'Pricelist analysis items updated successfully.' : 'Pricelist analysis items added successfully.', 'success');
@@ -1530,11 +1624,21 @@ class PricelistShowManager extends Component
         }
     }
 
-    private function savePackageItem(): void
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $includedRows
+     */
+    private function savePackageItem(Collection $includedRows): void
     {
+        $firstAnalysisId = (string) ($includedRows->first()['analysis_id'] ?? '');
+        if ($firstAnalysisId === '') {
+            throw new \RuntimeException('Selected parameters are missing an analysis type.');
+        }
+
+        $this->itemForm['analysis_id'] = $firstAnalysisId;
+
         $proposedPrice = (float) ($this->itemForm['package_selling_price'] ?? 0);
         $payload = [
-            'analysis_id' => $this->itemForm['analysis_id'],
+            'analysis_id' => $firstAnalysisId,
             'analysis_element_id' => null,
             'sample_type_id' => $this->itemForm['sample_type_id'],
             'cost_price' => (float) ($this->itemForm['package_cost_price'] ?? 0),
@@ -1560,7 +1664,6 @@ class PricelistShowManager extends Component
             $existing = PricelistItem::query()
                 ->where('pricelist_id', $this->pricelistId)
                 ->where('sample_type_id', $this->itemForm['sample_type_id'])
-                ->where('analysis_id', $this->itemForm['analysis_id'])
                 ->where('is_package', true)
                 ->whereNull('analysis_element_id')
                 ->first();
@@ -1585,8 +1688,7 @@ class PricelistShowManager extends Component
             ]));
         }
 
-        $includedElementIds = collect($this->itemElementRows)
-            ->filter(fn (array $row): bool => ! empty($row['included']))
+        $includedElementIds = $includedRows
             ->map(fn (array $row): string => (string) ($row['analysis_element_id'] ?? ''))
             ->filter()
             ->unique()
@@ -1624,7 +1726,10 @@ class PricelistShowManager extends Component
             ]);
     }
 
-    private function saveParameterItems(): void
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $includedRows
+     */
+    private function saveParameterItems(Collection $includedRows): void
     {
         $maxLevel = (int) PricelistItem::query()
             ->where('pricelist_id', $this->pricelistId)
@@ -1632,16 +1737,17 @@ class PricelistShowManager extends Component
 
         $nextLevel = $maxLevel > 0 ? $maxLevel + 1 : 1;
 
-        foreach ($this->itemElementRows as $row) {
+        foreach ($includedRows as $row) {
             $analysisElementId = (string) ($row['analysis_element_id'] ?? '');
-            if ($analysisElementId === '') {
+            $analysisId = (string) ($row['analysis_id'] ?? '');
+            if ($analysisElementId === '' || $analysisId === '') {
                 continue;
             }
 
             $proposedPrice = (float) ($row['selling_price'] ?? 0);
 
             $payload = [
-                'analysis_id' => $this->itemForm['analysis_id'],
+                'analysis_id' => $analysisId,
                 'analysis_element_id' => $analysisElementId,
                 'sample_type_id' => $this->itemForm['sample_type_id'],
                 'cost_price' => (float) ($row['cost_price'] ?? 0),
@@ -1657,7 +1763,7 @@ class PricelistShowManager extends Component
             $existing = PricelistItem::query()
                 ->where('pricelist_id', $this->pricelistId)
                 ->where('sample_type_id', $this->itemForm['sample_type_id'])
-                ->where('analysis_id', $this->itemForm['analysis_id'])
+                ->where('analysis_id', $analysisId)
                 ->where('analysis_element_id', $analysisElementId)
                 ->where('is_package', false)
                 ->first();
@@ -1938,6 +2044,7 @@ class PricelistShowManager extends Component
         $this->showItemModal = false;
         $this->editingItem = false;
         $this->editingItemId = null;
+        $this->itemModalCreating = false;
         $this->resetItemForm();
         $this->resetValidation();
     }
@@ -1951,7 +2058,23 @@ class PricelistShowManager extends Component
     {
         $this->message = $message;
         $this->messageType = $type;
-        $this->dispatch('pricelist-scroll-to-message');
+
+        $toastType = match (strtolower($type)) {
+            'danger', 'error', 'failed', 'fail' => 'error',
+            'warning' => 'warning',
+            'info' => 'info',
+            default => 'success',
+        };
+
+        $title = match ($toastType) {
+            'success' => 'Success',
+            'error' => 'Error',
+            'warning' => 'Warning',
+            default => 'Notice',
+        };
+
+        // Single toast path (imara) — avoid also firing SweetAlert `notify`.
+        $this->imaraToast($toastType, $title, $message);
     }
 
     private function fillPricelistForm(): void
@@ -2022,10 +2145,11 @@ class PricelistShowManager extends Component
             'is_package' => false,
             'package_cost_price' => 0,
             'package_selling_price' => 0,
-            'package_vat' => false,
+            'package_vat' => true,
         ];
 
         $this->itemElementRows = [];
+        $this->itemParamsSelectAll = false;
         $this->showItemSampleTypeDropdown = false;
         $this->showItemAnalysisTypeDropdown = false;
         $this->itemSampleTypeSearch = '';
@@ -2035,50 +2159,103 @@ class PricelistShowManager extends Component
     private function refreshItemElementRows(): void
     {
         $sampleTypeId = (string) ($this->itemForm['sample_type_id'] ?? '');
-        $analysisId = (string) ($this->itemForm['analysis_id'] ?? '');
 
-        if ($sampleTypeId === '' || $analysisId === '') {
+        if ($sampleTypeId === '') {
             $this->itemElementRows = [];
+            $this->itemParamsSelectAll = false;
+
             return;
         }
 
-        $analysisType = AnalysisType::query()
-            ->where('id', $analysisId)
-            ->first(['id', 'sample_type_id']);
+        $analysisTypes = AnalysisType::query()
+            ->where('sample_type_id', $sampleTypeId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'reporting_time', 'sample_type_id']);
 
-        if (!$analysisType || (string) $analysisType->sample_type_id !== $sampleTypeId) {
+        if ($analysisTypes->isEmpty()) {
             $this->itemElementRows = [];
+            $this->itemParamsSelectAll = false;
+
             return;
         }
+
+        $analysisTypeIds = $analysisTypes->pluck('id')->all();
+        $analysisTypeById = $analysisTypes->keyBy(fn ($type) => (string) $type->id);
 
         $elements = AnalysisElements::query()
-            ->with(['analyte:id,name,code'])
-            ->where('analysis_type_id', $analysisId)
+            ->with([
+                'analyte:id,name,code',
+                'mmethod:id,name,code',
+            ])
+            ->whereIn('analysis_type_id', $analysisTypeIds)
             ->where(function ($query): void {
                 $query->where('active', true)
                     ->orWhereNull('active');
             })
             ->orderBy('level')
-            ->get(['id', 'analysis_type_id', 'analyte_id', 'level', 'active']);
+            ->get([
+                'id',
+                'analysis_type_id',
+                'analyte_id',
+                'method',
+                'lab_section_id',
+                'reporting_time',
+                'level',
+                'active',
+            ]);
+
+        $labSectionIds = $elements
+            ->pluck('lab_section_id')
+            ->filter()
+            ->map(fn ($id): string => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $labSectionCodes = SampleAnalysisStage::query()
+            ->whereIn('id', $labSectionIds)
+            ->get(['id', 'code'])
+            ->mapWithKeys(fn ($stage): array => [(string) $stage->id => (string) ($stage->code ?? '')])
+            ->all();
+
+        if ($labSectionCodes === [] && $labSectionIds !== []) {
+            $labSectionCodes = \App\LabSection::query()
+                ->whereIn('id', $labSectionIds)
+                ->get(['id', 'code'])
+                ->mapWithKeys(fn ($section): array => [(string) $section->id => (string) ($section->code ?? '')])
+                ->all();
+        }
 
         $existingItems = PricelistItem::query()
             ->where('pricelist_id', $this->pricelistId)
             ->where('sample_type_id', $sampleTypeId)
-            ->where('analysis_id', $analysisId)
             ->where('is_package', false)
             ->get()
             ->keyBy(function ($item) {
                 return (string) ($item->analysis_element_id ?? '');
             });
 
-        $packageItem = PricelistItem::query()
-            ->with('packageElements')
-            ->where('pricelist_id', $this->pricelistId)
-            ->where('sample_type_id', $sampleTypeId)
-            ->where('analysis_id', $analysisId)
-            ->where('is_package', true)
-            ->whereNull('analysis_element_id')
-            ->first();
+        $packageItem = null;
+        if ($this->editingItemId !== null) {
+            $packageItem = PricelistItem::query()
+                ->with('packageElements')
+                ->where('pricelist_id', $this->pricelistId)
+                ->where('id', $this->editingItemId)
+                ->where('is_package', true)
+                ->whereNull('analysis_element_id')
+                ->first();
+        }
+
+        if ($packageItem === null) {
+            $packageItem = PricelistItem::query()
+                ->with('packageElements')
+                ->where('pricelist_id', $this->pricelistId)
+                ->where('sample_type_id', $sampleTypeId)
+                ->where('is_package', true)
+                ->whereNull('analysis_element_id')
+                ->orderBy('level')
+                ->first();
+        }
 
         $isPackageMode = ! empty($this->itemForm['is_package']);
 
@@ -2089,9 +2266,19 @@ class PricelistShowManager extends Component
                 ? (float) ($packageItem->selling_price ?? 0)
                 : (float) $changedRaw;
             $this->itemForm['package_vat'] = (bool) $packageItem->vat;
-            $this->itemForm['internal_use'] = (bool) $packageItem->internal_use;
-            $this->itemForm['external_view'] = (bool) $packageItem->external_view;
-            $this->itemForm['active'] = (bool) $packageItem->active;
+            $this->itemForm['analysis_id'] = (string) ($packageItem->analysis_id ?? '');
+
+            // Only pull flags when editing an existing package opened via Edit.
+            // Create flow keeps Active=true by default (user may still turn it off).
+            if (! $this->itemModalCreating
+                && $this->editingItemId !== null
+                && $this->editingItemId === (string) $packageItem->id
+            ) {
+                $this->itemForm['internal_use'] = (bool) $packageItem->internal_use;
+                $this->itemForm['external_view'] = (bool) $packageItem->external_view;
+                $this->itemForm['active'] = (bool) $packageItem->active;
+            }
+
             if ($this->editingItemId === null || $this->editingItemId === (string) $packageItem->id) {
                 $this->itemForm['id'] = $packageItem->id;
                 $this->editingItemId = (string) $packageItem->id;
@@ -2100,11 +2287,35 @@ class PricelistShowManager extends Component
         }
 
         $coveredElementIds = $packageItem?->coveredElementIds() ?? [];
+        $editingElementId = null;
+        if ($this->editingItem && $this->editingItemId !== null && ! $isPackageMode) {
+            $editingElementId = (string) (
+                PricelistItem::query()
+                    ->where('id', $this->editingItemId)
+                    ->value('analysis_element_id') ?? ''
+            );
+        }
 
-        $this->itemElementRows = $elements->map(function ($element) use ($existingItems, $coveredElementIds, $isPackageMode) {
+        $pricingResolver = app(QuotationPricingResolver::class);
+
+        $this->itemElementRows = $elements->map(function ($element, int $index) use (
+            $existingItems,
+            $coveredElementIds,
+            $isPackageMode,
+            $analysisTypeById,
+            $editingElementId,
+            $pricingResolver,
+            $labSectionCodes
+        ) {
             $existing = $existingItems->get((string) $element->id);
             $analyteCode = trim((string) ($element->analyte?->code ?? ''));
             $analyteName = trim((string) ($element->analyte?->name ?? ''));
+            $analysisType = $analysisTypeById->get((string) $element->analysis_type_id);
+            $methodLabel = trim((string) ($element->mmethod?->code ?? $element->mmethod?->name ?? ''));
+            if ($methodLabel === '') {
+                $methodLabel = trim((string) ($element->mmethod?->name ?? ''));
+            }
+            $labSectionCode = trim((string) ($labSectionCodes[(string) ($element->lab_section_id ?? '')] ?? ''));
 
             $proposedPrice = 0.0;
             if ($existing) {
@@ -2114,19 +2325,125 @@ class PricelistShowManager extends Component
                     : (float) $changedRaw;
             }
 
-            $included = $isPackageMode
-                ? ($coveredElementIds === [] || in_array((string) $element->id, $coveredElementIds, true))
-                : false;
+            $included = false;
+            if ($isPackageMode) {
+                $included = $coveredElementIds === []
+                    ? false
+                    : in_array((string) $element->id, $coveredElementIds, true);
+            } elseif ($editingElementId !== '') {
+                $included = (string) $element->id === $editingElementId;
+            }
+
+            $tat = $pricingResolver->maxTatForElements([(string) $element->id], (string) ($element->analysis_type_id ?? ''));
 
             return [
+                '_index' => $index,
                 'analysis_element_id' => (string) $element->id,
+                'analysis_id' => (string) ($element->analysis_type_id ?? ''),
+                'analysis_type_name' => (string) ($analysisType?->name ?? 'Analysis'),
+                'analysis_type_code' => (string) ($analysisType?->code ?? ''),
                 'analyte_label' => trim($analyteCode !== '' ? ($analyteCode . ' - ' . $analyteName) : $analyteName),
+                'method_label' => $methodLabel !== '' ? $methodLabel : null,
+                'lab_section_code' => $labSectionCode !== '' ? $labSectionCode : null,
+                'tat' => $tat,
                 'cost_price' => (float) ($existing->cost_price ?? 0),
                 'selling_price' => $proposedPrice,
-                'vat' => (bool) ($existing->vat ?? false),
+                'vat' => (bool) ($existing->vat ?? true),
                 'included' => $included,
             ];
         })->values()->all();
+
+        $this->itemParamsSelectAll = count($this->itemElementRows) > 0
+            && collect($this->itemElementRows)->every(fn (array $row): bool => ! empty($row['included']));
+    }
+
+    public function openImportModal(): void
+    {
+        $this->importFormat = 'excel';
+        $this->importPricingMode = 'per_package';
+        $this->importFile = null;
+        $this->resetValidation();
+        $this->showImportModal = true;
+    }
+
+    public function closeImportModal(): void
+    {
+        $this->showImportModal = false;
+        $this->importFile = null;
+        $this->resetValidation();
+    }
+
+    public function submitImport(PricelistPackageImportService $importService, PdfTextExtractor $pdfTextExtractor): void
+    {
+        $this->validate([
+            'importFormat' => 'required|in:excel,pdf',
+            'importPricingMode' => 'required|in:per_test,per_package',
+            'importFile' => 'required|file|max:20480',
+        ]);
+
+        $pricelist = $this->pricelist;
+        if (! $pricelist) {
+            $this->showMessage('Pricelist not found.', 'danger');
+
+            return;
+        }
+
+        $extension = strtolower((string) $this->importFile->getClientOriginalExtension());
+
+        try {
+            if ($this->importFormat === 'pdf') {
+                if ($extension !== 'pdf') {
+                    $this->addError('importFile', 'Please upload a PDF file.');
+                    $this->showMessage('Please upload a PDF file.', 'danger');
+
+                    return;
+                }
+                if (! $pdfTextExtractor->isAvailable()) {
+                    $this->addError('importFile', $pdfTextExtractor->capability()['hint']);
+                    $this->showMessage($pdfTextExtractor->capability()['hint'], 'danger');
+
+                    return;
+                }
+            } elseif (! in_array($extension, ['xlsx', 'xls', 'csv'], true)) {
+                $this->addError('importFile', 'Please upload an Excel (.xlsx / .xls) or CSV file.');
+                $this->showMessage('Please upload an Excel (.xlsx / .xls) or CSV file.', 'danger');
+
+                return;
+            }
+
+            $result = $importService->import(
+                $pricelist,
+                $this->importFile,
+                $this->importFormat,
+                $this->importPricingMode,
+            );
+
+            // Also keep PDF as the published pricelist document when importing from PDF.
+            if ($this->importFormat === 'pdf') {
+                $rev = ($pricelist->code ?? 'pricelist').'-r'.($pricelist->revision_number ?? '1').'.pdf';
+                $stored = $this->importFile->storeAs('pricelist', $rev);
+                Pricelist::query()->where('id', $this->pricelistId)->update([
+                    'pricelist_file' => urlencode(basename((string) $stored)),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $created = (int) ($result['created'] ?? 0);
+            $updated = (int) ($result['updated'] ?? 0);
+            $warnings = $result['warnings'] ?? [];
+            $msg = "Imported {$created} new / {$updated} updated pricelist item(s).";
+            if ($warnings !== []) {
+                $msg .= ' Warnings: '.implode(' ', array_slice($warnings, 0, 5));
+                if (count($warnings) > 5) {
+                    $msg .= ' (+'.(count($warnings) - 5).' more)';
+                }
+            }
+
+            $this->showMessage($msg, $created + $updated > 0 ? 'success' : 'danger');
+            $this->closeImportModal();
+        } catch (\Throwable $e) {
+            $this->showMessage('Import failed: '.$e->getMessage(), 'danger');
+        }
     }
 
     private function resetCloneForm(): void

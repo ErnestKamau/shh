@@ -4823,13 +4823,41 @@ class SampleWorkFlowController extends Controller
         $check = array_merge($sub, $acc, $default, $both);
         $scope = app(\App\Services\Billing\QuotationLabSectionScope::class);
         foreach ($analysis_types as $type) {
-            if (in_array($type->id, $selected_analysis)) {
-                $elementsQuery = AnalysisElements::query()->where('analysis_type_id', $type->id);
+            $loadAllForSample = ($analysis === 'all' || $analysis === '*' || $analysis === '');
+            if ($loadAllForSample || in_array($type->id, $selected_analysis)) {
+                $elementsQuery = AnalysisElements::query()
+                    ->where('analysis_type_id', $type->id);
                 if ($header !== null) {
                     $elementsQuery = $scope->constrainAnalysisElements($elementsQuery, $header);
                 }
                 $analysis_analytes = $elementsQuery->get();
                 $resolver = app(\App\Services\Lab\UncertaintyBudgetResolver::class);
+                // "Lab section" in product language = SampleAnalysisStage
+                // (e.g. Chemical, Chemistry, Instrumental, Micro) — NOT app\LabSection.
+                $stageIds = $analysis_analytes->pluck('lab_section_id')
+                    ->merge([(string) ($type->lab_section_id ?? '')])
+                    ->map(fn ($id) => trim((string) $id))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                $stageNamesById = $stageIds === []
+                    ? []
+                    : SampleAnalysisStage::query()
+                        ->whereIn('id', $stageIds)
+                        ->pluck('name', 'id')
+                        ->all();
+                $methodIds = $analysis_analytes->pluck('ltm_method_id')
+                    ->merge($analysis_analytes->pluck('method'))
+                    ->map(fn ($id) => trim((string) $id))
+                    ->filter(fn ($id) => $id !== '' && \Illuminate\Support\Str::isUuid($id))
+                    ->unique()
+                    ->values()
+                    ->all();
+                $methodNamesById = $methodIds === []
+                    ? []
+                    : AnalysisMethod::query()->whereIn('id', $methodIds)->pluck('name', 'id')->all();
+
                 foreach ($analysis_analytes as $aa) {
                     $analyte = getAnalyteByID($aa->analyte_id);
                     $aa->analyte_code = $analyte->code;
@@ -4846,6 +4874,8 @@ class SampleWorkFlowController extends Controller
                             $aa->selected = 0;
                         }
                     } else {
+                        // Include tests by default (same as old analysis-type flow). User unchecks to exclude.
+                        // Acc/Sub flags are accreditation/subcontract — they do NOT mean "selected".
                         $aa->selected = 1;
                     }
 
@@ -4853,6 +4883,22 @@ class SampleWorkFlowController extends Controller
                     $aa->loq = $metrics['loq'];
                     $aa->mu_percent = $metrics['mu_percent'];
                     $aa->test_method = $metrics['test_method'];
+
+                    $elementStageId = trim((string) ($aa->lab_section_id ?? ''));
+                    $typeStageId = trim((string) ($type->lab_section_id ?? ''));
+                    $aa->lab_section_name = (string) (
+                        ($elementStageId !== '' ? ($stageNamesById[$elementStageId] ?? '') : '')
+                        ?: ($typeStageId !== '' ? ($stageNamesById[$typeStageId] ?? '') : '')
+                        ?: ($type->lab_section_name ?? '')
+                    );
+
+                    $ltmId = trim((string) ($aa->ltm_method_id ?? ''));
+                    $methodFk = trim((string) ($aa->method ?? ''));
+                    $methodLabel = ($ltmId !== '' ? ($methodNamesById[$ltmId] ?? null) : null)
+                        ?? ($methodFk !== '' && isset($methodNamesById[$methodFk]) ? $methodNamesById[$methodFk] : null)
+                        ?? (is_string($aa->method) && $aa->method !== '' && ! \Illuminate\Support\Str::isUuid($aa->method) ? $aa->method : null)
+                        ?? (string) ($metrics['test_method'] ?? '');
+                    $aa->method_label = is_string($methodLabel) ? $methodLabel : '';
                     $aa->reporting_time = is_numeric($aa->reporting_time) && (int) $aa->reporting_time > 0
                         ? (int) $aa->reporting_time
                         : (is_numeric($type->reporting_time) && (int) $type->reporting_time > 0

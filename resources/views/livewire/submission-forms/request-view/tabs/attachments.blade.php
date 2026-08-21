@@ -1,8 +1,15 @@
-<div class="workflow-board-panel-body flush-top px-0">
-    <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+<div class="rv-attachments-tab workflow-board-panel-body flush-top px-0">
+    <div class="rv-tab-panel-header">
         <div>
-            <span class="small font-weight-bold text-muted text-uppercase">Attachments</span>
-            <p class="mb-0 small text-muted">Upload supporting documents for this request.</p>
+            <h5 class="rv-sample-collection-tab__title mb-1">
+                <span class="ls-icon-tile__glyph ls-icon--burgundy rv-tab-title-icon" aria-hidden="true">
+                    <i class="mdi mdi-paperclip"></i>
+                </span>
+                Attachments
+            </h5>
+            <p class="rv-sample-collection-tab__hint mb-0">
+                Upload supporting documents for this request.
+            </p>
         </div>
         <button type="button" class="btn btn-primary btn-sm" wire:click="openAttachmentModal">
             <i class="mdi mdi-upload mr-1"></i> Upload Attachment
@@ -10,10 +17,10 @@
     </div>
 
     @if($attachmentInstances->isEmpty() && (!isset($batchAttachments) || $batchAttachments->isEmpty()) && (!isset($customAttachments) || $customAttachments->isEmpty()) && (!isset($formMediaAttachments) || $formMediaAttachments->isEmpty()))
-        <p class="text-muted mb-0 py-3 px-3">No attachments yet. Click <strong>Upload Attachment</strong> to add one.</p>
+        <p class="rv-tab-empty text-muted mb-0 py-3 px-3">No attachments yet. Click <strong>Upload Attachment</strong> to add one.</p>
     @else
         <div class="table-responsive">
-            <table class="table table-hover workflow-table mb-0">
+            <table class="table table-hover workflow-table rv-tab-table mb-0">
                 <thead>
                     <tr>
                         <th>Title</th>
@@ -145,58 +152,93 @@
     @endif
 
     @if($showAttachmentModal)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="mdi mdi-paperclip mr-1"></i> Upload Attachment</h5>
-                        <button type="button" class="close" wire:click="closeAttachmentModal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <form wire:submit.prevent="uploadAttachment">
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label class="font-weight-bold">Title <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" wire:model="newAttachmentTitle" placeholder="e.g. Sample Import Permit">
-                                @error('newAttachmentTitle') <small class="text-danger d-block">{{ $message }}</small> @enderror
-                            </div>
+        <div class="rv-attachment-modal-backdrop"
+             wire:keydown.escape.window="closeAttachmentModal"
+             role="presentation">
+            <div class="rv-attachment-modal rv-modal"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="rv-upload-attachment-title"
+                 wire:click.stop>
+                <div class="rv-modal-header">
+                    <h4 class="rv-modal-title mb-0" id="rv-upload-attachment-title">
+                        <span class="ls-icon-tile__glyph ls-icon--burgundy rv-tab-title-icon" aria-hidden="true">
+                            <i class="mdi mdi-paperclip"></i>
+                        </span>
+                        Upload Attachment
+                    </h4>
+                    <button type="button" class="rv-modal-close" wire:click="closeAttachmentModal" aria-label="Close">
+                        <i class="mdi mdi-close" aria-hidden="true"></i>
+                    </button>
+                </div>
 
-                            <div class="form-group">
-                                <label class="font-weight-bold">Attachment Type <span class="text-danger">*</span></label>
-                                <select class="form-control" wire:model.live="newAttachmentType">
+                <form wire:submit.prevent="uploadAttachment">
+                    <div class="rv-modal-body">
+                        <div class="mb-3">
+                            @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+                                'label' => 'Title',
+                                'id' => 'rv-new-attachment-title',
+                                'name' => 'newAttachmentTitle',
+                                'wireModel' => 'newAttachmentTitle',
+                                'placeholder' => 'e.g. Sample Import Permit',
+                                'required' => true,
+                                'error' => $errors->first('newAttachmentTitle'),
+                            ])
+                        </div>
+
+                        <div class="ls-field mb-3 {{ $errors->has('newAttachmentType') ? 'is-error' : '' }}">
+                            <label class="ls-field__label" for="rv-new-attachment-type">
+                                Attachment Type<span class="ls-req">*</span>
+                            </label>
+                            <div class="ls-field__control">
+                                <select
+                                    id="rv-new-attachment-type"
+                                    class="ls-field__input"
+                                    wire:model.live="newAttachmentType"
+                                >
                                     <option value="">— Select Type —</option>
                                     @foreach($availableAttachmentTypes as $typeOption)
                                         <option value="{{ $typeOption }}">{{ $typeOption }}</option>
                                     @endforeach
                                     <option value="Other">Other (specify below)</option>
                                 </select>
-                                @error('newAttachmentType') <small class="text-danger d-block">{{ $message }}</small> @enderror
                             </div>
+                            @error('newAttachmentType')
+                                <p class="ls-field__msg ls-field__msg--error"><i class="mdi mdi-alert-circle-outline"></i> {{ $message }}</p>
+                            @enderror
+                        </div>
 
-                            @if($newAttachmentType === 'Other')
-                                <div class="form-group">
-                                    <label class="font-weight-bold">New Attachment Type <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" wire:model="newCustomAttachmentType" placeholder="Enter attachment type">
-                                    @error('newCustomAttachmentType') <small class="text-danger d-block">{{ $message }}</small> @enderror
-                                </div>
-                            @endif
+                        @if($newAttachmentType === 'Other')
+                            <div class="mb-3">
+                                @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+                                    'label' => 'New Attachment Type',
+                                    'id' => 'rv-new-custom-attachment-type',
+                                    'name' => 'newCustomAttachmentType',
+                                    'wireModel' => 'newCustomAttachmentType',
+                                    'placeholder' => 'Enter attachment type',
+                                    'required' => true,
+                                    'error' => $errors->first('newCustomAttachmentType'),
+                                ])
+                            </div>
+                        @endif
 
-                            <div class="form-group">
-                                <label class="font-weight-bold">File <span class="text-danger">*</span></label>
+                        <div class="ls-field mb-3 {{ $errors->has('newAttachment') ? 'is-error' : '' }}">
+                            <label class="ls-field__label">
+                                File<span class="ls-req">*</span>
+                            </label>
+                            <div class="ls-upload">
                                 <div
-                                    class="request-attachment-dropzone border rounded p-4 text-center bg-light"
-                                    x-data="{ isDragging: false }"
-                                    :class="{ 'border-primary bg-white': isDragging }"
-                                    @dragover.prevent="isDragging = true"
-                                    @dragleave.prevent="isDragging = false"
-                                    @drop.prevent="isDragging = false; if ($event.dataTransfer.files.length) { $wire.upload('newAttachment', $event.dataTransfer.files[0]) }"
+                                    class="ls-upload__drop"
+                                    x-data="{ active: false }"
+                                    :class="{ 'is-active': active }"
+                                    @dragover.prevent="active = true"
+                                    @dragleave.prevent="active = false"
+                                    @drop.prevent="active = false; if ($event.dataTransfer.files.length) { $wire.upload('newAttachment', $event.dataTransfer.files[0]) }"
                                     @click="$refs.attachmentInput.click()"
-                                    style="cursor: pointer; border-style: dashed !important;"
                                 >
-                                    <i class="mdi mdi-cloud-upload-outline text-muted" style="font-size: 2rem;"></i>
-                                    <p class="mb-1 mt-2">Drag and drop your file here, or click to browse</p>
-                                    <p class="text-muted small mb-0">PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, WEBP, TXT — max 10MB</p>
+                                    <i class="mdi mdi-cloud-upload-outline" aria-hidden="true"></i>
+                                    <p class="ls-upload__drop-text">Choose a file or drag &amp; drop it here.</p>
+                                    <p class="ls-upload__drop-hint">PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, WEBP, TXT — max 10MB</p>
                                     <input
                                         type="file"
                                         x-ref="attachmentInput"
@@ -205,33 +247,55 @@
                                         accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.txt"
                                     >
                                 </div>
-                                <div wire:loading wire:target="newAttachment" class="text-primary small mt-2">
-                                    Uploading file...
+
+                                <div wire:loading wire:target="newAttachment" class="ls-upload__file mt-2">
+                                    <i class="mdi mdi-loading ls-motion-spin ls-upload__file-icon" aria-hidden="true"></i>
+                                    <div style="flex:1;">
+                                        <p class="ls-upload__file-name">Uploading…</p>
+                                        <p class="ls-upload__file-meta">Please wait</p>
+                                    </div>
                                 </div>
+
                                 @if($newAttachment)
-                                    <div class="mt-2 small text-success">
-                                        <i class="mdi mdi-check-circle"></i>
-                                        {{ $newAttachment->getClientOriginalName() }}
+                                    <div class="ls-upload__file">
+                                        <i class="mdi mdi-file-document-outline ls-upload__file-icon" aria-hidden="true"></i>
+                                        <div style="flex:1;">
+                                            <p class="ls-upload__file-name">{{ $newAttachment->getClientOriginalName() }}</p>
+                                            <p class="ls-upload__file-meta">
+                                                <span class="ls-upload__ok"><i class="mdi mdi-check-circle"></i> Ready</span>
+                                            </p>
+                                        </div>
                                     </div>
                                 @endif
-                                @error('newAttachment') <small class="text-danger d-block">{{ $message }}</small> @enderror
                             </div>
+                            @error('newAttachment')
+                                <p class="ls-field__msg ls-field__msg--error"><i class="mdi mdi-alert-circle-outline"></i> {{ $message }}</p>
+                            @enderror
+                        </div>
 
-                            <div class="form-group mb-0">
-                                <label class="font-weight-bold">Description</label>
-                                <textarea class="form-control" rows="3" wire:model="newAttachmentDescription" placeholder="Optional notes about this attachment"></textarea>
-                                @error('newAttachmentDescription') <small class="text-danger d-block">{{ $message }}</small> @enderror
-                            </div>
+                        <div class="ls-field mb-0 {{ $errors->has('newAttachmentDescription') ? 'is-error' : '' }}">
+                            <label class="ls-field__label" for="rv-new-attachment-description">Description</label>
+                            <textarea
+                                id="rv-new-attachment-description"
+                                class="ls-textarea"
+                                rows="3"
+                                wire:model="newAttachmentDescription"
+                                placeholder="Optional notes about this attachment"
+                            ></textarea>
+                            @error('newAttachmentDescription')
+                                <p class="ls-field__msg ls-field__msg--error"><i class="mdi mdi-alert-circle-outline"></i> {{ $message }}</p>
+                            @enderror
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-default" wire:click="closeAttachmentModal">Cancel</button>
-                            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled" wire:target="newAttachment, uploadAttachment">
-                                <span wire:loading wire:target="uploadAttachment" class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
-                                Save Attachment
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+
+                    <div class="rv-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="closeAttachmentModal">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="newAttachment, uploadAttachment">
+                            <span wire:loading wire:target="uploadAttachment" class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+                            Save Attachment
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

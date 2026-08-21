@@ -188,25 +188,28 @@ class AcceptanceFormPricingService
 
     public function resolvePricelist(?string $customerId): ?Pricelist
     {
-        if (!empty($customerId)) {
-            $pricelistCustomer = PricelistCustomer::where('customer_id', $customerId)
-                ->select('pricelist_id')
-                ->first();
-
-            if ($pricelistCustomer) {
-                $pricelist = Pricelist::find($pricelistCustomer->pricelist_id);
-                if ($pricelist) {
-                    return $pricelist;
-                }
+        if (! empty($customerId)) {
+            $assigned = $this->resolveCustomerAssignedPricelist($customerId);
+            if ($assigned !== null) {
+                return $assigned;
             }
+
+            // Master is only used when the customer is explicitly assigned to it
+            // (via pricelist_customers). Do not fall back to any random active list.
+            $master = $this->resolveActiveMasterPricelist();
+            if ($master !== null && $this->customerIsAssignedToPricelist($customerId, (string) $master->id)) {
+                return $master;
+            }
+
+            return null;
         }
 
-        return $this->resolveActiveMasterPricelist()
-            ?? Pricelist::query()->where('active', 1)->orderBy('id')->first();
+        return $this->resolveActiveMasterPricelist();
     }
 
     /**
-     * Active master pricelist used as the universal price/package fallback.
+     * Active master pricelist (lab default catalogue).
+     * Callers must still check customer assignment before using it for pricing.
      */
     public function resolveActiveMasterPricelist(): ?Pricelist
     {
@@ -214,6 +217,18 @@ class AcceptanceFormPricingService
             ->where('active', 1)
             ->where('is_master', 1)
             ->first();
+    }
+
+    public function customerIsAssignedToPricelist(string $customerId, string $pricelistId): bool
+    {
+        if ($customerId === '' || $pricelistId === '') {
+            return false;
+        }
+
+        return PricelistCustomer::query()
+            ->where('customer_id', $customerId)
+            ->where('pricelist_id', $pricelistId)
+            ->exists();
     }
 
     /**
@@ -282,9 +297,8 @@ class AcceptanceFormPricingService
     }
 
     /**
-     * Resolve a line price by searching preferred → assigned → active master.
-     * Master is always considered when assigned lists have no positive price,
-     * even if the customer is not tied to that master pricelist.
+     * Resolve a line price by searching preferred → assigned lists only.
+     * Master is included only when the customer is assigned to that master.
      *
      * @return array{price: float, pricelist: ?Pricelist}
      */
@@ -309,7 +323,8 @@ class AcceptanceFormPricingService
 
     /**
      * Pricelist search order for line prices and packages:
-     * preferred → customer assignments (active, by recency) → active master.
+     * preferred (if eligible) → customer assignments (active, by recency).
+     * Master only when assigned to the customer — never an unassigned global fallback.
      *
      * @return list<Pricelist>
      */
@@ -318,26 +333,103 @@ class AcceptanceFormPricingService
         ?Pricelist $preferredPricelist = null,
     ): array {
         $candidates = [];
+        $eligible = $this->eligiblePricelistsForCustomer($customerId);
+        $eligibleIds = collect($eligible)->map(fn (Pricelist $p): string => (string) $p->id)->all();
 
-        if ($preferredPricelist !== null) {
+        if ($preferredPricelist !== null && in_array((string) $preferredPricelist->id, $eligibleIds, true)) {
             $candidates[] = $preferredPricelist;
         }
 
-        if ($customerId !== null && $customerId !== '') {
-            foreach ($this->assignedPricelistsForCustomer($customerId) as $pricelist) {
-                if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
-                    continue;
-                }
-                $candidates[] = $pricelist;
+        foreach ($eligible as $pricelist) {
+            if ($preferredPricelist !== null && $pricelist->id === $preferredPricelist->id) {
+                continue;
             }
-        }
-
-        $master = $this->resolveActiveMasterPricelist();
-        if ($master !== null && ! collect($candidates)->contains(fn (Pricelist $p): bool => $p->id === $master->id)) {
-            $candidates[] = $master;
+            $candidates[] = $pricelist;
         }
 
         return $candidates;
+    }
+
+    /**
+     * Active pricelists the customer may use on quotation prep.
+     * Includes master only when assigned via pricelist_customers.
+     *
+     * @return list<Pricelist>
+     */
+    public function eligiblePricelistsForCustomer(?string $customerId): array
+    {
+        if ($customerId === null || $customerId === '') {
+            $master = $this->resolveActiveMasterPricelist();
+
+            return $master !== null ? [$master] : [];
+        }
+
+        return $this->assignedPricelistsForCustomer($customerId);
+    }
+
+    /**
+     * Chooser payload for prep UI when multiple eligible lists exist.
+     *
+     * @return array{
+     *     needs_choice: bool,
+     *     selected_pricelist_id: ?string,
+     *     pricelists: list<array<string, mixed>>
+     * }
+     */
+    public function buildPricelistChooserPayload(?string $customerId, ?string $selectedPricelistId = null): array
+    {
+        $eligible = $this->eligiblePricelistsForCustomer($customerId);
+        $cards = [];
+
+        foreach ($eligible as $pricelist) {
+            $pricelist->loadMissing(['items.packageElements', 'currency']);
+            $items = [];
+            foreach ($pricelist->items as $item) {
+                $elementIds = $item->coveredElementIds();
+                if ($elementIds === [] && ! empty($item->analysis_element_id)) {
+                    $elementIds = [(string) $item->analysis_element_id];
+                }
+                $items[] = [
+                    'id' => (string) $item->id,
+                    'sample_type_id' => (string) ($item->sample_type_id ?? ''),
+                    'analysis_type_id' => (string) ($item->analysis_id ?? ''),
+                    'selling_price' => (float) $item->selling_price,
+                    'is_package' => (bool) ($item->is_package ?? false),
+                    'pricing_mode' => (bool) ($item->is_package ?? false) ? 'per_package' : 'per_test',
+                    'element_ids' => $elementIds,
+                    'element_count' => count($elementIds),
+                    'vat' => (bool) ($item->vat ?? false),
+                ];
+            }
+
+            $cards[] = [
+                'id' => (string) $pricelist->id,
+                'code' => (string) ($pricelist->code ?? ''),
+                'description' => (string) ($pricelist->description ?? ''),
+                'is_master' => (bool) ($pricelist->is_master ?? false),
+                'currency' => (string) ($pricelist->currency?->code ?? ''),
+                'item_count' => count($items),
+                'package_count' => collect($items)->where('is_package', true)->count(),
+                'per_test_count' => collect($items)->where('is_package', false)->count(),
+                'items' => $items,
+            ];
+        }
+
+        $selected = $selectedPricelistId;
+        if ($selected !== null && $selected !== '') {
+            $ids = collect($cards)->pluck('id')->all();
+            if (! in_array($selected, $ids, true)) {
+                $selected = $cards[0]['id'] ?? null;
+            }
+        } else {
+            $selected = $cards[0]['id'] ?? null;
+        }
+
+        return [
+            'needs_choice' => count($cards) > 1,
+            'selected_pricelist_id' => $selected,
+            'pricelists' => $cards,
+        ];
     }
 
     /**

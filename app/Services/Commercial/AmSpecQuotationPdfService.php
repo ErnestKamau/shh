@@ -17,10 +17,22 @@ use Illuminate\Support\Facades\File;
 use PDF;
 use RuntimeException;
 
+/**
+ * AmSpec commercial quotation PDF.
+ *
+ * Package math (is_package lines):
+ *   Total price = No. of samples × Unit price  (ONCE for the sample package)
+ * Tests listed under the package are scope only (method / LOQ / MU).
+ * Commercial columns (Quantity Required, TAT, No. of Samples, Unit Price, Total)
+ * are merged across all tests in that package block.
+ *
+ * Non-package / per-test lines keep one commercial row each.
+ */
 final class AmSpecQuotationPdfService
 {
     public function __construct(
         private readonly UncertaintyBudgetResolver $uncertaintyBudgetResolver,
+        private readonly \App\Services\Billing\QuotationPricingResolver $quotationPricingResolver,
     ) {}
     /**
      * @return list<string>
@@ -175,7 +187,7 @@ final class AmSpecQuotationPdfService
 
         $elementIds = [];
         foreach ($details as $detail) {
-            $elementIds = array_merge($elementIds, $this->resolveElementIds($detail));
+            $elementIds = array_merge($elementIds, $this->quotationPricingResolver->collectElementIdsFromDetail($detail));
         }
         $elementIds = array_values(array_unique(array_filter($elementIds)));
 
@@ -198,18 +210,67 @@ final class AmSpecQuotationPdfService
                 $splitsByDetail->get($detail->id, collect())
             );
 
-            $elementIds = $this->resolveElementIds($detail);
+            $detailElementIds = $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
+            $isPackage = (bool) ($detail->is_package ?? false);
+            $category = $this->resolveCategory($detail, $enquiry);
+            $qty = (int) $detail->quantity;
+            $unitPrice = (float) $detail->unit_price;
+            // Amspec package: Total = No. of samples × Unit price (once), never × number of tests.
+            $totalPrice = round($unitPrice * $qty, 2);
+            $quantityRequired = trim((string) ($detail->quantity_required ?? ''));
+            $tat = $detail->tat !== null && $detail->tat !== '' ? (string) $detail->tat : '';
 
-            if ($elementIds === []) {
+            if ($detailElementIds === []) {
                 $sno++;
-                $rows[] = $this->buildRow($sno, $detail, null, $enquiry, $elementsById, $budgets, $siblingsByAnalyte);
+                $rows[] = $this->buildRow(
+                    $sno,
+                    $detail,
+                    null,
+                    $enquiry,
+                    $elementsById,
+                    $budgets,
+                    $siblingsByAnalyte,
+                    [
+                        'category' => $category,
+                        'is_package' => $isPackage,
+                        'package_rowspan' => 1,
+                        'is_package_first' => true,
+                        'quantity_required' => $quantityRequired,
+                        'tat' => $tat,
+                        'quantity' => $qty,
+                        'unit_price' => $unitPrice,
+                        'total_price' => $totalPrice,
+                    ],
+                );
 
                 continue;
             }
 
-            foreach ($elementIds as $elementId) {
+            // Expand tests for scope. Commercial columns (qty required / TAT / samples /
+            // unit / total) merge across the block so Total is never visually × N tests.
+            $rowspan = count($detailElementIds);
+            foreach ($detailElementIds as $index => $elementId) {
                 $sno++;
-                $rows[] = $this->buildRow($sno, $detail, $elementId, $enquiry, $elementsById, $budgets, $siblingsByAnalyte);
+                $rows[] = $this->buildRow(
+                    $sno,
+                    $detail,
+                    $elementId,
+                    $enquiry,
+                    $elementsById,
+                    $budgets,
+                    $siblingsByAnalyte,
+                    [
+                        'category' => $category,
+                        'is_package' => $isPackage,
+                        'package_rowspan' => $rowspan,
+                        'is_package_first' => $index === 0,
+                        'quantity_required' => $quantityRequired,
+                        'tat' => $tat,
+                        'quantity' => $qty,
+                        'unit_price' => $unitPrice,
+                        'total_price' => $totalPrice,
+                    ],
+                );
             }
         }
 
@@ -221,20 +282,24 @@ final class AmSpecQuotationPdfService
      */
     private function resolveElementIds(QuotationDetails $detail): array
     {
-        $raw = (string) ($detail->accredited_analytes ?: $detail->default_analytes ?: '');
-        if ($raw === '') {
-            return [];
-        }
-
-        return array_values(array_filter(array_map('trim', explode(',', $raw))));
+        return $this->quotationPricingResolver->collectElementIdsFromDetail($detail);
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    /**
      * @param  Collection<string, AnalysisElements>  $elementsById
      * @param  Collection<int, \App\UncertaintyBudget>  $budgets
+     * @param  array{
+     *     category: string,
+     *     is_package: bool,
+     *     package_rowspan: int,
+     *     is_package_first: bool,
+     *     quantity_required: string,
+     *     tat: string,
+     *     quantity: int,
+     *     unit_price: float,
+     *     total_price: float
+     * }  $commercial
+     * @return array<string, mixed>
      */
     private function buildRow(
         int $sno,
@@ -244,40 +309,73 @@ final class AmSpecQuotationPdfService
         Collection $elementsById,
         Collection $budgets,
         ?Collection $siblingsByAnalyte = null,
+        array $commercial = [],
     ): array {
         $element = $elementId !== null ? $elementsById->get($elementId) : null;
 
-        $testName = (string) ($detail->description ?? '');
-        if ($testName === '' && $element !== null) {
+        $testName = '';
+        if ($element !== null) {
             $testName = (string) ($element->analyte?->name ?? $element->parametername ?? 'Test');
+        }
+        if ($testName === '') {
+            $testName = (string) ($detail->description ?? 'Test');
         }
 
         $metrics = $element !== null
             ? $this->uncertaintyBudgetResolver->resolveLabMetricsForElement($element, $budgets, $siblingsByAnalyte)
             : ['test_method' => '', 'loq' => '', 'mu_percent' => ''];
 
-        $methodName = trim((string) ($detail->test_method ?? '')) !== ''
-            ? (string) $detail->test_method
-            : $metrics['test_method'];
-        $loq = trim((string) ($detail->loq ?? '')) !== ''
-            ? (string) $detail->loq
-            : $metrics['loq'];
-        $mu = trim((string) ($detail->mu_percent ?? '')) !== ''
-            ? (string) $detail->mu_percent
-            : $metrics['mu_percent'];
+        $methodName = (string) ($metrics['test_method'] ?? '');
+        if ($methodName === '' && ! (bool) ($commercial['is_package'] ?? false)) {
+            $methodName = trim((string) ($detail->test_method ?? ''));
+        }
+
+        $loq = (string) ($metrics['loq'] ?? '');
+        $mu = (string) ($metrics['mu_percent'] ?? '');
+
+        if ($elementId !== null) {
+            $showLoq = array_filter(array_map('trim', explode(',', (string) ($detail->show_loq_analytes ?? ''))));
+            $showMu = array_filter(array_map('trim', explode(',', (string) ($detail->show_mu_analytes ?? ''))));
+            if ($showLoq !== [] && ! in_array($elementId, $showLoq, true)) {
+                $loq = '';
+            }
+            if ($showMu !== [] && ! in_array($elementId, $showMu, true)) {
+                $mu = '';
+            }
+        }
 
         return [
             'sno' => $sno,
             'test' => $testName,
-            'method' => $methodName,
-            'loq' => $loq,
-            'mu' => $mu,
-            'unit_price' => (float) $detail->unit_price,
-            'total_price' => round((float) $detail->unit_price * (int) $detail->quantity, 2),
-            'quantity' => (int) $detail->quantity,
-            'subcontracted' => trim((string) $detail->subcontracted_analytes) !== '',
-            'category' => $this->resolveCategory($detail, $enquiry),
+            'method' => $methodName !== '' ? $methodName : '-',
+            'loq' => $loq !== '' ? $loq : '-',
+            'mu' => $mu !== '' ? $mu : '-',
+            'unit_price' => (float) ($commercial['unit_price'] ?? $detail->unit_price),
+            'total_price' => (float) ($commercial['total_price'] ?? round((float) $detail->unit_price * (int) $detail->quantity, 2)),
+            'quantity' => (int) ($commercial['quantity'] ?? $detail->quantity),
+            'quantity_required' => (string) ($commercial['quantity_required'] ?? ''),
+            'tat' => (string) ($commercial['tat'] ?? ''),
+            'subcontracted' => $this->elementIsSubcontracted($detail, $elementId),
+            'category' => (string) ($commercial['category'] ?? $this->resolveCategory($detail, $enquiry)),
+            'is_package' => (bool) ($commercial['is_package'] ?? false),
+            'package_rowspan' => (int) ($commercial['package_rowspan'] ?? 1),
+            'is_package_first' => (bool) ($commercial['is_package_first'] ?? true),
         ];
+    }
+
+    private function elementIsSubcontracted(QuotationDetails $detail, ?string $elementId): bool
+    {
+        if ($elementId === null) {
+            return trim((string) $detail->subcontracted_analytes) !== ''
+                || trim((string) $detail->sub_acc_analytes) !== '';
+        }
+
+        $ids = array_merge(
+            array_filter(array_map('trim', explode(',', (string) $detail->subcontracted_analytes))),
+            array_filter(array_map('trim', explode(',', (string) $detail->sub_acc_analytes))),
+        );
+
+        return in_array($elementId, $ids, true);
     }
 
     /**

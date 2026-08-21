@@ -112,12 +112,101 @@ final class LabSystemNotificationService
             ->get();
     }
 
+    /**
+     * Recent notifications (read + unread) for the notification center.
+     *
+     * @return Collection<int, LabUserNotification>
+     */
+    public function recentForUser(string $userId, int $limit = 40): Collection
+    {
+        return LabUserNotification::query()
+            ->where('user_id', $userId)
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Group recent notifications into Today / This Week / Earlier buckets.
+     *
+     * @return array{today: Collection<int, LabUserNotification>, week: Collection<int, LabUserNotification>, earlier: Collection<int, LabUserNotification>}
+     */
+    public function recentGroupedForUser(string $userId, int $limit = 40): array
+    {
+        $notifications = $this->recentForUser($userId, $limit);
+        $startOfToday = now()->startOfDay();
+        $startOfWeek = now()->startOfWeek();
+
+        return [
+            'today' => $notifications->filter(
+                fn (LabUserNotification $n): bool => $n->created_at !== null && $n->created_at->gte($startOfToday)
+            )->values(),
+            'week' => $notifications->filter(
+                fn (LabUserNotification $n): bool => $n->created_at !== null
+                    && $n->created_at->gte($startOfWeek)
+                    && $n->created_at->lt($startOfToday)
+            )->values(),
+            'earlier' => $notifications->filter(
+                fn (LabUserNotification $n): bool => $n->created_at === null || $n->created_at->lt($startOfWeek)
+            )->values(),
+        ];
+    }
+
+    public function iconForType(?string $type): string
+    {
+        return match ((string) $type) {
+            self::TYPE_QUOTATION_APPROVAL => 'mdi-file-document-alert-outline',
+            self::TYPE_QUOTATION_APPROVED_READY_TO_SEND => 'mdi-send',
+            'equipment_usage_request_pending' => 'mdi-wrench-outline',
+            'equipment_usage_request_approved' => 'mdi-check-circle-outline',
+            'equipment_usage_request_rejected' => 'mdi-close-circle-outline',
+            default => 'mdi-bell-outline',
+        };
+    }
+
     public function unreadCountForUser(string $userId): int
     {
         return (int) LabUserNotification::query()
             ->where('user_id', $userId)
             ->unread()
             ->count();
+    }
+
+    /**
+     * Unread items that need the user to act (approve, send, etc.).
+     *
+     * @return list<string>
+     */
+    public function actionRequiredTypes(): array
+    {
+        return [
+            self::TYPE_QUOTATION_APPROVAL,
+            self::TYPE_QUOTATION_APPROVED_READY_TO_SEND,
+            'equipment_usage_request_pending',
+        ];
+    }
+
+    public function actionRequiredCountForUser(string $userId): int
+    {
+        return (int) LabUserNotification::query()
+            ->where('user_id', $userId)
+            ->unread()
+            ->whereIn('notification_type', $this->actionRequiredTypes())
+            ->count();
+    }
+
+    /**
+     * Badge / alert count: all unread notifications (includes action-required tasks).
+     */
+    public function attentionCountForUser(string $userId): int
+    {
+        return $this->unreadCountForUser($userId);
+    }
+
+    public function shouldAlertUser(string $userId): bool
+    {
+        return $this->unreadCountForUser($userId) > 0
+            || $this->actionRequiredCountForUser($userId) > 0;
     }
 
     public function markAsRead(string $notificationId, string $userId): void

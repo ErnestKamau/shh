@@ -567,6 +567,9 @@ Route::get('/sample-workflow/request-for-testing/form/{submissionForm}', 'Sample
 Route::get('/lab/ui/ls-gallery', function () {
     return view('layouts.lab.ui.ls-gallery');
 })->name('lab.ui.ls-gallery')->middleware(['auth', 'can:laboratory.components.all samples.view']);
+Route::get('/lab/ui/chrome-playground', function () {
+    return view('layouts.lab.ui.chrome-playground');
+})->name('lab.ui.chrome-playground')->middleware(['auth', 'can:laboratory.components.all samples.view']);
 
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.all samples.view');
 Route::post('/sample-workflow/assign-user', [SampleAssignmentController::class, 'store'])
@@ -720,6 +723,10 @@ Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationCo
 Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header')->middleware('can:laboratory.components.quotation.add');
 Route::post('/api/get-currency-by-code', 'Invoice\QuotationController@getCurrencyByCode');
 Route::post('/billing/quotations/{id}/suggest-line-pricing', 'Invoice\QuotationController@suggestManualLinePricing')->name('quotation.suggest_line_pricing')->middleware('can:laboratory.components.quotation.view');
+Route::get('/billing/quotations/{id}/eligible-pricelists', 'Invoice\QuotationController@eligiblePricelists')->name('quotation.eligible_pricelists')->middleware('can:laboratory.components.quotation.view');
+Route::post('/billing/quotations/{id}/select-pricelist', 'Invoice\QuotationController@selectPricelist')->name('quotation.select_pricelist')->middleware('can:laboratory.components.quotation.edit');
+Route::post('/billing/quotations/{id}/import-prep-lines', 'Invoice\QuotationController@importPrepLines')->name('quotation.import_prep_lines')->middleware('can:laboratory.components.quotation.edit');
+Route::get('/billing/quotations/import-prep-capability', 'Invoice\QuotationController@importPrepCapability')->name('quotation.import_prep_capability')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/{id}/package-defaults', 'Invoice\QuotationController@packageDefaults')->name('quotation.package_defaults')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/elements/loq', 'Invoice\QuotationController@updateElementLoq')->name('quotation.update_element_loq')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail')->middleware('can:laboratory.components.quotation.add');
@@ -1724,6 +1731,7 @@ Route::get('/pricelists', function () {
 })->name('view-pricelists')->middleware('can:laboratory.components.pricelists.view');
 Route::post('/pricelist/{id?}', 'PricelistItemController@update')->name('update-pricelist');
 Route::post('/pricelist/{id}/upload', 'PricelistItemController@upload')->name('upload-pricelist-pdf');
+Route::post('/pricelist/{id}/import-items', 'PricelistItemController@importItems')->name('import-pricelist-items')->middleware('can:laboratory.components.pricelists.edit');
 Route::post('/pricelist/{id}/email', 'PricelistItemController@email')->name('email-pricelist-pdf');
 Route::get('/pricelist/{id}/{print?}', function ($id, $print = null) {
     return view('layouts.billing.pricelist-show', [

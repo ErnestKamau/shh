@@ -1,4 +1,4 @@
-{{-- Burgundy enquiry header — identity + quotation bell + primary CTA + Actions dropdown --}}
+{{-- Request header — identity + quotation approve control + primary CTA + Actions dropdown --}}
 @php
     $primary = $nextStepActions['primary'] ?? null;
     $secondary = $nextStepActions['secondary'] ?? [];
@@ -8,10 +8,8 @@
     $quotationPendingApproval = (bool) ($quotationPendingApproval ?? false);
     $quotationApprovedReadyToSend = (bool) ($quotationApprovedReadyToSend ?? false);
     $canApproveQuotation = (bool) ($canApproveQuotation ?? false);
-    $showQuoteBell = $quotationPendingApproval || $quotationApprovedReadyToSend || $canApproveQuotation
-        || ($quotationHeader !== null && (int) ($quotationHeader->is_approved ?? 0) === 1);
-    $quoteBellCount = ($canApproveQuotation ? 1 : 0) + ($quotationApprovedReadyToSend ? 1 : 0);
-    $quoteBellShouldRing = $canApproveQuotation || $quotationApprovedReadyToSend;
+    // Green check only — no document icon chip. Show when pending AND configured approver.
+    $showQuoteApproveControl = $quotationPendingApproval && $canApproveQuotation;
 @endphp
 <div class="rv-header workflow-board-header">
     {{-- Scoped here so nothing in lab-surface / Bootstrap can paint Actions items burgundy --}}
@@ -40,8 +38,8 @@
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
             z-index: 1050;
             background: #fff;
-            font-family: Roboto, sans-serif;
-            font-size: 13px;
+            font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+            font-size: 0.8rem;
         }
 
         .rv-actions-dropdown .dropdown-menu > li {
@@ -57,12 +55,15 @@
             align-items: center;
             gap: 0.45rem;
             width: 100%;
-            padding: 0.5rem 0.9rem;
+            padding: 0.5rem 0.85rem;
             border: 0;
             background: transparent !important;
-            color: #334155 !important;
+            color: #0369a1 !important;
             text-align: left;
-            font-size: 13px;
+            font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif) !important;
+            font-size: 0.8rem !important;
+            font-weight: 500 !important;
+            line-height: 1.35;
             text-decoration: none !important;
             cursor: pointer;
         }
@@ -70,15 +71,73 @@
         .rv-actions-dropdown .rv-action-item:hover,
         .rv-actions-dropdown .rv-action-item:focus,
         .rv-actions-dropdown .rv-action-item:active {
-            background: #f1f5f9 !important;
-            color: #0f172a !important;
+            background: #eff6ff !important;
+            color: #1e3a8a !important;
         }
 
-        .rv-actions-dropdown .rv-action-item .mdi,
+        .rv-actions-dropdown .rv-action-item .mdi {
+            flex-shrink: 0;
+            width: 1.1rem;
+            text-align: center;
+            font-size: 1.05rem !important;
+            line-height: 1;
+            color: #0369a1 !important;
+        }
+
         .rv-actions-dropdown .rv-action-item:hover .mdi,
         .rv-actions-dropdown .rv-action-item:focus .mdi,
         .rv-actions-dropdown .rv-action-item:active .mdi {
-            color: #475569 !important;
+            color: #1e3a8a !important;
+        }
+
+        /* Scenario G — Accept / approve rows use Acc green */
+        .rv-actions-dropdown .rv-action-item.rv-action-item--acc,
+        .rv-actions-dropdown .rv-action-item.rv-action-item--acc:link,
+        .rv-actions-dropdown .rv-action-item.rv-action-item--acc:visited {
+            color: #047857 !important;
+        }
+
+        .rv-actions-dropdown .rv-action-item.rv-action-item--acc .mdi,
+        .rv-actions-dropdown .rv-action-item.rv-action-item--acc:hover .mdi {
+            color: #047857 !important;
+        }
+
+        .rv-actions-dropdown .rv-action-item.rv-action-item--acc:hover,
+        .rv-actions-dropdown .rv-action-item.rv-action-item--acc:focus {
+            background: #ecfdf5 !important;
+            color: #047857 !important;
+        }
+
+        .rv-actions-dropdown .rv-action-item.rv-action-item--danger,
+        .rv-actions-dropdown .rv-action-item.rv-action-item--danger:link {
+            color: #b91c1c !important;
+        }
+
+        .rv-actions-dropdown .rv-action-item.rv-action-item--danger .mdi {
+            color: #b91c1c !important;
+        }
+
+        .rv-actions-dropdown .rv-action-item.rv-action-item--danger:hover {
+            background: #fef2f2 !important;
+            color: #b91c1c !important;
+        }
+
+        .rv-quote-bell__item {
+            color: #0369a1 !important;
+        }
+
+        .rv-quote-bell__item .mdi {
+            color: #0369a1 !important;
+        }
+
+        .rv-quote-bell__item .text-success,
+        .rv-quote-bell__item .mdi.text-success {
+            color: #047857 !important;
+        }
+
+        .rv-quote-bell__item--danger,
+        .rv-quote-bell__item--danger .mdi {
+            color: #b91c1c !important;
         }
 
         .rv-actions-dropdown .request-view-actions-form {
@@ -115,20 +174,18 @@
             </div>
 
             <div class="d-flex align-items-center flex-wrap batch-header-actions rv-header-actions" style="gap: 6px;">
-                @if($showQuoteBell)
-                    <div class="rv-quote-bell"
+                @if($showQuoteApproveControl)
+                    <div class="rv-quote-bell rv-quote-approve"
                          x-data="{ open: false, rejectOpen: false }"
                          @click.outside="open = false; rejectOpen = false">
                         <button type="button"
-                            class="btn btn-sm btn-outline-secondary rv-quote-bell__btn {{ $quoteBellShouldRing ? 'is-ringing' : '' }}"
+                            class="btn btn-sm rv-header-chip-btn rv-quote-bell__btn rv-quote-approve__btn is-awaiting"
                             @click.stop="open = !open; rejectOpen = false"
                             :aria-expanded="open"
-                            title="Quotation actions"
-                            aria-label="Quotation actions">
-                            <i class="mdi {{ $quoteBellShouldRing ? 'mdi-bell-ring' : 'mdi-bell-outline' }}" aria-hidden="true"></i>
-                            @if($quoteBellCount > 0)
-                                <span class="rv-quote-bell__badge">{{ $quoteBellCount }}</span>
-                            @endif
+                            title="Quotation awaiting your approval"
+                            aria-label="Quotation awaiting your approval">
+                            <i class="mdi mdi-check-circle" aria-hidden="true"></i>
+                            <span class="rv-quote-bell__badge rv-quote-approve__badge">1</span>
                         </button>
                         <div class="rv-quote-bell__menu" x-show="open" x-cloak @click.stop>
                             @if($quotationHeader)
@@ -144,12 +201,7 @@
                                     }
                                 @endphp
                                 <div class="rv-quote-bell__meta">
-                                    {{ $quoteBellLabel }}
-                                    @if($quotationPendingApproval)
-                                        · Pending approval
-                                    @elseif((int) ($quotationHeader->is_approved ?? 0) === 1)
-                                        · Approved
-                                    @endif
+                                    {{ $quoteBellLabel }} · Pending your approval
                                 </div>
                                 <a class="rv-quote-bell__item"
                                    href="{{ route('quotation.preview.pdf', ['id' => $quotationHeader->id]) }}"
@@ -160,53 +212,47 @@
                                 </a>
                             @endif
 
-                            @if($canApproveQuotation)
+                            <button type="button"
+                                class="rv-quote-bell__item"
+                                wire:click="openApproveQuotationModal"
+                                @click="open = false">
+                                <i class="mdi mdi-check-decagram text-success" aria-hidden="true"></i>
+                                Approve quotation
+                            </button>
+                            <button type="button"
+                                class="rv-quote-bell__item rv-quote-bell__item--danger"
+                                @click="rejectOpen = !rejectOpen">
+                                <i class="mdi mdi-close-circle-outline" aria-hidden="true"></i>
+                                Reject (reason required)
+                            </button>
+                            <div class="rv-quote-bell__panel" x-show="rejectOpen" x-cloak>
+                                <label class="small font-weight-bold d-block mb-1" for="rv-quote-reject-reason">Rejection reason</label>
+                                <textarea id="rv-quote-reject-reason"
+                                    class="form-control form-control-sm mb-2"
+                                    rows="3"
+                                    wire:model="approvalDecisionComments"
+                                    placeholder="Explain why this quotation is being returned"></textarea>
+                                @error('approvalDecisionComments')
+                                    <span class="text-danger small d-block mb-2">{{ $message }}</span>
+                                @enderror
                                 <button type="button"
-                                    class="rv-quote-bell__item"
-                                    wire:click="openApproveQuotationModal"
-                                    @click="open = false">
-                                    <i class="mdi mdi-bell-ring text-success" aria-hidden="true"></i>
-                                    Approve quotation
+                                    class="btn btn-sm btn-outline-danger"
+                                    wire:click="rejectEnquiryQuotation"
+                                    wire:loading.attr="disabled">
+                                    Confirm reject
                                 </button>
-                                <button type="button"
-                                    class="rv-quote-bell__item rv-quote-bell__item--danger"
-                                    @click="rejectOpen = !rejectOpen">
-                                    <i class="mdi mdi-close-circle-outline" aria-hidden="true"></i>
-                                    Reject (reason required)
-                                </button>
-                                <div class="rv-quote-bell__panel" x-show="rejectOpen" x-cloak>
-                                    <label class="small font-weight-bold d-block mb-1" for="rv-quote-reject-reason">Rejection reason</label>
-                                    <textarea id="rv-quote-reject-reason"
-                                        class="form-control form-control-sm mb-2"
-                                        rows="3"
-                                        wire:model="approvalDecisionComments"
-                                        placeholder="Explain why this quotation is being returned"></textarea>
-                                    @error('approvalDecisionComments')
-                                        <span class="text-danger small d-block mb-2">{{ $message }}</span>
-                                    @enderror
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-danger"
-                                        wire:click="rejectEnquiryQuotation"
-                                        wire:loading.attr="disabled">
-                                        Confirm reject
-                                    </button>
-                                </div>
-                            @elseif($quotationPendingApproval)
-                                <div class="rv-quote-bell__meta">Waiting for an approver to review this quotation.</div>
-                            @endif
-
-                            @if($quotationApprovedReadyToSend)
-                                <button type="button"
-                                    class="rv-quote-bell__item"
-                                    wire:click="sendApprovedQuotationToCustomer"
-                                    wire:loading.attr="disabled"
-                                    @click="open = false">
-                                    <i class="mdi mdi-send" aria-hidden="true"></i>
-                                    Send to customer
-                                </button>
-                            @endif
+                            </div>
                         </div>
                     </div>
+                @elseif($quotationApprovedReadyToSend)
+                    <button type="button"
+                        class="btn btn-sm rv-header-primary-btn"
+                        wire:click="sendApprovedQuotationToCustomer"
+                        wire:loading.attr="disabled"
+                        title="Send approved quotation to customer">
+                        <i class="mdi mdi-send" aria-hidden="true"></i>
+                        Send to customer
+                    </button>
                 @endif
 
                 @if($hasActions)
@@ -222,7 +268,7 @@
                              x-data="{ open: false }"
                              @click.outside="open = false">
                             <button type="button"
-                                class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
+                                class="btn btn-sm rv-header-chip-btn dropdown-toggle"
                                 id="requestViewActionsDropdown"
                                 @click.stop="open = !open"
                                 :aria-expanded="open"

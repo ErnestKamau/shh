@@ -5,11 +5,12 @@
 @endsection
 
 @section('content2')
-<main class="container-fluid workflow-board-page lab-panel-theme request-view-page workflow-theme lab-surface-theme" data-ls-type="plex">
+<main class="container-fluid workflow-board-page lab-panel-theme request-view-page workflow-theme lab-surface-theme ls-ui-kit" data-ls-type="plex">
     @include('layouts.lab.partials.lab-panel-theme-styles')
     @include('layouts.lab.partials.lab-surface-theme-styles')
     @include('layouts.partials.page-header-styles')
     @include('layouts.lab.partials.request-view-page-styles')
+    @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
 
     @php
         $formNumber = $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending';

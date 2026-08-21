@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Lab;
 
+use App\Models\Lab\EquipmentUsageRequest;
 use App\Models\Lab\LabUserNotification;
 use App\Models\SampleSubmissionRequest;
 use App\QuotationHeader;
@@ -55,10 +56,17 @@ class SystemNotificationsBell extends Component
         }
 
         $notification->markAsRead();
+        $this->open = false;
+
+        $notifiableType = (string) ($notification->notifiable_type ?? '');
+
+        if ($notifiableType === EquipmentUsageRequest::class) {
+            return redirect()->route('lab.equipment-requests.index');
+        }
 
         $metadata = is_array($notification->metadata) ? $notification->metadata : [];
         $requestId = (string) ($metadata['sample_submission_request_id'] ?? '');
-        if ($requestId === '' && (string) ($notification->notifiable_type ?? '') === QuotationHeader::class) {
+        if ($requestId === '' && $notifiableType === QuotationHeader::class) {
             $header = QuotationHeader::query()->find($notification->notifiable_id);
             $requestId = (string) ($header?->sample_submission_request_id ?? '');
         }
@@ -86,9 +94,17 @@ class SystemNotificationsBell extends Component
         $userId = (string) (auth()->id() ?? '');
         $service = app(LabSystemNotificationService::class);
 
+        $emptyGroups = [
+            'today' => collect(),
+            'week' => collect(),
+            'earlier' => collect(),
+        ];
+
         return view('livewire.lab.system-notifications-bell', [
             'unreadCount' => $userId !== '' ? $service->unreadCountForUser($userId) : 0,
-            'notifications' => $userId !== '' ? $service->unreadForUser($userId, 12) : collect(),
+            'attentionCount' => $userId !== '' ? $service->attentionCountForUser($userId) : 0,
+            'shouldAlert' => $userId !== '' ? $service->shouldAlertUser($userId) : false,
+            'notificationGroups' => $userId !== '' ? $service->recentGroupedForUser($userId, 40) : $emptyGroups,
         ]);
     }
 }

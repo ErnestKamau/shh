@@ -80,8 +80,11 @@
     </style>
 @endsection
 @section('content2')
-    <main class="container-fluid workflow-board-page lab-panel-theme workflow-theme">
+    <main class="container-fluid workflow-board-page lab-panel-theme workflow-theme lab-surface-theme ls-quotation-shell ls-ui-kit" data-ls-type="plex">
         @include('layouts.lab.partials.lab-panel-theme-styles')
+        @include('layouts.lab.partials.lab-surface-theme-styles')
+        @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
+        @include('layouts.lab.partials.ls-ui.quotation.ls-quotation-overview-styles')
         <?php
     $items = array(
         array(
@@ -90,8 +93,8 @@
             'icon' => null
         ),
         array(
-            'link' => route('quotation-index', ['stage' => 'Quote Complete']),
-            'name' => 'Quote Complete',
+            'link' => route('quotation-index'),
+            'name' => 'Quotation Overview',
             'icon' => null
         ),
 
@@ -102,95 +105,114 @@
         ),
 
     );
+        $header_id = $header[0]->id;
         ?>
         <x-bread-crumb :items="$items"></x-bread-crumb>
         @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
-        <h4 class="mt-2 quotation-preview-hover-parent">
-            <?php
-    $header_id = $header[0]->id;
 
-            ?>
-            <span class=" mb-2 float-left">
-                <i class="mdi mdi-file-cad"></i> Billing | Quotations {{$header[0]->quote_number}}
-                @if(($reportHeader->revision_number ?? 1) > 1)
-                    <span class="badge badge-info ml-1">Rev. {{ $reportHeader->revision_number }}</span>
-                @endif
-            </span>
-            <div class="nav-item dropdown float-left">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" style="color:black;font-size:14px"
-                    role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <i class="mdi mdi-compare-vertical"></i> Move To workflow
-                </a>
-                <div class="dropdown-menu" style="font-size: 13px;" aria-labelledby="navbarDropdown">
-                    <a class="dropdown-item"
-                        href="{{route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote In Preparation'])}}"><i
-                            class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Preparation</a>
-                    <a class="dropdown-item"
-                        href="{{route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote In Approval'])}}"><i
-                            class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Approval</a>
-                    <a class="dropdown-item"
-                        href="{{route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote Complete'])}}"><i
-                            class="mdi mdi-subdirectory-arrow-right"></i> Quotation Complete</a>
-
-                </div>
-            </div>
-
-            <span style="font-size: 10px;"
-                class="badge badge-pill p-2 bg-white {{ $header[0]->approved_by > 0 ? 'text-success' : 'text-danger'}}"><i
-                    class="mdi  {{ $header[0]->approved_by > 0 ? 'mdi-thumb-up' : 'mdi-alert-decagram'}}"></i>
-                {{ $header[0]->approved_by > 0 ? 'Approved' : 'Awaiting Approval'}}</span>
-            <span style="font-size: 10px;"
-                class="badge badge-pill p-2 bg-white {{ $header[0]->is_complete > 0 ? 'text-success' : 'text-primary'}}"><i
-                    class="mdi  {{ $header[0]->is_complete > 0 ? 'mdi-thumb-up' : 'mdi-alert-decagram'}}"></i>
-                {{ $header[0]->is_complete > 0 ? 'Complete' : 'Not Complete'}}</span>
-            @if(($header[0]->is_batch_generate ?? 0) == 1)
-                <span style="font-size: 10px;" class="badge badge-pill p-2 bg-white text-success"><i
-                        class="mdi mdi-thumb-up "></i> Batch Generated </span>
-            @endif
-
-            <div class="nav-item dropdown float-right mr-2" style="margin-top: 0px !important;">
-                <a class="nav-link dropdown-toggle btn btn-sm btn-outline-secondary" href="#" id="quotationDocActionsDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <i class="mdi mdi-dots-vertical"></i> Actions
-                </a>
-                <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;" aria-labelledby="quotationDocActionsDropdown">
-                    <a class="dropdown-item quotation-preview-quote-btn" href="{{ route('quotation.preview', ['id' => $header[0]->id]) }}" target="_blank" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
-                    @if($header[0]->is_complete == 1)
-                    <span class="dropdown-item" style="cursor: pointer;" data-target="#print-quotation" data-header="{{$header[0]->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
-                    @if($header[0]->is_print == 1)
-                    <span class="dropdown-item" style="cursor: pointer;" data-toggle="modal" data-target="#quotation-upload"><i class="mdi mdi-share-all"></i> Send Quotation</span>
-                    @if($header[0]->quotation_type == 'Analysis' && ($header[0]->is_batch_generate ?? 0) == 0)
-                    <span class="dropdown-item" style="cursor: pointer;" data-target="#generate-batch" data-toggle="modal"><i class="mdi mdi-cog"></i> Generate Batch</span>
-                    @endif
-                    @endif
-                    @endif
-                    <div class="dropdown-divider"></div>
-                    <form action="{{ route('create_quotation_revision', ['id' => $header[0]->id]) }}" method="POST" class="px-0 m-0">
-                        @csrf
-                        <button type="submit" class="dropdown-item" style="cursor: pointer;"><i class="mdi mdi-source-branch"></i> Create Revision</button>
-                    </form>
-                </div>
-            </div>
-
-        </h4>
-        @if(($revisionFamily ?? collect())->count() > 1)
-        <div class="mb-3" style="clear: both;">
-            <small class="text-muted d-block mb-1"><strong>Revision history</strong></small>
-            <ul class="mb-0 pl-3" style="font-size: 12px;">
-                @foreach($revisionFamily as $revision)
-                    <li>
-                        @if($revision->id === $header[0]->id)
-                            <strong>Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }} (current)</strong>
-                        @else
-                            <a href="{{ route('view_quotation_final', ['id' => $revision->id]) }}">Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }}</a>
-                            <span class="text-muted">({{ $revision->quote_date }})</span>
+        <div class="ls-quotation-doc-chrome quotation-preview-hover-parent">
+            <div class="d-flex flex-wrap align-items-start" style="gap: 12px;">
+                <div>
+                    <h1 class="ls-quotation-doc-chrome__title">
+                        <i class="mdi mdi-file-cad"></i>
+                        <span>{{ $header[0]->quote_number }}</span>
+                        @if(($reportHeader->revision_number ?? 1) > 1)
+                            <span class="quotation-status-chip quotation-status-chip--approval">Rev. {{ $reportHeader->revision_number }}</span>
                         @endif
-                    </li>
-                @endforeach
-            </ul>
+                    </h1>
+                    <div class="ls-quotation-doc-chrome__meta">
+                        <span class="quotation-status-chip {{ $header[0]->approved_by > 0 ? 'quotation-status-chip--complete' : 'quotation-status-chip--prep' }}">
+                            <i class="mdi {{ $header[0]->approved_by > 0 ? 'mdi-thumb-up' : 'mdi-alert-decagram' }}"></i>
+                            {{ $header[0]->approved_by > 0 ? 'Approved' : 'Awaiting Approval' }}
+                        </span>
+                        <span class="quotation-status-chip {{ $header[0]->is_complete > 0 ? 'quotation-status-chip--complete' : 'quotation-status-chip--approval' }}">
+                            <i class="mdi {{ $header[0]->is_complete > 0 ? 'mdi-check-circle' : 'mdi-progress-clock' }}"></i>
+                            {{ $header[0]->is_complete > 0 ? 'Complete' : 'Not Complete' }}
+                        </span>
+                        @if(($header[0]->is_batch_generate ?? 0) == 1)
+                            <span class="quotation-status-chip quotation-status-chip--complete">
+                                <i class="mdi mdi-thumb-up"></i> Batch Generated
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="ls-quotation-doc-chrome__actions">
+                    <div class="dropdown">
+                        <button type="button" class="ls-btn-ghost dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="mdi mdi-compare-vertical"></i> Move to workflow
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;">
+                            <a class="dropdown-item"
+                               href="{{ route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote In Preparation']) }}">
+                                <i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Preparation
+                            </a>
+                            <a class="dropdown-item"
+                               href="{{ route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote In Approval']) }}">
+                                <i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Approval
+                            </a>
+                            <a class="dropdown-item"
+                               href="{{ route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote Complete']) }}">
+                                <i class="mdi mdi-subdirectory-arrow-right"></i> Quotation Complete
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="dropdown">
+                        <button type="button" class="ls-btn-ghost dropdown-toggle" id="quotationDocActionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="mdi mdi-dots-vertical"></i> Actions
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;" aria-labelledby="quotationDocActionsDropdown">
+                            <a class="dropdown-item quotation-preview-quote-btn" href="{{ route('quotation.preview', ['id' => $header[0]->id]) }}" target="_blank" title="Preview quotation document">
+                                <i class="mdi mdi-file-eye"></i> Preview Quote
+                            </a>
+                            @if($header[0]->is_complete == 1)
+                                <span class="dropdown-item" style="cursor: pointer;" data-target="#print-quotation" data-header="{{ $header[0]->id }}" data-toggle="modal">
+                                    <i class="mdi mdi-printer"></i> Process PDF
+                                </span>
+                                @if($header[0]->is_print == 1)
+                                    <span class="dropdown-item" style="cursor: pointer;" data-toggle="modal" data-target="#quotation-upload">
+                                        <i class="mdi mdi-share-all"></i> Send Quotation
+                                    </span>
+                                    @if($header[0]->quotation_type == 'Analysis' && ($header[0]->is_batch_generate ?? 0) == 0)
+                                        <span class="dropdown-item" style="cursor: pointer;" data-target="#generate-batch" data-toggle="modal">
+                                            <i class="mdi mdi-cog"></i> Generate Batch
+                                        </span>
+                                    @endif
+                                @endif
+                            @endif
+                            <div class="dropdown-divider"></div>
+                            <form action="{{ route('create_quotation_revision', ['id' => $header[0]->id]) }}" method="POST" class="px-0 m-0">
+                                @csrf
+                                <button type="submit" class="dropdown-item" style="cursor: pointer;">
+                                    <i class="mdi mdi-source-branch"></i> Create Revision
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if(($revisionFamily ?? collect())->count() > 1)
+                <div class="mt-3 pt-3" style="border-top: 1px solid #e2e8f0;">
+                    <small class="text-muted d-block mb-1"><strong>Revision history</strong></small>
+                    <ul class="mb-0 pl-3" style="font-size: 12px;">
+                        @foreach($revisionFamily as $revision)
+                            <li>
+                                @if($revision->id === $header[0]->id)
+                                    <strong>Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }} (current)</strong>
+                                @else
+                                    <a href="{{ route('view_quotation_final', ['id' => $revision->id]) }}">Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }}</a>
+                                    <span class="text-muted">({{ $revision->quote_date }})</span>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </div>
-        @endif
-        <br>
-        <div class="mt-5" id="quotation-document" style="clear: both;">
+
+        <div class="mt-3" id="quotation-document">
             @php
                 $shellMode = 'embedded';
                 $forPdf = false;

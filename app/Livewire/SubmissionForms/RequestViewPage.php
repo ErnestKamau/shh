@@ -177,6 +177,7 @@ class RequestViewPage extends Component
     public string $editingRowCollectionSamplingLocation = '';
 
     public bool $showTrfEditModal = false;
+    public bool $showTrfViewModal = false;
 
     /** @var 'customer'|'collection'|'samples' */
     public string $trfEditSlide = 'customer';
@@ -242,7 +243,7 @@ class RequestViewPage extends Component
                 'submittedBy',
                 'reviewedBy',
                 'crmCustomer',
-                'batches',
+                'batches.samples',
                 'notes.author',
                 'analysisAcceptanceForms',
                 'attachmentInstances.submissionForm',
@@ -616,7 +617,7 @@ class RequestViewPage extends Component
         $this->instance = $this->instance->fresh([
             'submissionForm',
             'crmCustomer',
-            'batches',
+            'batches.samples',
             'analysisAcceptanceForms',
             'sampleSubmissionRequest',
             'values.element',
@@ -1491,6 +1492,7 @@ class RequestViewPage extends Component
             $this->editingRowFieldDefinitions = $this->trfEditSampleDefinitions;
             $this->editingRowSelectOptions = [];
             $this->showSampleRowEditModal = false;
+            $this->showTrfViewModal = false;
             $this->showTrfEditModal = true;
 
             if ($slide === 'samples' && $sampleRowIndex !== null) {
@@ -1508,6 +1510,155 @@ class RequestViewPage extends Component
                     : 'Unable to open the editor: '.$exception->getMessage(),
             );
         }
+    }
+
+    /**
+     * Read-only TRF viewer (same slides/data as edit, no save).
+     *
+     * @param  'customer'|'collection'|'samples'  $slide
+     */
+    public function openTrfViewer(string $slide = 'customer', ?int $sampleRowIndex = null): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+            $slide = 'customer';
+        }
+
+        try {
+            $editService = app(SubmissionFormInstanceTrfEditService::class);
+            $rowService = app(SubmissionFormInstanceSampleRowUpdateService::class);
+
+            $customer = $editService->customerDraft($this->instance);
+            $this->trfEditClientName = $customer['client_name'];
+            $this->trfEditCompanyUnitId = $customer['company_unit_id'];
+            $this->trfEditContactId = $customer['contact_id'];
+            $this->trfEditContactName = $customer['contact_name'];
+            $this->trfEditContactEmail = $customer['contact_email'];
+            $this->trfEditContactPhone = $customer['contact_phone'];
+            $this->trfEditCustomerId = $customer['customer_id'];
+            $this->trfEditUnitOptions = $editService->unitOptions($this->trfEditCustomerId);
+            $this->refreshTrfEditContactOptions($editService);
+            $this->trfEditSamplePointOptions = $editService->samplePointOptions($this->trfEditCompanyUnitId);
+
+            $this->trfEditCollectionDefinitions = $editService->collectionFieldDefinitions($this->submissionForm);
+            $this->trfEditCollectionFields = $editService->collectionDraft(
+                $this->instance,
+                $this->trfEditCollectionDefinitions,
+            );
+
+            foreach ($this->trfEditCollectionDefinitions as $field) {
+                $name = (string) ($field['name'] ?? '');
+                $type = (string) ($field['element_type'] ?? '');
+                if ($name === '') {
+                    continue;
+                }
+                if ($type === 'checkbox' || in_array($name, ['sampling_apparatus', 'method_of_sampling'], true)) {
+                    $this->trfEditCollectionFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
+                        $this->trfEditCollectionFields[$name] ?? null,
+                    );
+                }
+            }
+
+            $this->trfEditSampleDefinitions = $this->prepareSampleRowEditDefinitions(
+                $rowService->rowFieldDefinitions($this->submissionForm),
+            );
+
+            $this->trfEditSampleSummaries = [];
+            $this->trfEditSampleDrafts = [];
+            foreach ($this->sampleLines as $line) {
+                $index = (int) ($line['row_index'] ?? 0);
+                $number = (int) ($line['number'] ?? ($index + 1));
+                $summaryParts = array_filter([
+                    $line['sample_type'] ?? null,
+                    $line['sample_description'] ?? null,
+                ], fn ($part): bool => is_string($part) && trim(strip_tags($part)) !== '' && trim(strip_tags($part)) !== '—');
+                $summary = $summaryParts === []
+                    ? 'Sample '.$number
+                    : 'Sample '.$number.' · '.mb_strimwidth(trim(strip_tags(implode(' · ', $summaryParts))), 0, 72, '…');
+
+                $this->trfEditSampleSummaries[] = [
+                    'index' => $index,
+                    'number' => $number,
+                    'summary' => $summary,
+                ];
+
+                $draft = $rowService->rowValues($this->instance, $index);
+                foreach ($this->trfEditSampleDefinitions as $field) {
+                    $name = (string) ($field['name'] ?? '');
+                    $type = (string) ($field['element_type'] ?? '');
+                    if ($name === '') {
+                        continue;
+                    }
+                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
+                        $draft[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
+                            $draft[$name] ?? null,
+                        );
+                    }
+                    if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
+                        || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
+                        $draft[$name] = $this->normalizeRowSelectValues($draft[$name] ?? null);
+                    }
+                    if ($type === 'analysis_elements_select' || $name === 'parameters') {
+                        $current = $draft[$name] ?? '';
+                        if (is_string($current) && str_contains($current, ',')) {
+                            $draft[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
+                        } elseif (is_string($current) && $current !== '') {
+                            $draft[$name] = [$current];
+                        } elseif (! is_array($current)) {
+                            $draft[$name] = [];
+                        }
+                    }
+                }
+                $this->trfEditSampleDrafts[$index] = $draft;
+            }
+
+            $this->trfEditSlide = $slide;
+            $this->trfEditExpandedSampleIndex = null;
+            $this->editingRowIndex = null;
+            $this->editingRowFields = [];
+            $this->editingRowFieldDefinitions = $this->trfEditSampleDefinitions;
+            $this->editingRowSelectOptions = [];
+            $this->showSampleRowEditModal = false;
+            $this->showTrfEditModal = false;
+            $this->showTrfViewModal = true;
+
+            if ($slide === 'samples' && $sampleRowIndex !== null) {
+                $this->expandTrfSample($sampleRowIndex);
+            }
+
+            $this->dispatch('trf-view-modal-opened');
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->closeTrfViewer();
+            session()->flash(
+                'request_view_message',
+                app()->isProduction()
+                    ? 'Unable to open the request view. Please contact support if this continues.'
+                    : 'Unable to open the request view: '.$exception->getMessage(),
+            );
+        }
+    }
+
+    public function closeTrfViewer(): void
+    {
+        $this->dispatch('trf-view-modal-closed');
+        $this->showTrfViewModal = false;
+        $this->trfEditSlide = 'customer';
+        $this->trfEditExpandedSampleIndex = null;
+        $this->editingRowIndex = null;
+        $this->editingRowFields = [];
+        $this->editingRowSelectOptions = [];
+    }
+
+    public function setTrfViewSlide(string $slide): void
+    {
+        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+            return;
+        }
+
+        $this->trfEditSlide = $slide;
+        $this->dispatch('trf-view-modal-opened');
     }
 
     public function setTrfEditSlide(string $slide): void
@@ -1615,6 +1766,7 @@ class RequestViewPage extends Component
     {
         $this->dispatch('trf-edit-modal-closed');
         $this->showTrfEditModal = false;
+        $this->showTrfViewModal = false;
         $this->trfEditSlide = 'customer';
         $this->trfEditExpandedSampleIndex = null;
         $this->trfEditClientName = '';
@@ -1942,13 +2094,66 @@ class RequestViewPage extends Component
                 $this->normalizeRowSelectValues($rowFields['analysis_type_id'] ?? null),
                 fn (string $id): ?string => \App\AnalysisType::query()->whereKey($id)->value('name'),
             ),
-            'parameters' => $this->mergeSelectedSelectOptions(
-                $resolve('analysis_elements_select'),
-                $this->normalizeRowSelectValues($rowFields['parameters'] ?? null),
-                fn (string $id): ?string => app(\App\Services\Lab\AnalysisReferenceLabelResolver::class)->resolveToken($id),
+            'parameters' => $this->enrichParameterSelectOptions(
+                $this->mergeSelectedSelectOptions(
+                    $resolve('analysis_elements_select'),
+                    $this->normalizeRowSelectValues($rowFields['parameters'] ?? null),
+                    fn (string $id): ?string => app(\App\Services\Lab\AnalysisReferenceLabelResolver::class)->resolveToken($id),
+                )
             ),
             'sampling_point' => $resolve('sample_point_select'),
         ];
+    }
+
+    /**
+     * Enrich parameter options with report display label + method/lab-section meta for multi-column Select2.
+     *
+     * @param  list<array{value: mixed, label: string}>  $options
+     * @return list<array{value: mixed, label: string, meta?: string}>
+     */
+    private function enrichParameterSelectOptions(array $options): array
+    {
+        $ids = collect($options)
+            ->map(fn (array $option): string => (string) ($option['value'] ?? ''))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return $options;
+        }
+
+        $elements = \App\AnalysisElements::query()
+            ->with(['analyte', 'mmethod', 'ltmethod', 'labSection'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy(fn ($element) => (string) $element->id);
+
+        return collect($options)->map(function (array $option) use ($elements): array {
+            $id = (string) ($option['value'] ?? '');
+            $element = $elements->get($id);
+            if ($element === null) {
+                return $option;
+            }
+
+            $reportDisplay = trim((string) ($element->report_display_name ?? ''));
+            if ($reportDisplay === '') {
+                $reportDisplay = trim((string) ($element->analyte?->plainReportDisplay() ?? $element->analyte?->code ?? ''));
+            }
+            if ($reportDisplay === '') {
+                $reportDisplay = trim((string) ($option['label'] ?? $id));
+            }
+
+            $method = trim((string) ($element->mmethod?->name ?? $element->ltmethod?->name ?? ''));
+            $labSection = trim((string) ($element->labSection?->name ?? ''));
+
+            $option['label'] = $reportDisplay;
+            $option['meta_method'] = $method;
+            $option['meta_lab'] = $labSection;
+
+            return $option;
+        })->values()->all();
     }
 
     /**

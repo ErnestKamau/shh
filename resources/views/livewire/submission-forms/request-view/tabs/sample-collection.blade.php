@@ -2,19 +2,20 @@
     $sampleCollection = $contextRail['sample_collection'] ?? [];
     $canEditTrf = $canEditSampleRows ?? false;
 
+    /** Gallery icons (ls-icon-catalog) — burgundy tile background kept. */
     $iconFor = static function (?string $name): string {
         $key = strtolower(trim((string) $name));
 
         return match (true) {
             str_contains($key, 'date') && str_contains($key, 'receiv') => 'mdi-calendar-check',
-            str_contains($key, 'date') => 'mdi-calendar',
+            str_contains($key, 'date') => 'mdi-calendar-clock',
             str_contains($key, 'time') => 'mdi-clock-outline',
-            str_contains($key, 'location') || str_contains($key, 'point') => 'mdi-map-marker-radius',
+            str_contains($key, 'location') || str_contains($key, 'point') => 'mdi-map-marker-radius-outline',
             str_contains($key, 'transport') => 'mdi-truck-outline',
             str_contains($key, 'apparatus') || str_contains($key, 'sampler') => 'mdi-flask-outline',
             str_contains($key, 'thermometer') || str_contains($key, 'temp') => 'mdi-thermometer',
             str_contains($key, 'method') => 'mdi-clipboard-check-outline',
-            str_contains($key, 'reason') => 'mdi-help-circle-outline',
+            str_contains($key, 'reason') => 'mdi-comment-text-outline',
             default => 'mdi-test-tube',
         };
     };
@@ -24,30 +25,42 @@
     <div class="rv-sample-collection-tab__header">
         <div>
             <h5 class="rv-sample-collection-tab__title mb-1">
-                <i class="mdi mdi-flask-outline" aria-hidden="true"></i>
+                <span class="ls-icon-tile__glyph ls-icon--burgundy rv-tab-title-icon" aria-hidden="true">
+                    <i class="mdi mdi-map-marker-radius-outline"></i>
+                </span>
                 Sample collection data
             </h5>
             <p class="rv-sample-collection-tab__hint mb-0">
                 Sampling date, location, transport, apparatus, and method captured for this request.
             </p>
         </div>
-        @if($canEditTrf)
+        <div class="d-inline-flex align-items-center" style="gap: 6px;">
             <button type="button"
-                class="btn btn-sm btn-outline-primary"
-                wire:click="openTrfEditor('collection')">
-                <i class="mdi mdi-pencil-outline" aria-hidden="true"></i>
-                Edit collection
+                class="rv-rail-edit-btn"
+                wire:click="openTrfViewer('collection')"
+                title="View collection details">
+                <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+                View
             </button>
-        @endif
+            @if($canEditTrf)
+                <button type="button"
+                    class="rv-rail-edit-btn"
+                    wire:click="openTrfEditor('collection')"
+                    title="Edit collection details">
+                    <i class="mdi mdi-pencil-outline" aria-hidden="true"></i>
+                    Edit
+                </button>
+            @endif
+        </div>
     </div>
 
     @if(count($sampleCollection) > 0)
         <div class="rv-sample-collection-grid">
             @foreach($sampleCollection as $field)
                 <article class="rv-sample-collection-card">
-                    <div class="rv-sample-collection-card__icon" aria-hidden="true">
+                    <span class="ls-icon-tile__glyph ls-icon--burgundy rv-sample-collection-card__icon" aria-hidden="true">
                         <i class="mdi {{ $iconFor($field['name'] ?? null) }}"></i>
-                    </div>
+                    </span>
                     <div class="rv-sample-collection-card__body">
                         <div class="rv-sample-collection-card__label">{{ $field['label'] ?? 'Field' }}</div>
                         <div class="rv-sample-collection-card__value">{{ $field['value'] ?? '—' }}</div>
@@ -57,8 +70,10 @@
         </div>
     @else
         <div class="rv-sample-collection-empty">
-            <i class="mdi mdi-test-tube-empty" aria-hidden="true"></i>
-            <p class="mb-0">No collection details captured yet.</p>
+            <span class="ls-icon-tile__glyph ls-icon--burgundy" aria-hidden="true">
+                <i class="mdi mdi-test-tube"></i>
+            </span>
+            <p class="mb-0 mt-2">No collection details captured yet.</p>
             @if($canEditTrf)
                 <button type="button"
                     class="btn btn-sm btn-primary mt-3"

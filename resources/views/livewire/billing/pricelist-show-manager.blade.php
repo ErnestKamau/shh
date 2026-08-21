@@ -1,4 +1,6 @@
-<div class="container-fluid pricelist-show-page lab-surface-theme ls-admin-page {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal) ? 'modal-active' : '' }}" data-ls-type="plex">
+<div class="container-fluid pricelist-show-page lab-surface-theme ls-admin-page ls-ui-kit {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal || $showImportModal) ? 'modal-active' : '' }}" data-ls-type="plex">
+    @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
+    @include('layouts.lab.invoice.partials.quotation-show-styles')
     @if($message)
         <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
             {{ $message }}
@@ -40,42 +42,42 @@
             </div>
         </div>
 
-        <div class="row mb-4">
+        <div class="row mb-4 pricelist-kpi-row">
             <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
-                <div class="card border-0 shadow-sm metric-card h-100">
-                    <div class="card-body">
-                        <div class="metric-label">Currency</div>
-                        <div class="metric-value">{{ $pricelist->currency_code ?? 'N/A' }}</div>
-                        <div class="metric-meta">{{ $pricelist->currency_description ?? 'No currency description' }}</div>
-                    </div>
-                </div>
+                @include('layouts.lab.invoice.partials.pricelist-kpi-card', [
+                    'value' => $pricelist->currency_code ?? 'N/A',
+                    'label' => 'Currency',
+                    'sublabel' => $pricelist->currency_description ?? 'No currency description',
+                    'color' => '#3498db',
+                    'icon' => 'mdi-currency-usd',
+                ])
             </div>
             <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
-                <div class="card border-0 shadow-sm metric-card h-100">
-                    <div class="card-body">
-                        <div class="metric-label">Revision</div>
-                        <div class="metric-value">{{ $pricelist->revision_number ?? '1' }}</div>
-                        <div class="metric-meta">Document {{ $pricelist->document_no ?? 'DOC-' }}</div>
-                    </div>
-                </div>
+                @include('layouts.lab.invoice.partials.pricelist-kpi-card', [
+                    'value' => $pricelist->revision_number ?? '1',
+                    'label' => 'Revision',
+                    'sublabel' => 'Document '.($pricelist->document_no ?? 'DOC-'),
+                    'color' => '#17a2b8',
+                    'icon' => 'mdi-file-document-edit-outline',
+                ])
             </div>
             <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
-                <div class="card border-0 shadow-sm metric-card h-100">
-                    <div class="card-body">
-                        <div class="metric-label">Assigned Customers</div>
-                        <div class="metric-value">{{ $summary['assigned_customers'] }}</div>
-                        <div class="metric-meta">Linked to this pricelist</div>
-                    </div>
-                </div>
+                @include('layouts.lab.invoice.partials.pricelist-kpi-card', [
+                    'value' => $summary['assigned_customers'],
+                    'label' => 'Assigned Customers',
+                    'sublabel' => 'Linked to this pricelist',
+                    'color' => '#28a745',
+                    'icon' => 'mdi-account-multiple-outline',
+                ])
             </div>
             <div class="col-md-3 col-sm-6">
-                <div class="card border-0 shadow-sm metric-card h-100">
-                    <div class="card-body">
-                        <div class="metric-label">Pending Changes</div>
-                        <div class="metric-value">{{ $summary['changed_items'] }}</div>
-                        <div class="metric-meta">Out of {{ $summary['total_items'] }} total items</div>
-                    </div>
-                </div>
+                @include('layouts.lab.invoice.partials.pricelist-kpi-card', [
+                    'value' => $summary['changed_items'],
+                    'label' => 'Pending Changes',
+                    'sublabel' => 'Out of '.$summary['total_items'].' total items',
+                    'color' => '#fd7e14',
+                    'icon' => 'mdi-alert-circle-outline',
+                ])
             </div>
         </div>
 
@@ -112,48 +114,66 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="row">
-                                            <div class="col-md-8">
-                                                <div class="form-group mb-3">
-                                                    <label class="form-label soft-label">Description <span class="text-danger">*</span></label>
-                                                    <input type="text" wire:model="pricelistForm.description" class="form-control modern-input @error('pricelistForm.description') is-invalid @enderror">
-                                                    @error('pricelistForm.description') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                                </div>
+                                            <div class="col-md-8 mb-3">
+                                                @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+                                                    'label' => 'Description',
+                                                    'id' => 'pricelist-form-description',
+                                                    'name' => 'pricelistForm.description',
+                                                    'wireModel' => 'pricelistForm.description',
+                                                    'required' => true,
+                                                    'placeholder' => 'Example: 2026 Corporate Pricelist',
+                                                    'error' => $errors->first('pricelistForm.description'),
+                                                ])
                                             </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group mb-3">
-                                                    <label class="form-label soft-label">Currency <span class="text-danger">*</span></label>
-                                                    <select wire:model="pricelistForm.currency_id" class="form-control modern-input @error('pricelistForm.currency_id') is-invalid @enderror">
-                                                        <option value="">Select currency</option>
-                                                        @foreach($currencies as $currency)
-                                                            <option value="{{ $currency->id }}">{{ $currency->code }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    @error('pricelistForm.currency_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                                </div>
+                                            <div class="col-md-4 mb-3">
+                                                @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+                                                    'label' => 'Currency',
+                                                    'id' => 'pricelist-form-currency',
+                                                    'name' => 'pricelistForm.currency_id',
+                                                    'wireModel' => 'pricelistForm.currency_id',
+                                                    'required' => true,
+                                                    'placeholder' => 'Search currency…',
+                                                    'disableSuccess' => true,
+                                                    'selected' => $pricelistForm['currency_id'] ?? '',
+                                                    'options' => $currencies->map(fn ($c) => [
+                                                        'value' => (string) $c->id,
+                                                        'label' => trim(($c->code ?? '').' — '.($c->description ?? '')),
+                                                    ])->values()->all(),
+                                                    'error' => $errors->first('pricelistForm.currency_id'),
+                                                ])
                                             </div>
                                         </div>
 
                                         <div class="row">
-                                            <div class="col-md-4">
-                                                <div class="form-group mb-3">
-                                                    <label class="form-label soft-label">Valid Till</label>
-                                                    <input type="date" wire:model="pricelistForm.valid_till" class="form-control modern-input @error('pricelistForm.valid_till') is-invalid @enderror">
-                                                    @error('pricelistForm.valid_till') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                                </div>
+                                            <div class="col-md-4 mb-3">
+                                                @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+                                                    'label' => 'Valid Till',
+                                                    'id' => 'pricelist-form-valid-till',
+                                                    'name' => 'pricelistForm.valid_till',
+                                                    'type' => 'date',
+                                                    'wireModel' => 'pricelistForm.valid_till',
+                                                    'error' => $errors->first('pricelistForm.valid_till'),
+                                                ])
                                             </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group mb-3">
-                                                    <label class="form-label soft-label">Status Tag</label>
-                                                    <select wire:model="pricelistForm.status" class="form-control modern-input @error('pricelistForm.status') is-invalid @enderror">
-                                                        <option value="no-changes">no-changes</option>
-                                                        <option value="has-changes">has-changes</option>
-                                                    </select>
-                                                    @error('pricelistForm.status') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                                </div>
+                                            <div class="col-md-4 mb-3">
+                                                @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+                                                    'label' => 'Status Tag',
+                                                    'id' => 'pricelist-form-status',
+                                                    'name' => 'pricelistForm.status',
+                                                    'wireModel' => 'pricelistForm.status',
+                                                    'placeholder' => 'Select status…',
+                                                    'disableSuccess' => true,
+                                                    'selected' => $pricelistForm['status'] ?? 'no-changes',
+                                                    'options' => [
+                                                        ['value' => 'no-changes', 'label' => 'no-changes'],
+                                                        ['value' => 'has-changes', 'label' => 'has-changes'],
+                                                    ],
+                                                    'error' => $errors->first('pricelistForm.status'),
+                                                ])
                                             </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label soft-label d-block">Flags</label>
-                                                <div class="d-flex align-items-center flex-wrap switch-stack">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="ls-field__label d-block">Flags</label>
+                                                <div class="d-flex align-items-center flex-wrap switch-stack mt-1">
                                                     <div class="form-check form-switch mr-3 mb-2">
                                                         <input type="checkbox" wire:model="pricelistForm.is_master" class="form-check-input" role="switch">
                                                         <label class="form-check-label">Master</label>
@@ -200,8 +220,13 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="form-group mb-3">
-                                            <label class="form-label soft-label">Search Customer</label>
-                                            <input type="text" wire:model.live.debounce.250ms="customerSearch" class="form-control modern-input" placeholder="Start typing name, code, or email...">
+                                            <label class="ls-field__label">Search Customer</label>
+                                            @include('layouts.lab.partials.ls-ui.fields.ls-search-bar', [
+                                                'variant' => 'plain',
+                                                'placeholder' => 'Start typing name, code, or email…',
+                                                'wireModel' => 'customerSearch',
+                                                'ariaLabel' => 'Search customer',
+                                            ])
                                         </div>
 
                                         @if($customerPickerChips->count() > 0)
@@ -483,6 +508,9 @@
                                     <button type="button" class="btn btn-outline-info action-btn" wire:click="showCloneModal">
                                         <i class="mdi mdi-content-copy"></i> Clone Selected
                                     </button>
+                                    <button type="button" class="btn btn-outline-secondary action-btn" wire:click="openImportModal">
+                                        <i class="mdi mdi-file-upload-outline"></i> Import
+                                    </button>
                                     <button type="button" class="btn btn-primary action-btn" wire:click="showCreateItemModal">
                                         <i class="mdi mdi-plus"></i> Add Item
                                     </button>
@@ -589,6 +617,8 @@
                                                                             <th class="fit-col">Select</th>
                                                                             <th class="fit-col">Actions</th>
                                                                             <th>Analyte</th>
+                                                                            <th>Method</th>
+                                                                            <th class="text-center">TAT</th>
                                                                             <th>Cost Price</th>
                                                                             <th>Selling Price</th>
                                                                             <th>Profit</th>
@@ -603,7 +633,7 @@
                                                                                 $isPackage = ! empty($item->is_package);
                                                                                 $packageItemId = (string) $item->id;
                                                                                 $packageParameters = is_array($item->package_parameters ?? null) ? $item->package_parameters : [];
-                                                                                $colspan = 9;
+                                                                                $colspan = 11;
                                                                             @endphp
                                                                             <tr class="{{ $item->has_pending_change ? 'pricelist-item-row--uncommitted' : '' }}"
                                                                                 @if($isPackage)
@@ -651,6 +681,18 @@
                                                                                         <div class="table-secondary-line">{{ $item->analyte_code }}</div>
                                                                                     @endif
                                                                                 </td>
+                                                                                <td>
+                                                                                    @if(! empty($item->method_label))
+                                                                                        <span class="pricelist-method-pill">{{ $item->method_label }}</span>
+                                                                                    @elseif($isPackage)
+                                                                                        <span class="text-muted small">—</span>
+                                                                                    @else
+                                                                                        <span class="text-muted small">—</span>
+                                                                                    @endif
+                                                                                </td>
+                                                                                <td class="text-center">
+                                                                                    {{ isset($item->tat) && $item->tat !== null ? $item->tat.'d' : '—' }}
+                                                                                </td>
                                                                                 <td>{{ number_format((float) ($item->cost_price ?? 0), 2) }}</td>
                                                                                 <td>
                                                                                     {{ number_format((float) ($item->display_selling_price ?? $item->selling_price ?? 0), 2) }}
@@ -684,6 +726,12 @@
                                                                                                     @foreach($packageParameters as $parameter)
                                                                                                         <li>
                                                                                                             <span class="pricelist-package-params__code">{{ ($parameter['code'] ?? '') !== '' ? $parameter['code'] : ($parameter['name'] ?? 'Parameter') }}</span>
+                                                                                                            @if(! empty($parameter['method_label']))
+                                                                                                                <span class="pricelist-method-pill ml-1">{{ $parameter['method_label'] }}</span>
+                                                                                                            @endif
+                                                                                                            @if(isset($parameter['tat']) && $parameter['tat'] !== null)
+                                                                                                                <span class="text-muted small ml-1">{{ $parameter['tat'] }}d</span>
+                                                                                                            @endif
                                                                                                         </li>
                                                                                                     @endforeach
                                                                                                 </ul>
@@ -759,121 +807,72 @@
         </div>
 
         @if($showItemModal)
-            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.55);">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal fade show d-block ls-quote-params-modal" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.55);">
+                <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content item-modal-content" wire:click.stop>
                         <div class="modal-header item-modal-header border-0">
                             <div>
                                 <span class="item-modal-kicker">Pricing Item</span>
                                 <h5 class="modal-title mb-1">{{ $editingItem ? 'Edit' : 'Add' }} Pricelist Item</h5>
-                                <p class="mb-0 text-muted">Define sample, analysis, and pricing flags in one place.</p>
+                                <p class="mb-0 text-muted">Sample type → parameters. Package unit price once; cost kept for both modes.</p>
                             </div>
                             <button type="button" class="btn-close" wire:click="closeItemModal"></button>
                         </div>
-                        <div class="modal-body item-modal-body">
+                        <div class="modal-body item-modal-body ls-quote-params-modal-body">
                             <div class="item-modal-section mb-3">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group mb-3">
-                                            <label class="form-label item-modal-label">Sample Type <span class="text-danger">*</span></label>
-                                            <div class="item-tag-select tag-select-container" wire:click="setItemSampleTypeDropdown(true)">
-                                                <div class="tag-select-input item-tag-select-input">
-                                                    @if(!empty($itemForm['sample_type_id']))
-                                                        @php $selectedSt = $sampleTypes->firstWhere('id', $itemForm['sample_type_id']); @endphp
-                                                        @if($selectedSt)
-                                                            <span class="tag-badge">
-                                                                {{ $selectedSt->code }} — {{ $selectedSt->name }}
-                                                                <i class="mdi mdi-close-circle" wire:click.stop="clearItemSampleType" role="button" tabindex="0"></i>
-                                                            </span>
-                                                        @endif
-                                                    @else
-                                                        <input type="text"
-                                                            wire:model.live.debounce.300ms="itemSampleTypeSearch"
-                                                            class="tag-input"
-                                                            placeholder="Search sample types..."
-                                                            autocomplete="off">
-                                                    @endif
-                                                </div>
-                                                @if($showItemSampleTypeDropdown && $this->filteredItemSampleTypes->isNotEmpty())
-                                                    <div class="tag-dropdown">
-                                                        @foreach($this->filteredItemSampleTypes as $sampleType)
-                                                            <div class="tag-dropdown-item" wire:click.stop="selectItemSampleType('{{ $sampleType->id }}')">
-                                                                <span class="tag-dropdown-code">{{ $sampleType->code }}</span>
-                                                                <span class="tag-dropdown-name">{{ $sampleType->name }}</span>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                @elseif($showItemSampleTypeDropdown)
-                                                    <div class="tag-dropdown tag-dropdown--empty text-muted small">No matching sample types.</div>
-                                                @endif
-                                            </div>
-                                            @error('itemForm.sample_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                        </div>
+                                <div class="row align-items-end">
+                                    <div class="col-md-7">
+                                        @php
+                                            $sampleTypeSelectOptions = $sampleTypes->map(function ($sampleType) {
+                                                $category = trim((string) ($sampleType->sampleTypeCategory?->sample_type_category ?? ''));
+
+                                                return [
+                                                    'value' => (string) $sampleType->id,
+                                                    'label' => (string) ($sampleType->name ?? ''),
+                                                    'meta' => $category,
+                                                ];
+                                            })->values()->all();
+                                        @endphp
+                                        @include('layouts.lab.partials.ls-ui.select2.ls-select2-single-columns', [
+                                            'label' => 'Sample Type',
+                                            'id' => 'pricelist-item-sample-type',
+                                            'name' => 'itemForm.sample_type_id',
+                                            'required' => true,
+                                            'placeholder' => 'Search sample types…',
+                                            'wireMethod' => 'selectItemSampleType',
+                                            'wireClearMethod' => 'clearItemSampleType',
+                                            'selected' => $itemForm['sample_type_id'] ?? '',
+                                            'options' => $sampleTypeSelectOptions,
+                                            'error' => $errors->first('itemForm.sample_type_id'),
+                                        ])
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group mb-3">
-                                            <label class="form-label item-modal-label">Analysis Type <span class="text-danger">*</span></label>
-                                            <div class="item-tag-select tag-select-container" wire:click="setItemAnalysisTypeDropdown(true)">
-                                                <div class="tag-select-input item-tag-select-input {{ empty($itemForm['sample_type_id']) ? 'item-tag-select-input--disabled' : '' }}">
-                                                    @if(empty($itemForm['sample_type_id']))
-                                                        <span class="tag-input-placeholder text-muted">Select a sample type first…</span>
-                                                    @elseif(!empty($itemForm['analysis_id']))
-                                                        @php $selectedAt = $availableAnalysisTypes->firstWhere('id', $itemForm['analysis_id']); @endphp
-                                                        @if($selectedAt)
-                                                            <span class="tag-badge">
-                                                                {{ $selectedAt->code }} — {{ $selectedAt->name }}
-                                                                <i class="mdi mdi-close-circle" wire:click.stop="clearItemAnalysisType" role="button" tabindex="0"></i>
-                                                            </span>
-                                                        @endif
-                                                    @else
-                                                        <input type="text"
-                                                            wire:model.live.debounce.300ms="itemAnalysisTypeSearch"
-                                                            class="tag-input"
-                                                            placeholder="Search analysis types..."
-                                                            autocomplete="off">
-                                                    @endif
-                                                </div>
-                                                @if($showItemAnalysisTypeDropdown && !empty($itemForm['sample_type_id']) && $this->filteredItemAnalysisTypes->isNotEmpty())
-                                                    <div class="tag-dropdown">
-                                                        @foreach($this->filteredItemAnalysisTypes as $analysisType)
-                                                            <div class="tag-dropdown-item" wire:click.stop="selectItemAnalysisType('{{ $analysisType->id }}')">
-                                                                <span class="tag-dropdown-code">{{ $analysisType->code }}</span>
-                                                                <span class="tag-dropdown-name">{{ $analysisType->name }}</span>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                @elseif($showItemAnalysisTypeDropdown && !empty($itemForm['sample_type_id']))
-                                                    <div class="tag-dropdown tag-dropdown--empty text-muted small">No matching analysis types for this sample type.</div>
-                                                @endif
-                                            </div>
-                                            @error('itemForm.analysis_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    <div class="col-md-5">
+                                        <div class="pricelist-mode-chips" role="group" aria-label="Pricing mode">
+                                            <button type="button"
+                                                    class="pricelist-mode-chip {{ empty($itemForm['is_package']) ? 'is-active' : '' }}"
+                                                    wire:click="setItemPricingMode(false)">
+                                                Per test
+                                            </button>
+                                            <button type="button"
+                                                    class="pricelist-mode-chip {{ !empty($itemForm['is_package']) ? 'is-active' : '' }}"
+                                                    wire:click="setItemPricingMode(true)">
+                                                Per package
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="item-modal-section mb-3">
-                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2" style="gap: 8px;">
-                                    <div class="item-element-heading mb-0">
-                                        {{ !empty($itemForm['is_package']) ? 'Package Elements' : 'Analysis Elements Pricing' }}
-                                    </div>
-                                    <div class="flag-tile py-1 px-2 mb-0">
-                                        <div class="form-check form-switch mb-0">
-                                            <input type="checkbox" wire:model.live="itemForm.is_package" class="form-check-input" role="switch" id="item-form-is-package">
-                                            <label class="form-check-label" for="item-form-is-package">Package</label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                @if(!empty($itemForm['is_package']))
-                                    <div class="row mb-3">
+                            @if(!empty($itemForm['is_package']))
+                                <div class="item-modal-section mb-3">
+                                    <div class="row">
                                         <div class="col-md-4">
                                             <label class="form-label item-modal-label">Package Cost Price <span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" wire:model.blur="itemForm.package_cost_price" class="form-control item-modal-input @error('itemForm.package_cost_price') is-invalid @enderror">
                                             @error('itemForm.package_cost_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label item-modal-label">Package Price <span class="text-danger">*</span></label>
+                                            <label class="form-label item-modal-label">Package Selling Price <span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" wire:model.blur="itemForm.package_selling_price" class="form-control item-modal-input @error('itemForm.package_selling_price') is-invalid @enderror">
                                             @error('itemForm.package_selling_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
@@ -891,72 +890,11 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <p class="small text-muted mb-2">Tick the analysis elements covered by this package. Membership is saved immediately; package price stays pending until Apply Price Changes.</p>
-                                @endif
+                                </div>
+                            @endif
 
-                                @if(count($itemElementRows) > 0)
-                                    <div class="table-responsive modern-table-wrap">
-                                        <table class="table table-hover modern-table mb-0">
-                                            <thead>
-                                                <tr>
-                                                    @if(!empty($itemForm['is_package']))
-                                                        <th style="width: 4rem;">Include</th>
-                                                        <th>Analyte</th>
-                                                    @else
-                                                        <th>Analyte</th>
-                                                        <th>Cost Price</th>
-                                                        <th>Changed Price</th>
-                                                        <th>
-                                                            Has VAT
-                                                            @if($this->activeTaxRegimePercent > 0)
-                                                                <span class="text-muted fw-normal">({{ number_format($this->activeTaxRegimePercent, 0) }}%)</span>
-                                                            @endif
-                                                        </th>
-                                                    @endif
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($itemElementRows as $index => $row)
-                                                    <tr>
-                                                        @if(!empty($itemForm['is_package']))
-                                                            <td>
-                                                                <div class="form-check form-switch">
-                                                                    <input type="checkbox" wire:model="itemElementRows.{{ $index }}.included" class="form-check-input" role="switch">
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="table-primary-line">{{ $row['analyte_label'] ?: 'N/A' }}</div>
-                                                            </td>
-                                                        @else
-                                                            <td>
-                                                                <div class="table-primary-line">{{ $row['analyte_label'] ?: 'N/A' }}</div>
-                                                            </td>
-                                                            <td>
-                                                                <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.cost_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.cost_price') is-invalid @enderror">
-                                                                @error('itemElementRows.' . $index . '.cost_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                                            </td>
-                                                            <td>
-                                                                <input type="number" step="0.01" wire:model.blur="itemElementRows.{{ $index }}.selling_price" class="form-control item-modal-input @error('itemElementRows.' . $index . '.selling_price') is-invalid @enderror">
-                                                                @error('itemElementRows.' . $index . '.selling_price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-switch">
-                                                                    <input type="checkbox" wire:model="itemElementRows.{{ $index }}.vat" class="form-check-input" role="switch">
-                                                                </div>
-                                                            </td>
-                                                        @endif
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                @else
-                                    <div class="compact-empty">
-                                        <i class="mdi mdi-flask-empty-outline"></i>
-                                        <span>Select sample type and analysis type to load analysis elements.</span>
-                                    </div>
-                                @endif
-
+                            <div class="item-modal-section mb-3">
+                                @include('livewire.billing.partials.pricelist-params-panel')
                                 @error('itemElementRows')
                                     <div class="text-danger small mt-2">{{ $message }}</div>
                                 @enderror
@@ -968,33 +906,28 @@
                                     <div class="col-md-4 col-6 mb-2">
                                         <div class="flag-tile">
                                             <div class="form-check form-switch">
-                                                <input type="checkbox" wire:model="itemForm.internal_use" class="form-check-input" role="switch">
-                                                <label class="form-check-label">Internal</label>
+                                                <input type="checkbox" wire:model.live="itemForm.internal_use" class="form-check-input" role="switch" id="item-form-internal-use">
+                                                <label class="form-check-label" for="item-form-internal-use">Internal</label>
                                             </div>
                                         </div>
                                     </div>
                                     <div class="col-md-4 col-6 mb-2">
                                         <div class="flag-tile">
                                             <div class="form-check form-switch">
-                                                <input type="checkbox" wire:model="itemForm.external_view" class="form-check-input" role="switch">
-                                                <label class="form-check-label">External</label>
+                                                <input type="checkbox" wire:model.live="itemForm.external_view" class="form-check-input" role="switch" id="item-form-external-view">
+                                                <label class="form-check-label" for="item-form-external-view">External</label>
                                             </div>
                                         </div>
                                     </div>
                                     <div class="col-md-4 col-6 mb-2">
                                         <div class="flag-tile">
                                             <div class="form-check form-switch">
-                                                <input type="checkbox" wire:model="itemForm.active" class="form-check-input" role="switch">
-                                                <label class="form-check-label">Active</label>
+                                                <input type="checkbox" wire:model.live="itemForm.active" class="form-check-input" role="switch" id="item-form-active">
+                                                <label class="form-check-label" for="item-form-active">Active</label>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div class="item-modal-note mt-3">
-                                <i class="mdi mdi-information-outline"></i>
-                                New and updated prices are saved as pending until you use Apply Price Changes on the pricelist items tab.
                             </div>
                         </div>
                         <div class="modal-footer border-0 item-modal-footer flex-column align-items-stretch">
@@ -1010,6 +943,99 @@
                                 <span wire:loading wire:target="saveItem"><span class="spinner-border spinner-border-sm mr-1"></span> Saving…</span>
                             </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if($showImportModal)
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.55);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content item-modal-content" wire:click.stop>
+                        <div class="modal-header item-modal-header border-0">
+                            <div>
+                                <span class="item-modal-kicker">Import</span>
+                                <h5 class="modal-title mb-1">Import into pricelist</h5>
+                                <p class="mb-0 text-muted">Choose Excel or PDF, then upload.</p>
+                            </div>
+                            <button type="button" class="btn-close" wire:click="closeImportModal"></button>
+                        </div>
+                        <div class="modal-body item-modal-body">
+                            <div class="item-modal-section mb-3">
+                                <label class="form-label item-modal-label d-block">File type</label>
+                                <div class="pricelist-mode-chips" role="group" aria-label="Import format">
+                                    <button type="button"
+                                            class="pricelist-mode-chip {{ $importFormat === 'excel' ? 'is-active' : '' }}"
+                                            wire:click="$set('importFormat', 'excel')">
+                                        <i class="mdi mdi-file-excel"></i> Excel
+                                    </button>
+                                    <button type="button"
+                                            class="pricelist-mode-chip {{ $importFormat === 'pdf' ? 'is-active' : '' }}"
+                                            wire:click="$set('importFormat', 'pdf')">
+                                        <i class="mdi mdi-file-pdf-box"></i> PDF
+                                    </button>
+                                </div>
+                            </div>
+
+                            @if($importFormat === 'excel')
+                                <div class="item-modal-section mb-3">
+                                    <label class="form-label item-modal-label d-block">Pricing mode for imported rows</label>
+                                    <div class="pricelist-mode-chips" role="group" aria-label="Import pricing mode">
+                                        <button type="button"
+                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_test' ? 'is-active' : '' }}"
+                                                wire:click="$set('importPricingMode', 'per_test')">
+                                            Per test
+                                        </button>
+                                        <button type="button"
+                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_package' ? 'is-active' : '' }}"
+                                                wire:click="$set('importPricingMode', 'per_package')">
+                                            Per package
+                                        </button>
+                                    </div>
+                                    <p class="small text-muted mt-2 mb-0">
+                                        Columns: <code>sample_type</code>, <code>parameters</code> (semicolon-separated), <code>unit_price</code>, optional <code>tax</code>.
+                                        Tax defaults to on. Quantity is set later on the quotation line.
+                                    </p>
+                                </div>
+                            @else
+                                <div class="item-modal-section mb-3">
+                                    <label class="form-label item-modal-label d-block">Pricing mode</label>
+                                    <div class="pricelist-mode-chips" role="group" aria-label="Import pricing mode">
+                                        <button type="button"
+                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_package' ? 'is-active' : '' }}"
+                                                wire:click="$set('importPricingMode', 'per_package')">
+                                            Per package
+                                        </button>
+                                        <button type="button"
+                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_test' ? 'is-active' : '' }}"
+                                                wire:click="$set('importPricingMode', 'per_test')">
+                                            Per test
+                                        </button>
+                                    </div>
+                                    <div class="item-modal-note mt-2 mb-0">
+                                        <i class="mdi mdi-information-outline"></i>
+                                        Use the Amspec quotation-preparation PDF. Rows become package (or per-test) items. The PDF is also saved as this pricelist’s document.
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="item-modal-section">
+                                <label class="form-label item-modal-label">File <span class="text-danger">*</span></label>
+                                <input type="file"
+                                       wire:model="importFile"
+                                       class="form-control item-modal-input @error('importFile') is-invalid @enderror"
+                                       accept="{{ $importFormat === 'pdf' ? '.pdf,application/pdf' : '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }}">
+                                @error('importFile') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                <div wire:loading wire:target="importFile" class="small text-muted mt-1">Uploading…</div>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0 item-modal-footer">
+                            <button type="button" class="btn btn-light item-modal-cancel-btn" wire:click="closeImportModal">Cancel</button>
+                            <button type="button" class="btn btn-primary item-modal-save-btn" wire:click="submitImport" wire:loading.attr="disabled">
+                                <span wire:loading.remove wire:target="submitImport"><i class="mdi mdi-upload"></i> Import</span>
+                                <span wire:loading wire:target="submitImport"><span class="spinner-border spinner-border-sm mr-1"></span> Working…</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1359,6 +1385,282 @@
             border-radius: 18px;
             border: 1px solid var(--panel-border);
             box-shadow: var(--panel-shadow);
+        }
+
+        .pricelist-kpi-row .quotation-kpi-card.pricelist-kpi-card {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-left: 4px solid var(--metric-color, #3498db);
+            border-radius: 8px;
+            padding: 0.72rem 0.9rem;
+            height: 100%;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .pricelist-kpi-row .quotation-kpi-card.pricelist-kpi-card:hover {
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .pricelist-kpi-row .quotation-kpi-value {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+
+        .pricelist-kpi-row .quotation-kpi-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 0.1rem;
+            color: #343a40;
+        }
+
+        .pricelist-kpi-row .quotation-kpi-sublabel {
+            font-size: 0.72rem;
+            color: #6c757d;
+            margin-bottom: 0;
+        }
+
+        .pricelist-kpi-row .quotation-kpi-icon {
+            font-size: 1.4rem;
+            opacity: 0.85;
+        }
+
+        .pricelist-mode-chips {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 4px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            width: 100%;
+            justify-content: stretch;
+        }
+
+        .pricelist-mode-chip {
+            flex: 1 1 auto;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #64748b;
+            padding: 0.45rem 0.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+
+        .pricelist-mode-chip.is-active {
+            background: #fff;
+            border-color: var(--color-primary-border-soft, #e2b4b4);
+            color: var(--color-primary, #6D0A0E);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+
+        .pricelist-params-shell {
+            margin-top: 0.25rem;
+        }
+
+        .pricelist-params-tat-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-left: auto;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pricelist-params-shell .ls-quote-params-hero {
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .pricelist-params-help {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-radius: 999px;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: help;
+            white-space: nowrap;
+        }
+
+        .pricelist-params-test-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            min-width: 0;
+        }
+
+        .pricelist-params-test-cell .table-primary-line {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .pricelist-lab-section-pill {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            max-width: 5.5rem;
+            padding: 0.12rem 0.45rem;
+            border-radius: 999px;
+            background: #ecfdf5;
+            border: 1px solid #86efac;
+            color: #047857;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pricelist-params-group-row td {
+            background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 55%, #f0f9ff 100%);
+            border-top: 1px solid #bfdbfe;
+            border-bottom: 1px solid #bfdbfe;
+            padding: 0.5rem 0.75rem !important;
+        }
+
+        .pricelist-params-group-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #1e40af;
+        }
+
+        .pricelist-params-col--select { width: 3.25rem; }
+        .pricelist-params-col--name { width: auto; }
+        .pricelist-params-col--method { width: 9.5rem; }
+        .pricelist-params-col--tat { width: 3.5rem; }
+        .pricelist-params-col--cost,
+        .pricelist-params-col--sell { width: 5.5rem; }
+        .pricelist-params-col--vat { width: 3.25rem; }
+
+        .pricelist-params-shell .pricelist-params-check {
+            position: relative;
+            display: inline-flex;
+            width: 1.15rem;
+            height: 1.15rem;
+            vertical-align: middle;
+        }
+
+        .pricelist-params-shell .pricelist-params-check input {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            opacity: 0;
+            cursor: pointer;
+            pointer-events: auto !important;
+            z-index: 2;
+        }
+
+        .pricelist-params-shell .pricelist-params-check .ls-quote-check__box {
+            display: block;
+            width: 1.1rem;
+            height: 1.1rem;
+            border: 1.5px solid #64748b;
+            border-radius: 5px;
+            background: #fff;
+            box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.25);
+            pointer-events: none;
+        }
+
+        .pricelist-params-shell .pricelist-params-check input:checked + .ls-quote-check__box {
+            background: var(--color-primary, #6D0A0E);
+            border-color: var(--color-primary, #6D0A0E);
+        }
+
+        .pricelist-params-shell .pricelist-params-check input:focus-visible + .ls-quote-check__box {
+            outline: 2px solid #93c5fd;
+            outline-offset: 2px;
+        }
+
+        .pricelist-params-shell .pricelist-params-price {
+            background: #fff !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            min-width: 4.25rem;
+        }
+
+        .pricelist-params-shell tr.is-included td {
+            background: rgb(239 246 255 / 0.45);
+        }
+
+        .ls-select2-single-columns {
+            position: relative;
+            z-index: 5;
+        }
+
+        .ls-select2-single-columns.is-open {
+            z-index: 40;
+        }
+
+        .ls-select2-single-columns__control {
+            min-height: 38px;
+            cursor: text;
+            gap: 0.25rem;
+        }
+
+        .ls-select2-single-columns__value {
+            flex: 1;
+            min-width: 0;
+            padding: 0 0.35rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .ls-select2-single-columns__menu {
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        .ls-select2-single-columns__item {
+            align-items: flex-start;
+        }
+
+        .ls-select2-single-columns__item .ls-select2-meta-row {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .pricelist-method-pill {
+            display: inline-flex;
+            align-items: center;
+            max-width: 11rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pricelist-params-grid .form-control-sm {
+            min-width: 4.5rem;
         }
 
         .metric-card .card-body {

@@ -1,6 +1,7 @@
 {{--
 	ls-field-text — ordinary text input column.
-	Props: $label, $name, $value, $placeholder, $hint, $error, $success, $required, $disabled, $type, $id
+	Props: $label, $name, $value, $placeholder, $hint, $error, $success, $required, $disabled, $type, $id,
+	       $wireModel (optional Livewire model path, uses wire:model.defer)
 --}}
 @php
 	$id = $id ?? ($name ?? 'ls-field-'.uniqid());
@@ -22,13 +23,18 @@
 			id="{{ $id }}"
 			name="{{ $name ?? $id }}"
 			class="ls-field__input"
-			value="{{ $value ?? '' }}"
+			@if(! empty($wireModel))
+				wire:model.defer="{{ $wireModel }}"
+			@else
+				value="{{ $value ?? '' }}"
+			@endif
 			placeholder="{{ $placeholder ?? '' }}"
+			@if(! empty($required)) required @endif
 			@if(! empty($disabled)) disabled @endif
 		>
-		@if(($error ?? null) || ($success ?? null) || ! empty($showClear))
+		@if(($error ?? null) || (is_string($success ?? null) && ($success ?? '') !== '') || ! empty($showClear))
 			<button type="button" class="ls-field__icon-btn" tabindex="-1" aria-label="Clear">
-				@if($success ?? null)
+				@if(is_string($success ?? null) && ($success ?? '') !== '')
 					<i class="mdi mdi-check-circle" style="color:#059669;"></i>
 				@elseif($error ?? null)
 					<i class="mdi mdi-alert-circle" style="color:#dc2626;"></i>
@@ -36,11 +42,15 @@
 					<i class="mdi mdi-close"></i>
 				@endif
 			</button>
+		@elseif(! empty($success))
+			<span class="ls-field__icon-btn" tabindex="-1" aria-hidden="true">
+				<i class="mdi mdi-check-circle" style="color:#059669;"></i>
+			</span>
 		@endif
 	</div>
 	@if($error ?? null)
 		<p class="ls-field__msg ls-field__msg--error"><i class="mdi mdi-alert-circle-outline"></i> {{ $error }}</p>
-	@elseif($success ?? null)
+	@elseif(is_string($success ?? null) && ($success ?? '') !== '')
 		<p class="ls-field__msg ls-field__msg--success"><i class="mdi mdi-check-circle-outline"></i> {{ $success }}</p>
 	@elseif($hint ?? null)
 		<p class="ls-field__hint">{{ $hint }}</p>

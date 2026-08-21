@@ -127,6 +127,7 @@
                                             </th>
                                             <th>Level</th>
                                             <th>Analyte</th>
+                                            <th>Report display</th>
                                             <th>Method</th>
                                             <th>Equipment</th>
                                             <th>Operator</th>
@@ -236,6 +237,22 @@
                                             @endif
                                         </div>
                                         @error('elementForm.analyte_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label" for="element-report-display-name">
+                                            Report display name
+                                        </label>
+                                        <input id="element-report-display-name"
+                                               type="text"
+                                               class="form-control"
+                                               wire:model.defer="elementForm.report_display_name"
+                                               placeholder="Auto-filled from analyte Report Display; editable">
+                                        <small class="form-text text-muted">Defaults from the analyte Report Display when the analyte is selected or changed.</small>
+                                        @error('elementForm.report_display_name') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>

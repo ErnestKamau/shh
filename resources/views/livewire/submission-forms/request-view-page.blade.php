@@ -175,6 +175,7 @@
     @livewire('sampleworkflow.acceptance-form-wizard')
 
     @include('livewire.submission-forms.request-view.partials.sample-row-edit-modal')
+    @include('livewire.submission-forms.request-view.partials.trf-view-modal')
     @include('livewire.submission-forms.request-view.partials.approve-quotation-modal')
 
     {{-- Keep receive/walk-in capture in a Bootstrap modal so it is not inline on the read-only view. --}}
@@ -612,7 +613,7 @@
 
         preloadTinyMce();
 
-        const modalDialog = () => document.querySelector('.rv-sample-row-edit-dialog');
+        const modalDialog = () => document.querySelector('.rv-sample-row-edit-modal .rv-sample-row-edit-dialog');
         let sampleRowModalPrepared = false;
         const setModalLoading = (loading) => {
             const dialog = modalDialog();
@@ -706,51 +707,106 @@
             return select.multiple ? [] : [''];
         };
 
-        let multiDropdownSearchAdapters = null;
-
-        const getMultiDropdownSearchAdapters = () => {
-            if (multiDropdownSearchAdapters !== null) {
-                return multiDropdownSearchAdapters;
+        // Gallery pattern: clamp zero-size inline search; drive filtering via .ls-dd-search only.
+        // Do NOT use Select2 DropdownSearch adapter for LS multi (avoids dual search bars).
+        const clampLsSelect2Search = ($el) => {
+            const $container = $el.next('.select2-container');
+            if (! $container.length) {
+                return;
             }
+            $container.find('.select2-search--inline .select2-search__field').attr(
+                'style',
+                'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;position:absolute!important;left:-9999px!important;'
+            );
+            $container.css({ maxWidth: '100%', overflow: 'hidden' });
+        };
 
-            const amd = window.jQuery?.fn?.select2?.amd;
-            if (! amd || typeof amd.require !== 'function') {
-                multiDropdownSearchAdapters = false;
-                return multiDropdownSearchAdapters;
-            }
+        const wireLsMultiDropdownSearch = ($el) => {
+            $el.off('select2:open.lsDdSearch select2:close.lsDdSearch select2:select.lsDdSearch select2:unselect.lsDdSearch')
+                .on('select2:open.lsDdSearch', function () {
+                    clampLsSelect2Search($el);
 
-            try {
-                const Utils = amd.require('select2/utils');
-                const MultipleSelection = amd.require('select2/selection/multiple');
-                const Placeholder = amd.require('select2/selection/placeholder');
-                const EventRelay = amd.require('select2/selection/eventRelay');
-                const Dropdown = amd.require('select2/dropdown');
-                const DropdownSearch = amd.require('select2/dropdown/search');
-                const AttachBody = amd.require('select2/dropdown/attachBody');
+                    const select2Instance = $el.data('select2');
+                    // Gallery targets .select2-dropdown (inner shell), not the AttachBody wrapper.
+                    let $dropdown = window.jQuery();
+                    if (select2Instance?.$dropdown?.length) {
+                        $dropdown = select2Instance.$dropdown.find('.select2-dropdown');
+                        if (! $dropdown.length && select2Instance.$dropdown.hasClass('select2-dropdown')) {
+                            $dropdown = select2Instance.$dropdown;
+                        }
+                    }
+                    if (! $dropdown.length) {
+                        const $parent = $el.closest('.rv-modal');
+                        $dropdown = ($parent.length ? $parent : window.jQuery(document.body))
+                            .find('.select2-container--open .select2-dropdown')
+                            .last();
+                    }
+                    if (! $dropdown.length) {
+                        return;
+                    }
 
-                // Selection without inline search; dropdown with search field.
-                let SelectionAdapter = Utils.Decorate(MultipleSelection, Placeholder);
-                SelectionAdapter = Utils.Decorate(SelectionAdapter, EventRelay);
+                    $dropdown.addClass('ls-select2-dropdown-search');
+                    // Never show native dropdown search if present.
+                    $dropdown.find('.select2-search--dropdown').attr(
+                        'style',
+                        'display:none!important;height:0!important;padding:0!important;margin:0!important;border:0!important;overflow:hidden!important;'
+                    );
 
-                let DropdownAdapter = Utils.Decorate(Dropdown, DropdownSearch);
-                DropdownAdapter = Utils.Decorate(DropdownAdapter, AttachBody);
+                    const $existing = $dropdown.find('.ls-dd-search');
+                    if ($existing.length) {
+                        $existing.find('input').val('').trigger('focus');
+                        return;
+                    }
 
-                multiDropdownSearchAdapters = { SelectionAdapter, DropdownAdapter };
-            } catch (error) {
-                console.warn('TRF Select2 dropdown-search adapters unavailable', error);
-                multiDropdownSearchAdapters = false;
-            }
+                    const $box = window.jQuery(
+                        '<div class="ls-dd-search">' +
+                            '<i class="mdi mdi-magnify" aria-hidden="true"></i>' +
+                            '<input type="search" placeholder="Search…" autocomplete="off">' +
+                        '</div>'
+                    );
+                    $dropdown.prepend($box);
 
-            return multiDropdownSearchAdapters;
+                    const $input = $box.find('input');
+                    $input.on('input keyup', function () {
+                        const q = $input.val();
+                        // Single: native dropdown search field; Multi (gallery): clamped inline search.
+                        let $hidden = $dropdown.find('.select2-search--dropdown .select2-search__field');
+                        if (! $hidden.length && select2Instance?.$selection) {
+                            $hidden = select2Instance.$selection.find('.select2-search__field');
+                        }
+                        if (! $hidden.length) {
+                            $hidden = window.jQuery('.select2-container--open .select2-search--inline .select2-search__field');
+                        }
+                        $hidden.val(q).trigger('input').trigger('keyup');
+                    });
+
+                    window.setTimeout(function () {
+                        $input.trigger('focus');
+                    }, 0);
+                })
+                .on('select2:close.lsDdSearch select2:select.lsDdSearch select2:unselect.lsDdSearch', function () {
+                    clampLsSelect2Search($el);
+                });
         };
 
         const initOneSelect2 = ($el) => {
             if ($el.data('select2')) {
                 $el.off('.rvTrfSelect2');
+                $el.off('.lsDdSearch');
                 $el.select2('destroy');
             }
 
             const isMultiple = !! $el.prop('multiple');
+            const isLsMultiSearch = isMultiple && (
+                $el.data('ls-multi-dropdown-search')
+                || $el.hasClass('ls-select2-multi-dropdown-search-el')
+                || $el.hasClass('ls-select2-multi-columns-el')
+                || $el.data('ls-multi-columns')
+            );
+            const isLsSingleDdSearch = ! isMultiple && (
+                $el.data('ls-single-dropdown-search')
+                || $el.hasClass('ls-select2-single-dropdown-search-el')
+            );
             const options = {
                 placeholder: $el.data('placeholder') || 'Select an option',
                 width: '100%',
@@ -759,12 +815,80 @@
                 dropdownParent: $el.closest('.rv-modal').length ? $el.closest('.rv-modal') : window.jQuery(document.body),
             };
 
-            if (isMultiple) {
-                const adapters = getMultiDropdownSearchAdapters();
-                if (adapters) {
-                    options.selectionAdapter = adapters.SelectionAdapter;
-                    options.dropdownAdapter = adapters.DropdownAdapter;
-                }
+            // Gallery pattern: .ls-dd-search (magnify) inside open dropdown list.
+            if (isLsMultiSearch || isLsSingleDdSearch) {
+                options.dropdownCssClass = 'ls-select2-dropdown-search';
+            }
+
+            if (isLsSingleDdSearch) {
+                options.closeOnSelect = true;
+                options.allowClear = true;
+            }
+
+            if ($el.data('ls-multi-columns') || $el.hasClass('ls-select2-multi-columns-el')) {
+                options.escapeMarkup = function (markup) { return markup; };
+                options.templateResult = function (data) {
+                    if (! data.id) {
+                        return data.text;
+                    }
+                    const $opt = window.jQuery(data.element);
+                    const method = String($opt.attr('data-meta-method') || '').trim();
+                    const lab = String($opt.attr('data-meta-lab') || '').trim();
+                    const metaParts = [];
+                    if (method) {
+                        metaParts.push('<i class="mdi mdi-flask-outline"></i> ' + window.jQuery('<div>').text(method).html());
+                    }
+                    if (lab) {
+                        metaParts.push('<i class="mdi mdi-domain"></i> ' + window.jQuery('<div>').text(lab).html());
+                    }
+                    const selected = ($el.val() || []).indexOf(String(data.id)) !== -1;
+                    const $row = window.jQuery(
+                        '<span class="ls-select2-meta-row ls-select2-meta-row--spread">' +
+                            '<span class="ls-select2-meta-row__label"></span>' +
+                            '<span class="ls-select2-meta-row__meta"></span>' +
+                            (selected ? '<i class="mdi mdi-check" style="color:#2563eb;"></i>' : '') +
+                        '</span>'
+                    );
+                    $row.find('.ls-select2-meta-row__label').text(data.text);
+                    $row.find('.ls-select2-meta-row__meta').html(metaParts.join(' · '));
+                    return $row;
+                };
+                options.templateSelection = function (data) {
+                    if (! data.id) {
+                        return data.text;
+                    }
+                    const method = String(window.jQuery(data.element).attr('data-meta-method') || '').trim();
+                    if (! method) {
+                        return data.text;
+                    }
+                    const $chip = window.jQuery(
+                        '<span class="ls-select2-choice-with-meta">' +
+                            '<span class="ls-select2-choice-with-meta__label"></span>' +
+                            '<span class="ls-select2-choice-with-meta__meta"></span>' +
+                        '</span>'
+                    );
+                    $chip.find('.ls-select2-choice-with-meta__label').text(data.text);
+                    $chip.find('.ls-select2-choice-with-meta__meta').text(method);
+                    return $chip;
+                };
+            } else if (isLsMultiSearch) {
+                // Checkbox-style rows like gallery multi-dropdown-search.
+                options.escapeMarkup = function (markup) { return markup; };
+                options.templateResult = function (data) {
+                    if (! data.id) {
+                        return data.text;
+                    }
+                    const selected = ($el.val() || []).indexOf(String(data.id)) !== -1;
+                    const $row = window.jQuery(
+                        '<span class="ls-select2-meta-row">' +
+                            '<span class="ls-select2-check"></span>' +
+                            '<span class="ls-select2-meta-row__label"></span>' +
+                        '</span>'
+                    );
+                    $row.find('.ls-select2-check').text(selected ? '✓' : '');
+                    $row.find('.ls-select2-meta-row__label').text(data.text);
+                    return $row;
+                };
             }
 
             $el.select2(options);
@@ -774,6 +898,15 @@
                 $el.val(selectedValues).trigger('change.select2');
             } else {
                 $el.val(selectedValues[0] ?? '').trigger('change.select2');
+            }
+
+            if (isLsMultiSearch || isLsSingleDdSearch) {
+                wireLsMultiDropdownSearch($el);
+                if (isLsMultiSearch) {
+                    clampLsSelect2Search($el);
+                    window.setTimeout(() => clampLsSelect2Search($el), 0);
+                    window.setTimeout(() => clampLsSelect2Search($el), 50);
+                }
             }
 
             if (isMultiple) {
@@ -790,6 +923,9 @@
                         minHeight: 0,
                         maxHeight: 'none',
                     });
+                    if (isLsMultiSearch) {
+                        clampLsSelect2Search($el);
+                    }
                 };
 
                 fitMultipleSelect2();

@@ -1,8 +1,8 @@
 {{-- Tests tab — samples configuration style --}}
-<div class="rv-tests-tab"
+<div class="rv-tests-tab ls-ui-kit"
      x-data="{
         paramsOpen: false,
-        modalTitle: '',
+        modalTitle: 'Parameters',
         parameterGroups: []
      }">
     <div class="workflow-board-panel-header rv-tests-tab-header">
@@ -26,75 +26,11 @@
         @endif
 
         @if($testSamplesCard['count'] > 0)
-            <div class="table-responsive">
-                <table class="table table-bordered table-sm workflow-table rv-tests-table mb-0">
-                    <thead>
-                        <tr>
-                            @foreach($testSamplesCard['columns'] as $column)
-                                @php
-                                    $isActions = ($column['key'] ?? '') === 'actions';
-                                @endphp
-                                <th @class([
-                                    'text-center' => $isActions,
-                                ]) @if($isActions) style="width: 88px;" @endif>
-                                    {{ $column['label'] }}
-                                </th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($testSamplesCard['samples'] as $sample)
-                            <tr wire:key="sample-row-{{ $sample['row_index'] ?? $sample['number'] }}">
-                                @foreach($testSamplesCard['columns'] as $column)
-                                    @php
-                                        $columnKey = $column['key'] ?? '';
-                                    @endphp
-                                    @if($columnKey === 'actions')
-                                        <td class="text-center">
-                                            <div class="d-inline-flex align-items-center" style="gap: 4px;">
-                                                <button type="button"
-                                                    class="btn btn-sm btn-icon btn-light text-info"
-                                                    title="View parameters"
-                                                    aria-label="View parameters for sample {{ $sample['number'] }}"
-                                                    @click='modalTitle = @json("Parameters — sample ".$sample["number"]); parameterGroups = @json($sample["parameter_groups"]); paramsOpen = true;'>
-                                                    <i class="mdi mdi-eye" aria-hidden="true"></i>
-                                                </button>
-                                                @if($canEditSampleRows ?? false)
-                                                    <button type="button"
-                                                        class="btn btn-sm btn-icon btn-light text-primary"
-                                                        title="Edit sample row"
-                                                        aria-label="Edit sample row {{ $sample['number'] }}"
-                                                        wire:click="openSampleRowEditor({{ (int) ($sample['row_index'] ?? 0) }})">
-                                                        <i class="mdi mdi-pencil" aria-hidden="true"></i>
-                                                    </button>
-                                                @endif
-                                            </div>
-                                        </td>
-                                    @elseif($columnKey === 'sample_description')
-                                        <td class="rv-sample-description-cell">
-                                            @if($sample['has_description'])
-                                                <div class="rv-sample-description-inline">{!! $sample['sample_description_html'] !!}</div>
-                                            @else
-                                                <span class="text-muted">—</span>
-                                            @endif
-                                        </td>
-                                    @elseif($columnKey === 'test_requirements')
-                                        <td>{{ $sample['test_category'] }}</td>
-                                    @elseif(str_starts_with($columnKey, 'extra:'))
-                                        @php
-                                            $extraLabel = $column['label'] ?? '';
-                                            $extraValue = collect($sample['extra_columns'] ?? [])->firstWhere('label', $extraLabel)['value'] ?? '—';
-                                        @endphp
-                                        <td>{{ $extraValue }}</td>
-                                    @else
-                                        <td>{{ $sample[$columnKey] ?? '—' }}</td>
-                                    @endif
-                                @endforeach
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            @include('livewire.submission-forms.request-view.partials.ls-tests-samples-table', [
+                'columns' => $testSamplesCard['columns'] ?? [],
+                'samples' => $testSamplesCard['samples'] ?? [],
+                'showEditActions' => (bool) ($canEditSampleRows ?? false),
+            ])
         @else
             <p class="text-muted mb-0 py-3 px-3">No sample rows captured on this request.</p>
         @endif
@@ -125,19 +61,27 @@
                 <template x-for="group in parameterGroups" :key="group.analysis_type">
                     <div class="rv-param-group mb-3">
                         <h6 class="rv-param-group-title" x-text="group.analysis_type"></h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered rv-param-table mb-0">
+                        <div class="ls-table-wrap">
+                            <table class="ls-table rv-param-table mb-0">
                                 <thead>
                                     <tr>
-                                        <th style="width: 30%;">Code</th>
-                                        <th>Parameter</th>
+                                        <th>Name</th>
+                                        <th>Report display</th>
+                                        <th>Method</th>
+                                        <th>Reporting unit</th>
+                                        <th>TAT</th>
+                                        <th>LOQ</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="param in group.parameters" :key="param.code + param.name">
+                                    <template x-for="param in group.parameters" :key="(param.name || '') + (param.report_display_name || '') + (param.method || '')">
                                         <tr>
-                                            <td x-text="param.code"></td>
                                             <td x-text="param.name"></td>
+                                            <td x-text="param.report_display_name"></td>
+                                            <td x-text="param.method"></td>
+                                            <td x-text="param.reporting_unit"></td>
+                                            <td x-text="param.tat"></td>
+                                            <td x-text="param.loq"></td>
                                         </tr>
                                     </template>
                                 </tbody>

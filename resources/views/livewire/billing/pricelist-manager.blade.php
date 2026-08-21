@@ -246,7 +246,7 @@
                                                 <input type="text"
                                                        wire:model.live="currencySearch"
                                                        class="tag-input"
-                                                       placeholder="{{ $selectedCurrency ? '' : 'Search currency...' }}"
+                                                       placeholder="{{ $selectedCurrency ? '' : 'Search & select currency...' }}"
                                                        autocomplete="off">
                                             </div>
 
@@ -266,7 +266,7 @@
                                                 </div>
                                             @endif
                                         </div>
-                                        @error('pricelistForm.currency_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        @error('pricelistForm.currency_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -423,6 +423,15 @@
         .tag-select-input:focus-within {
             border-color: #93c5fd;
             box-shadow: 0 0 0 0.18rem rgba(59, 130, 246, 0.15);
+        }
+
+        .tag-select-input.is-invalid {
+            border-color: #dc3545;
+        }
+
+        .tag-select-input.is-invalid:focus-within {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.18rem rgba(220, 53, 69, 0.2);
         }
 
         .tag-badge {

@@ -3,20 +3,15 @@
 namespace App\Livewire\Billing;
 
 use App\QuotationHeader;
-use App\QuotationDetails;
 use App\QuotationHeaderView;
-use App\InvoicableItem;
-use App\AnalysisType;
-use App\SampleType;
 use App\SampleAnalysisStage;
 use App\Models\CRM\CRMCustomer;
-use App\Models\CRM\CustomerContact;
-use App\ModulePreConfigs;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class QuotationManager extends Component
 {
@@ -25,38 +20,110 @@ class QuotationManager extends Component
 
     protected $paginationTheme = 'bootstrap';
 
-    // Properties
-    public $search = '';
-    public $customerFilter = '';
-    public $stageFilter = '';
-    public $quotationTypeFilter = '';
-    public $labSectionFilter = '';
-    public $startDate = '';
-    public $endDate = '';
-    public $perPage = 25;
-    public $perPageOptions = [10, 25, 50, 100];
+    public bool $embedded = false;
 
-    // View properties
+    public bool $filtersOpen = false;
+
+    public string $search = '';
+
+    public string $customerFilter = '';
+
+    public string $stageFilter = '';
+
+    public string $quotationTypeFilter = '';
+
+    public string $labSectionFilter = '';
+
+    public string $startDate = '';
+
+    public string $endDate = '';
+
+    public string $sortField = 'created_at';
+
+    public string $sortDirection = 'desc';
+
+    public int $perPage = 25;
+
+    /** @var list<int> */
+    public array $perPageOptions = [10, 25, 50, 100];
+
     public $selectedQuotationId = null;
-    public $showQuotationDetails = false;
 
-    // Modal properties
-    public $showCreateModal = false;
-    public $quotationForm = [];
-    
-    // Message properties
-    public $message = '';
-    public $messageType = 'success';
+    public bool $showQuotationDetails = false;
 
-    // Dropdown states
-    public $showCustomerDropdown = false;
-    public $customerSearch = '';
+    public bool $showCreateModal = false;
 
-    public function mount(): void
+    /** @var array<string, mixed> */
+    public array $quotationForm = [];
+
+    public string $message = '';
+
+    public string $messageType = 'success';
+
+    public bool $showCustomerDropdown = false;
+
+    public string $customerSearch = '';
+
+    /** @var list<string> */
+    private const SORTABLE = [
+        'quote_number',
+        'customer',
+        'status',
+        'quote_date',
+        'expiring_date',
+        'total_amount',
+        'created_at',
+        'prepared_by_name',
+    ];
+
+    public function mount(?string $initialStage = null): void
     {
-        $this->startDate = now()->startOfMonth()->format('Y-m-d');
-        $this->endDate = now()->endOfMonth()->format('Y-m-d');
+        $this->startDate = '';
+        $this->endDate = '';
         $this->resetQuotationForm();
+
+        $fromRequest = request()->query('stage_filter');
+        $stage = $initialStage ?? (is_string($fromRequest) ? $fromRequest : null);
+        $this->applyStageFilter($stage);
+    }
+
+    #[On('set-quotation-stage')]
+    public function onSetQuotationStage(string $stage = ''): void
+    {
+        $this->applyStageFilter($stage);
+    }
+
+    public function setStageFilter(string $stage = ''): void
+    {
+        $this->applyStageFilter($stage);
+    }
+
+    public function toggleFilters(): void
+    {
+        $this->filtersOpen = ! $this->filtersOpen;
+    }
+
+    public function closeFilters(): void
+    {
+        $this->filtersOpen = false;
+    }
+
+    public function sortBy(string $field): void
+    {
+        if (! in_array($field, self::SORTABLE, true)) {
+            return;
+        }
+
+        if ($this->sortField === $field) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortField = $field;
+            $this->sortDirection = in_array($field, ['quote_date', 'expiring_date', 'created_at', 'total_amount'], true)
+                ? 'desc'
+                : 'asc';
+        }
+
+        $this->resetPage();
     }
 
     public function updatedSearch(): void
@@ -74,15 +141,45 @@ class QuotationManager extends Component
         $this->resetPage();
     }
 
+    public function updatedQuotationTypeFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatedLabSectionFilter(): void
     {
         $this->resetPage();
     }
 
-    public function getQuotationsProperty()
+    public function updatedStartDate(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedEndDate(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSortField(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSortDirection(): void
+    {
+        $this->resetPage();
+    }
+
+    public function getQuotationsProperty(): LengthAwarePaginator
     {
         if ($this->stageFilter === 'approval-settings') {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, (int) $this->perPage, 1, [
+            return new LengthAwarePaginator([], 0, (int) $this->perPage, 1, [
                 'path' => request()->url(),
                 'pageName' => 'page',
             ]);
@@ -90,43 +187,56 @@ class QuotationManager extends Component
 
         $query = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0);
 
-        if ($this->search) {
-            $query->where(function($q) {
-                $q->where('quote_number', 'like', "%{$this->search}%");
+        if ($this->search !== '') {
+            $term = '%'.trim($this->search).'%';
+            $query->where(function ($q) use ($term): void {
+                $q->where('quote_number', 'like', $term)
+                    ->orWhere('customer', 'like', $term)
+                    ->orWhere('contact_first', 'like', $term)
+                    ->orWhere('contact_last', 'like', $term)
+                    ->orWhere('prepared_by_name', 'like', $term);
             });
         }
 
-        if ($this->customerFilter) {
+        if ($this->customerFilter !== '') {
             $query->where('crm_customer_id', $this->customerFilter);
         }
 
-        if ($this->stageFilter) {
+        if ($this->stageFilter !== '') {
             $query->where('status', $this->stageFilter);
         }
 
-        if ($this->quotationTypeFilter) {
+        if ($this->quotationTypeFilter !== '') {
             $query->where('quotation_type', $this->quotationTypeFilter);
         }
 
-        if ($this->labSectionFilter) {
+        if ($this->labSectionFilter !== '') {
             $labSectionId = (string) $this->labSectionFilter;
             $query->whereHas('labSections', function ($q) use ($labSectionId): void {
                 $q->where('sample_analysis_stages.id', $labSectionId);
             });
         }
 
-        if ($this->startDate && $this->endDate) {
-            $query->whereBetween('created_at', [$this->startDate, $this->endDate]);
+        if ($this->startDate !== '' && $this->endDate !== '') {
+            $query->whereBetween('quote_date', [$this->startDate, $this->endDate]);
+        } elseif ($this->startDate !== '') {
+            $query->whereDate('quote_date', '>=', $this->startDate);
+        } elseif ($this->endDate !== '') {
+            $query->whereDate('quote_date', '<=', $this->endDate);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($this->perPage);
+        $field = in_array($this->sortField, self::SORTABLE, true) ? $this->sortField : 'created_at';
+        $direction = $this->sortDirection === 'asc' ? 'asc' : 'desc';
+
+        return $query->orderBy($field, $direction)->paginate($this->perPage);
     }
 
     public function getDraftsProperty()
     {
-        return QuotationHeaderView::with('preparedBy')->where('is_draft', 1)
+        return QuotationHeaderView::with('preparedBy')
+            ->where('is_draft', 1)
             ->orderBy('created_at', 'desc')
-            ->limit(10)
+            ->limit(15)
             ->get();
     }
 
@@ -146,12 +256,15 @@ class QuotationManager extends Component
             ->get(['id', 'name', 'code']);
     }
 
-    public function getQuotationStagesProperty()
+    /**
+     * @return list<string>
+     */
+    public function getQuotationStagesProperty(): array
     {
         return [
             'Quote In Preparation',
             'Quote In Approval',
-            'Quote Complete'
+            'Quote Complete',
         ];
     }
 
@@ -181,11 +294,12 @@ class QuotationManager extends Component
     {
         $this->search = '';
         $this->customerFilter = '';
-        $this->stageFilter = '';
         $this->quotationTypeFilter = '';
         $this->labSectionFilter = '';
-        $this->startDate = now()->startOfMonth()->format('Y-m-d');
-        $this->endDate = now()->endOfMonth()->format('Y-m-d');
+        $this->startDate = '';
+        $this->endDate = '';
+        $this->sortField = 'created_at';
+        $this->sortDirection = 'desc';
         $this->resetPage();
     }
 
@@ -208,9 +322,10 @@ class QuotationManager extends Component
                 'customer',
                 'contact',
                 'details.invoicableItem',
-                'details.sampletype'
+                'details.sampletype',
             ])->find($this->selectedQuotationId);
         }
+
         return null;
     }
 
@@ -241,21 +356,21 @@ class QuotationManager extends Component
     {
         try {
             DB::beginTransaction();
-            
+
             $quotation = QuotationHeader::findOrFail($quotationId);
             $quotation->labSections()->detach();
             $quotation->details()->delete();
             $quotation->delete();
-            
+
             DB::commit();
             $this->showMessage('Quotation deleted successfully!', 'success');
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->showMessage('Error deleting quotation: ' . $e->getMessage(), 'danger');
+            $this->showMessage('Error deleting quotation: '.$e->getMessage(), 'danger');
         }
     }
 
-    public function cloneQuotation($quotationId)
+    public function cloneQuotation(string $quotationId)
     {
         return redirect()->route('clone_quotation', ['id' => $quotationId]);
     }
@@ -266,13 +381,7 @@ class QuotationManager extends Component
         $this->dispatch('open-create-enquiry-from-quotation', quotationId: $quotationId);
     }
 
-    public function convertToBatch($quotationId): void
-    {
-        // This would call the existing convertQuoteToBatch method
-        $this->showMessage('Convert to batch functionality to be implemented', 'info');
-    }
-
-    public function showMessage($message, $type = 'success'): void
+    public function showMessage(string $message, string $type = 'success'): void
     {
         $this->message = $message;
         $this->messageType = $type;
@@ -294,5 +403,18 @@ class QuotationManager extends Component
             'selectedQuotation' => $this->selectedQuotation,
             'stageCounts' => $this->stageCounts,
         ]);
+    }
+
+    private function applyStageFilter(?string $stage): void
+    {
+        if ($stage === null || $stage === '' || $stage === 'All Quotations' || $stage === 'all') {
+            $this->stageFilter = '';
+        } elseif ($stage === 'approval-settings' || in_array($stage, $this->quotationStages, true)) {
+            $this->stageFilter = $stage;
+        } else {
+            return;
+        }
+
+        $this->resetPage();
     }
 }

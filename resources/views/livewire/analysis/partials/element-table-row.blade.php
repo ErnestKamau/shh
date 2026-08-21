@@ -42,6 +42,7 @@
         <span class="em-pill em-pill--level">{{ $element->level ?? 'N/A' }}</span>
     </td>
     <td>{{ $element->analyte->name ?? 'N/A' }}</td>
+    <td>{{ $element->report_display_name ?: ($element->analyte?->plainReportDisplay() ?: '—') }}</td>
     <td>{{ $element->mmethod->name ?? $element->ltmethod->name ?? 'N/A' }}</td>
     <td>{{ $element->equipment->name ?? 'N/A' }}</td>
     <td>{{ $element->operator->name ?? 'N/A' }}</td>
