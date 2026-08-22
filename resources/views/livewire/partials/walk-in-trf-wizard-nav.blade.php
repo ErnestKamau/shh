@@ -33,10 +33,9 @@
             <button
                 type="button"
                 class="btn btn-sm btn-primary"
-                wire:click="nextWalkInStep"
                 wire:loading.attr="disabled"
                 wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
-                onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF step sync failed', error); }"
+                x-on:click.prevent="(async () => { try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF step sync failed', error); } $wire.nextWalkInStep(); })()"
             >
                 <span wire:loading.remove wire:target="nextWalkInStep">
                     Continue
@@ -51,10 +50,9 @@
             <button
                 type="button"
                 class="btn btn-sm btn-primary receive-sample-submit-btn"
-                wire:click="confirmReceive"
                 wire:loading.attr="disabled"
                 wire:target="prevWalkInStep,nextWalkInStep,goToWalkInStep,confirmReceive"
-                onclick="try { if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); }"
+                x-on:click.prevent="(async () => { try { if (typeof window.flushWalkInParameterPickers === 'function') { await window.flushWalkInParameterPickers(); } if (typeof window.syncTrfSignaturesBeforeSubmit === 'function') { window.syncTrfSignaturesBeforeSubmit(); } } catch (error) { console.error('TRF pre-submit sync failed', error); } $wire.confirmReceive(); })()"
             >
                 <span wire:loading.remove wire:target="confirmReceive">
                     <i class="mdi mdi-package-variant-closed mr-1" aria-hidden="true"></i>

@@ -6,12 +6,21 @@
 @php
 	$id = $id ?? ($name ?? 'ls-field-'.uniqid());
 	$type = $type ?? 'text';
-	$stateClass = ($error ?? null) ? 'is-error' : (($success ?? null) ? 'is-success' : '');
+	$hasWire = ! empty($wireModel);
+	$disableLocalSuccess = (bool) ($disableLocalSuccess ?? false);
+	$useLocalSuccess = $hasWire && ! $disableLocalSuccess;
+	$stateClass = ($error ?? null) ? 'is-error' : ((! $useLocalSuccess && ($success ?? null)) ? 'is-success' : '');
 	if (! empty($disabled)) {
 		$stateClass .= ' is-disabled';
 	}
 @endphp
-<div class="ls-field {{ $stateClass }}">
+<div
+	class="ls-field {{ $stateClass }}"
+	@if($useLocalSuccess)
+		x-data="{ filled: @js(! empty($success)) }"
+		:class="{ 'is-success': filled && !@js((bool) ($error ?? null)), 'is-error': @js((bool) ($error ?? null)) }"
+	@endif
+>
 	@if(! empty($label))
 		<label class="ls-field__label" for="{{ $id }}">
 			{{ $label }}@if(! empty($required))<span class="ls-req">*</span>@endif
@@ -28,11 +37,19 @@
 			@else
 				value="{{ $value ?? '' }}"
 			@endif
+			@if($useLocalSuccess)
+				@input="filled = !!$event.target.value"
+				@change="filled = !!$event.target.value"
+			@endif
 			placeholder="{{ $placeholder ?? '' }}"
 			@if(! empty($required)) required @endif
 			@if(! empty($disabled)) disabled @endif
 		>
-		@if(($error ?? null) || (is_string($success ?? null) && ($success ?? '') !== '') || ! empty($showClear))
+		@if($useLocalSuccess)
+			<span class="ls-field__icon-btn" tabindex="-1" aria-hidden="true" x-show="filled && !@js((bool) ($error ?? null))" x-cloak>
+				<i class="mdi mdi-check-circle" style="color:#059669;"></i>
+			</span>
+		@elseif(($error ?? null) || (is_string($success ?? null) && ($success ?? '') !== '') || ! empty($showClear))
 			<button type="button" class="ls-field__icon-btn" tabindex="-1" aria-label="Clear">
 				@if(is_string($success ?? null) && ($success ?? '') !== '')
 					<i class="mdi mdi-check-circle" style="color:#059669;"></i>
@@ -50,7 +67,7 @@
 	</div>
 	@if($error ?? null)
 		<p class="ls-field__msg ls-field__msg--error"><i class="mdi mdi-alert-circle-outline"></i> {{ $error }}</p>
-	@elseif(is_string($success ?? null) && ($success ?? '') !== '')
+	@elseif(is_string($success ?? null) && ($success ?? '') !== '' && ! $useLocalSuccess)
 		<p class="ls-field__msg ls-field__msg--success"><i class="mdi mdi-check-circle-outline"></i> {{ $success }}</p>
 	@elseif($hint ?? null)
 		<p class="ls-field__hint">{{ $hint }}</p>

@@ -5,6 +5,7 @@ namespace App\Services\Sampleworkflow;
 use App\ChainOfCustody;
 use App\Livewire\Sampleworkflow\WorkflowBoard;
 use App\Models\SampleSubmissionRequest;
+use App\Models\Sampleworkflow\SampleWorkflowEvent;
 use App\Models\SubmissionFormAuditLog;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
@@ -44,11 +45,129 @@ class BatchCustodyTimelineBuilder
         }
 
         $events = $events->concat($this->batchCustodyEvents($batch, $search));
+        $events = $events->concat($this->sampleWorkflowEvents($batch, $search));
 
         return $events
             ->filter(fn ($event) => $event->occurred_at !== null)
             ->sortByDesc(fn ($event) => $event->occurred_at->getTimestamp())
             ->values();
+    }
+
+    /**
+     * Pre-lab / request-view timeline (audit, intray, instance workflow events).
+     *
+     * @return Collection<int, object>
+     */
+    public function buildForInstance(
+        SubmissionFormInstance $instance,
+        string $search = '',
+        ?Carbon $preLabCutoff = null,
+    ): Collection {
+        $events = collect()
+            ->concat($this->auditEvents($instance, $search))
+            ->concat($this->intrayEvents($instance, $search))
+            ->concat($this->sampleWorkflowEventsForInstance($instance, $search));
+
+        if ($preLabCutoff !== null) {
+            $events = $events->filter(
+                fn ($event) => $event->occurred_at !== null && $event->occurred_at->lte($preLabCutoff)
+            );
+        }
+
+        return $events
+            ->filter(fn ($event) => $event->occurred_at !== null)
+            ->sortByDesc(fn ($event) => $event->occurred_at->getTimestamp())
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    private function sampleWorkflowEvents(
+        SampleHeader $batch,
+        string $search,
+    ): Collection {
+        $events = SampleWorkflowEvent::query()
+            ->where('sample_header_id', (string) $batch->id)
+            ->orderByDesc('occurred_at')
+            ->get();
+
+        return $this->mapSampleWorkflowEvents($events, $search);
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    private function sampleWorkflowEventsForInstance(SubmissionFormInstance $instance, string $search): Collection
+    {
+        $events = SampleWorkflowEvent::query()
+            ->where('submission_form_instance_id', (string) $instance->id)
+            ->whereNull('sample_header_id')
+            ->orderByDesc('occurred_at')
+            ->get();
+
+        return $this->mapSampleWorkflowEvents($events, $search);
+    }
+
+    /**
+     * @param  Collection<int, SampleWorkflowEvent>|iterable<int, SampleWorkflowEvent>  $records
+     * @return Collection<int, object>
+     */
+    private function mapSampleWorkflowEvents(iterable $records, string $search): Collection
+    {
+        $events = collect();
+
+        foreach ($records as $record) {
+            $title = trim((string) ($record->what ?? 'Workflow event'));
+            $subtitle = trim((string) ($record->workflow_stage ?? ''));
+            if ($subtitle === '' && filled($record->event_type)) {
+                $subtitle = ucwords(str_replace('_', ' ', (string) $record->event_type));
+            }
+
+            $userName = trim((string) ($record->who_name ?? 'System'));
+            $searchable = strtolower(implode(' ', array_filter([
+                $title,
+                $subtitle,
+                $userName,
+                (string) ($record->how ?? ''),
+                (string) ($record->why ?? ''),
+                (string) ($record->where ?? ''),
+                (string) ($record->event_type ?? ''),
+            ])));
+
+            if ($search !== '' && ! str_contains($searchable, strtolower($search))) {
+                continue;
+            }
+
+            $events->push((object) [
+                'source' => 'workflow_event',
+                'title' => $title,
+                'subtitle' => $subtitle !== '' ? $subtitle : 'Workflow activity',
+                'user_name' => $userName !== '' ? $userName : 'System',
+                'occurred_at' => $record->occurred_at ? Carbon::parse($record->occurred_at) : null,
+                'badge' => $this->badgeForWorkflowEvent((string) ($record->event_type ?? '')),
+                'comment' => null,
+                'what' => $title,
+                'how' => $record->how,
+                'why' => $record->why,
+                'where' => $record->where,
+                'event_type' => $record->event_type,
+                'metadata' => is_array($record->metadata) ? $record->metadata : [],
+                'is_completed' => true,
+            ]);
+        }
+
+        return $events;
+    }
+
+    private function badgeForWorkflowEvent(string $eventType): string
+    {
+        return match ($eventType) {
+            'worksheet_issued', 'worksheet_imported', 'samples_accepted' => 'success',
+            'result_captured', 'integrity_assignments_saved' => 'primary',
+            'workflow_stage_changed' => 'warning',
+            default => 'info',
+        };
     }
 
     /**

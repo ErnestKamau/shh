@@ -10,6 +10,9 @@ use Illuminate\Support\Str;
 
 class BatchWorkflowStageSyncService
 {
+    public function __construct(
+        private readonly SampleWorkflowEventRecorder $eventRecorder,
+    ) {}
     public function resolveTrackingStageId(SampleHeader $batch, string $workflowStatus): ?string
     {
         $stages = $batch->stages($workflowStatus);
@@ -127,6 +130,25 @@ class BatchWorkflowStageSyncService
         $custody->moved_in_by = $resolvedActingUserId;
         $custody->comments = $comments;
         $custody->save();
+
+        $this->eventRecorder->record(
+            subjectType: SampleHeader::class,
+            subjectId: (string) $batch->id,
+            eventType: 'workflow_stage_changed',
+            what: 'Batch moved to '.$workflowStatus,
+            how: 'Workflow transition',
+            where: $workflowStatus,
+            instanceId: filled($batch->submission_form_instance_id)
+                ? (string) $batch->submission_form_instance_id
+                : null,
+            batchId: (string) $batch->id,
+            workflowStage: $workflowStatus,
+            metadata: array_filter([
+                'comments' => $comments,
+                'tracking_stage_id' => $trackingStageId,
+            ]),
+            user: Auth::user(),
+        );
     }
 
     private function resolveActingUserId(SampleHeader $batch, ?string $actingUserId = null): string

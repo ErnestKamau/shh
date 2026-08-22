@@ -20,6 +20,7 @@ use App\Analyte;
 use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
+use App\Models\Sampleworkflow\LabSectionWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use App\Services\Sampleworkflow\CommentsInterpretationsDefaultsService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
@@ -34,6 +35,7 @@ use App\Models\SubmissionFormInstance;
 use App\Services\ResultRemarkService;
 use App\Services\StandardLimitDisplayService;
 use App\Models\SampleShelfLifeCondition;
+use App\User;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
@@ -234,6 +236,10 @@ class Samples extends Component
     public $toastMessage = '';
     public $toastType = 'success'; // 'success' or 'danger'
 
+    public string $labSectionWorksheetSectionFilter = '';
+
+    public string $labSectionWorksheetAnalystFilter = '';
+
     protected $listeners = ['refreshSamples' => '$refresh'];
 
     public function mount(SampleHeader $batch)
@@ -304,6 +310,135 @@ class Samples extends Component
         $this->showGroupedWorksheetsModal = false;
         $this->groupedWorksheetsModalSampleCode = '';
         $this->groupedWorksheetsModalItems = [];
+    }
+
+    /**
+     * @return list<array{
+     *     id: string,
+     *     worksheet_number: string,
+     *     section_id: string,
+     *     section_name: string,
+     *     test_count: int,
+     *     analyst_names: string,
+     *     issued_at: ?string,
+     *     imported_at: ?string,
+     *     status: string,
+     *     has_pdf: bool,
+     *     has_excel: bool
+     * }>
+     */
+    public function getLabSectionWorksheetsProperty(): array
+    {
+        $query = LabSectionWorksheet::query()
+            ->with(['labSection:id,name,code', 'generatedBy:id,name'])
+            ->where('sample_header_id', (string) $this->batchId)
+            ->orderByDesc('issued_at');
+
+        if ($this->labSectionWorksheetSectionFilter !== '') {
+            $query->where('lab_section_id', $this->labSectionWorksheetSectionFilter);
+        }
+
+        if ($this->labSectionWorksheetAnalystFilter !== '') {
+            $analystId = $this->labSectionWorksheetAnalystFilter;
+            $query->where(function ($inner) use ($analystId): void {
+                $inner->whereJsonContains('assigned_analyst_ids', $analystId)
+                    ->orWhereJsonContains('assigned_analyst_ids', (int) $analystId);
+            });
+        }
+
+        $worksheets = $query->get();
+        $analystIds = $worksheets
+            ->flatMap(fn (LabSectionWorksheet $worksheet): array => is_array($worksheet->assigned_analyst_ids)
+                ? $worksheet->assigned_analyst_ids
+                : [])
+            ->map(fn ($id): string => (string) $id)
+            ->unique()
+            ->filter()
+            ->values()
+            ->all();
+
+        $analystNamesById = $analystIds === []
+            ? collect()
+            : User::query()->whereIn('id', $analystIds)->pluck('name', 'id');
+
+        return $worksheets->map(function (LabSectionWorksheet $worksheet) use ($analystNamesById): array {
+            $assignedIds = is_array($worksheet->assigned_analyst_ids)
+                ? array_values(array_filter(array_map('strval', $worksheet->assigned_analyst_ids)))
+                : [];
+            $names = [];
+            foreach ($assignedIds as $assignedId) {
+                $name = trim((string) ($analystNamesById[$assignedId] ?? ''));
+                if ($name !== '') {
+                    $names[] = $name;
+                }
+            }
+
+            $snapshot = is_array($worksheet->test_snapshot) ? $worksheet->test_snapshot : [];
+
+            return [
+                'id' => (string) $worksheet->id,
+                'worksheet_number' => (string) $worksheet->worksheet_number,
+                'section_id' => (string) ($worksheet->lab_section_id ?? ''),
+                'section_name' => (string) ($worksheet->labSection?->name ?? 'Lab section'),
+                'test_count' => count($snapshot),
+                'analyst_names' => $names !== [] ? implode(', ', $names) : 'None assigned',
+                'issued_at' => $worksheet->issued_at?->format('Y-m-d H:i'),
+                'imported_at' => $worksheet->imported_at?->format('Y-m-d H:i'),
+                'status' => (string) ($worksheet->status ?? 'issued'),
+                'has_pdf' => filled($worksheet->pdf_path),
+                'has_excel' => filled($worksheet->excel_path),
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function getLabSectionWorksheetSectionOptionsProperty(): array
+    {
+        return LabSectionWorksheet::query()
+            ->with('labSection:id,name')
+            ->where('sample_header_id', (string) $this->batchId)
+            ->get()
+            ->map(fn (LabSectionWorksheet $worksheet): array => [
+                'id' => (string) ($worksheet->lab_section_id ?? ''),
+                'name' => (string) ($worksheet->labSection?->name ?? 'Lab section'),
+            ])
+            ->unique('id')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function getLabSectionWorksheetAnalystOptionsProperty(): array
+    {
+        $ids = LabSectionWorksheet::query()
+            ->where('sample_header_id', (string) $this->batchId)
+            ->get()
+            ->flatMap(fn (LabSectionWorksheet $worksheet): array => is_array($worksheet->assigned_analyst_ids)
+                ? $worksheet->assigned_analyst_ids
+                : [])
+            ->map(fn ($id): string => (string) $id)
+            ->unique()
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return User::query()
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $user): array => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->all();
     }
 
     /**

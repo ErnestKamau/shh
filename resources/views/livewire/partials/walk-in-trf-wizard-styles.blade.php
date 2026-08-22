@@ -13,8 +13,8 @@
         --trf-wizard-muted: #64748b;
         --trf-wizard-text: #0f172a;
         --trf-wizard-track: #e2e8f0;
-        --trf-wizard-done: #059669;
-        --trf-wizard-done-soft: #d1fae5;
+        --trf-wizard-done: #0ea5e9;
+        --trf-wizard-done-soft: #e0f2fe;
     }
 
     .walk-in-trf-wizard__progress {
@@ -120,8 +120,8 @@
     }
 
     .walk-in-trf-wizard__step.is-done .walk-in-trf-wizard__step-index {
-        background: var(--color-success-strong, #16a34a);
-        border-color: var(--color-success-strong, #16a34a);
+        background: #0ea5e9;
+        border-color: #0284c7;
         color: #fff;
     }
 
@@ -162,7 +162,7 @@
         padding: 1.15rem 1.25rem;
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         animation: walkInTrfStepIn 0.28s ease-out;
-        min-height: 12rem;
+        min-height: 0;
         overflow: visible;
     }
 

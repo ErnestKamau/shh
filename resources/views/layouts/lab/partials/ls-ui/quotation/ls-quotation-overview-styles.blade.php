@@ -11,6 +11,46 @@
 		box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
 	}
 
+	.ls-quotation-shell .ls-quotation-page-tabs-card {
+		overflow: hidden;
+	}
+
+	.ls-quotation-shell .ls-quotation-page-tabs-header {
+		background: #f8fafc;
+		padding: 0.65rem 1rem 0;
+	}
+
+	.ls-quotation-shell .ls-quotation-page-tabs {
+		border-bottom: 1px solid var(--ls-border, #e2e8f0);
+		gap: 0.25rem;
+	}
+
+	.ls-quotation-shell .ls-quotation-page-tabs .nav-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		border: 0;
+		border-bottom: 2px solid transparent;
+		border-radius: 0;
+		color: var(--ls-muted, #64748b);
+		font-size: 0.9rem;
+		font-weight: 600;
+		padding: 0.7rem 1rem;
+		background: transparent;
+	}
+
+	.ls-quotation-shell .ls-quotation-page-tabs .nav-link:hover {
+		border-color: transparent;
+		color: var(--color-primary, #6D0A0E);
+		background: transparent;
+	}
+
+	.ls-quotation-shell .ls-quotation-page-tabs .nav-link.active {
+		border-bottom-color: var(--color-primary, #6D0A0E);
+		color: var(--color-primary, #6D0A0E);
+		background: transparent;
+	}
+
 	.ls-quotation-shell .quotation-stage-tabs {
 		display: flex;
 		flex-wrap: wrap;

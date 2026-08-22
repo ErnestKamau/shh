@@ -223,6 +223,8 @@
         </div>
     @endif
 
+    @include('livewire.batch.tabs.partials.lab-section-worksheets-panel')
+
     {{-- Sample Configuration Form (Livewire-driven) --}}
     <form wire:submit="saveSamples" class="workflow-board-panel batch-samples-panel">
         <div class="workflow-board-panel-header">

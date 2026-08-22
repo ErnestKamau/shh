@@ -22,6 +22,7 @@
 
 		return ['value' => (string) $o, 'label' => (string) $o, 'meta' => ''];
 	})->values()->filter(fn ($o) => $o['value'] !== '')->values()->all();
+	$selected = $selected ?? null;
 	$selected = ($selected !== null && $selected !== '') ? (string) $selected : null;
 	$wireModel = $wireModel ?? null;
 	$wireMethod = $wireMethod ?? null;

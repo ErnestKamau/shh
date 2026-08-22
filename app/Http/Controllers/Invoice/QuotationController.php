@@ -34,6 +34,7 @@ use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Billing\QuotationPricingResolver;
 use App\Services\Billing\QuotationLabSectionScope;
 use App\Services\Billing\QuotationPrepImportService;
+use App\Services\Billing\QuotationPricelistPopulateService;
 use App\Services\Billing\QuotationReportService;
 use App\Services\Billing\QuotationRevisionService;
 use App\Exports\Billing\QuotationKpiExport;
@@ -62,6 +63,7 @@ class QuotationController extends Controller
         private readonly QuotationLabSectionScope $quotationLabSectionScope,
         private readonly AcceptanceFormPricingService $acceptanceFormPricingService,
         private readonly QuotationPrepImportService $quotationPrepImportService,
+        private readonly QuotationPricelistPopulateService $quotationPricelistPopulateService,
     ) {
         $this->middleware('auth');
     }
@@ -77,8 +79,8 @@ class QuotationController extends Controller
 
         if ($stage !== false && $stage !== null && $stage !== '') {
             $query = in_array($stage, $stagePathFilters, true)
-                ? ['stage_filter' => $stage]
-                : [];
+                ? ['stage_filter' => $stage, 'page_tab' => 'quotations']
+                : ['page_tab' => 'quotations'];
 
             return redirect()->route('quotation-index', $query);
         }
@@ -357,10 +359,14 @@ class QuotationController extends Controller
         $header = $header->fresh(['preparedBy', 'customer', 'labSections']);
         $sample_types = $this->quotationLabSectionScope->sampleTypesForQuotation($header);
 
-        $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
+        $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id, $header);
         $pricelist_items = $pricelist
             ? $pricelist->items()->where('active', 1)->orderBy('level')->get()
             : collect();
+        $pricelistChooser = $this->acceptanceFormPricingService->buildPricelistChooserPayload(
+            $header->crm_customer_id ? (string) $header->crm_customer_id : null,
+            $header->pricelist_id ? (string) $header->pricelist_id : ($pricelist?->id ? (string) $pricelist->id : null),
+        );
         $details = QuotationDetails::where('quotation_header_id', $id)->get();
         $count = 1;
 
@@ -434,7 +440,7 @@ class QuotationController extends Controller
         $accountPaymentOptions = $this->quotationReportService->accountPaymentOptions();
         $labSections = $this->activeLabSectionsForQuotation();
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'companyUnits', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'pricelistChooser', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'companyUnits', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -1160,11 +1166,63 @@ class QuotationController extends Controller
         }
         $header->save();
 
+        $populate = $this->quotationPricelistPopulateService->appendFromPricelist($header, $match);
+        if ($populate['created'] > 0) {
+            $this->recalculateQuotationTotals($header);
+        }
+
+        $billingMode = (string) ($match->billing_mode ?? $populate['billing_mode'] ?? 'package');
+        $pricingMode = $billingMode === 'per_test' ? 'per_test' : 'per_package';
+
         return response()->json([
             'ok' => true,
             'pricelist_id' => (string) $match->id,
             'code' => (string) ($match->code ?? ''),
             'description' => (string) ($match->description ?? ''),
+            'billing_mode' => $billingMode,
+            'pricing_mode' => $pricingMode,
+            'lines_created' => (int) $populate['created'],
+            'reload' => $populate['created'] > 0,
+        ]);
+    }
+
+    public function detachPricelist(\Illuminate\Http\Request $request, string $id)
+    {
+        $header = QuotationHeader::query()->findOrFail($id);
+        $header->pricelist_id = null;
+        $header->save();
+
+        return response()->json([
+            'ok' => true,
+            'pricelist_id' => null,
+        ]);
+    }
+
+    public function bulkDeleteQuotationDetails(\Illuminate\Http\Request $request, string $id)
+    {
+        $header = QuotationHeader::query()->findOrFail($id);
+        $request->validate([
+            'detail_ids' => 'required|array|min:1',
+            'detail_ids.*' => 'uuid',
+        ]);
+
+        $ids = collect($request->input('detail_ids', []))
+            ->map(fn ($detailId): string => (string) $detailId)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $deleted = QuotationDetails::query()
+            ->where('quotation_header_id', $header->id)
+            ->whereIn('id', $ids)
+            ->delete();
+
+        $this->recalculateQuotationTotals($header);
+
+        return response()->json([
+            'ok' => true,
+            'deleted' => (int) $deleted,
         ]);
     }
 
@@ -1177,6 +1235,7 @@ class QuotationController extends Controller
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv,pdf|max:20480',
             'format' => 'nullable|in:excel,pdf',
+            'pricing_mode' => 'nullable|in:per_package,per_test,auto',
         ]);
 
         $format = (string) $request->input('format', '');
@@ -1190,6 +1249,7 @@ class QuotationController extends Controller
                 $header,
                 $request->file('file'),
                 $format,
+                (string) $request->input('pricing_mode', QuotationPricingResolver::PRICING_MODE_PER_PACKAGE),
             );
         } catch (\RuntimeException $exception) {
             return response()->json([

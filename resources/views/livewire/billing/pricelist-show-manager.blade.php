@@ -172,6 +172,14 @@
                                                 ])
                                             </div>
                                             <div class="col-md-4 mb-3">
+                                                <label class="ls-field__label" for="pricelist-form-billing-mode">Billing mode</label>
+                                                <select id="pricelist-form-billing-mode" wire:model="pricelistForm.billing_mode" class="form-select @error('pricelistForm.billing_mode') is-invalid @enderror">
+                                                    <option value="package">Per package</option>
+                                                    <option value="per_test">Per test</option>
+                                                </select>
+                                                @error('pricelistForm.billing_mode') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                            </div>
+                                            <div class="col-md-4 mb-3">
                                                 <label class="ls-field__label d-block">Flags</label>
                                                 <div class="d-flex align-items-center flex-wrap switch-stack mt-1">
                                                     <div class="form-check form-switch mr-3 mb-2">
@@ -495,7 +503,7 @@
                     @endif
 
                     @if($activeTab === 'pricelist-items')
-                        <div class="card border-0 shadow-sm inner-card">
+                        <div class="card border-0 shadow-sm inner-card" wire:key="pricelist-items-workspace">
                             <div class="card-header border-0 bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                                 <div class="mb-3 mb-lg-0">
                                     <h5 class="mb-1">Pricelist Items</h5>
@@ -585,50 +593,32 @@
                                                             <div class="sample-group-code">{{ $sampleGroup->sample_type_code }}</div>
                                                         @endif
                                                     </div>
+                                                    <div class="analysis-collapse-total">
+                                                        <span>Total Amount</span>
+                                                        <strong>{{ number_format((float) ($sampleGroup->total_amount ?? 0), 2) }}</strong>
+                                                    </div>
                                                 </header>
 
-                                                <div class="sample-group-body">
-                                                    @foreach($sampleGroup->analysis_groups as $analysisGroup)
-                                                        <div class="analysis-collapse mb-2"
-                                                             wire:key="analysis-collapse-{{ $sampleGroup->sample_type_id }}-{{ $analysisGroup->analysis_id }}"
-                                                             x-data="{ open: true, openPackages: {} }">
-                                                            <button type="button"
-                                                                    class="analysis-collapse-summary"
-                                                                    @click="open = !open"
-                                                                    :aria-expanded="open.toString()">
-                                                                <div class="analysis-collapse-meta">
-                                                                    <strong>{{ $analysisGroup->analysis_type_name }}</strong>
-                                                                    @if($analysisGroup->analysis_type_code)
-                                                                        <span class="analysis-code">{{ $analysisGroup->analysis_type_code }}</span>
-                                                                    @endif
-                                                                </div>
-                                                                <div class="analysis-collapse-total">
-                                                                    <span>Total Amount</span>
-                                                                    <strong>{{ number_format((float) $analysisGroup->total_amount, 2) }}</strong>
-                                                                </div>
-                                                            </button>
-
-                                                            <div class="table-responsive modern-table-wrap mt-2"
-                                                                 x-show="open"
-                                                                 x-cloak>
-                                                                <table class="table table-hover modern-table mb-0">
-                                                                    <thead>
-                                                                        <tr>
-                                                                            <th class="fit-col">Select</th>
-                                                                            <th class="fit-col">Actions</th>
-                                                                            <th>Analyte</th>
-                                                                            <th>Method</th>
-                                                                            <th class="text-center">TAT</th>
-                                                                            <th>Cost Price</th>
-                                                                            <th>Selling Price</th>
-                                                                            <th>Profit</th>
-                                                                            <th>Profit Margin</th>
-                                                                            <th>VAT</th>
-                                                                            <th>Status</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        @foreach($analysisGroup->rows as $item)
+                                                <div class="sample-group-body" x-data="{ openPackages: {} }">
+                                                    <div class="table-responsive modern-table-wrap mt-2">
+                                                        <table class="table table-hover modern-table mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th class="fit-col">Select</th>
+                                                                    <th class="fit-col">Actions</th>
+                                                                    <th>Analyte</th>
+                                                                    <th>Method</th>
+                                                                    <th class="text-center">TAT</th>
+                                                                    <th>Cost Price</th>
+                                                                    <th>Selling Price</th>
+                                                                    <th>Profit</th>
+                                                                    <th>Profit Margin</th>
+                                                                    <th>VAT</th>
+                                                                    <th>Status</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach($sampleGroup->rows as $item)
                                                                             @php
                                                                                 $isPackage = ! empty($item->is_package);
                                                                                 $packageItemId = (string) $item->id;
@@ -742,12 +732,10 @@
                                                                                     </td>
                                                                                 </tr>
                                                                             @endif
-                                                                        @endforeach
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
                                                 </div>
                                             </section>
                                         @endforeach
@@ -847,17 +835,13 @@
                                         ])
                                     </div>
                                     <div class="col-md-5">
-                                        <div class="pricelist-mode-chips" role="group" aria-label="Pricing mode">
-                                            <button type="button"
-                                                    class="pricelist-mode-chip {{ empty($itemForm['is_package']) ? 'is-active' : '' }}"
-                                                    wire:click="setItemPricingMode(false)">
-                                                Per test
-                                            </button>
-                                            <button type="button"
-                                                    class="pricelist-mode-chip {{ !empty($itemForm['is_package']) ? 'is-active' : '' }}"
-                                                    wire:click="setItemPricingMode(true)">
-                                                Per package
-                                            </button>
+                                        @php
+                                            $listBillingMode = (string) ($pricelist->billing_mode ?? 'package');
+                                            $listBillingLabel = $listBillingMode === 'per_test' ? 'Per test' : 'Per package';
+                                        @endphp
+                                        <div class="pricelist-mode-chips pricelist-mode-chips--readonly" aria-label="Pricelist billing mode">
+                                            <span class="pricelist-mode-chip is-active">{{ $listBillingLabel }}</span>
+                                            <span class="text-muted small d-block mt-1">Set on the pricelist header. All items follow this mode.</span>
                                         </div>
                                     </div>
                                 </div>
@@ -949,98 +933,18 @@
             </div>
         @endif
 
-        @if($showImportModal)
-            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.55);">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content item-modal-content" wire:click.stop>
-                        <div class="modal-header item-modal-header border-0">
-                            <div>
-                                <span class="item-modal-kicker">Import</span>
-                                <h5 class="modal-title mb-1">Import into pricelist</h5>
-                                <p class="mb-0 text-muted">Choose Excel or PDF, then upload.</p>
-                            </div>
-                            <button type="button" class="btn-close" wire:click="closeImportModal"></button>
-                        </div>
-                        <div class="modal-body item-modal-body">
-                            <div class="item-modal-section mb-3">
-                                <label class="form-label item-modal-label d-block">File type</label>
-                                <div class="pricelist-mode-chips" role="group" aria-label="Import format">
-                                    <button type="button"
-                                            class="pricelist-mode-chip {{ $importFormat === 'excel' ? 'is-active' : '' }}"
-                                            wire:click="$set('importFormat', 'excel')">
-                                        <i class="mdi mdi-file-excel"></i> Excel
-                                    </button>
-                                    <button type="button"
-                                            class="pricelist-mode-chip {{ $importFormat === 'pdf' ? 'is-active' : '' }}"
-                                            wire:click="$set('importFormat', 'pdf')">
-                                        <i class="mdi mdi-file-pdf-box"></i> PDF
-                                    </button>
-                                </div>
-                            </div>
-
-                            @if($importFormat === 'excel')
-                                <div class="item-modal-section mb-3">
-                                    <label class="form-label item-modal-label d-block">Pricing mode for imported rows</label>
-                                    <div class="pricelist-mode-chips" role="group" aria-label="Import pricing mode">
-                                        <button type="button"
-                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_test' ? 'is-active' : '' }}"
-                                                wire:click="$set('importPricingMode', 'per_test')">
-                                            Per test
-                                        </button>
-                                        <button type="button"
-                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_package' ? 'is-active' : '' }}"
-                                                wire:click="$set('importPricingMode', 'per_package')">
-                                            Per package
-                                        </button>
-                                    </div>
-                                    <p class="small text-muted mt-2 mb-0">
-                                        Columns: <code>sample_type</code>, <code>parameters</code> (semicolon-separated), <code>unit_price</code>, optional <code>tax</code>.
-                                        Tax defaults to on. Quantity is set later on the quotation line.
-                                    </p>
-                                </div>
-                            @else
-                                <div class="item-modal-section mb-3">
-                                    <label class="form-label item-modal-label d-block">Pricing mode</label>
-                                    <div class="pricelist-mode-chips" role="group" aria-label="Import pricing mode">
-                                        <button type="button"
-                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_package' ? 'is-active' : '' }}"
-                                                wire:click="$set('importPricingMode', 'per_package')">
-                                            Per package
-                                        </button>
-                                        <button type="button"
-                                                class="pricelist-mode-chip {{ $importPricingMode === 'per_test' ? 'is-active' : '' }}"
-                                                wire:click="$set('importPricingMode', 'per_test')">
-                                            Per test
-                                        </button>
-                                    </div>
-                                    <div class="item-modal-note mt-2 mb-0">
-                                        <i class="mdi mdi-information-outline"></i>
-                                        Use the Amspec quotation-preparation PDF. Rows become package (or per-test) items. The PDF is also saved as this pricelist’s document.
-                                    </div>
-                                </div>
-                            @endif
-
-                            <div class="item-modal-section">
-                                <label class="form-label item-modal-label">File <span class="text-danger">*</span></label>
-                                <input type="file"
-                                       wire:model="importFile"
-                                       class="form-control item-modal-input @error('importFile') is-invalid @enderror"
-                                       accept="{{ $importFormat === 'pdf' ? '.pdf,application/pdf' : '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }}">
-                                @error('importFile') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                <div wire:loading wire:target="importFile" class="small text-muted mt-1">Uploading…</div>
-                            </div>
-                        </div>
-                        <div class="modal-footer border-0 item-modal-footer">
-                            <button type="button" class="btn btn-light item-modal-cancel-btn" wire:click="closeImportModal">Cancel</button>
-                            <button type="button" class="btn btn-primary item-modal-save-btn" wire:click="submitImport" wire:loading.attr="disabled">
-                                <span wire:loading.remove wire:target="submitImport"><i class="mdi mdi-upload"></i> Import</span>
-                                <span wire:loading wire:target="submitImport"><span class="spinner-border spinner-border-sm mr-1"></span> Working…</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
+        @include('layouts.lab.partials.billing.amspec-import-modal', [
+            'context' => 'pricelist',
+            'driver' => 'livewire',
+            'isOpen' => $showImportModal,
+            'importFormat' => $importFormat,
+            'importPricingMode' => $importPricingMode,
+            'closeMethod' => 'closeImportModal',
+            'submitMethod' => 'submitImport',
+            'wireModel' => 'importFile',
+            'errorBag' => 'importFile',
+            'inputId' => 'ls-pricelist-show-import-file',
+        ])
 
         @if($showCloneModal)
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -1114,12 +1018,13 @@
             padding: 8px;
         }
 
-        .modal.show {
+        .pricelist-show-page .modal.show.d-block {
             display: block !important;
             position: fixed;
             inset: 0;
             overflow-y: auto;
             overscroll-behavior: contain;
+            z-index: 1055;
         }
 
         body:has(.pricelist-show-page.modal-active) {

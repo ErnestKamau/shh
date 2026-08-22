@@ -13,6 +13,8 @@ final class LabSystemNotificationService
 
     public const TYPE_QUOTATION_APPROVED_READY_TO_SEND = 'quotation_approved_ready_to_send';
 
+    public const TYPE_LAB_SECTION_WORKSHEET = 'lab_section_worksheet';
+
     /**
      * @param  Collection<int, User>|iterable<User>  $users
      */

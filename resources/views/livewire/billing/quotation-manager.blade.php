@@ -70,7 +70,7 @@
                             class="quotation-stage-tab {{ $stageFilter === 'approval-settings' ? 'is-active' : '' }}"
                             wire:click="setStageFilter('approval-settings')">
                         <i class="mdi mdi-cog-outline"></i>
-                        <span>Approval settings</span>
+                        <span>Approval configuration</span>
                     </button>
                 </div>
             </div>
@@ -204,6 +204,39 @@
                                                                title="Edit in preparation">
                                                                 <i class="mdi mdi-pencil"></i>
                                                             </a>
+                                                            <button type="button"
+                                                                    wire:click="openImportModal(@js((string) $quotation->id))"
+                                                                    class="rm-act-btn rm-act-btn--import"
+                                                                    title="Import lines from Excel or the Amspec quotation-preparation PDF into this quote">
+                                                                <i class="mdi mdi-file-upload-outline"></i>
+                                                            </button>
+                                                        @endif
+                                                        @if($quotation->status === 'Quote In Approval' && in_array((string) $quotation->id, $approvableQuotationIds ?? [], true))
+                                                            <div class="bq-approve-menu" x-data="{ open: false }" @click.outside="open = false">
+                                                                <button type="button"
+                                                                    class="rm-act-btn bq-approve-btn is-awaiting"
+                                                                    title="Approve or reject quotation"
+                                                                    @click.stop="open = !open"
+                                                                    :aria-expanded="open">
+                                                                    <i class="mdi mdi-check-circle"></i>
+                                                                </button>
+                                                                <div class="bq-approve-menu__panel" x-show="open" x-cloak @click.stop>
+                                                                    <button type="button"
+                                                                        class="bq-approve-menu__item"
+                                                                        wire:click="openApproveAndSendModal(@js((string) $quotation->id))"
+                                                                        @click="open = false">
+                                                                        <i class="mdi mdi-check-decagram text-success"></i>
+                                                                        Approve and send
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        class="bq-approve-menu__item bq-approve-menu__item--danger"
+                                                                        wire:click="openRejectModal(@js((string) $quotation->id))"
+                                                                        @click="open = false">
+                                                                        <i class="mdi mdi-close-circle-outline"></i>
+                                                                        Reject
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         @endif
                                                         <a href="{{ route('clone_quotation', ['id' => $quotation->id]) }}"
                                                            class="rm-act-btn rm-act-btn--clone"
@@ -367,8 +400,204 @@
         </div>
     @endif
 
+    @include('layouts.lab.partials.billing.amspec-import-modal', [
+        'context' => 'quotation',
+        'driver' => 'livewire',
+        'isOpen' => $showImportModal,
+        'importFormat' => $importFormat,
+        'importPricingMode' => $importPricingMode,
+        'closeMethod' => 'closeImportModal',
+        'submitMethod' => 'submitImport',
+        'wireModel' => 'importFile',
+        'errorBag' => 'importFile',
+        'inputId' => 'ls-quote-list-import-file',
+    ])
+
     @unless($embedded)
         <livewire:billing.create-enquiry-from-quotation-wizard />
         @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
     @endunless
+
+    <style>
+        .rm-act-btn--import {
+            border: 1px solid #fde68a;
+            color: #b45309;
+            background: #fffbeb;
+        }
+        .rm-act-btn--import:hover {
+            background: #fef3c7;
+            border-color: #fcd34d;
+        }
+    </style>
+
+    @if($showApproveAndSendModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45); overflow-y: auto; z-index: 1065;">
+            <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Approve and send quotation</h5>
+                        <button type="button" class="close" wire:click="closeApproveAndSendModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3" style="color:#334155;">
+                            Approving marks this quotation as fit to send and delivers it to the selected CRM contacts.
+                            Portal delivery is automatic when eligible; email is optional (PDF attachment only).
+                        </p>
+                        <h6 class="font-weight-bold mb-2" style="color:#1e3a8a;">Who will receive this quotation</h6>
+                        <p class="small text-muted mb-2">
+                            Contacts with “Receive quotations” are pre-selected. Company unit and sampling location come from CRM.
+                        </p>
+                        @if(count($approveRecipientOptions) === 0)
+                            <div class="alert alert-warning py-2 small mb-3">
+                                No customer contacts found for this quotation’s customer.
+                            </div>
+                        @else
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th style="width: 2.5rem;"></th>
+                                            <th>Contact</th>
+                                            <th>Company unit</th>
+                                            <th>Sampling location</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($approveRecipientOptions as $recipient)
+                                            @php $checked = in_array((string) $recipient['id'], $approveRecipientContactIds, true); @endphp
+                                            <tr>
+                                                <td class="text-center">
+                                                    <input type="checkbox"
+                                                        @checked($checked)
+                                                        wire:click="toggleApproveRecipient('{{ $recipient['id'] }}')">
+                                                </td>
+                                                <td>
+                                                    <strong>{{ $recipient['name'] }}</strong>
+                                                    <div class="small text-muted">{{ $recipient['email'] }}</div>
+                                                    @if(!empty($recipient['receive_quotations']))
+                                                        <span class="badge badge-light border small">Receives quotations</span>
+                                                    @endif
+                                                </td>
+                                                <td>{{ $recipient['company_unit'] }}</td>
+                                                <td>{{ $recipient['sampling_location'] }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="bq-approve-send-email" wire:model="approveSendEmail">
+                            <label class="form-check-label" for="bq-approve-send-email">
+                                Email quotation PDF to selected contacts (optional)
+                            </label>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="small font-weight-bold" for="bq-approve-comments">Comments (optional)</label>
+                            <textarea id="bq-approve-comments"
+                                class="form-control form-control-sm"
+                                rows="2"
+                                wire:model="approvalDecisionComments"
+                                placeholder="Optional note for the requester"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeApproveAndSendModal">Cancel</button>
+                        <button type="button" class="btn btn-success" wire:click="confirmApproveAndSend" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="confirmApproveAndSend">
+                                <i class="mdi mdi-check-decagram"></i> Approve and send
+                            </span>
+                            <span wire:loading wire:target="confirmApproveAndSend">Approving…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showRejectModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45); z-index: 1065;">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Reject quotation</h5>
+                        <button type="button" class="close" wire:click="closeRejectModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">Provide a reason for returning this quotation to preparation.</p>
+                        <textarea class="form-control"
+                            rows="4"
+                            wire:model="approvalDecisionComments"
+                            placeholder="Rejection reason (required)"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeRejectModal">Cancel</button>
+                        <button type="button" class="btn btn-outline-danger" wire:click="confirmReject" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="confirmReject">Confirm reject</span>
+                            <span wire:loading wire:target="confirmReject">Rejecting…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <style>
+        .bq-approve-menu { position: relative; display: inline-flex; }
+        .bq-approve-btn {
+            background: #ecfdf5 !important;
+            border: 1px solid #a7f3d0 !important;
+            color: #047857 !important;
+        }
+        .bq-approve-btn .mdi {
+            color: #047857 !important;
+            font-size: 1.15rem;
+            animation: bq-approve-shake 1.35s ease-in-out infinite;
+            transform-origin: 50% 55%;
+        }
+        .bq-approve-menu__panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 0.35rem;
+            min-width: 15rem;
+            padding: 0.4rem 0;
+            background: #fff;
+            border: 1px solid #dbe5f0;
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+            z-index: 30;
+        }
+        .bq-approve-menu__item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.55rem 0.9rem;
+            border: 0;
+            background: transparent;
+            text-align: left;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #0369a1;
+            cursor: pointer;
+        }
+        .bq-approve-menu__item:hover { background: #f8fafc; }
+        .bq-approve-menu__item--danger { color: #b91c1c; }
+        .bq-approve-menu__reject { padding: 0.5rem 0.9rem 0.75rem; }
+        @keyframes bq-approve-shake {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            12% { transform: rotate(12deg) scale(1.05); }
+            24% { transform: rotate(-10deg) scale(1.05); }
+            36% { transform: rotate(8deg) scale(1.04); }
+            48% { transform: rotate(-6deg) scale(1.03); }
+            60% { transform: rotate(3deg) scale(1.02); }
+            72% { transform: rotate(0deg) scale(1); }
+        }
+    </style>
+
 </div>

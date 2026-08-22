@@ -16,27 +16,29 @@
             }
 
             return [
-                'id' => (string) $at->id,
+                'value' => (string) $at->id,
                 'label' => $label,
             ];
         })
         ->values()
         ->all();
-    $sampleTypeIdsForRow = array_values(array_filter(array_map('strval', (array) (
-        data_get($this->formData ?? [], 'sample_type_id.'.($rowIndex ?? 0))
-        ?? data_get($this->formData ?? [], 'sample_type.'.($rowIndex ?? 0))
-        ?? []
-    ))));
+    $showLabel = ! ($hideLabel ?? false);
 @endphp
 
-@include('livewire.partials.walk-in-trf-id-label-multi', [
-    'wireKey' => $wirePrefix,
-    'fieldId' => $fieldId,
-    'syncMethod' => 'setWalkInAnalysisTypes',
+<div wire:key="walk-in-analysis-type-{{ $fieldId }}-{{ $rowIndex ?? 'x' }}">
+@include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-dropdown-search', [
+    'label' => $showLabel ? ($label ?? 'Analysis Type') : null,
+    'id' => 'field_'.$fieldId,
+    'name' => 'walk_in_analysis_type_'.$fieldId,
+    'required' => (bool) ($required ?? false),
+    'placeholder' => 'Search analysis type…',
+    'variant' => 'slate',
     'options' => $analysisOptions,
     'selected' => $selectedIds,
-    'remountWhen' => md5(json_encode($sampleTypeIdsForRow)),
-    'placeholder' => 'Choose analysis type(s)…',
-    'emptyHint' => 'Select sample type first.',
-    'searchPlaceholder' => 'Search analysis types…',
+    'wireIgnore' => true,
+    'dataSyncMethod' => 'setWalkInAnalysisTypes',
+    'dataSyncKey' => $wirePrefix,
+    'extraSelectClass' => 'livewire-select2 walk-in-ls-select2',
+    'selectedValuesJson' => json_encode($selectedIds),
 ])
+</div>

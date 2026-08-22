@@ -252,7 +252,9 @@
         $includeResult = (bool) ($payload['include_result_column'] ?? false);
         $fieldRows = array_chunk($fields, 2);
         $catalog = is_array($payload['catalog'] ?? null) ? $payload['catalog'] : null;
-        $isIntegrity = ($payload['context'] ?? '') === 'integrity' && $catalog !== null;
+        $isIntegrity = in_array($payload['context'] ?? '', ['integrity', 'integrity_section'], true) && $catalog !== null;
+        $isSectionWorksheet = ($payload['context'] ?? '') === 'integrity_section';
+        $worksheetNumber = trim((string) ($payload['worksheet_number'] ?? ''));
         $catalogClient = is_array($catalog['client'] ?? null) ? $catalog['client'] : [];
         $catalogAnalysis = is_array($catalog['analysis'] ?? null) ? $catalog['analysis'] : [];
         $catalogSamples = is_array($catalog['samples'] ?? null) ? $catalog['samples'] : [];
@@ -270,6 +272,9 @@
                 <div class="authority-name">{{ config('app.name', 'Laboratory Management System') }}</div>
                 <div class="document-title">{{ $payload['title'] ?? 'Request Tests Worksheet' }}</div>
                 <div class="document-subtitle">Sample and laboratory test assignment schedule</div>
+                @if($worksheetNumber !== '')
+                    <div class="document-subtitle" style="margin-top: 4px; font-weight: bold;">Worksheet: {{ $worksheetNumber }}</div>
+                @endif
             </td>
             <td class="official-cell">
                 <div class="official-label">Official use only</div>
@@ -280,10 +285,12 @@
     </table>
 
     @if($isIntegrity)
-        <div class="section-title">1. Client / Customer information</div>
-        @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogClient, 'empty' => 'No client information available.'])
+        @if(! $isSectionWorksheet)
+            <div class="section-title">1. Client / Customer information</div>
+            @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogClient, 'empty' => 'No client information available.'])
+        @endif
 
-        <div class="section-title">2. Sample details</div>
+        <div class="section-title">{{ $isSectionWorksheet ? '1' : '2' }}. Sample details</div>
         @if($catalogSamples === [])
             <div class="empty-state muted">No sample details available.</div>
         @else
@@ -303,7 +310,7 @@
             @endforeach
         @endif
 
-        <div class="section-title">3. Sample collection information</div>
+        <div class="section-title">{{ $isSectionWorksheet ? '2' : '3' }}. Sample collection information</div>
         @include('sampleworkflow.partials.integrity-pdf-field-grid', ['fields' => $catalogCollection, 'empty' => 'No collection information available.'])
         @if(!empty($remarks))
             <table class="info-grid">
@@ -346,7 +353,7 @@
         @endif
     @endif
 
-    <div class="section-title">{{ $isIntegrity ? '4. Samples and tests by laboratory section' : 'Part B: Samples and Tests by Laboratory Section' }}</div>
+    <div class="section-title">{{ $isIntegrity ? ($isSectionWorksheet ? '3' : '4') : 'Part B' }}. Samples and tests by laboratory section</div>
     @if($sections === [])
         <div class="empty-state muted">No samples or tests found.</div>
     @else
@@ -369,11 +376,19 @@
                             <thead>
                                 <tr>
                                     <th class="serial">S/No</th>
-                                    <th style="width: {{ $includeResult ? '35%' : '43%' }};">Parameter / Test</th>
-                                    <th style="width: {{ $includeResult ? '24%' : '31%' }};">Assigned Analyst(s)</th>
-                                    <th style="width: {{ $includeResult ? '15%' : '20%' }};">Remarks</th>
+                                    <th>Parameter / Test</th>
+                                    @if($isSectionWorksheet)
+                                        <th>TAT</th>
+                                        <th>Method</th>
+                                        <th>LOD</th>
+                                        <th>LOQ</th>
+                                        <th>MU</th>
+                                        <th>Equipment</th>
+                                    @endif
+                                    <th>Assigned Analyst(s)</th>
+                                    <th>Remarks</th>
                                     @if($includeResult)
-                                        <th style="width: 20%;">Result</th>
+                                        <th>Result</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -382,6 +397,14 @@
                                     <tr>
                                         <td class="serial">{{ $testIndex + 1 }}</td>
                                         <td>{{ $test['test_label'] ?? 'Test' }}</td>
+                                        @if($isSectionWorksheet)
+                                            <td>{{ filled($test['tat'] ?? null) ? $test['tat'] : '—' }}</td>
+                                            <td>{{ filled($test['method'] ?? null) ? $test['method'] : '—' }}</td>
+                                            <td>{{ filled($test['lod'] ?? null) ? $test['lod'] : '—' }}</td>
+                                            <td>{{ filled($test['loq'] ?? null) ? $test['loq'] : '—' }}</td>
+                                            <td>{{ filled($test['mu'] ?? null) ? $test['mu'] : '—' }}</td>
+                                            <td>{{ filled($test['equipment'] ?? null) ? $test['equipment'] : '—' }}</td>
+                                        @endif
                                         <td>{{ $test['analysts'] ?? 'None assigned' }}</td>
                                         <td>
                                             @if(!empty($test['subcontracted']))
@@ -396,7 +419,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="{{ $includeResult ? 5 : 4 }}" class="muted">No tests</td>
+                                        <td colspan="20" class="muted">No tests</td>
                                     </tr>
                                 @endforelse
                             </tbody>

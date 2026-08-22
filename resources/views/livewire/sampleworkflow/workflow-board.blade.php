@@ -4050,6 +4050,7 @@
 				</button>
 			</div>
 			<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+			@include('livewire.partials.walk-in-trf-ls-select2-scripts')
 			<div id="request-additional-info-modal" class="modal fade" tabindex="-1" role="dialog">
 				<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 					<div class="modal-content receive-sample-modal-content border-0 shadow">
@@ -7067,6 +7068,9 @@
 					if (typeof window.initWalkInTrfParameterSelects === 'function') {
 						window.initWalkInTrfParameterSelects();
 					}
+					if (typeof window.initWalkInLsSelect2 === 'function') {
+						window.initWalkInLsSelect2();
+					}
 				}, 200);
 			});
 
@@ -7246,6 +7250,9 @@
 					if (typeof window.initTrfSignaturePads === 'function') {
 						window.initTrfSignaturePads();
 					}
+					if (typeof window.initWalkInLsSelect2 === 'function') {
+						window.initWalkInLsSelect2();
+					}
 				}, 150);
 			});
 
@@ -7254,6 +7261,11 @@
 				if (modalBody) {
 					modalBody.scrollTop = 0;
 				}
+				setTimeout(function () {
+					if (typeof window.initWalkInLsSelect2 === 'function') {
+						window.initWalkInLsSelect2();
+					}
+				}, 200);
 			});
 
 			$('#receive-sample-modal').on('hidden.bs.modal', function () {

@@ -402,12 +402,29 @@ class AcceptanceFormPricingService
                 ];
             }
 
+            $billingMode = strtolower(trim((string) ($pricelist->billing_mode ?? '')));
+            if (! in_array($billingMode, ['package', 'per_test'], true)) {
+                $billingMode = collect($items)->contains(fn (array $row): bool => (bool) ($row['is_package'] ?? false))
+                    ? 'package'
+                    : 'per_test';
+            }
+
+            $sampleTypeIds = collect($items)
+                ->pluck('sample_type_id')
+                ->filter(fn ($id): bool => trim((string) $id) !== '')
+                ->unique()
+                ->values()
+                ->all();
+
             $cards[] = [
                 'id' => (string) $pricelist->id,
                 'code' => (string) ($pricelist->code ?? ''),
                 'description' => (string) ($pricelist->description ?? ''),
                 'is_master' => (bool) ($pricelist->is_master ?? false),
                 'currency' => (string) ($pricelist->currency?->code ?? ''),
+                'billing_mode' => $billingMode,
+                'billing_mode_label' => $billingMode === 'per_test' ? 'Per test' : 'Per package',
+                'sample_type_count' => count($sampleTypeIds),
                 'item_count' => count($items),
                 'package_count' => collect($items)->where('is_package', true)->count(),
                 'per_test_count' => collect($items)->where('is_package', false)->count(),
@@ -419,14 +436,12 @@ class AcceptanceFormPricingService
         if ($selected !== null && $selected !== '') {
             $ids = collect($cards)->pluck('id')->all();
             if (! in_array($selected, $ids, true)) {
-                $selected = $cards[0]['id'] ?? null;
+                $selected = null;
             }
-        } else {
-            $selected = $cards[0]['id'] ?? null;
         }
 
         return [
-            'needs_choice' => count($cards) > 1,
+            'needs_choice' => count($cards) > 1 && ($selected === null || $selected === ''),
             'selected_pricelist_id' => $selected,
             'pricelists' => $cards,
         ];

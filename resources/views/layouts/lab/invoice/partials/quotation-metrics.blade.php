@@ -69,10 +69,10 @@
     ];
 @endphp
 
-<div class="quotation-metrics-dashboard px-4 mb-4">
+<div class="quotation-metrics-dashboard mb-0">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <h5 class="mb-1"><i class="mdi mdi-chart-box-outline"></i> Quotation Overview</h5>
+            <h5 class="mb-1"><i class="mdi mdi-chart-box-outline"></i> KPI &amp; stats</h5>
             <p class="text-muted mb-0" style="font-size: 0.9rem;">Key statistics across all quotation activity</p>
         </div>
         <p class="mb-0 text-primary" style="font-size: 0.95rem; font-weight: 500;">
@@ -145,6 +145,7 @@
                     <p class="text-muted mb-0" style="font-size: 0.85rem;">Sent, accepted, success rate and value for the selected period</p>
                 </div>
                 <form method="GET" action="{{ route('quotation-index') }}" class="form-inline">
+                    <input type="hidden" name="page_tab" value="overview">
                     <input type="hidden" name="kpi_start_date" id="kpi_start_date_hidden" value="{{ $kpiStart }}">
                     <input type="hidden" name="kpi_end_date" id="kpi_end_date_hidden" value="{{ $kpiEnd }}">
                     <label class="mr-2 mb-0 text-muted" style="font-size: 0.85rem;">From</label>

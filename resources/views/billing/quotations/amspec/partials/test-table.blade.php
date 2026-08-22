@@ -126,6 +126,9 @@
                     @php
                         $serialNo++;
                         $isPackageHeader = ! empty($row['is_package']);
+                        $showCommercial = array_key_exists('show_commercial_cells', $row)
+                            ? (bool) $row['show_commercial_cells']
+                            : true;
                         $packageParameters = array_values(array_filter(
                             array_map('strval', (array) ($row['package_parameters'] ?? []))
                         ));
@@ -148,22 +151,22 @@
                         @endif
                         @if($showTatColumn)
                             <td class="text-center amspec-num-cell">
-                                @if($rowTat !== null && (int) $rowTat > 0)
+                                @if($showCommercial && $rowTat !== null && (int) $rowTat > 0)
                                     {{ (int) $rowTat }}
                                 @endif
                             </td>
                         @endif
                         @if($showQuantityColumn)
                             <td class="text-center amspec-num-cell">
-                                {{ max(1, (int) ($row['quantity'] ?? 1)) }}
+                                @if($showCommercial)
+                                    {{ max(1, (int) ($row['quantity'] ?? 1)) }}
+                                @endif
                             </td>
                         @endif
                         @if($showUnitPriceColumn)
                             <td class="text-right amspec-price-cell">
-                                @if((float) ($row['unit_price'] ?? 0) > 0)
-                                    {{ number_format((float) $row['unit_price'], 2) }}
-                                @else
-                                    {{ number_format(0, 2) }}
+                                @if($showCommercial)
+                                    {{ number_format((float) ($row['unit_price'] ?? 0), 2) }}
                                 @endif
                             </td>
                         @endif

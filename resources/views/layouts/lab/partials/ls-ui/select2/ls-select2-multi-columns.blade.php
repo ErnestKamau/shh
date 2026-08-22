@@ -27,6 +27,7 @@
 				'meta' => (string) ($opt['meta'] ?? ''),
 				'meta_method' => (string) ($opt['meta_method'] ?? ''),
 				'meta_lab' => (string) ($opt['meta_lab'] ?? ''),
+				'meta_analysis_type' => (string) ($opt['meta_analysis_type'] ?? ''),
 			];
 			continue;
 		}
@@ -36,6 +37,7 @@
 			'meta' => is_array($opt) ? (string) ($opt['meta'] ?? '') : '',
 			'meta_method' => is_array($opt) ? (string) ($opt['meta_method'] ?? '') : '',
 			'meta_lab' => is_array($opt) ? (string) ($opt['meta_lab'] ?? '') : '',
+			'meta_analysis_type' => is_array($opt) ? (string) ($opt['meta_analysis_type'] ?? '') : '',
 		];
 	}
 @endphp
@@ -56,6 +58,8 @@
 			@if(! empty($required)) required @endif
 			@if(! empty($dataWireField)) data-wire-field="{{ $dataWireField }}" @endif
 			@if(! empty($dataSelectLive)) data-select-live="{{ $dataSelectLive }}" @endif
+			@if(! empty($dataSyncMethod)) data-sync-method="{{ $dataSyncMethod }}" @endif
+			@if(! empty($dataSyncKey)) data-sync-key="{{ $dataSyncKey }}" @endif
 			@if(! empty($selectedValuesJson)) data-selected-values="{{ $selectedValuesJson }}" @endif
 			style="width: 100%;"
 		>
@@ -65,6 +69,7 @@
 					data-meta="{{ $opt['meta'] }}"
 					data-meta-method="{{ $opt['meta_method'] }}"
 					data-meta-lab="{{ $opt['meta_lab'] }}"
+					data-meta-analysis-type="{{ $opt['meta_analysis_type'] }}"
 					@selected(in_array($opt['value'], $selected, true))
 				>{{ $opt['label'] }}</option>
 			@endforeach

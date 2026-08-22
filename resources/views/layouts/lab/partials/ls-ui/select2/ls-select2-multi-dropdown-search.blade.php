@@ -56,6 +56,8 @@
 			@if(! empty($dataWireField)) data-wire-field="{{ $dataWireField }}" @endif
 			@if(! empty($dataSelectLive)) data-select-live="{{ $dataSelectLive }}" @endif
 			@if(! empty($selectedValuesJson)) data-selected-values="{{ $selectedValuesJson }}" @endif
+			@if(! empty($dataSyncMethod)) data-sync-method="{{ $dataSyncMethod }}" @endif
+			@if(! empty($dataSyncKey)) data-sync-key="{{ $dataSyncKey }}" @endif
 			style="width: 100%;"
 		>
 			@if(! $isMultiple)

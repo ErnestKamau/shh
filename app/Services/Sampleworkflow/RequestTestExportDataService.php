@@ -2,6 +2,7 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\AnalysisElements;
 use App\CapturedResult;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
@@ -104,6 +105,155 @@ final class RequestTestExportDataService
             flatRows: $flatRows,
             catalog: $catalog,
         );
+    }
+
+    /**
+     * Build a single-lab-section integrity worksheet payload (no client block).
+     *
+     * @param  list<array<string, mixed>>  $testRows
+     * @param  array<string, string>  $labSectionNames
+     * @param  array<string, string>  $analystNamesById
+     * @return array<string, mixed>
+     */
+    public function buildFromIntegrityRowsForSection(
+        SubmissionFormInstance $instance,
+        ?SampleSubmissionRequest $enquiry,
+        array $testRows,
+        string $labSectionId,
+        array $labSectionNames = [],
+        array $analystNamesById = [],
+        ?string $worksheetNumber = null,
+    ): array {
+        $filteredRows = [];
+        foreach ($testRows as $row) {
+            if (! empty($row['subcontracted'])) {
+                continue;
+            }
+            $sectionIds = array_map('strval', is_array($row['lab_section_ids'] ?? null) ? $row['lab_section_ids'] : []);
+            if (! in_array($labSectionId, $sectionIds, true)) {
+                continue;
+            }
+            $filteredRows[] = $row;
+        }
+
+        $flatRows = [];
+        foreach ($filteredRows as $row) {
+            $analystsBySection = is_array($row['analysts_by_lab_section'] ?? null)
+                ? $row['analysts_by_lab_section']
+                : [];
+            $analystIds = array_values(array_filter(array_map(
+                'strval',
+                is_array($analystsBySection[$labSectionId] ?? null) ? $analystsBySection[$labSectionId] : []
+            )));
+            $analystNames = [];
+            foreach ($analystIds as $analystId) {
+                $name = trim((string) ($analystNamesById[$analystId] ?? ''));
+                if ($name !== '') {
+                    $analystNames[] = $name;
+                }
+            }
+
+            $flatRows[] = [
+                'captured_result_id' => null,
+                'batch_id' => null,
+                'batch_code' => '',
+                'row_key' => (string) ($row['row_key'] ?? ''),
+                'config_id' => (string) ($row['config_id'] ?? ''),
+                'element_id' => (string) ($row['element_id'] ?? ''),
+                'lab_section_id' => $labSectionId,
+                'lab_section_name' => (string) ($labSectionNames[$labSectionId] ?? 'Lab section'),
+                'sample_label' => (string) ($row['sample_label'] ?? 'Sample'),
+                'sample_code' => (string) ($row['sample_label'] ?? 'Sample'),
+                'test_label' => (string) ($row['test_label'] ?? 'Test'),
+                'analysts' => $analystNames !== [] ? implode(', ', $analystNames) : 'None assigned',
+                'subcontracted' => false,
+                'result' => '',
+                'worksheet_number' => $worksheetNumber,
+                'tat' => (string) ($row['tat'] ?? ''),
+                'method' => (string) ($row['method'] ?? ''),
+            ];
+        }
+
+        $flatRows = $this->enrichFlatRowsWithElementMetrics($flatRows);
+
+        $catalog = $this->integrityCheckService->integrityPdfCatalog($instance, $enquiry);
+        unset($catalog['client']);
+
+        $reference = trim((string) ($enquiry?->formatted_number
+            ?? $enquiry?->request_number
+            ?? $instance->code
+            ?? $instance->id));
+
+        $sectionName = (string) ($labSectionNames[$labSectionId] ?? 'Lab section');
+
+        return $this->assemblePayload(
+            title: 'Lab Section Worksheet — '.$sectionName,
+            reference: $reference !== '' ? $reference : (string) $instance->id,
+            context: 'integrity_section',
+            includeResultColumn: true,
+            requestInfo: ['fields' => [], 'remarks' => null],
+            flatRows: $flatRows,
+            catalog: $catalog,
+            worksheetNumber: $worksheetNumber,
+        );
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $flatRows
+     * @return list<array<string, mixed>>
+     */
+    private function enrichFlatRowsWithElementMetrics(array $flatRows): array
+    {
+        $elementIds = array_values(array_unique(array_filter(array_map(
+            static fn (array $row): string => (string) ($row['element_id'] ?? ''),
+            $flatRows,
+        ))));
+
+        if ($elementIds === []) {
+            return $flatRows;
+        }
+
+        $elements = AnalysisElements::query()
+            ->with(['mmethod', 'ltmethod', 'equipment'])
+            ->whereIn('id', $elementIds)
+            ->get()
+            ->keyBy(fn (AnalysisElements $element): string => (string) $element->id);
+
+        foreach ($flatRows as $index => $row) {
+            $element = $elements->get((string) ($row['element_id'] ?? ''));
+            if ($element === null) {
+                continue;
+            }
+
+            $method = trim((string) ($element->mmethod?->name ?? $element->ltmethod?->name ?? ''));
+            if ($method === '' && filled($row['method'] ?? null)) {
+                $method = (string) $row['method'];
+            }
+
+            $flatRows[$index]['method'] = $method;
+            $flatRows[$index]['lod'] = $this->formatMetric($element->lod);
+            $flatRows[$index]['loq'] = $this->formatMetric($element->hod);
+            $flatRows[$index]['mu'] = $this->formatMetric($element->measurement_uncertainty);
+            $flatRows[$index]['tat'] = trim((string) ($element->reporting_time ?? $row['tat'] ?? ''));
+            $flatRows[$index]['equipment'] = trim((string) ($element->equipment?->name ?? ''));
+        }
+
+        return $flatRows;
+    }
+
+    private function formatMetric(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if (is_numeric($value)) {
+            $formatted = rtrim(rtrim(number_format((float) $value, 6, '.', ''), '0'), '.');
+
+            return $formatted === '' ? '0' : $formatted;
+        }
+
+        return trim((string) $value);
     }
 
     /**
@@ -241,6 +391,7 @@ final class RequestTestExportDataService
         array $requestInfo,
         array $flatRows,
         ?array $catalog = null,
+        ?string $worksheetNumber = null,
     ): array {
         $sectionsMap = [];
 
@@ -274,6 +425,12 @@ final class RequestTestExportDataService
                 'analysts' => (string) ($row['analysts'] ?? ''),
                 'subcontracted' => (bool) ($row['subcontracted'] ?? false),
                 'result' => (string) ($row['result'] ?? ''),
+                'tat' => (string) ($row['tat'] ?? ''),
+                'method' => (string) ($row['method'] ?? ''),
+                'lod' => (string) ($row['lod'] ?? ''),
+                'loq' => (string) ($row['loq'] ?? ''),
+                'mu' => (string) ($row['mu'] ?? ''),
+                'equipment' => (string) ($row['equipment'] ?? ''),
             ];
         }
 
@@ -305,6 +462,7 @@ final class RequestTestExportDataService
             'include_result_column' => $includeResultColumn,
             'request_info' => $requestInfo,
             'catalog' => $catalog,
+            'worksheet_number' => $worksheetNumber,
             'sections' => $sections,
             'flat_rows' => array_values($flatRows),
         ];

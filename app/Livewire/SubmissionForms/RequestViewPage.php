@@ -28,8 +28,10 @@ use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionFormInstanceSampleRowUpdateService;
 use App\Services\SubmissionForm\SubmissionFormInstanceTrfEditService;
+use App\Support\TrfToast;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
+use App\Services\Sampleworkflow\WalkInParameterCatalogService;
 use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -1793,7 +1795,7 @@ class RequestViewPage extends Component
 
         $presenter = $this->requestViewPresenter();
         if (! $presenter->canEditSampleRows()) {
-            session()->flash('request_view_message', 'Request details can no longer be edited after reception.');
+            TrfToast::dispatch($this, 'error', 'Request details can no longer be edited after reception.');
             $this->closeTrfEditor();
 
             return;
@@ -1822,7 +1824,7 @@ class RequestViewPage extends Component
                 ->first();
 
         $this->closeTrfEditor();
-        session()->flash('request_view_message', 'Request details updated successfully.');
+        TrfToast::dispatch($this, 'success', 'Request details updated successfully.', 'TRF updated', 'celebrate');
     }
 
     public function closeSampleRowEditor(): void
@@ -1895,27 +1897,27 @@ class RequestViewPage extends Component
 
     public function updated($property): void
     {
-        if (! in_array($property, ['editingRowFields.sample_type_id', 'editingRowFields.analysis_type_id'], true)) {
+        if ($property === 'editingRowFields.parameters') {
+            $parameterIds = $this->normalizeRowSelectValues($this->editingRowFields['parameters'] ?? null);
+            $this->editingRowFields['analysis_type_id'] = app(WalkInParameterCatalogService::class)
+                ->deriveAnalysisTypeIds($parameterIds);
+
             return;
         }
 
-        $cleared = [];
-
-        if ($property === 'editingRowFields.sample_type_id') {
-            $this->editingRowFields['analysis_type_id'] = [];
-            $this->editingRowFields['parameters'] = [];
-            $cleared = ['analysis_type_id', 'parameters'];
-        } elseif ($property === 'editingRowFields.analysis_type_id') {
-            $this->editingRowFields['parameters'] = [];
-            $cleared = ['parameters'];
+        if ($property !== 'editingRowFields.sample_type_id') {
+            return;
         }
+
+        $this->editingRowFields['analysis_type_id'] = [];
+        $this->editingRowFields['parameters'] = [];
 
         $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
 
         $this->dispatch(
             'sample-row-select-options-refreshed',
             options: $this->editingRowSelectOptions,
-            cleared: $cleared,
+            cleared: ['parameters'],
         );
 
         $this->skipRender();
@@ -1927,7 +1929,7 @@ class RequestViewPage extends Component
 
         $presenter = $this->requestViewPresenter();
         if (! $presenter->canEditSampleRows()) {
-            session()->flash('request_view_message', 'Sample rows can no longer be edited after reception.');
+            TrfToast::dispatch($this, 'error', 'Sample rows can no longer be edited after reception.');
             $this->closeSampleRowEditor();
 
             return;
@@ -1936,6 +1938,10 @@ class RequestViewPage extends Component
         if ($this->editingRowIndex === null) {
             return;
         }
+
+        $parameterIds = $this->normalizeRowSelectValues($this->editingRowFields['parameters'] ?? null);
+        $this->editingRowFields['analysis_type_id'] = app(WalkInParameterCatalogService::class)
+            ->deriveAnalysisTypeIds($parameterIds);
 
         $service = app(SubmissionFormInstanceSampleRowUpdateService::class);
         $this->instance = $service->updateRow(
@@ -1951,7 +1957,7 @@ class RequestViewPage extends Component
                 ->first();
 
         $this->closeSampleRowEditor();
-        session()->flash('request_view_message', 'Sample row updated successfully.');
+        TrfToast::dispatch($this, 'success', 'Sample row updated successfully.', 'Sample saved', 'celebrate');
     }
 
     public function isWaterTrf(): bool
@@ -2063,14 +2069,12 @@ class RequestViewPage extends Component
         $optionsService = app(PortalDynamicOptionsService::class);
         $customerId = trim((string) ($this->instance->crm_customer_id ?? ''));
         $sampleTypeIds = $this->normalizeRowSelectValues($rowFields['sample_type_id'] ?? null);
-        $analysisTypeIds = $this->normalizeRowSelectValues($rowFields['analysis_type_id'] ?? null);
 
-        $resolve = function (string $elementType, array $extra = []) use ($optionsService, $customerId, $sampleTypeIds, $analysisTypeIds): array {
+        $resolve = function (string $elementType, array $extra = []) use ($optionsService, $customerId, $sampleTypeIds): array {
             $request = HttpRequest::create('/', 'GET', array_merge([
                 'element_type' => $elementType,
                 'client_id' => $customerId !== '' ? $customerId : null,
                 'sample_type_id' => $sampleTypeIds !== [] ? $sampleTypeIds : null,
-                'analysis_type_id' => $analysisTypeIds !== [] ? $analysisTypeIds : null,
                 'submission_form_id' => $this->submissionForm->id,
             ], $extra));
 
@@ -2089,11 +2093,6 @@ class RequestViewPage extends Component
                 $this->normalizeRowSelectValues($rowFields['sample_type_id'] ?? null),
                 fn (string $id): ?string => \App\SampleType::query()->whereKey($id)->value('name'),
             ),
-            'analysis_type_id' => $this->mergeSelectedSelectOptions(
-                $resolve('analysis_type_select'),
-                $this->normalizeRowSelectValues($rowFields['analysis_type_id'] ?? null),
-                fn (string $id): ?string => \App\AnalysisType::query()->whereKey($id)->value('name'),
-            ),
             'parameters' => $this->enrichParameterSelectOptions(
                 $this->mergeSelectedSelectOptions(
                     $resolve('analysis_elements_select'),
@@ -2106,6 +2105,110 @@ class RequestViewPage extends Component
     }
 
     /**
+     * @return array{
+     *     selected: list<string>,
+     *     options: list<array{id: string, name: string}>,
+     *     groups: list<array{analysis_type_id: string, analysis_type: string, sample_type: string, tests: list<array{id: string, name: string}>}>
+     * }
+     */
+    public function editingRowParameterPickerState(): array
+    {
+        $sampleTypeIds = $this->normalizeRowSelectValues($this->editingRowFields['sample_type_id'] ?? null);
+        $catalog = app(WalkInParameterCatalogService::class);
+        $groups = $sampleTypeIds === [] ? [] : $catalog->groupsForSampleTypes($sampleTypeIds);
+        $options = $catalog->flattenGroups($groups);
+        $selected = $this->normalizeRowSelectValues($this->editingRowFields['parameters'] ?? null);
+        $normalized = $catalog->normalizeSelection($selected, $groups);
+
+        if ($normalized === [] && $selected !== []) {
+            $normalized = $catalog->filterKnownParameterIds($selected);
+        }
+
+        return [
+            'selected' => $normalized,
+            'options' => $options,
+            'groups' => $groups,
+        ];
+    }
+
+    /**
+     * @param  list<string|int|float>  $parameters
+     * @return array{
+     *     selected: list<string>,
+     *     paramNames: list<string>,
+     *     analysisTypeIds: list<string>,
+     *     analysisTypeNames: list<string>,
+     *     analysisLabel: string,
+     *     count: int
+     * }
+     */
+    public function setEditingRowParameters(array $parameters): array
+    {
+        $catalog = app(WalkInParameterCatalogService::class);
+        $sampleTypeIds = $this->normalizeRowSelectValues($this->editingRowFields['sample_type_id'] ?? null);
+        $groups = $sampleTypeIds === [] ? [] : $catalog->groupsForSampleTypes($sampleTypeIds);
+        $incoming = $this->normalizeRowSelectValues($parameters);
+        $normalized = $catalog->normalizeSelection($incoming, $groups);
+
+        if ($normalized === [] && $incoming !== []) {
+            $normalized = $catalog->filterKnownParameterIds($incoming);
+        }
+
+        $this->editingRowFields['parameters'] = $normalized;
+        $this->editingRowFields['analysis_type_id'] = $catalog->deriveAnalysisTypeIds($normalized);
+
+        if ($this->trfEditExpandedSampleIndex !== null) {
+            $this->trfEditSampleDrafts[$this->trfEditExpandedSampleIndex] = $this->editingRowFields;
+        }
+
+        $paramNames = collect($normalized)
+            ->map(function (string $id) use ($groups): string {
+                foreach ($groups as $group) {
+                    foreach ($group['tests'] ?? [] as $test) {
+                        if ((string) ($test['id'] ?? '') === $id) {
+                            return (string) ($test['name'] ?? $id);
+                        }
+                    }
+                }
+
+                return $id;
+            })
+            ->values()
+            ->all();
+
+        $analysisTypeIds = $this->normalizeRowSelectValues($this->editingRowFields['analysis_type_id'] ?? null);
+        $analysisTypeNames = $analysisTypeIds === []
+            ? []
+            : \App\AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->orderBy('name')
+                ->pluck('name')
+                ->map(static fn ($name): string => (string) $name)
+                ->values()
+                ->all();
+
+        $result = [
+            'selected' => $normalized,
+            'paramNames' => $paramNames,
+            'analysisTypeIds' => $analysisTypeIds,
+            'analysisTypeNames' => $analysisTypeNames,
+            'analysisLabel' => $analysisTypeNames !== []
+                ? implode(', ', array_slice($analysisTypeNames, 0, 2)).(count($analysisTypeNames) > 2 ? '…' : '')
+                : '',
+            'count' => count($normalized),
+        ];
+
+        $this->dispatch(
+            'walk-in-params-row-reset',
+            rowIndex: -1,
+            selected: $normalized,
+            paramNames: $paramNames,
+        );
+
+        return $result;
+    }
+
+    /**
      * Enrich parameter options with report display label + method/lab-section meta for multi-column Select2.
      *
      * @param  list<array{value: mixed, label: string}>  $options
@@ -2113,47 +2216,7 @@ class RequestViewPage extends Component
      */
     private function enrichParameterSelectOptions(array $options): array
     {
-        $ids = collect($options)
-            ->map(fn (array $option): string => (string) ($option['value'] ?? ''))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($ids === []) {
-            return $options;
-        }
-
-        $elements = \App\AnalysisElements::query()
-            ->with(['analyte', 'mmethod', 'ltmethod', 'labSection'])
-            ->whereIn('id', $ids)
-            ->get()
-            ->keyBy(fn ($element) => (string) $element->id);
-
-        return collect($options)->map(function (array $option) use ($elements): array {
-            $id = (string) ($option['value'] ?? '');
-            $element = $elements->get($id);
-            if ($element === null) {
-                return $option;
-            }
-
-            $reportDisplay = trim((string) ($element->report_display_name ?? ''));
-            if ($reportDisplay === '') {
-                $reportDisplay = trim((string) ($element->analyte?->plainReportDisplay() ?? $element->analyte?->code ?? ''));
-            }
-            if ($reportDisplay === '') {
-                $reportDisplay = trim((string) ($option['label'] ?? $id));
-            }
-
-            $method = trim((string) ($element->mmethod?->name ?? $element->ltmethod?->name ?? ''));
-            $labSection = trim((string) ($element->labSection?->name ?? ''));
-
-            $option['label'] = $reportDisplay;
-            $option['meta_method'] = $method;
-            $option['meta_lab'] = $labSection;
-
-            return $option;
-        })->values()->all();
+        return app(WalkInParameterCatalogService::class)->enrichSelectOptions($options);
     }
 
     /**
@@ -2257,6 +2320,21 @@ class RequestViewPage extends Component
      * }>
      */
     public function getCustodyTimelineProperty(): Collection
+    {
+        $preLabCutoff = $this->resolvePreLabCustodyCutoff();
+
+        return app(BatchCustodyTimelineBuilder::class)->buildForInstance(
+            $this->instance,
+            '',
+            $preLabCutoff,
+        );
+    }
+
+    /**
+     * @deprecated Kept for reference — timeline now built via BatchCustodyTimelineBuilder.
+     * @return Collection<int, object>
+     */
+    private function legacyCustodyTimelineProperty(): Collection
     {
         $events = collect();
         $preLabCutoff = $this->resolvePreLabCustodyCutoff();
@@ -2391,7 +2469,7 @@ class RequestViewPage extends Component
     public function syncRequestQuotation(): void
     {
         if ($this->commercialEnquiry === null) {
-            $this->dispatch('notify', type: 'error', message: 'No commercial enquiry is linked to this request.');
+            TrfToast::dispatch($this, 'error', 'No commercial enquiry is linked to this request.');
 
             return;
         }
@@ -2414,9 +2492,9 @@ class RequestViewPage extends Component
                 $message .= ' Quotation content changed since send — use Process enquiry to send again if needed.';
             }
 
-            $this->dispatch('notify', type: 'success', message: $message);
+            TrfToast::dispatch($this, 'success', $message, 'Tests synced', 'glass');
         } catch (\Throwable $exception) {
-            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
+            TrfToast::dispatch($this, 'error', $exception->getMessage());
         }
     }
 

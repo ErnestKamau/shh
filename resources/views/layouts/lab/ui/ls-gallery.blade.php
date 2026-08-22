@@ -51,6 +51,9 @@
 		<a href="#ls-sec-dropdown-menus" onclick="document.getElementById('ls-sec-dropdown-menus').open=true">Dropdown menus</a>
 		<a href="#ls-sec-typography" onclick="document.getElementById('ls-sec-typography').open=true">Typography</a>
 		<a href="#ls-sec-trf-field-grids" onclick="document.getElementById('ls-sec-trf-field-grids').open=true">TRF field grids</a>
+		<a href="#ls-sec-rich-text-columns-2" onclick="document.getElementById('ls-sec-rich-text-columns-2').open=true">Rich text columns (2)</a>
+		<a href="#ls-sec-trf-food-water-steppers" onclick="document.getElementById('ls-sec-trf-food-water-steppers').open=true">Food / Water TRF steppers</a>
+		<a href="#ls-sec-toast-notifications" onclick="document.getElementById('ls-sec-toast-notifications').open=true">Toast notifications</a>
 		<a href="#ls-sec-drag-and-drop-2" onclick="document.getElementById('ls-sec-drag-and-drop-2').open=true">Drag and drop (2)</a>
 	</nav>
 
@@ -544,6 +547,122 @@
 		</div>
 	</details>
 
+	{{-- Rich text columns (TRF sample description) --}}
+	<details class="ls-gallery-section" id="ls-sec-rich-text-columns-2" open>
+		<summary>
+			<div>
+				<h3>Rich text columns (2)</h3>
+				<p class="lead-muted">Modern replacements for TRF sample description: <strong>inline column</strong> (card / full-width) and <strong>table cell expand</strong> (no legacy Bootstrap modal). TinyMCE hooks via <code>$wireModel</code> + <code>$editorId</code>.</p>
+			</div>
+		</summary>
+		<div class="ls-gallery-section__body">
+			<div class="row mb-3">
+				<div class="col-lg-5 mb-3">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">Current TRF (reference)</code>
+						<p class="small text-muted mb-2">Bare TinyMCE / outline modal button — flat toolbar, no ls-field chrome.</p>
+						<div class="ls-rich-text-legacy">
+							<div class="ls-rich-text-legacy__toolbar">B · I · U · list</div>
+							<div class="ls-rich-text-legacy__body">Composite sample from line 3 — retain cold chain notes…</div>
+						</div>
+						<button type="button" class="btn btn-outline-secondary btn-sm mt-2" disabled>
+							<i class="mdi mdi-pencil-outline"></i> Edit description
+						</button>
+					</div>
+				</div>
+				<div class="col-lg-7 mb-3">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-inline')</code>
+						@include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-inline', [
+							'label' => 'Sample description',
+							'name' => 'demo_rich_inline',
+							'required' => true,
+							'hint' => 'Card column — ls-field label, soft toolbar, focus ring. Wire TinyMCE with $wireModel in production.',
+							'value' => '<p>Composite sample from line 3 — retain <strong>cold chain</strong> notes and batch reference on label.</p>',
+						])
+					</div>
+					<div class="ls-gallery-demo mt-3">
+						@include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-inline', [
+							'label' => 'Sample description',
+							'name' => 'demo_rich_inline_err',
+							'error' => 'Description is required for this sample type.',
+							'compact' => true,
+						])
+					</div>
+				</div>
+			</div>
+
+			<div class="ls-gallery-demo">
+				<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell') — in capture table</code>
+				<p class="small text-muted mb-2">Table cell: truncated preview + expand panel (click row cell to edit).</p>
+				<div class="ls-table-wrap ls-table-wrap--cell-expand">
+					<table class="ls-table ls-table--dense mb-0" style="min-width: 36rem;">
+						<thead>
+							<tr>
+								<th>#</th>
+								<th>Sample type</th>
+								<th style="min-width: 14rem;">Description</th>
+								<th>Qty</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>1</td>
+								<td>Seafood composite</td>
+								<td style="position: relative; overflow: visible;">
+									@include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+										'rowLabel' => 'Sample 1',
+										'value' => '<p>Seafood composite — <strong>lot B-441</strong>, keep refrigerated.</p>',
+										'hint' => 'Supports bold, lists, and multi-line notes.',
+									])
+								</td>
+								<td>3</td>
+							</tr>
+							<tr>
+								<td>2</td>
+								<td>Swab</td>
+								<td style="position: relative; overflow: visible;">
+									@include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+										'rowLabel' => 'Sample 2',
+										'preview' => 'Add description…',
+										'compact' => true,
+									])
+								</td>
+								<td>1</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</details>
+
+	{{-- Food / Water TRF stepper card forms (Edit request details) --}}
+	<details class="ls-gallery-section" id="ls-sec-trf-food-water-steppers" open>
+		<summary>
+			<div>
+				<h3>Food / Water TRF steppers</h3>
+				<p class="lead-muted">Full Customer → Collection → Samples steppers using the <strong>exact Edit request details columns</strong>: <code>ls-field-search-basic</code>, <code>ls-select2-multi-dropdown-search</code>, <code>ls-select2-multi-columns</code>, <code>ls-field-affix</code> (Qty/Unit), option chips. Water adds Test requirement.</p>
+			</div>
+		</summary>
+		<div class="ls-gallery-section__body">
+			<div class="row">
+				<div class="col-lg-6 mb-3">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.forms.ls-trf-food-stepper-form')</code>
+						@include('layouts.lab.partials.ls-ui.forms.ls-trf-food-stepper-form', ['step' => 1])
+					</div>
+				</div>
+				<div class="col-lg-6 mb-3">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.forms.ls-trf-water-stepper-form')</code>
+						@include('layouts.lab.partials.ls-ui.forms.ls-trf-water-stepper-form', ['step' => 3])
+					</div>
+				</div>
+			</div>
+		</div>
+	</details>
+
 	{{-- Quotation composites --}}
 	<details class="ls-gallery-section" id="ls-sec-quotation">
 		<summary>
@@ -580,6 +699,23 @@
 	</details>
 
 	{{-- DnD --}}
+	{{-- Toast notifications --}}
+	<details class="ls-gallery-section" id="ls-sec-toast-notifications">
+		<summary>
+			<div>
+				<h3>Toast notifications</h3>
+				<p class="text-muted small mb-0">Imara toast stack — four motion variants used on TRF fill, direct registration, and request view.</p>
+			</div>
+		</summary>
+		<div class="ls-gallery-section__body">
+			<code class="ls-gallery-include">window.showImaraToast({ type, title, message, variant })</code>
+			<div class="ls-gallery-demo ls-compact-wide mt-3" x-data="{ showImaraToast: window.showImaraToast }">
+				@include('layouts.lab.partials.ls-ui.feedback.ls-toast-gallery')
+			</div>
+		</div>
+	</details>
+
+	{{-- Drag and drop --}}
 	<details class="ls-gallery-section" id="ls-sec-drag-and-drop-2">
 		<summary>
 			<div>

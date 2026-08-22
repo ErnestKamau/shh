@@ -28,6 +28,7 @@ use App\Services\Planner\SamplingScheduleSamplePlanHistoryRecorder;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
 use App\Services\SubmissionForm\SubmissionFormSubmissionService;
+use App\Services\Sampleworkflow\WalkInParameterCatalogService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 
 class ScheduleSamplingManager extends Component
@@ -1848,6 +1849,20 @@ class ScheduleSamplingManager extends Component
         ), static fn (string $id): bool => $id !== '')));
 
         data_set($this->formData, $relative, $ids);
+
+        $rowIndex = null;
+        if (preg_match('/^(?:sample_type_id|sample_type)\.(\d+)$/', $relative, $matches)) {
+            $rowIndex = (int) $matches[1];
+        }
+
+        foreach (['analysis_type_id', 'analysis_type', 'analysis_types', 'parameter', 'parameters'] as $key) {
+            if (! array_key_exists($key, $this->formData)) {
+                continue;
+            }
+            if ($rowIndex !== null && is_array($this->formData[$key])) {
+                $this->formData[$key][$rowIndex] = in_array($key, ['parameter', 'parameters', 'analysis_type_id', 'analysis_type', 'analysis_types'], true) ? [] : '';
+            }
+        }
     }
 
     /**
@@ -1930,75 +1945,68 @@ class ScheduleSamplingManager extends Component
     }
 
     /**
-     * @return list<array{analysis_type_id: string, analysis_type: string, sample_type: string, tests: list<array{id: string, name: string}>}>
+     * @return list<array{value: string, label: string, meta?: string, meta_method?: string, meta_lab?: string}>
      */
-    private function parameterGroupsForRow(int $rowIndex): array
+    public function walkInParameterSelectOptions(int $rowIndex = 0): array
     {
-        $selectedIds = [];
-        foreach (['analysis_type_id', 'analysis_type', 'analysis_types'] as $key) {
+        $picker = $this->walkInParameterPickerState($rowIndex);
+        $base = collect($picker['options'] ?? [])
+            ->map(static fn (array $option): array => [
+                'value' => (string) ($option['id'] ?? ''),
+                'label' => (string) ($option['name'] ?? $option['id'] ?? ''),
+            ])
+            ->filter(static fn (array $option): bool => $option['value'] !== '')
+            ->values()
+            ->all();
+
+        return app(WalkInParameterCatalogService::class)->enrichSelectOptions($base);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveSampleTypeIdsForScheduleRow(int $rowIndex): array
+    {
+        $ids = [];
+        foreach (['sample_type_id', 'sample_type'] as $key) {
             $value = $this->formData[$key] ?? null;
-            $value = is_array($value) ? ($value[$rowIndex] ?? null) : null;
-            if ($value === null || $value === '') {
+            $cell = is_array($value) ? ($value[$rowIndex] ?? null) : null;
+            if ($cell === null || $cell === '') {
                 continue;
             }
-            if (! is_array($value)) {
-                $value = [(string) $value];
+            if (! is_array($cell)) {
+                $cell = [(string) $cell];
             }
-            foreach ($value as $item) {
+            foreach ($cell as $item) {
                 if (is_scalar($item) && (string) $item !== '') {
-                    $selectedIds[] = (string) $item;
+                    $ids[] = (string) $item;
                 }
             }
         }
-        $selectedIds = array_values(array_unique($selectedIds));
-        if ($selectedIds === []) {
+
+        if ($ids === [] && $this->selectedSampleTypeId) {
+            $ids[] = (string) $this->selectedSampleTypeId;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    private function walkInParameterCatalog(): WalkInParameterCatalogService
+    {
+        return app(WalkInParameterCatalogService::class);
+    }
+
+    /**
+     * @return list<array{analysis_type_id: string, analysis_type: string, sample_type: string, tests: list<array<string, mixed>>}>
+     */
+    private function parameterGroupsForRow(int $rowIndex): array
+    {
+        $sampleTypeIds = $this->resolveSampleTypeIdsForScheduleRow($rowIndex);
+        if ($sampleTypeIds === []) {
             return [];
         }
 
-        $analysisTypes = $this->analysisTypesForRow($rowIndex);
-        if ($analysisTypes instanceof \Illuminate\Database\Eloquent\Collection) {
-            $analysisTypes->loadMissing('sample_type');
-        }
-
-        $matchedTypes = $analysisTypes->filter(function ($analysisType) use ($selectedIds): bool {
-            return in_array((string) $analysisType->id, $selectedIds, true)
-                || in_array((string) $analysisType->name, $selectedIds, true);
-        })->values();
-
-        if ($matchedTypes->isEmpty()) {
-            return [];
-        }
-
-        $testsByTypeId = \App\AnalysisElements::query()
-            ->whereIn('analysis_type_id', $matchedTypes->modelKeys())
-            ->where('active', 1)
-            ->with('analyte:id,name')
-            ->get()
-            ->groupBy(static fn (\App\AnalysisElements $row): string => (string) $row->analysis_type_id)
-            ->map(static function ($rows): array {
-                return $rows
-                    ->filter(static fn (\App\AnalysisElements $row): bool => filled($row->analyte?->name))
-                    ->unique(static fn (\App\AnalysisElements $row): string => (string) $row->analyte_id)
-                    ->sortBy(static fn (\App\AnalysisElements $row): string => mb_strtolower((string) $row->analyte?->name))
-                    ->values()
-                    ->map(static fn (\App\AnalysisElements $row): array => [
-                        'id' => (string) $row->id,
-                        'name' => (string) $row->analyte?->name,
-                    ])
-                    ->all();
-            });
-
-        $groups = [];
-        foreach ($matchedTypes as $analysisType) {
-            $groups[] = [
-                'analysis_type_id' => (string) $analysisType->id,
-                'analysis_type' => (string) $analysisType->name,
-                'sample_type' => (string) ($analysisType->sample_type?->name ?? 'Sample type'),
-                'tests' => $testsByTypeId->get((string) $analysisType->id, []),
-            ];
-        }
-
-        return $groups;
+        return $this->walkInParameterCatalog()->groupsForSampleTypes($sampleTypeIds);
     }
 
     /**
@@ -2007,11 +2015,7 @@ class ScheduleSamplingManager extends Component
      */
     private function flattenParameterPickerOptions(array $groups): array
     {
-        return collect($groups)
-            ->flatMap(static fn (array $group): array => $group['tests'])
-            ->unique('id')
-            ->values()
-            ->all();
+        return $this->walkInParameterCatalog()->flattenGroups($groups);
     }
 
     /**
@@ -2021,44 +2025,24 @@ class ScheduleSamplingManager extends Component
      */
     private function normalizeWalkInParameterSelection(array $selected, array $groups): array
     {
-        if ($selected === [] || $groups === []) {
-            return [];
-        }
+        return $this->walkInParameterCatalog()->normalizeSelection($selected, $groups);
+    }
 
-        $ids = [];
-        $idsByName = [];
+    /**
+     * @param  list<string>  $parameterIds
+     */
+    private function syncDerivedAnalysisTypesForScheduleRow(int $rowIndex, array $parameterIds): void
+    {
+        $derived = $this->walkInParameterCatalog()->deriveAnalysisTypeIds($parameterIds);
 
-        foreach ($groups as $group) {
-            foreach ($group['tests'] as $test) {
-                $id = (string) ($test['id'] ?? '');
-                $name = mb_strtolower(trim((string) ($test['name'] ?? '')));
-                if ($id === '') {
-                    continue;
-                }
-                $ids[$id] = true;
-                if ($name !== '') {
-                    $idsByName[$name][] = $id;
-                }
-            }
-        }
-
-        $normalized = [];
-        foreach ($selected as $token) {
-            $token = trim((string) $token);
-            if ($token === '') {
+        foreach (['analysis_type_id', 'analysis_type', 'analysis_types'] as $key) {
+            if (! array_key_exists($key, $this->formData)) {
                 continue;
             }
-            if (isset($ids[$token])) {
-                $normalized[] = $token;
-                continue;
-            }
-
-            foreach ($idsByName[mb_strtolower($token)] ?? [] as $id) {
-                $normalized[] = $id;
+            if (is_array($this->formData[$key])) {
+                $this->formData[$key][$rowIndex] = $derived;
             }
         }
-
-        return array_values(array_unique($normalized));
     }
 
     /**
@@ -2082,6 +2066,7 @@ class ScheduleSamplingManager extends Component
         }
 
         $this->formData['parameters'][$rowIndex] = $normalized;
+        $this->syncDerivedAnalysisTypesForScheduleRow($rowIndex, $normalized);
     }
 
     public function toggleWalkInAnalysisType(string $wireKey, string $analysisTypeId): void

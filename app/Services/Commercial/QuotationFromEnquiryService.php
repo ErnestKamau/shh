@@ -128,13 +128,66 @@ final class QuotationFromEnquiryService
         string $quotationHeaderId,
     ): SampleSubmissionRequest {
         return DB::transaction(function () use ($enquiry, $quotationHeaderId): SampleSubmissionRequest {
-            if ((string) $enquiry->current_quotation_header_id !== $quotationHeaderId) {
-                return $enquiry;
+            $shouldClearCurrent = (string) $enquiry->current_quotation_header_id === $quotationHeaderId;
+
+            if ($shouldClearCurrent) {
+                $enquiry->current_quotation_header_id = null;
             }
 
-            $enquiry->current_quotation_header_id = null;
-            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
-            $enquiry->save();
+            // Undo Process Enquiry "use existing" send inheritance for this pair so switching
+            // back to Build new does not keep a false Quotation Sent state.
+            $engagement = EnquiryQuotation::query()
+                ->where('sample_submission_request_id', $enquiry->id)
+                ->where('quotation_header_id', $quotationHeaderId)
+                ->where('link_source', EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING)
+                ->first();
+
+            if ($engagement !== null) {
+                $engagement->sent_to_customer_at = null;
+                $engagement->sent_via_portal = false;
+                $engagement->sent_via_email = false;
+                $engagement->save();
+            }
+
+            $earliestRemainingSent = EnquiryQuotation::query()
+                ->where('sample_submission_request_id', $enquiry->id)
+                ->whereNotNull('sent_to_customer_at')
+                ->min('sent_to_customer_at');
+
+            $enquiry->quotation_first_sent_to_customer_at = $earliestRemainingSent;
+
+            // Never downgrade a real customer-facing stage. Switching Use existing → Build new
+            // previously forced Quotation In Progress and wiped Sent / Accepted on TRFs like TRFF044/26.
+            $protectedStatuses = [
+                SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+                SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
+                SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+                SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL,
+                SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND,
+                SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            ];
+
+            if ($shouldClearCurrent
+                && ! in_array((string) $enquiry->status, $protectedStatuses, true)) {
+                $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
+            }
+
+            // If inherited send markers were the only reason status was Sent, roll back.
+            if ($earliestRemainingSent === null
+                && in_array((string) $enquiry->status, [
+                    SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+                    SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
+                ], true)
+                && $enquiry->accepted_quotation_header_id === null
+                && $enquiry->quotation_accepted_at === null) {
+                $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
+            }
+
+            if ($shouldClearCurrent
+                || $engagement !== null
+                || $enquiry->isDirty(['quotation_first_sent_to_customer_at', 'current_quotation_header_id', 'status'])) {
+                $enquiry->save();
+            }
 
             return $enquiry->fresh() ?? $enquiry;
         });
@@ -974,14 +1027,27 @@ final class QuotationFromEnquiryService
             $freshHeader = $lockedHeader->fresh(['details', 'currency']) ?? $lockedHeader;
             $this->seedEnquirySubcontractFlagsFromQuotation($lockedEnquiry, $freshHeader);
 
-            if ($this->enquiryQuotationService->quotationWasDeliveredFromBilling($freshHeader)
-                && ! $this->enquiryQuotationService->wasSentToCustomer($lockedEnquiry, $freshHeader)) {
-                $lockedEnquiry = $this->enquiryQuotationService->inheritBillingDeliveryOntoEnquiry(
+            // Do NOT inherit billing delivery onto the enquiry here.
+            // Selecting "Use existing" in Process Enquiry must not mark a new request as
+            // Quotation Sent — the lab still needs to send (or send for approval) for this enquiry.
+            // Previously inheritBillingDeliveryOntoEnquiry() set quotation_first_sent_to_customer_at
+            // and STATUS_QUOTATION_SENT, which left a false "Send again / Quotation Sent" UI after
+            // switching back to "Build new".
+            //
+            // if ($this->enquiryQuotationService->quotationWasDeliveredFromBilling($freshHeader)
+            //     && ! $this->enquiryQuotationService->wasSentToCustomer($lockedEnquiry, $freshHeader)) {
+            //     $lockedEnquiry = $this->enquiryQuotationService->inheritBillingDeliveryOntoEnquiry(
+            //         $lockedEnquiry->fresh() ?? $lockedEnquiry,
+            //         $freshHeader,
+            //         EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
+            //     );
+            //     $this->attachQuotationPdfForExistingLink($lockedEnquiry, $freshHeader);
+            // }
+            if ($this->enquiryQuotationService->quotationWasDeliveredFromBilling($freshHeader)) {
+                $this->attachQuotationPdfForExistingLink(
                     $lockedEnquiry->fresh() ?? $lockedEnquiry,
                     $freshHeader,
-                    EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
                 );
-                $this->attachQuotationPdfForExistingLink($lockedEnquiry, $freshHeader);
             }
 
             return $freshHeader;

@@ -323,12 +323,10 @@
 	}
 
 	.request-view-page .rv-rail-panel {
-		background:
-			linear-gradient(180deg, rgb(139 21 56 / 0.06) 0%, transparent 100%),
-			#fff;
+		background: #fff;
 		border: 1px solid var(--ls-border, var(--workflow-border, #e2e8f0));
-		border-radius: 10px;
-		box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+		border-radius: 14px;
+		box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
 		overflow: hidden;
 		flex: 1 1 auto;
 		display: flex;
@@ -337,8 +335,99 @@
 	}
 
 	.request-view-page .rv-rail-section {
-		padding: 0.85rem 0.95rem;
+		padding: 0;
 		border-bottom: 1px solid var(--ls-border, var(--workflow-border, #e2e8f0));
+	}
+
+	/* Client info — quotation-rail gloss head (baby blue) */
+	.request-view-page .rv-rail-section--client {
+		background: #fff;
+	}
+
+	.request-view-page .rv-rail-head {
+		position: relative;
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 1rem 1.05rem 0.85rem;
+		overflow: hidden;
+		/* Diagonal wedge: wide at top-left, tapering toward top-right */
+		background:
+			linear-gradient(
+				to bottom right,
+				#eff6ff 0%,
+				rgb(219 234 254 / 0.92) 12%,
+				rgb(239 246 255 / 0.52) 26%,
+				rgb(239 246 255 / 0.16) 38%,
+				transparent 48%
+			),
+			#fff;
+		border-bottom: 1px solid #eef2f7;
+	}
+
+	.request-view-page .rv-rail-head::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(
+			to bottom right,
+			rgba(255, 255, 255, 0.78) 0%,
+			rgba(255, 255, 255, 0.32) 9%,
+			transparent 24%
+		);
+		pointer-events: none;
+	}
+
+	.request-view-page .rv-rail-head__copy {
+		position: relative;
+		z-index: 1;
+		min-width: 0;
+		flex: 1 1 auto;
+	}
+
+	.request-view-page .rv-rail-head__actions {
+		position: relative;
+		z-index: 1;
+		flex: 0 0 auto;
+	}
+
+	.request-view-page .rv-rail-eyebrow {
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+		font-size: 0.65rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: #1e3a8a;
+		margin-bottom: 0.2rem;
+	}
+
+	.request-view-page .rv-rail-head-title {
+		margin: 0;
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+		font-size: 1.05rem;
+		font-weight: 700;
+		color: #0f172a;
+		line-height: 1.25;
+		word-break: break-word;
+	}
+
+	.request-view-page .rv-rail-head-subtitle {
+		margin: 0.2rem 0 0;
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+		font-size: 0.75rem;
+		font-weight: 400;
+		color: #64748b;
+		line-height: 1.35;
+		word-break: break-word;
+	}
+
+	.request-view-page .rv-rail-body {
+		padding: 0.85rem 1.05rem;
+	}
+
+	.request-view-page .rv-rail-section:not(.rv-rail-section--client) {
+		padding: 0.85rem 0.95rem;
 	}
 
 	.request-view-page .rv-rail-section:last-child {
@@ -354,32 +443,22 @@
 		margin-bottom: 1rem;
 	}
 
-	/* Scenario G — TRF modal section titles on rail */
+	/* Rail section titles — quotation-rail pattern, blue accent icons */
 	.request-view-page .rv-rail-section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
-		margin: 0 0 0.85rem;
+		gap: 0.35rem;
+		margin: 0 0 0.7rem;
 		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
-		font-size: calc(0.8rem + 2px);
+		font-size: 0.72rem;
 		font-weight: 700;
 		letter-spacing: 0.03em;
 		text-transform: uppercase;
-		color: #1e3a8a;
-	}
-
-	.request-view-page .rv-rail-section-heading .rv-rail-section-title {
-		margin-bottom: 0;
-		font-size: calc(0.8rem + 4px);
+		color: #475569;
 	}
 
 	.request-view-page .rv-rail-section-title .mdi {
-		font-size: 1.15em;
-		color: #1e3a8a;
-	}
-
-	.request-view-page .rv-rail-section-heading .rv-rail-section-title .mdi {
-		font-size: 1.15em;
+		font-size: 0.95rem;
 		color: #1e3a8a;
 	}
 
@@ -767,7 +846,7 @@
 		box-shadow: 0 0 0 3px color-mix(in srgb, #a7f3d0 45%, transparent);
 	}
 
-	/* Subcontracted-style primary CTA (Scenario F/B) */
+	/* Primary CTA — transparent glass + baby-blue left bar (active sidebar language) */
 	.request-view-page .rv-header-primary-btn {
 		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
 		font-weight: 700;
@@ -779,19 +858,25 @@
 		align-items: center;
 		gap: 6px;
 		border-radius: 8px;
-		background: #f0f9ff !important;
-		border: 1px solid #bae6fd !important;
-		color: #0369a1 !important;
-		backdrop-filter: none;
-		-webkit-backdrop-filter: none;
-		box-shadow: none;
+		background: var(--lab-chrome-glass, rgba(255, 255, 255, 0.16)) !important;
+		border: 1px solid rgba(255, 255, 255, 0.16) !important;
+		color: #ffffff !important;
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		box-shadow:
+			inset 3px 0 0 0 var(--lab-chrome-blue-accent, #8ac0ff),
+			inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 	}
 
 	.request-view-page .rv-header-primary-btn:hover,
 	.request-view-page .rv-header-primary-btn:focus {
-		background: #e0f2fe !important;
-		border-color: #7dd3fc !important;
-		color: #0369a1 !important;
+		background: color-mix(in srgb, var(--lab-chrome-blue-soft, #eff6ff) 18%, var(--lab-chrome-glass, rgba(255, 255, 255, 0.16))) !important;
+		border-color: color-mix(in srgb, var(--lab-chrome-blue-accent, #8ac0ff) 35%, rgba(255, 255, 255, 0.2)) !important;
+		color: #ffffff !important;
+		box-shadow:
+			inset 3px 0 0 0 var(--lab-chrome-blue-accent, #8ac0ff),
+			inset 0 1px 0 rgba(255, 255, 255, 0.15),
+			0 0 0 3px color-mix(in srgb, var(--lab-chrome-blue-accent, #8ac0ff) 22%, transparent) !important;
 	}
 
 	/* Quiet quote docs chip stays Acc green; green approve keeps its own styles */
@@ -2014,9 +2099,7 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 100%;
-		background:
-			linear-gradient(180deg, rgb(139 21 56 / 0.06) 0%, transparent 100%),
-			#fff;
+		background: #fff;
 		border: 1px solid var(--ls-border, #e2e8f0);
 		border-radius: 10px;
 		box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
@@ -2358,6 +2441,7 @@
 	.request-view-page .rv-header-primary-btn .mdi {
 		font-size: 1rem;
 		line-height: 1;
+		color: #ffffff !important;
 	}
 
 	.request-view-page .rv-trf-edit-subtitle {
@@ -2818,6 +2902,11 @@
 	.request-view-page .rv-trf-option-chip__label {
 		flex: 1 1 auto;
 		min-width: 0;
+	}
+
+	.request-view-page .rv-trf-edit-modal .rv-trf-catalog-row.rv-trf-catalog-row--type-tests,
+	.request-view-page .rv-trf-edit-modal .rv-trf-catalog-row--type-tests {
+		grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.85fr);
 	}
 
 	.request-view-page .rv-trf-catalog-row {

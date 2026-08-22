@@ -20,7 +20,7 @@
     // Use rv-action-item (not Bootstrap .dropdown-item) so theme :active burgundy cannot apply.
     $classes = match ($variant) {
         'primary' => 'rv-action-btn rv-action-btn--accent',
-        'header-primary' => 'btn btn-sm btn-light rv-header-primary-btn',
+        'header-primary' => 'btn btn-sm rv-header-primary-btn',
         'dropdown', 'dropdown-danger' => 'rv-action-item',
         'danger' => 'rv-action-btn rv-action-btn--danger',
         default => 'rv-action-btn rv-action-btn--secondary',

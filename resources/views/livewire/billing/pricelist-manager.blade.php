@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid {{ $showImportModal || $showPricelistModal ? 'modal-active' : '' }}">
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
@@ -155,13 +155,20 @@
                                                 && \Illuminate\Support\Carbon::parse($pricelist->valid_till)->endOfDay()->isPast();
                                         @endphp
                                         <tr class="{{ $isExpired ? 'pricelist-row--expired' : 'pricelist-row--valid' }}">
-                                            <td nowrap style="width: 130px;">
+                                            <td nowrap style="width: 160px;">
                                                 <div class="d-flex">
                                                     <button wire:click="openPricelist(@js($pricelist->id))" type="button" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View details">
                                                         <i class="mdi mdi-eye-outline"></i>
                                                     </button>
                                                     <button wire:click="showEditPricelistModal(@js($pricelist->id))" type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="Edit pricelist">
                                                         <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button
+                                                        wire:click="openImportModal(@js($pricelist->id))"
+                                                        type="button"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--import"
+                                                        title="Import package prices from Excel or an Amspec quotation-preparation PDF into this pricelist">
+                                                        <i class="mdi mdi-file-upload-outline"></i>
                                                     </button>
                                                 </div>
                                             </td>
@@ -291,6 +298,16 @@
                                     </div>
                                 </div>
                                 <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label modal-label">Billing mode</label>
+                                        <select wire:model="pricelistForm.billing_mode" class="form-select modal-input @error('pricelistForm.billing_mode') is-invalid @enderror">
+                                            <option value="package">Per package</option>
+                                            <option value="per_test">Per test</option>
+                                        </select>
+                                        @error('pricelistForm.billing_mode') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
                                     <label class="form-label modal-label d-block">Flags</label>
                                     <div class="flag-card">
                                         <div class="form-check form-switch mb-2">
@@ -322,9 +339,32 @@
         </div>
     @endif
 
+    @include('layouts.lab.partials.billing.amspec-import-modal', [
+        'context' => 'pricelist',
+        'driver' => 'livewire',
+        'isOpen' => $showImportModal,
+        'importFormat' => $importFormat,
+        'importPricingMode' => $importPricingMode,
+        'closeMethod' => 'closeImportModal',
+        'submitMethod' => 'submitImport',
+        'wireModel' => 'importFile',
+        'errorBag' => 'importFile',
+        'inputId' => 'ls-pricelist-list-import-file',
+    ])
+
     <style>
         .modal.show {
             display: block !important;
+        }
+
+        .rm-act-btn--import {
+            border: 1px solid #fde68a;
+            color: #b45309;
+            background: #fffbeb;
+        }
+        .rm-act-btn--import:hover {
+            background: #fef3c7;
+            border-color: #fcd34d;
         }
 
         .pricelist-modal-content {

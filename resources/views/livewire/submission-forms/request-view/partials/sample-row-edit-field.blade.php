@@ -89,19 +89,14 @@
             @endforeach
         </div>
     @elseif($fieldName === 'parameters')
-        @include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-columns', [
-            'label' => $fieldLabel,
-            'id' => 'edit-row-parameters',
-            'name' => 'editingRowFields_parameters',
-            'required' => (bool) ($field['required'] ?? false),
-            'placeholder' => 'Search and add tests…',
-            'options' => $selectOptions,
-            'selected' => $selectedParameters,
-            'wireIgnore' => true,
-            'dataWireField' => 'editingRowFields.parameters',
-            'extraSelectClass' => 'livewire-select2 rv-trf-catalog-select',
-            'selectedValuesJson' => json_encode($selectedParameters),
-        ])
+        <label class="ls-field__label mb-1">{{ $fieldLabel }}@if($field['required'] ?? false)<span class="ls-req">*</span>@endif</label>
+        <div class="trf-ls-theme">
+            @include('livewire.partials.walk-in-trf-parameters-cell', [
+                'rowIndex' => null,
+                'pickerContext' => 'edit',
+                'fieldId' => 'edit-row-parameters-'.($editingRowIndex ?? 0),
+            ])
+        </div>
     @elseif(in_array($fieldName, ['sample_type_id', 'analysis_type_id'], true))
         @include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-dropdown-search', [
             'label' => $fieldLabel,

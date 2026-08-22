@@ -45,7 +45,7 @@ class QuotationPrepImportService
     /**
      * @return array{created: int, rows: list<array<string, mixed>>, warnings: list<string>}
      */
-    public function import(QuotationHeader $header, UploadedFile $file, string $format = 'excel'): array
+    public function import(QuotationHeader $header, UploadedFile $file, string $format = 'excel', string $defaultPricingMode = 'per_package'): array
     {
         $format = strtolower(trim($format));
         if ($format === 'pdf' && ! $this->pdfTextExtractor->isAvailable()) {
@@ -56,6 +56,19 @@ class QuotationPrepImportService
             'pdf' => $this->parsePdfRows($file),
             default => $this->parseExcelRows($file),
         };
+
+        $defaultPricingMode = in_array($defaultPricingMode, [
+            QuotationPricingResolver::PRICING_MODE_PER_PACKAGE,
+            QuotationPricingResolver::PRICING_MODE_PER_TEST,
+            QuotationPricingResolver::PRICING_MODE_AUTO,
+        ], true) ? $defaultPricingMode : QuotationPricingResolver::PRICING_MODE_PER_PACKAGE;
+
+        foreach ($rawRows as &$row) {
+            if (empty($row['pricing_mode'])) {
+                $row['pricing_mode'] = $defaultPricingMode;
+            }
+        }
+        unset($row);
 
         return $this->persistRows($header, $rawRows);
     }

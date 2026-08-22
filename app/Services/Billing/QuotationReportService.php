@@ -568,17 +568,11 @@ class QuotationReportService
             $elementIds = $this->pricingResolver->collectElementIdsFromDetail($detail);
 
             if ((bool) ($detail->is_package ?? false)) {
-                $packageLabel = trim((string) ($detail->description ?? ''));
-                if ($packageLabel === '') {
-                    $analysisTypeId = trim((string) ($detail->part_no ?? ''));
-                    $packageLabel = $analysisTypeId !== ''
-                        ? (string) (AnalysisType::find($analysisTypeId)?->name ?? 'Analysis').' package'
-                        : 'Analysis package';
-                }
+                // AmSpec layout: one row per parameter with that parameter's method.
+                // Qty + unit price appear only on the first row (package billed once).
+                $packageTat = $this->resolveRowTat($detail);
+                $isFirstParameter = true;
 
-                $parameterNames = [];
-                $displayedLoqs = [];
-                $displayedMus = [];
                 foreach ($elementIds as $elementId) {
                     $element = $elementsById->get($elementId);
                     if ($element === null) {
@@ -586,8 +580,6 @@ class QuotationReportService
                     }
 
                     $analyte = Analyte::find($element->analyte_id);
-                    $parameterNames[] = (string) ($analyte?->name ?? $element->parametername ?? 'Parameter');
-
                     $metrics = $this->uncertaintyBudgetResolver->resolveLabMetricsForElement(
                         $element,
                         $budgets,
@@ -595,31 +587,24 @@ class QuotationReportService
                     );
                     $loq = $this->resolveDisplayedMetric($detail, 'show_loq_analytes', (string) $element->id, $metrics['loq']);
                     $mu = $this->resolveDisplayedMetric($detail, 'show_mu_analytes', (string) $element->id, $metrics['mu_percent']);
-                    if ($loq !== '') {
-                        $displayedLoqs[] = $loq;
-                    }
-                    if ($mu !== '') {
-                        $displayedMus[] = $mu;
-                    }
-                }
 
-                $packageTat = $this->resolveRowTat($detail);
-                $uniqueLoqs = array_values(array_unique($displayedLoqs));
-                $uniqueMus = array_values(array_unique($displayedMus));
-                $packageRow = $this->makeLineRow(
-                    $packageLabel,
-                    (string) ($detail->test_method ?? ''),
-                    count($uniqueLoqs) === 1 ? $uniqueLoqs[0] : '',
-                    count($uniqueMus) === 1 ? $uniqueMus[0] : '',
-                    (float) $detail->unit_price,
-                    (int) $detail->quantity,
-                    false,
-                    false,
-                    $packageTat,
-                );
-                $packageRow['is_package'] = true;
-                $packageRow['package_parameters'] = $parameterNames;
-                $grouped[$sampleTypeName][] = $packageRow;
+                    $packageMember = $this->makeLineRow(
+                        (string) ($analyte?->name ?? $element->parametername ?? 'Parameter'),
+                        (string) ($metrics['test_method'] ?? ''),
+                        $loq,
+                        $mu,
+                        $isFirstParameter ? (float) $detail->unit_price : 0.0,
+                        $isFirstParameter ? (int) $detail->quantity : 0,
+                        false,
+                        false,
+                        $isFirstParameter ? $packageTat : null,
+                    );
+                    $packageMember['is_package_member'] = true;
+                    $packageMember['is_package_price_row'] = $isFirstParameter;
+                    $packageMember['show_commercial_cells'] = $isFirstParameter;
+                    $grouped[$sampleTypeName][] = $packageMember;
+                    $isFirstParameter = false;
+                }
 
                 continue;
             }
@@ -1267,7 +1252,7 @@ class QuotationReportService
 
         return $this->makeLineRow(
             $analyte?->name ?? $element->parametername,
-            trim((string) ($detail->test_method ?? '')) !== '' ? (string) $detail->test_method : $metrics['test_method'],
+            (string) ($metrics['test_method'] ?? ''),
             $this->resolveDisplayedMetric(
                 $detail,
                 'show_loq_analytes',

@@ -5,17 +5,21 @@ namespace App\Livewire\Billing;
 use App\Livewire\Concerns\WithToastNotifications;
 use App\Models\Billing\Pricelist;
 use App\Models\Currency;
+use App\Services\Billing\PdfTextExtractor;
 use App\Services\Billing\PricelistNumberGenerator;
+use App\Services\Billing\PricelistPackageImportService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\WithFileUploads;
 use Livewire\WithPagination;
 
 class PricelistManager extends Component
 {
     use WithPagination;
     use WithToastNotifications;
+    use WithFileUploads;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -33,6 +37,16 @@ class PricelistManager extends Component
     public $currencySearch = '';
     public $showCurrencyDropdown = false;
 
+    public bool $showImportModal = false;
+
+    public string $importPricelistId = '';
+
+    public string $importFormat = 'excel';
+
+    public string $importPricingMode = 'per_package';
+
+    public $importFile = null;
+
     public $message = '';
     public $messageType = 'success';
 
@@ -44,6 +58,7 @@ class PricelistManager extends Component
             'pricelistForm.valid_till' => 'nullable|date',
             'pricelistForm.is_master' => 'boolean',
             'pricelistForm.active' => 'boolean',
+            'pricelistForm.billing_mode' => 'required|in:package,per_test',
             'pricelistForm.status' => 'nullable|string|max:255',
         ];
     }
@@ -255,6 +270,7 @@ class PricelistManager extends Component
             'valid_till' => $pricelist->valid_till?->format('Y-m-d'),
             'is_master' => (bool) $pricelist->is_master,
             'active' => (bool) $pricelist->active,
+            'billing_mode' => (string) ($pricelist->billing_mode ?? Pricelist::BILLING_MODE_PACKAGE),
             'status' => $pricelist->status ?: 'no-changes',
         ];
 
@@ -346,6 +362,7 @@ class PricelistManager extends Component
                         : null,
                     'is_master' => (bool) ($this->pricelistForm['is_master'] ?? false),
                     'active' => (bool) ($this->pricelistForm['active'] ?? true),
+                    'billing_mode' => (string) ($this->pricelistForm['billing_mode'] ?? Pricelist::BILLING_MODE_PACKAGE),
                     'status' => $this->pricelistForm['status'] ?: 'no-changes',
                     'updated_at' => now(),
                 ];
@@ -406,6 +423,94 @@ class PricelistManager extends Component
         return $this->redirect(route('show-pricelist', ['id' => $id]));
     }
 
+    public function openImportModal(string $pricelistId): void
+    {
+        $this->importPricelistId = $pricelistId;
+        $this->importFormat = 'excel';
+        $this->importPricingMode = 'per_package';
+        $this->importFile = null;
+        $this->resetValidation();
+        $this->showImportModal = true;
+    }
+
+    public function closeImportModal(): void
+    {
+        $this->showImportModal = false;
+        $this->importPricelistId = '';
+        $this->importFile = null;
+        $this->resetValidation();
+        $this->dispatch('amspec-import-closed');
+    }
+
+    public function submitImport(PricelistPackageImportService $importService, PdfTextExtractor $pdfTextExtractor): void
+    {
+        $this->validate([
+            'importPricelistId' => 'required|string',
+            'importFormat' => 'required|in:excel,pdf',
+            'importPricingMode' => 'required|in:per_test,per_package',
+            'importFile' => 'required|file|max:20480',
+        ]);
+
+        $pricelist = Pricelist::query()->find($this->importPricelistId);
+        if (! $pricelist) {
+            $this->showMessage('Pricelist not found.', 'danger');
+
+            return;
+        }
+
+        $extension = strtolower((string) $this->importFile->getClientOriginalExtension());
+
+        try {
+            if ($this->importFormat === 'pdf') {
+                if ($extension !== 'pdf') {
+                    $this->addError('importFile', 'Please upload a PDF file.');
+                    $this->showMessage('Please upload a PDF file.', 'danger');
+
+                    return;
+                }
+                if (! $pdfTextExtractor->isAvailable()) {
+                    $this->showMessage($pdfTextExtractor->capability()['hint'], 'danger');
+
+                    return;
+                }
+            } elseif (! in_array($extension, ['xlsx', 'xls', 'csv'], true)) {
+                $this->addError('importFile', 'Please upload an Excel (.xlsx / .xls) or CSV file.');
+                $this->showMessage('Please upload an Excel (.xlsx / .xls) or CSV file.', 'danger');
+
+                return;
+            }
+
+            $result = $importService->import(
+                $pricelist,
+                $this->importFile,
+                $this->importFormat,
+                $this->importPricingMode,
+            );
+
+            if ($this->importFormat === 'pdf') {
+                $rev = ($pricelist->code ?? 'pricelist').'-r'.($pricelist->revision_number ?? '1').'.pdf';
+                $stored = $this->importFile->storeAs('pricelist', $rev);
+                Pricelist::query()->where('id', $pricelist->id)->update([
+                    'pricelist_file' => urlencode(basename((string) $stored)),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $created = (int) ($result['created'] ?? 0);
+            $updated = (int) ($result['updated'] ?? 0);
+            $warnings = $result['warnings'] ?? [];
+            $msg = "Imported {$created} new / {$updated} updated pricelist item(s).";
+            if ($warnings !== []) {
+                $msg .= ' Warnings: '.implode(' ', array_slice($warnings, 0, 3));
+            }
+
+            $this->closeImportModal();
+            $this->showMessage($msg, $created + $updated > 0 ? 'success' : 'danger');
+        } catch (\Throwable $e) {
+            $this->showMessage('Import failed: '.$e->getMessage(), 'danger');
+        }
+    }
+
     public function closePricelistModal(): void
     {
         $this->showPricelistModal = false;
@@ -424,6 +529,22 @@ class PricelistManager extends Component
     {
         $this->message = $message;
         $this->messageType = $type;
+
+        $toastType = match (strtolower($type)) {
+            'danger', 'error', 'failed', 'fail' => 'error',
+            'warning' => 'warning',
+            'info' => 'info',
+            default => 'success',
+        };
+
+        $title = match ($toastType) {
+            'success' => 'Success',
+            'error' => 'Error',
+            'warning' => 'Warning',
+            default => 'Notice',
+        };
+
+        $this->imaraToast($toastType, $title, $message);
     }
 
     private function resetPricelistForm(): void
@@ -434,6 +555,7 @@ class PricelistManager extends Component
             'valid_till' => null,
             'is_master' => false,
             'active' => true,
+            'billing_mode' => Pricelist::BILLING_MODE_PACKAGE,
             'status' => 'no-changes',
         ];
     }

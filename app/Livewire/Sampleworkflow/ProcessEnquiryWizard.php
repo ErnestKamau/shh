@@ -34,7 +34,7 @@ class ProcessEnquiryWizard extends Component
 
     public bool $useReceivingTheme = false;
 
-    public string $activeStep = 'sample_config';
+    public string $activeStep = 'pricing';
 
     public ?string $enquiryId = null;
 
@@ -207,7 +207,8 @@ class ProcessEnquiryWizard extends Component
         return [
             // Step 1 hidden for now — keep for easy restore:
             // ['key' => 'review', 'label' => 'Review request'],
-            ['key' => 'sample_config', 'label' => 'Test Hierarchy configuration'],
+            // Step 2 (Test Hierarchy) hidden for now — keep for easy restore:
+            // ['key' => 'sample_config', 'label' => 'Test Hierarchy configuration'],
             ['key' => 'pricing', 'label' => 'Parameters & pricing'],
         ];
     }
@@ -427,17 +428,19 @@ class ProcessEnquiryWizard extends Component
 
     public function goToStep(string $step): void
     {
-        // 'review' kept for commented-out step 1 restore; not offered in wizardSteps.
+        // 'review' / 'sample_config' kept for commented-out step restore; not offered in wizardSteps.
         if (! in_array($step, ['review', 'sample_config', 'pricing'], true)) {
             return;
         }
 
-        if ($step === 'review') {
-            // Step 1 is commented out — land on sample config instead.
-            $step = 'sample_config';
+        if ($step === 'review' || $step === 'sample_config') {
+            // Steps 1–2 are commented out — land on pricing instead.
+            // Sample configs are still loaded/rebuilt below when entering pricing.
+            $step = 'pricing';
         }
 
         if ($step === 'pricing') {
+            $this->prepareSampleConfigsForPricing();
             $this->refreshExistingQuotationOptions();
             $enquiry = $this->enquiryId !== null
                 ? SampleSubmissionRequest::query()->find($this->enquiryId)
@@ -467,32 +470,33 @@ class ProcessEnquiryWizard extends Component
             }
         }
 
-        if ($step === 'sample_config') {
-            $this->quotationManuallyEdited = false;
-            if ($this->enquiryId !== null) {
-                $enquiry = SampleSubmissionRequest::query()
-                    ->with(['requestedAnalyses', 'submissionFormInstance'])
-                    ->find($this->enquiryId);
-                if ($enquiry !== null) {
-                    if ($enquiry->submissionFormInstance !== null
-                        && ! $this->enquiryHasLabSavedParameterSelections($enquiry)) {
-                        app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
-                            ->resyncSampleDataFromInstance($enquiry->submissionFormInstance);
-                        $enquiry = SampleSubmissionRequest::query()
-                            ->with(['requestedAnalyses', 'submissionFormInstance'])
-                            ->find($this->enquiryId) ?? $enquiry;
-                        $this->requestedTests = app(EnquiryReviewDisplayService::class)
-                            ->requestedTests($enquiry);
-                        $this->displaySampleRows = app(EnquiryReviewDisplayService::class)
-                            ->sampleRows($enquiry);
-                    }
-                    $this->ensureRequestedParametersSelected($enquiry);
-                }
-            }
-            $this->reconcileSampleConfigParameterKeys();
-            $this->normalizeSampleConfigs();
-            $this->setStatus('info', '');
-        }
+        // Step 2 (sample_config) commented out — logic moved into prepareSampleConfigsForPricing():
+        // if ($step === 'sample_config') {
+        //     $this->quotationManuallyEdited = false;
+        //     if ($this->enquiryId !== null) {
+        //         $enquiry = SampleSubmissionRequest::query()
+        //             ->with(['requestedAnalyses', 'submissionFormInstance'])
+        //             ->find($this->enquiryId);
+        //         if ($enquiry !== null) {
+        //             if ($enquiry->submissionFormInstance !== null
+        //                 && ! $this->enquiryHasLabSavedParameterSelections($enquiry)) {
+        //                 app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
+        //                     ->resyncSampleDataFromInstance($enquiry->submissionFormInstance);
+        //                 $enquiry = SampleSubmissionRequest::query()
+        //                     ->with(['requestedAnalyses', 'submissionFormInstance'])
+        //                     ->find($this->enquiryId) ?? $enquiry;
+        //                 $this->requestedTests = app(EnquiryReviewDisplayService::class)
+        //                     ->requestedTests($enquiry);
+        //                 $this->displaySampleRows = app(EnquiryReviewDisplayService::class)
+        //                     ->sampleRows($enquiry);
+        //             }
+        //             $this->ensureRequestedParametersSelected($enquiry);
+        //         }
+        //     }
+        //     $this->reconcileSampleConfigParameterKeys();
+        //     $this->normalizeSampleConfigs();
+        //     $this->setStatus('info', '');
+        // }
 
         // Step 1 (review) commented out:
         // if ($step === 'review') {
@@ -541,7 +545,7 @@ class ProcessEnquiryWizard extends Component
 
     private function syncQuotationModeState(string $value): void
     {
-        $switchingFromExistingQuotation = $this->selectedExistingQuotationId !== null;
+        $previousExistingId = $this->selectedExistingQuotationId;
         $this->quotationMismatchWarning = '';
         $this->existingQuotationSearch = '';
         $this->showExistingQuotationDropdown = false;
@@ -562,28 +566,28 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
-        if ($switchingFromExistingQuotation && $this->enquiryId !== null) {
+        // Switching to Build new — always clear sent/approval UI state from any prior
+        // "Use existing" selection (including inherited billing-delivery markers).
+        if ($previousExistingId !== null && $this->enquiryId !== null) {
             $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
             if ($enquiry !== null) {
                 $enquiry = app(QuotationFromEnquiryService::class)
-                    ->detachExistingQuotationFromEnquiry($enquiry, (string) $this->selectedExistingQuotationId);
+                    ->detachExistingQuotationFromEnquiry($enquiry, (string) $previousExistingId);
                 $this->enquiryStatus = (string) $enquiry->status;
             }
         }
 
         $this->selectedExistingQuotationId = null;
-        if ($switchingFromExistingQuotation) {
-            $this->requiresNewQuotationHeader = true;
-            $this->quotationHeaderId = null;
-            $this->quoteNumber = '';
-            $this->pdfGenerated = false;
-            $this->quotationSent = false;
-            $this->quotationPendingApproval = false;
-            $this->quotationApprovedReadyToSend = false;
-            $this->quotationReviewedByName = '';
-            $this->showLoqColumn = true;
-            $this->showMuColumn = true;
-        }
+        $this->requiresNewQuotationHeader = $previousExistingId !== null;
+        $this->quotationHeaderId = null;
+        $this->quoteNumber = '';
+        $this->pdfGenerated = false;
+        $this->quotationSent = false;
+        $this->quotationPendingApproval = false;
+        $this->quotationApprovedReadyToSend = false;
+        $this->quotationReviewedByName = '';
+        $this->showLoqColumn = true;
+        $this->showMuColumn = true;
         $this->rebuildQuotationLinesFromSampleConfigs();
         $this->quotationBuilt = false;
         $this->clearStatus();
@@ -857,12 +861,16 @@ class ProcessEnquiryWizard extends Component
 
         $this->ensureRequestedParametersSelected($enquiry);
         $this->normalizeSampleConfigs();
-        $this->activeStep = 'sample_config';
+        // Step 2 (sample_config) commented out — continue to pricing.
+        $this->activeStep = 'pricing';
+        // $this->activeStep = 'sample_config';
         $this->setStatus('info', '');
     }
 
     public function saveSampleConfigAndContinue(): void
     {
+        // Step 2 (Test Hierarchy) is commented out in the wizard UI.
+        // Method kept so it can be restored with the sample_config step.
         if ($this->enquiryId === null) {
             return;
         }
@@ -1604,11 +1612,24 @@ class ProcessEnquiryWizard extends Component
 
     private function enquiryQuotationWasSent(SampleSubmissionRequest $enquiry): bool
     {
+        $status = (string) $enquiry->status;
+
+        // Still drafting / waiting for approval / ready to send — never treat as sent.
+        // Guards against stale quotation_first_sent_to_customer_at left after browsing
+        // "Use existing" then switching back to Build new.
+        if (in_array($status, [
+            SampleSubmissionRequest::STATUS_REQUESTED,
+            SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+            SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND,
+        ], true)) {
+            return false;
+        }
+
         if ($enquiry->quotation_first_sent_to_customer_at !== null) {
             return true;
         }
 
-        return in_array((string) $enquiry->status, [
+        return in_array($status, [
             SampleSubmissionRequest::STATUS_QUOTATION_SENT,
             SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
@@ -1664,18 +1685,53 @@ class ProcessEnquiryWizard extends Component
 
     private function resolveOpeningStep(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): string
     {
-        if ($header !== null && ($header->details->isNotEmpty() || app(QuotationFromEnquiryService::class)->quotationWasSentToCustomer($enquiry))) {
-            return 'pricing';
-        }
+        // Steps 1–2 (review / sample_config) are commented out — always open on pricing.
+        // Sample configs are still loaded from TRF/enquiry and lines rebuilt in openWizard.
+        return 'pricing';
 
-        // Step 1 (review) is commented out — always open on sample config when no quotation yet.
-        return 'sample_config';
-        // $storedConfig = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
-        // if ($storedConfig !== []) {
-        //     return 'sample_config';
+        // if ($header !== null && ($header->details->isNotEmpty() || app(QuotationFromEnquiryService::class)->quotationWasSentToCustomer($enquiry))) {
+        //     return 'pricing';
         // }
         //
-        // return 'review';
+        // // Step 1 (review) is commented out — always open on sample config when no quotation yet.
+        // return 'sample_config';
+        // // $storedConfig = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+        // // if ($storedConfig !== []) {
+        // //     return 'sample_config';
+        // // }
+        // //
+        // // return 'review';
+    }
+
+    /**
+     * Former sample_config step prep — still runs when entering pricing while that step is hidden.
+     */
+    private function prepareSampleConfigsForPricing(): void
+    {
+        $this->quotationManuallyEdited = false;
+        if ($this->enquiryId !== null) {
+            $enquiry = SampleSubmissionRequest::query()
+                ->with(['requestedAnalyses', 'submissionFormInstance'])
+                ->find($this->enquiryId);
+            if ($enquiry !== null) {
+                if ($enquiry->submissionFormInstance !== null
+                    && ! $this->enquiryHasLabSavedParameterSelections($enquiry)) {
+                    app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
+                        ->resyncSampleDataFromInstance($enquiry->submissionFormInstance);
+                    $enquiry = SampleSubmissionRequest::query()
+                        ->with(['requestedAnalyses', 'submissionFormInstance'])
+                        ->find($this->enquiryId) ?? $enquiry;
+                    $this->requestedTests = app(EnquiryReviewDisplayService::class)
+                        ->requestedTests($enquiry);
+                    $this->displaySampleRows = app(EnquiryReviewDisplayService::class)
+                        ->sampleRows($enquiry);
+                }
+                $this->ensureRequestedParametersSelected($enquiry);
+            }
+        }
+        $this->reconcileSampleConfigParameterKeys();
+        $this->normalizeSampleConfigs();
+        $this->setStatus('info', '');
     }
 
     /**

@@ -342,37 +342,24 @@
 			@endif
 
 			@if($canQuotation)
-			<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+			<a href="{{ route('quotation-index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('quotation-index', 'add-qoute-details-view', 'view_quotation_final') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class=" mdi mdi-clipboard-text-outline mr-3"></span>
+					<span class="mdi mdi-clipboard-text-outline mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.quotations') }}</span>
-					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="quotation-menu" class="collapse sidebar-submenu">
-				<a href="{{route('quotation-index')}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotation Overview
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				{{-- Stage shortcuts removed: use Quotation Overview tabs instead.
-				<a href="{{route('quotation-index',['stage'=>'Quote In Preparation'])}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.quotes_in_preparation') }}
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				<a href="{{route('quotation-index',['stage'=>'Quote In Approval'])}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Approval
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				<a href="{{route('quotation-index',['stage'=>'Quote Complete'])}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.finalised_quotes') }}
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				--}}
-			</div>
 			@endif
 
 		</div>
 			@endif
+
+			<a href="{{ route('usermanual.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('usermanual.*') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-book-open-page-variant-outline mr-3"></span>
+					<span class="menu-collapsed">User Manual</span>
+				</div>
+			</a>
+
 			{{-- Equipment Request temporarily hidden
 			@if($canEquipmentRequests)
 			<a href="{{ route('lab.equipment-requests.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab.equipment-requests.*') ? 'active' : '' }}">

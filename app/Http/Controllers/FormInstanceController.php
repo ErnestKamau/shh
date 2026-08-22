@@ -1895,6 +1895,9 @@ class FormInstanceController extends Controller
         $sampleLines = app(\App\Services\SubmissionForm\SubmissionRequestSampleLineService::class)
             ->linesForInstance($instance);
 
+        $configId = trim((string) $request->query('config_id', ''));
+        $configLabelOverrides = $this->resolveSampleLabelOverridesForConfig($instance, $configId);
+
         // Get job number.
         // For subcontracted requests awaiting dispatch, job number must remain empty
         // and only be shown once a real batch/job has been created after dispatch.
@@ -2012,6 +2015,24 @@ class FormInstanceController extends Controller
         $testCategory = $this->resolveTestCategoryForLabel($instance, $sampleLines, $formData);
 
         $sampleRows = $formData['sample_rows'] ?? [];
+
+        if ($configLabelOverrides !== []) {
+            foreach ([
+                'sampleName',
+                'sampleDescription',
+                'sampleType',
+                'siteLocation',
+                'samplingPoint',
+                'sampleId',
+                'testRequirement',
+                'testCategory',
+                'customerName',
+            ] as $field) {
+                if (filled($configLabelOverrides[$field] ?? null)) {
+                    $$field = (string) $configLabelOverrides[$field];
+                }
+            }
+        }
 
         return view('submission-forms.instances.sample-collection-label', compact(
             'instance',
@@ -2408,5 +2429,71 @@ class FormInstanceController extends Controller
         $value = trim((string) $value);
 
         return $value !== '' && Str::isUuid($value);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function resolveSampleLabelOverridesForConfig(SubmissionFormInstance $instance, string $configId): array
+    {
+        if ($configId === '') {
+            return [];
+        }
+
+        $submissionRequest = $instance->sampleSubmissionRequest;
+        if ($submissionRequest === null) {
+            $submissionRequest = SampleSubmissionRequest::query()
+                ->where('submission_form_instance_id', (string) $instance->id)
+                ->first();
+        }
+
+        if ($submissionRequest === null) {
+            return [];
+        }
+
+        $integrityService = app(\App\Services\Sampleworkflow\SampleIntegrityCheckService::class);
+        $info = $integrityService->sampleInfoByConfigKey($instance, $submissionRequest, [])[$configId] ?? null;
+        if (! is_array($info)) {
+            return [];
+        }
+
+        $configs = $integrityService->resolveConfigs($submissionRequest, $instance);
+        $matchedConfig = collect($configs)->first(
+            fn (array $config): bool => (string) ($config['id'] ?? '') === $configId,
+        );
+
+        $sampleDescription = trim((string) ($info['sample_details'] ?? ''));
+        $overrides = [];
+        if ($sampleDescription !== '' && $sampleDescription !== '—') {
+            $overrides['sampleName'] = $sampleDescription;
+            $overrides['sampleDescription'] = $sampleDescription;
+        }
+
+        $customerSampleId = trim((string) (is_array($matchedConfig) ? ($matchedConfig['customer_sample_id'] ?? '') : ''));
+        if ($customerSampleId !== '') {
+            $overrides['sampleId'] = $customerSampleId;
+        }
+
+        foreach (is_array($info['details'] ?? null) ? $info['details'] : [] as $field) {
+            if (! is_array($field)) {
+                continue;
+            }
+            $label = mb_strtolower(trim((string) ($field['label'] ?? '')));
+            $value = trim((string) ($field['value'] ?? ''));
+            if ($value === '' || $value === '—') {
+                continue;
+            }
+
+            if (in_array($label, ['sample type', 'type of sample'], true)) {
+                $overrides['sampleType'] = $value;
+            } elseif (in_array($label, ['sampling point', 'sampling point / location', 'site - location'], true)) {
+                $overrides['siteLocation'] = $value;
+                $overrides['samplingPoint'] = $value;
+            } elseif ($label === 'tests') {
+                $overrides['testRequirement'] = $value;
+            }
+        }
+
+        return $overrides;
     }
 }

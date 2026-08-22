@@ -1,3 +1,4 @@
+@include('livewire.partials.walk-in-trf-ls-select2-scripts')
 <script>
 (function () {
 	function syncSignatureValue(canvas, input, pad) {
@@ -117,15 +118,119 @@
 	document.addEventListener('DOMContentLoaded', boot);
 	document.addEventListener('livewire:initialized', function () {
 		boot();
+		window.initWalkInLsSelect2();
+		registerLsRichTextInline();
 		Livewire.on('trf-reinit-signatures', function () {
 			setTimeout(function () { window.initTrfSignaturePads(true); }, 200);
 		});
 		Livewire.on('walk-in-trf-step-changed', function () {
-			setTimeout(function () { window.initTrfSignaturePads(true); }, 250);
-		});
-		Livewire.hook('morph.updated', function () {
-			setTimeout(function () { window.initTrfSignaturePads(false); }, 150);
+			setTimeout(function () {
+				window.initTrfSignaturePads(true);
+				window.initWalkInLsSelect2();
+			}, 250);
 		});
 	});
+})();
+
+function registerLsRichTextInline() {
+	if (window.__lsRichTextInlineRegistered || !window.Alpine) {
+		return;
+	}
+
+	window.__lsRichTextInlineRegistered = true;
+
+	const factory = (config) => ({
+		editorId: config.editorId,
+		wireKey: config.wireKey,
+		rowIndex: config.rowIndex ?? 0,
+		init() {
+			this.$nextTick(() => this.mountEditor());
+		},
+		mount() {
+			this.$nextTick(() => this.mountEditor());
+		},
+		mountEditor() {
+			if (typeof tinymce === 'undefined') {
+				const existing = document.querySelector('script[data-rft-tinymce]');
+				if (existing) {
+					existing.addEventListener('load', () => this.initTiny(), { once: true });
+					return;
+				}
+				const script = document.createElement('script');
+				script.src = '/tinymce/tinymce.min.js';
+				script.dataset.rftTinymce = '1';
+				script.onload = () => this.initTiny();
+				document.head.appendChild(script);
+				return;
+			}
+			this.initTiny();
+		},
+		notifyPreview(html) {
+			window.dispatchEvent(new CustomEvent('ls-rich-preview-update', {
+				detail: { editorId: this.editorId, html: html || '' },
+				bubbles: true,
+			}));
+		},
+		syncToWire(html, live) {
+			if (this.$wire && this.wireKey) {
+				this.$wire.set(this.wireKey, html, live);
+			}
+		},
+		initTiny() {
+			if (typeof tinymce === 'undefined') {
+				return;
+			}
+			if (tinymce.get(this.editorId)) {
+				tinymce.remove('#' + this.editorId);
+			}
+			const self = this;
+			tinymce.init({
+				selector: '#' + this.editorId,
+				height: 160,
+				menubar: false,
+				statusbar: false,
+				branding: false,
+				plugins: 'lists',
+				toolbar: 'bold italic underline | bullist numlist',
+				setup(editor) {
+					const push = (live) => {
+						const html = editor.getContent();
+						self.notifyPreview(html);
+						self.syncToWire(html, live);
+					};
+					editor.on('change keyup', () => push(false));
+					editor.on('blur', () => push(true));
+				},
+			});
+		},
+		destroy() {
+			if (typeof tinymce !== 'undefined' && tinymce.get(this.editorId)) {
+				tinymce.remove('#' + this.editorId);
+			}
+		},
+	});
+
+	window.Alpine.data('lsRichTextInline', factory);
+	if (! window.__rftSampleDescriptionEditorRegistered) {
+		window.__rftSampleDescriptionEditorRegistered = true;
+		window.Alpine.data('rftSampleDescriptionEditor', factory);
+	}
+}
+
+if (window.Alpine) {
+	registerLsRichTextInline();
+} else {
+	document.addEventListener('alpine:init', registerLsRichTextInline);
+}
+
+(function loadRftTestsLottie() {
+	if (window.__rftTestsLottieLoaded) {
+		return;
+	}
+	window.__rftTestsLottieLoaded = true;
+	const script = document.createElement('script');
+	script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
+	script.defer = true;
+	document.head.appendChild(script);
 })();
 </script>

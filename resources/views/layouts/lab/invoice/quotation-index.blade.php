@@ -1,12 +1,19 @@
 @extends('layouts.lab.layout.app', ['dataTable' => false, 'select2' => true])
 
 @section('title2')
-<title>Lab — Quotation Overview</title>
+<title>Lab — Quotations</title>
 @endsection
 
 @section('content2')
 @php
     $drafts = $drafts ?? collect();
+    $requestedPageTab = request()->query('page_tab');
+    $hasStageFilter = filled(request()->query('stage_filter'));
+    $pageTab = $requestedPageTab === 'quotations' || $hasStageFilter
+        ? 'quotations'
+        : 'overview';
+    $initialStage = request()->query('stage_filter');
+    $initialStage = is_string($initialStage) ? $initialStage : null;
 @endphp
 
 <main class="container-fluid lab-surface-theme ls-admin-page quotation-index-page ls-quotation-shell ls-ui-kit" data-ls-type="plex">
@@ -24,7 +31,7 @@
         ],
         [
             'link' => route('quotation-index'),
-            'name' => 'Quotation Overview',
+            'name' => 'Quotations',
             'icon' => null,
         ],
     ];
@@ -59,9 +66,9 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-file-document-edit-outline text-primary"></i>
-                                Quotation Overview
+                                Quotations
                             </h2>
-                            <p class="text-muted mb-0">KPIs and quotations by status</p>
+                            <p class="text-muted mb-0">KPIs, workflow stages, and quotation management</p>
                         </div>
                         <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
                             @include('livewire.billing.partials.quotation-drafts-dropdown', ['drafts' => $drafts])
@@ -75,11 +82,66 @@
         </div>
     </div>
 
-    @if(! empty($metrics))
-        @include('layouts.lab.invoice.partials.quotation-metrics', ['metrics' => $metrics, 'kpiPeriod' => $kpiPeriod ?? null])
-    @endif
+    <div class="card shadow-sm border-0 ls-quotation-panel ls-quotation-page-tabs-card mb-4">
+        <div class="card-header border-0 ls-quotation-page-tabs-header">
+            <ul class="nav nav-tabs ls-quotation-page-tabs" id="quotation-page-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link {{ $pageTab === 'overview' ? 'active' : '' }}"
+                       id="quotation-page-overview-tab"
+                       data-toggle="tab"
+                       href="#quotation-page-overview"
+                       role="tab"
+                       aria-controls="quotation-page-overview"
+                       aria-selected="{{ $pageTab === 'overview' ? 'true' : 'false' }}">
+                        <i class="mdi mdi-chart-box-outline"></i>
+                        Overview
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ $pageTab === 'quotations' ? 'active' : '' }}"
+                       id="quotation-page-quotations-tab"
+                       data-toggle="tab"
+                       href="#quotation-page-quotations"
+                       role="tab"
+                       aria-controls="quotation-page-quotations"
+                       aria-selected="{{ $pageTab === 'quotations' ? 'true' : 'false' }}">
+                        <i class="mdi mdi-file-document-multiple-outline"></i>
+                        Quotations
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body p-0">
+            <div class="tab-content" id="quotation-page-tabs-content">
+                <div class="tab-pane fade {{ $pageTab === 'overview' ? 'show active' : '' }} p-3 p-md-4"
+                     id="quotation-page-overview"
+                     role="tabpanel"
+                     aria-labelledby="quotation-page-overview-tab">
+                    @if(! empty($metrics))
+                        @include('layouts.lab.invoice.partials.quotation-metrics', [
+                            'metrics' => $metrics,
+                            'kpiPeriod' => $kpiPeriod ?? null,
+                        ])
+                    @else
+                        <div class="text-center py-5 text-muted">
+                            <i class="mdi mdi-chart-box-outline" style="font-size: 2.5rem;"></i>
+                            <p class="mb-0 mt-2">No KPI data available yet.</p>
+                        </div>
+                    @endif
+                </div>
 
-    @livewire('billing.quotation-manager', ['embedded' => true])
+                <div class="tab-pane fade {{ $pageTab === 'quotations' ? 'show active' : '' }} p-3 p-md-4"
+                     id="quotation-page-quotations"
+                     role="tabpanel"
+                     aria-labelledby="quotation-page-quotations-tab">
+                    @livewire('billing.quotation-manager', [
+                        'embedded' => true,
+                        'initialStage' => $initialStage,
+                    ])
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
 
 <livewire:billing.create-enquiry-from-quotation-wizard />
@@ -89,4 +151,20 @@
 
 @section('script2')
 @include('layouts.lab.invoice.partials.add-quotation-modal-scripts')
+<script>
+    window.showQuotationStageTab = function (stage) {
+        var quotationsTab = document.getElementById('quotation-page-quotations-tab');
+        if (quotationsTab && typeof jQuery !== 'undefined') {
+            jQuery(quotationsTab).tab('show');
+        }
+
+        if (typeof Livewire !== 'undefined') {
+            Livewire.dispatch('set-quotation-stage', { stage: stage || '' });
+        }
+
+        window.setTimeout(function () {
+            document.getElementById('quotation-stage-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+    };
+</script>
 @endsection

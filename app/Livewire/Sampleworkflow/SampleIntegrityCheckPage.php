@@ -11,9 +11,12 @@ use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\BatchResultsExcelImportService;
 use App\Services\Sampleworkflow\CustomerAnalysisTypeStandardService;
+use App\Services\Sampleworkflow\LabSectionWorksheetIssueService;
 use App\Services\Sampleworkflow\RequestTestExportDataService;
 use App\Services\Sampleworkflow\RequestTestWorksheetPdfService;
 use App\Services\Sampleworkflow\SampleIntegrityCheckService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Services\Sampleworkflow\TrfLabUseFieldsService;
 use App\User;
 use Illuminate\Contracts\View\View;
@@ -55,18 +58,6 @@ class SampleIntegrityCheckPage extends Component
 
     public bool $showAcceptConfirmModal = false;
 
-    public bool $showSampleInfoModal = false;
-
-    public string $sampleInfoTitle = '';
-
-    public string $sampleInfoDetails = '';
-
-    /** @var list<array{label: string, value: string}> */
-    public array $sampleInfoFields = [];
-
-    /** @var list<string> */
-    public array $sampleInfoTests = [];
-
     public bool $isAccepting = false;
 
     public string $acceptError = '';
@@ -84,8 +75,10 @@ class SampleIntegrityCheckPage extends Component
      */
     public array $bulkAnalystIdsBySection = [];
 
-    /** @var array<string, array{label: string, sample_details: string, details: list<array{label: string, value: string}>, tests: list<string>}> */
-    public array $sampleInfoByKey = [];
+    public bool $showWorksheetModal = false;
+
+    /** @var list<string> */
+    public array $selectedWorksheetSectionIds = [];
 
     public function mount(string $submissionFormId, string $instanceId): void
     {
@@ -810,56 +803,206 @@ class SampleIntegrityCheckPage extends Component
         ]);
     }
 
+    public function sampleCollectionLabelUrlForConfig(string $configKey): string
+    {
+        return route('submission-forms.instances.sample-collection-label', [
+            'instance' => $this->instance->id,
+            'type' => 'collection',
+            'config_id' => $configKey,
+        ]);
+    }
+
+    public function sampleRegistrationLabelUrlForConfig(string $configKey): string
+    {
+        return route('submission-forms.instances.sample-collection-label', [
+            'instance' => $this->instance->id,
+            'type' => 'registration',
+            'config_id' => $configKey,
+        ]);
+    }
+
+    public function openWorksheetModal(): void
+    {
+        $this->selectedWorksheetSectionIds = array_values(array_map(
+            static fn (array $option): string => (string) ($option['id'] ?? ''),
+            $this->worksheetSectionOptions,
+        ));
+        $this->showWorksheetModal = true;
+    }
+
+    public function closeWorksheetModal(): void
+    {
+        $this->showWorksheetModal = false;
+    }
+
     /**
-     * @return array{
-     *     label: string,
-     *     sample_details: string,
-     *     details: list<array{label: string, value: string}>,
-     *     tests: list<string>
-     * }
+     * @return list<array{id: string, name: string, code: string, test_count: int, preview_number: string}>
      */
-    public function sampleInfoForKey(string $configKey): array
+    public function getWorksheetSectionOptionsProperty(): array
     {
-        if ($configKey === '' || $this->enquiry === null) {
+        $counts = [];
+        foreach ($this->testRows as $row) {
+            if (! empty($row['subcontracted'])) {
+                continue;
+            }
+            foreach (($row['lab_section_ids'] ?? []) as $sectionId) {
+                $sectionId = (string) $sectionId;
+                if ($sectionId === '') {
+                    continue;
+                }
+                $counts[$sectionId] = ($counts[$sectionId] ?? 0) + 1;
+            }
+        }
+
+        if ($counts === []) {
+            return [];
+        }
+
+        $sections = collect($this->labSections)
+            ->filter(fn (array $section): bool => isset($counts[(string) ($section['id'] ?? '')]))
+            ->values();
+
+        $sequenceService = app(\App\Services\Sampleworkflow\LabSectionWorksheetSequenceService::class);
+
+        return $sections->map(function (array $section) use ($counts, $sequenceService): array {
+            $id = (string) ($section['id'] ?? '');
+            $code = trim((string) ($section['code'] ?? ''));
+
             return [
-                'label' => 'Sample',
-                'sample_details' => '',
-                'details' => [],
-                'tests' => [],
+                'id' => $id,
+                'name' => (string) ($section['name'] ?? 'Lab section'),
+                'code' => $code,
+                'test_count' => (int) ($counts[$id] ?? 0),
+                'preview_number' => $code !== '' ? $sequenceService->previewNextNumber($code) : '—',
             ];
-        }
-
-        if (! isset($this->sampleInfoByKey[$configKey])) {
-            $this->sampleInfoByKey = app(SampleIntegrityCheckService::class)
-                ->sampleInfoByConfigKey($this->instance, $this->enquiry, $this->testRows);
-        }
-
-        return $this->sampleInfoByKey[$configKey] ?? [
-            'label' => 'Sample',
-            'sample_details' => '',
-            'details' => [],
-            'tests' => [],
-        ];
+        })->all();
     }
 
-    public function openSampleInfo(string $configKey, string $label): void
+    public function issueWorksheetPdf(): void
     {
-        $info = $this->sampleInfoForKey($configKey);
-
-        $this->sampleInfoTitle = $label.' — Test & sample information';
-        $this->sampleInfoDetails = (string) ($info['sample_details'] ?? '');
-        $this->sampleInfoFields = is_array($info['details'] ?? null) ? $info['details'] : [];
-        $this->sampleInfoTests = is_array($info['tests'] ?? null) ? $info['tests'] : [];
-        $this->showSampleInfoModal = true;
+        $this->issueWorksheets('pdf');
     }
 
-    public function closeSampleInfo(): void
+    public function issueWorksheetExcel(): void
     {
-        $this->showSampleInfoModal = false;
-        $this->sampleInfoTitle = '';
-        $this->sampleInfoDetails = '';
-        $this->sampleInfoFields = [];
-        $this->sampleInfoTests = [];
+        $this->issueWorksheets('excel');
+    }
+
+    public function issueAndNotifyAnalysts(): void
+    {
+        $this->issueWorksheets('notify');
+    }
+
+    private function issueWorksheets(string $mode): void
+    {
+        $sectionIds = array_values(array_filter(array_map(
+            static fn (mixed $id): string => trim((string) $id),
+            $this->selectedWorksheetSectionIds,
+        )));
+
+        if ($sectionIds === []) {
+            $this->setFlashMessage('Select at least one lab section.', 'warning');
+
+            return;
+        }
+
+        if ($this->enquiry === null) {
+            $this->setFlashMessage('No commercial enquiry is linked to this request.', 'warning');
+
+            return;
+        }
+
+        $actingUser = Auth::user();
+        if ($actingUser === null) {
+            $this->setFlashMessage('You must be signed in to issue worksheets.', 'error');
+
+            return;
+        }
+
+        try {
+            $issued = app(LabSectionWorksheetIssueService::class)->issueForIntegrityCheck(
+                $this->instance,
+                $this->enquiry,
+                $this->testRows,
+                $sectionIds,
+                $this->labSectionNames,
+                $this->analystNamesById(),
+                $actingUser,
+                $mode,
+            );
+        } catch (\Throwable $exception) {
+            $this->setFlashMessage(
+                'Could not issue worksheets. '.$this->userFacingWorksheetFailureMessage($exception),
+                'error',
+            );
+
+            return;
+        }
+
+        $this->closeWorksheetModal();
+
+        if ($issued === []) {
+            $this->setFlashMessage('No worksheets were issued for the selected lab sections.', 'warning');
+
+            return;
+        }
+
+        if ($mode === 'pdf' || $mode === 'notify') {
+            foreach ($issued as $item) {
+                $pdfUrl = trim((string) ($item['pdf_url'] ?? ''));
+                if ($pdfUrl !== '') {
+                    $this->dispatch('open-integrity-worksheet-pdf', url: $pdfUrl);
+                }
+            }
+
+            $count = count($issued);
+            $this->setFlashMessage(
+                $mode === 'notify'
+                    ? "{$count} worksheet(s) issued and assigned analysts notified."
+                    : "{$count} worksheet PDF(s) generated and opened in new tab(s).",
+                'success',
+            );
+
+            return;
+        }
+
+        foreach ($issued as $item) {
+            $excelUrl = trim((string) ($item['excel_url'] ?? ''));
+            if ($excelUrl !== '') {
+                $this->dispatch('open-integrity-worksheet-pdf', url: $excelUrl);
+            }
+        }
+
+        $count = count($issued);
+        $this->setFlashMessage("{$count} worksheet Excel file(s) downloaded.", 'success');
+    }
+
+    private function userFacingWorksheetFailureMessage(\Throwable $exception): string
+    {
+        $message = trim($exception->getMessage());
+        $lower = strtolower($message);
+
+        if (
+            $message !== ''
+            && (
+                str_contains($lower, 'lab_section_worksheets')
+                || str_contains($lower, 'does not exist')
+                || str_contains($lower, 'relation')
+            )
+        ) {
+            return 'Database tables are not ready. Run migrations locally, then try again.';
+        }
+
+        if (
+            $message !== ''
+            && ! str_contains($lower, 'sqlstate')
+            && ! str_contains($lower, 'pgsql')
+            && ! str_contains($lower, 'connection:')
+        ) {
+            return $message;
+        }
+
+        return 'An unexpected error occurred. Check lab section assignments and try again.';
     }
 
     protected function setFlashMessage(string $message, string $type = 'info'): void
@@ -1044,6 +1187,7 @@ class SampleIntegrityCheckPage extends Component
      * @return list<array{
      *     key: string,
      *     label: string,
+     *     display_label: string,
      *     customer_sample_id: string,
      *     sample_condition_name: string,
      *     condition_not_acceptable: bool,
@@ -1072,9 +1216,14 @@ class SampleIntegrityCheckPage extends Component
 
             if (! isset($groups[$key])) {
                 $conditionName = trim((string) ($conditionByConfigId[$key] ?? ''));
+                $sampleDescription = trim((string) ($row['sample_description'] ?? ''));
+                $sampleIndex = (int) ($row['sample_index'] ?? 0);
                 $groups[$key] = [
                     'key' => $key,
-                    'label' => (string) ($row['sample_label'] ?? 'Sample'),
+                    'sample_index' => $sampleIndex,
+                    'sample_description' => $sampleDescription,
+                    'label' => $sampleDescription !== '' ? $sampleDescription : ('Sample '.$sampleIndex),
+                    'display_label' => $sampleDescription,
                     'customer_sample_id' => (string) ($row['customer_sample_id'] ?? ''),
                     'sample_condition_name' => $conditionName,
                     'condition_not_acceptable' => TrfLabUseFieldsService::isNotAcceptableConditionName($conditionName),
@@ -1097,6 +1246,69 @@ class SampleIntegrityCheckPage extends Component
         }
 
         return array_values($groups);
+    }
+
+    /**
+     * @return array{
+     *     request_number: string,
+     *     client_name: string,
+     *     form_name: string
+     * }
+     */
+    public function getPageHeaderProperty(): array
+    {
+        $requestNumber = trim((string) (
+            $this->enquiry?->formatted_number
+            ?? $this->enquiry?->request_number
+            ?? $this->instance->getDocumentControlNumber()
+            ?? $this->instance->form_number
+            ?? ''
+        ));
+
+        $clientName = trim((string) (
+            $this->enquiry?->customer?->name
+            ?? $this->instance->crmCustomer?->name
+            ?? ''
+        ));
+
+        return [
+            'request_number' => $requestNumber,
+            'client_name' => $clientName,
+            'form_name' => trim((string) ($this->submissionForm->name ?? '')),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     display_label: string,
+     *     export_label: string,
+     *     customer_sample_id: string,
+     *     condition_name: string,
+     *     condition_not_acceptable: bool,
+     *     identity: list<array{label: string, value: string}>,
+     *     tests: list<array<string, mixed>>
+     * }
+     */
+    public function getActiveSampleDossierProperty(): array
+    {
+        if ($this->selectedSampleKey === '' || $this->enquiry === null) {
+            return [
+                'display_label' => '',
+                'export_label' => '',
+                'customer_sample_id' => '',
+                'condition_name' => '',
+                'condition_not_acceptable' => false,
+                'identity' => [],
+                'tests' => [],
+            ];
+        }
+
+        return app(SampleIntegrityCheckService::class)->sampleDossierForConfig(
+            $this->selectedSampleKey,
+            $this->instance,
+            $this->enquiry,
+            $this->testRows,
+        );
     }
 
     /**
@@ -1355,15 +1567,12 @@ class SampleIntegrityCheckPage extends Component
         if ($this->enquiry === null) {
             $this->testRows = [];
             $this->selectedSampleKey = '';
-            $this->sampleInfoByKey = [];
 
             return;
         }
 
         $this->testRows = app(SampleIntegrityCheckService::class)
             ->buildTestRows($this->enquiry, $this->instance);
-
-        $this->sampleInfoByKey = [];
 
         $summaries = $this->sampleSummaries;
         $keys = array_column($summaries, 'key');

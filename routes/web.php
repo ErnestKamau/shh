@@ -628,6 +628,12 @@ Route::get('/sample-workflow/batch/{batch}/request-test-results-excel', [\App\Ht
 Route::post('/sample-workflow/batch/{batch}/request-test-results-import', [\App\Http\Controllers\Lab\RequestTestExportController::class, 'importExcel'])
     ->name('batch.request-test-results-import')
     ->middleware('can:laboratory.components.all samples.edit');
+Route::get('/sample-workflow/lab-section-worksheets/{worksheet}/pdf', [\App\Http\Controllers\Lab\LabSectionWorksheetController::class, 'downloadPdf'])
+    ->name('lab-section-worksheets.pdf')
+    ->middleware('can:laboratory.components.all samples.view');
+Route::get('/sample-workflow/lab-section-worksheets/{worksheet}/excel', [\App\Http\Controllers\Lab\LabSectionWorksheetController::class, 'downloadExcel'])
+    ->name('lab-section-worksheets.excel')
+    ->middleware('can:laboratory.components.all samples.view');
 Route::get('/sample-workflow/batch/{sample}/approval-checklist', [\App\Http\Controllers\Lab\SampleApprovalChecklistController::class, 'show'])
     ->name('sample-approval-checklist.show')
     ->middleware('can:laboratory.components.sample-approval-checklist.view');
@@ -725,8 +731,39 @@ Route::post('/api/get-currency-by-code', 'Invoice\QuotationController@getCurrenc
 Route::post('/billing/quotations/{id}/suggest-line-pricing', 'Invoice\QuotationController@suggestManualLinePricing')->name('quotation.suggest_line_pricing')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/quotations/{id}/eligible-pricelists', 'Invoice\QuotationController@eligiblePricelists')->name('quotation.eligible_pricelists')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/{id}/select-pricelist', 'Invoice\QuotationController@selectPricelist')->name('quotation.select_pricelist')->middleware('can:laboratory.components.quotation.edit');
+Route::post('/billing/quotations/{id}/detach-pricelist', 'Invoice\QuotationController@detachPricelist')->name('quotation.detach_pricelist')->middleware('can:laboratory.components.quotation.edit');
+Route::post('/billing/quotations/{id}/bulk-delete-details', 'Invoice\QuotationController@bulkDeleteQuotationDetails')->name('quotation.bulk_delete_details')->middleware('can:laboratory.components.quotation.delete');
 Route::post('/billing/quotations/{id}/import-prep-lines', 'Invoice\QuotationController@importPrepLines')->name('quotation.import_prep_lines')->middleware('can:laboratory.components.quotation.edit');
 Route::get('/billing/quotations/import-prep-capability', 'Invoice\QuotationController@importPrepCapability')->name('quotation.import_prep_capability')->middleware('can:laboratory.components.quotation.view');
+Route::get('/billing/templates/amspec-quotation-preparation.pdf', function () {
+    $path = storage_path('app/public/templates/amspec-quotation-preparation.pdf');
+    if (! is_file($path)) {
+        abort(404, 'Amspec template not found.');
+    }
+
+    return response()->download($path, 'Amspec-Quotation-preparation.pdf', [
+        'Content-Type' => 'application/pdf',
+    ]);
+})->name('billing.templates.amspec_quotation_preparation')->middleware('auth');
+
+Route::get('/billing/templates/amspec-import.xlsx', function (\Illuminate\Http\Request $request) {
+    $context = $request->query('context', 'quotation') === 'pricelist' ? 'pricelist' : 'quotation';
+    $file = $context === 'pricelist'
+        ? 'amspec-pricelist-import.xlsx'
+        : 'amspec-quotation-prep-import.xlsx';
+    $path = storage_path('app/public/templates/'.$file);
+    if (! is_file($path)) {
+        abort(404, 'Amspec Excel template not found.');
+    }
+
+    $downloadName = $context === 'pricelist'
+        ? 'Amspec-Pricelist-import.xlsx'
+        : 'Amspec-Quotation-prep-import.xlsx';
+
+    return response()->download($path, $downloadName, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+})->name('billing.templates.amspec_import_excel')->middleware('auth');
 Route::post('/billing/quotations/{id}/package-defaults', 'Invoice\QuotationController@packageDefaults')->name('quotation.package_defaults')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/elements/loq', 'Invoice\QuotationController@updateElementLoq')->name('quotation.update_element_loq')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail')->middleware('can:laboratory.components.quotation.add');
@@ -1746,6 +1783,36 @@ Route::get('/move-pricelist-item/{direction}/{pricelist}/{element}', 'PricelistI
 Route::post('/add-customer-to-pricelist/{id}', 'PricelistItemController@add_customer')->name('add-customer-to-pricelist');
 Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remove_customer')->name('remove-customer-to-pricelist');
 //###################################PRICELISTS#######################################
+
+//###################################USER MANUAL#######################################
+Route::middleware(['auth', 'can:laboratory.module.access'])->prefix('usermanual')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Lab\UserManualController::class, 'index'])->name('usermanual.index');
+    Route::get('/{manual}/{chapter?}', [\App\Http\Controllers\Lab\UserManualController::class, 'show'])
+        ->where('manual', 'quotations|direct-registration|request-view|sample-receiving')
+        ->name('usermanual.show');
+});
+
+if (app()->environment('local')) {
+    Route::get('/usermanual-capture-auth', function (\Illuminate\Http\Request $request) {
+        abort_unless($request->hasValidSignature(), 403);
+        $userId = (string) $request->query('user', '');
+        $to = (string) $request->query('to', '/usermanual');
+        abort_if($userId === '', 404);
+        auth()->loginUsingId($userId);
+        $allowedPrefix = ['/usermanual', '/billing-quotation', '/pricelists', '/pricelist/', '/sample-workflow'];
+        $ok = false;
+        foreach ($allowedPrefix as $prefix) {
+            if (str_starts_with($to, $prefix)) {
+                $ok = true;
+                break;
+            }
+        }
+        abort_unless($ok, 404);
+
+        return redirect()->to($to);
+    })->name('usermanual.capture-auth');
+}
+//###################################USER MANUAL#######################################
 
 //######################################SYSTEMS ##################################################################
 Route::get('/system/configuration-type/home', 'System\SystemConfigurationTypeController@index')->name('configuration-type-home')->middleware(['can:settings.module.access', 'can:system.configuration_type.view']);

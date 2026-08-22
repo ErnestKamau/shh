@@ -10,7 +10,7 @@
     @if($livewireStage !== null)
         <button type="button"
                 class="quotation-kpi-hit"
-                onclick="Livewire.dispatch('set-quotation-stage', { stage: @js($livewireStage) }); document.getElementById('quotation-stage-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });">
+                onclick="window.showQuotationStageTab(@js($livewireStage))">
     @elseif($link)
         <a href="{{ $link }}">
     @endif

@@ -58,18 +58,17 @@
                         </button>
                         <div class="acc-wizard-top-nav-actions">
                             <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="closeWizard">Cancel</button>
-                            {{-- Step 1 (review) commented out
+                            {{-- Step 1 (review) and Step 2 (sample_config / Test Hierarchy) commented out
                             @if($activeStep === 'review')
                                 <button type="button" class="btn btn-primary btn-sm" wire:click="saveReviewAndContinue">
                                     Next <i class="mdi mdi-arrow-right"></i>
                                 </button>
                             @elseif($activeStep === 'sample_config')
-                            --}}
-                            @if($activeStep === 'sample_config')
                                 <button type="button" class="btn btn-primary btn-sm" wire:click="saveSampleConfigAndContinue">
                                     Next <i class="mdi mdi-arrow-right"></i>
                                 </button>
                             @else
+                            --}}
                                 @if($quotationMode === 'use_existing' || $quotationApprovedReadyToSend || $quotationSent)
                                     <button type="button" class="btn btn-primary btn-sm" wire:click="sendQuotation" wire:loading.attr="disabled" @disabled($lines === [] || $quotationPendingApproval)>
                                         <span wire:loading.remove wire:target="sendQuotation">
@@ -100,7 +99,7 @@
                                         </button>
                                     @endif
                                 @endif
-                            @endif
+                            {{-- @endif --}}
                         </div>
                     </div>
 
@@ -175,6 +174,7 @@
                         @endif
                         --}}
 
+                        {{-- Step 2 (Test Hierarchy configuration) commented out — restore by uncommenting and re-adding the wizard step
                         @if($activeStep === 'sample_config')
                             @include('livewire.partials.process-enquiry-status-alert')
                             @include('livewire.partials.process-enquiry-customer-review-alert')
@@ -183,6 +183,7 @@
                                 'sampleConfigSectionTitle' => 'Test Hierarchy configuration',
                             ])
                         @endif
+                        --}}
 
                         @if($activeStep === 'pricing')
                             <div wire:key="enquiry-wizard-pricing-{{ $quotationMode }}-{{ $quotationModeRenderKey }}">
@@ -303,7 +304,7 @@
                                         @elseif($quotationApprovedReadyToSend)
                                             <span class="badge badge-info">
                                                 @if($quotationReviewedByName !== '')
-                                                    Reviewed By: {{ $quotationReviewedByName }}
+                                                    Approved by: {{ $quotationReviewedByName }}
                                                 @else
                                                     Ready to send
                                                 @endif
@@ -692,7 +693,7 @@
                         </p>
                         <p class="text-muted small mb-3">
                             After an approver confirms in LIMS, the quotation can be sent to the customer from the request view.
-                            Email approval links only approve — they do not send to the customer.
+                            Email notifies approvers with the PDF only — they must approve in LIMS (not from email).
                         </p>
 
                         <h6 class="acc-label mb-2">Personnel who can approve</h6>

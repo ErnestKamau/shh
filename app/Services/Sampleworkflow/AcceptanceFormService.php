@@ -723,6 +723,31 @@ class AcceptanceFormService
             $analystSectionAssignments,
         );
 
+        if ($completed->submission_form_instance_id) {
+            app(LabSectionWorksheetBatchLinkService::class)->linkInstanceWorksheetsToBatch(
+                (string) $completed->submission_form_instance_id,
+                (string) $completed->sample_header_id,
+            );
+        }
+
+        app(SampleWorkflowEventRecorder::class)->record(
+            subjectType: AnalysisAcceptanceForm::class,
+            subjectId: (string) $completed->id,
+            eventType: 'samples_accepted',
+            what: 'Samples accepted into laboratory workflow',
+            how: 'Integrity check acceptance',
+            where: 'Sample Integrity Check',
+            instanceId: filled($completed->submission_form_instance_id)
+                ? (string) $completed->submission_form_instance_id
+                : null,
+            batchId: filled($completed->sample_header_id) ? (string) $completed->sample_header_id : null,
+            workflowStage: 'Samples In Lab',
+            metadata: [
+                'batch_code' => (string) ($completed->sampleHeader?->batch_code ?? ''),
+                'number_of_samples' => (int) ($completed->number_of_samples ?? 0),
+            ],
+        );
+
         return $completed->fresh(['lines', 'sampleHeader']) ?? $completed;
     }
 

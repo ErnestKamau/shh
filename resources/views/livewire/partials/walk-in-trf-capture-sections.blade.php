@@ -37,6 +37,12 @@
     $activeSection = $walkInSections->values()->get($walkInActiveStepIndex);
     $isCustomerSection = ($activeSection->title ?? '') === 'Customer details';
     $useCardRows = (bool) ($this->pageMode ?? false) || $this->isOfflineIntake();
+    $stepCardTitle = $this->isOfflineIntake()
+        ? 'Batch and sample details'
+        : (string) ($activeSection->title ?? 'Section');
+    $stepCardSummary = $this->isOfflineIntake()
+        ? 'Copy each sample from the paper form. Add a row when the TRF has more samples.'
+        : trim((string) ($activeSection->description ?? ''));
 
     $shouldOmitWalkInElement = static function ($element) use ($activeSection, $hiddenWalkInTrfFields): bool {
         $elementName = (string) ($element->name ?? '');
@@ -50,23 +56,33 @@
 @endphp
 
 @if($submissionForm && $activeSection)
+    @php
+        $isRowsSection = $this->walkInSectionUsesSampleCards($activeSection);
+        $wrapInStepCard = $useCardRows && ! $isRowsSection;
+        $panelClass = 'walk-in-trf-wizard__panel'.($isRowsSection ? ' walk-in-trf-wizard__panel--samples' : '');
+    @endphp
     <div
-        class="walk-in-trf-wizard__panel"
+        class="{{ $panelClass }}"
         role="tabpanel"
         id="walk-in-trf-step-panel-{{ $walkInActiveStepIndex }}"
         aria-labelledby="walk-in-trf-step-tab-{{ $walkInActiveStepIndex }}"
         wire:key="walk-in-trf-step-{{ $activeSection->id }}-{{ $walkInActiveStepIndex }}"
     >
-        <h6 class="walk-in-trf-wizard__panel-title">{{ $this->isOfflineIntake() ? 'Batch and sample details' : $activeSection->title }}</h6>
-        @if($this->isOfflineIntake())
-            <p class="walk-in-trf-wizard__panel-desc">Copy each sample from the paper form. Add a row when the TRF has more samples.</p>
-        @elseif(! empty($activeSection->description))
-            <p class="walk-in-trf-wizard__panel-desc">{{ $activeSection->description }}</p>
+        @if(! $wrapInStepCard)
+            <h6 class="walk-in-trf-wizard__panel-title">{{ $stepCardTitle }}</h6>
+            @if($stepCardSummary !== '')
+                <p class="walk-in-trf-wizard__panel-desc">{{ $stepCardSummary }}</p>
+            @endif
         @endif
 
-        @php
-            $isRowsSection = $this->walkInSectionUsesSampleCards($activeSection);
-        @endphp
+        @if($wrapInStepCard)
+            @include('livewire.partials.walk-in-trf-step-card-open', [
+                'stepCardTitle' => $stepCardTitle,
+                'stepCardSummary' => $stepCardSummary,
+                'stepCardKey' => 'trf-step-card-'.$activeSection->id,
+                'stepCardOpen' => true,
+            ])
+        @endif
 
         @if($isRowsSection)
             @php
@@ -294,58 +310,57 @@
                         return $this->walkInCollectionElementByName($regularElements, $name);
                     };
                 @endphp
-                <div class="row">
-                    <div class="col-md-6 mb-3" wire:key="field-collection-sampling-date">
+                {{-- Edit-modal style: date | time | received --}}
+                <div class="trf-collection-trio" wire:key="collection-trio-dates">
+                    <div wire:key="field-collection-sampling-date">
                         @php $el = $collectionField('sampling_date'); @endphp
                         @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
                     </div>
-                    <div class="col-md-6 mb-3" wire:key="field-collection-sampling-time">
+                    <div wire:key="field-collection-sampling-time">
                         @php $el = $collectionField('sampling_time'); @endphp
                         @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3" wire:key="field-collection-sampling-location">
-                        @php $el = $collectionField('sampling_location'); @endphp
-                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
-                    </div>
-                    <div class="col-md-6 mb-3" wire:key="field-collection-date-received">
+                    <div wire:key="field-collection-date-received">
                         @php $el = $collectionField('date_received'); @endphp
                         @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3" wire:key="field-collection-method">
-                        @php $el = $collectionField('method_of_sampling'); @endphp
+                {{-- location | transport | reason --}}
+                <div class="trf-collection-trio" wire:key="collection-trio-mid">
+                    <div wire:key="field-collection-sampling-location">
+                        @php $el = $collectionField('sampling_location'); @endphp
+                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+                    </div>
+                    <div wire:key="field-collection-transport">
+                        @php $el = $collectionField('transport_condition'); @endphp
                         @if($el)
                             @include('livewire.sampleworkflow.test-request-field-render', [
                                 'field' => $fieldMapper->toField($el),
-                                'optionCols' => 4,
-                                'optionTight' => true,
+                                'optionGridClass' => 'trf-option-grid trf-option-grid--transport',
                             ])
                         @endif
                     </div>
-                    <div class="col-md-6 mb-3" wire:key="field-collection-reason">
+                    <div wire:key="field-collection-reason">
                         @php $el = $collectionField('reason_of_collection'); @endphp
                         @if($el)
                             @include('livewire.sampleworkflow.test-request-field-render', [
                                 'field' => $fieldMapper->toField($el),
-                                'optionCols' => 2,
-                                'optionTight' => true,
+                                'optionGridClass' => 'trf-option-grid trf-option-grid--compact',
                             ])
                         @endif
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3" wire:key="field-collection-apparatus">
+                {{-- apparatus | · | method (+ thermometer under apparatus) --}}
+                <div class="trf-collection-trio trf-collection-trio--bottom" wire:key="collection-trio-bottom">
+                    <div wire:key="field-collection-apparatus">
                         @php $apparatusEl = $collectionField('sampling_apparatus'); @endphp
                         @if($apparatusEl)
                             @include('livewire.sampleworkflow.test-request-field-render', [
                                 'field' => $fieldMapper->toField($apparatusEl),
-                                'optionCols' => 3,
+                                'optionGridClass' => 'trf-option-grid trf-option-grid--apparatus',
                             ])
                             @if($thermometerElement)
-                                <div class="mt-2" wire:key="field-{{ $thermometerElement->id }}-nested">
+                                <div class="mt-3" wire:key="field-{{ $thermometerElement->id }}-nested">
                                     @include('livewire.sampleworkflow.test-request-field-render', [
                                         'field' => $fieldMapper->toField($thermometerElement),
                                     ])
@@ -353,10 +368,16 @@
                             @endif
                         @endif
                     </div>
-                    <div class="col-md-6 mb-3" wire:key="field-collection-transport">
-                        @php $el = $collectionField('transport_condition'); @endphp
-                        @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+                    <div wire:key="field-collection-method">
+                        @php $el = $collectionField('method_of_sampling'); @endphp
+                        @if($el)
+                            @include('livewire.sampleworkflow.test-request-field-render', [
+                                'field' => $fieldMapper->toField($el),
+                                'optionGridClass' => 'trf-option-grid trf-option-grid--method',
+                            ])
+                        @endif
                     </div>
+                    <div aria-hidden="true"></div>
                 </div>
             @else
             <div class="row">
@@ -384,6 +405,10 @@
                 @endforeach
             </div>
             @endif
+        @endif
+
+        @if($wrapInStepCard)
+            @include('livewire.partials.walk-in-trf-step-card-close')
         @endif
     </div>
 @endif

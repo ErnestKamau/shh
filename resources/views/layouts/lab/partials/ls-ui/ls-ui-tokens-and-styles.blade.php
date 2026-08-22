@@ -1083,6 +1083,9 @@
 		overflow: hidden;
 		box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 	}
+	.ls-table-wrap.ls-table-wrap--cell-expand {
+		overflow: visible;
+	}
 	.ls-table {
 		width: 100%;
 		margin: 0;
@@ -1603,6 +1606,331 @@
 	.ls-field-with-icon .ls-field__control { padding-left: 0; }
 	.ls-field-with-icon .ls-field__affix--prefix { color: #94a3b8; }
 
+	/* Rich text columns (TRF sample description) */
+	.ls-rich-text--inline {
+		margin-bottom: 0.85rem;
+	}
+
+	.ls-rich-text__shell {
+		border: 1px solid var(--ls-border, #e2e8f0);
+		border-radius: var(--ls-radius, 8px);
+		background: var(--ls-surface, #fff);
+		overflow: hidden;
+		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.ls-field.ls-rich-text--inline:focus-within .ls-rich-text__shell,
+	.ls-rich-text--cell.is-editing .ls-rich-text__shell,
+	.ls-rich-text__panel .ls-rich-text__shell:focus-within {
+		border-color: var(--ls-blue-focus, #93c5fd);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--ls-blue-soft-ring, #dbeafe) 55%, transparent);
+	}
+
+	.ls-field.ls-rich-text.is-error .ls-rich-text__shell {
+		border-color: #f87171;
+		background: #fff5f5;
+	}
+
+	.ls-rich-text__toolbar {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.15rem;
+		padding: 0.35rem 0.45rem;
+		border-bottom: 1px solid var(--ls-border, #e2e8f0);
+		background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+	}
+
+	.ls-rich-text__tool {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.65rem;
+		height: 1.65rem;
+		padding: 0;
+		border: 1px solid transparent;
+		border-radius: 6px;
+		background: transparent;
+		color: #64748b;
+		font-size: 0.95rem;
+		cursor: default;
+		transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+	}
+
+	.ls-rich-text__tool.is-active,
+	.ls-rich-text__tool:not(:disabled):hover {
+		background: #eff6ff;
+		border-color: #bfdbfe;
+		color: #1e3a8a;
+	}
+
+	.ls-rich-text__tool-sep {
+		width: 1px;
+		height: 1.1rem;
+		margin: 0 0.15rem;
+		background: #e2e8f0;
+	}
+
+	.ls-rich-text__body {
+		min-height: 5.5rem;
+		max-height: 14rem;
+		overflow-y: auto;
+		padding: 0.55rem 0.7rem;
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+		font-size: 0.8125rem;
+		line-height: 1.5;
+		color: var(--ls-ink, #1e293b);
+	}
+
+	.ls-rich-text__body:focus {
+		outline: none;
+	}
+
+	.ls-rich-text__body:empty::before {
+		content: attr(data-placeholder);
+		color: #94a3b8;
+		pointer-events: none;
+	}
+
+	.ls-rich-text__body p,
+	.ls-rich-text__body ul,
+	.ls-rich-text__body ol {
+		margin: 0 0 0.45rem;
+	}
+
+	.ls-rich-text__body p:last-child,
+	.ls-rich-text__body ul:last-child,
+	.ls-rich-text__body ol:last-child {
+		margin-bottom: 0;
+	}
+
+	.ls-rich-text--compact .ls-rich-text__body {
+		min-height: 4rem;
+		font-size: 0.78rem;
+	}
+
+	.ls-rich-text__body--cell {
+		min-height: 4.5rem;
+		max-height: 10rem;
+	}
+
+	.ls-rich-text__textarea {
+		display: block;
+		width: 100%;
+		min-height: 5.5rem;
+		border: 0;
+		resize: vertical;
+		padding: 0.55rem 0.7rem;
+		font-size: 0.8125rem;
+	}
+
+	/* TinyMCE inside LS shell */
+	.ls-rich-text__shell .tox-tinymce {
+		border: 0 !important;
+		border-radius: 0 !important;
+		box-shadow: none !important;
+	}
+
+	.ls-rich-text__shell .tox .tox-editor-header {
+		border-bottom: 1px solid var(--ls-border, #e2e8f0) !important;
+		background: linear-gradient(180deg, #f8fafc 0%, #fff 100%) !important;
+		box-shadow: none !important;
+		padding: 0.25rem 0.35rem !important;
+	}
+
+	.ls-rich-text__shell .tox .tox-toolbar__primary {
+		background: transparent !important;
+	}
+
+	.ls-rich-text__shell .tox .tox-tbtn {
+		border-radius: 6px !important;
+	}
+
+	.ls-rich-text__shell .tox .tox-tbtn:hover,
+	.ls-rich-text__shell .tox .tox-tbtn--enabled {
+		background: #eff6ff !important;
+		color: #1e3a8a !important;
+	}
+
+	.ls-rich-text__shell .tox .tox-edit-area__iframe {
+		background: #fff !important;
+	}
+
+	/* Table cell trigger + expand panel */
+	.ls-rich-text--cell {
+		position: relative;
+		min-width: 0;
+	}
+
+	.ls-rich-text__trigger {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		width: 100%;
+		min-height: 2rem;
+		padding: 0.35rem 0.5rem;
+		border: 1px solid var(--ls-border, #e2e8f0);
+		border-radius: 8px;
+		background: #fff;
+		color: var(--ls-ink, #1e293b);
+		font-size: 0.78rem;
+		text-align: left;
+		cursor: pointer;
+		transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+	}
+
+	.ls-rich-text__trigger:hover,
+	.ls-rich-text__trigger.is-open {
+		border-color: #93c5fd;
+		background: #f8fafc;
+		box-shadow: 0 0 0 3px color-mix(in srgb, #dbeafe 55%, transparent);
+	}
+
+	.ls-rich-text__trigger.is-empty .ls-rich-text__trigger-text {
+		color: #94a3b8;
+		font-style: italic;
+	}
+
+	.ls-rich-text__trigger-icon {
+		flex: 0 0 auto;
+		color: #64748b;
+		font-size: 1rem;
+		line-height: 1;
+	}
+
+	.ls-rich-text__trigger-text {
+		flex: 1 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.ls-rich-text__trigger-action {
+		flex: 0 0 auto;
+		color: #1e3a8a;
+		font-size: 0.95rem;
+		opacity: 0.85;
+	}
+
+	.ls-rich-text__panel {
+		min-width: min(22rem, 92vw);
+		border: 1px solid var(--ls-border, #e2e8f0);
+		border-radius: 10px;
+		background: #fff;
+		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+		overflow: hidden;
+	}
+
+	.ls-rich-text__panel--floating {
+		position: fixed;
+		z-index: 2050;
+	}
+
+	.ls-rich-text__panel-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.45rem 0.55rem 0.4rem;
+		border-bottom: 1px solid #eef2f7;
+		background: linear-gradient(180deg, rgb(139 21 56 / 0.04) 0%, #fff 100%);
+	}
+
+	.ls-rich-text__panel-title {
+		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
+		font-size: 0.72rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #1e3a8a;
+	}
+
+	.ls-rich-text__panel-title small {
+		display: block;
+		margin-top: 0.1rem;
+		font-size: 0.65rem;
+		font-weight: 500;
+		text-transform: none;
+		letter-spacing: 0;
+		color: #64748b;
+	}
+
+	.ls-rich-text__panel-close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		border: 0;
+		border-radius: 6px;
+		background: transparent;
+		color: #64748b;
+		cursor: pointer;
+	}
+
+	.ls-rich-text__panel-close:hover {
+		background: #f1f5f9;
+		color: #1e293b;
+	}
+
+	.ls-rich-text__panel-hint {
+		margin: 0;
+		padding: 0.35rem 0.55rem 0;
+		font-size: 0.65rem;
+		color: #64748b;
+	}
+
+	.ls-rich-text__panel-foot {
+		display: flex;
+		justify-content: flex-end;
+		padding: 0.4rem 0.55rem 0.5rem;
+		border-top: 1px solid #f1f5f9;
+	}
+
+	.ls-rich-text__panel-btn {
+		border: 0;
+		border-radius: 7px;
+		padding: 0.3rem 0.65rem;
+		font-size: 0.72rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.ls-rich-text__panel-btn--ghost {
+		background: #f1f5f9;
+		color: #475569;
+	}
+
+	.ls-rich-text__panel-btn--ghost:hover {
+		background: #e2e8f0;
+	}
+
+	/* Legacy TRF reference (gallery compare) */
+	.ls-rich-text-legacy {
+		border: 1px solid #cbd5e1;
+		border-radius: 4px;
+		overflow: hidden;
+		background: #fff;
+	}
+
+	.ls-rich-text-legacy__toolbar {
+		display: flex;
+		gap: 2px;
+		padding: 4px 6px;
+		background: #f1f5f9;
+		border-bottom: 1px solid #cbd5e1;
+		font-size: 0.7rem;
+		color: #64748b;
+	}
+
+	.ls-rich-text-legacy__body {
+		min-height: 4rem;
+		padding: 6px 8px;
+		font-size: 0.8125rem;
+		color: #334155;
+	}
+
 	/* Gallery chrome */
 	.ls-gallery-section {
 		margin-bottom: 0.75rem;
@@ -1712,5 +2040,117 @@
 	.ls-gallery-include strong {
 		font-weight: 700;
 		color: var(--ls-accent, #8b1e2d);
+	}
+
+	/* —— Food / Water TRF stepper card forms (Edit request details) —— */
+	.ls-trf-stepper-form {
+		border: 1px solid var(--ls-border, #e2e8f0);
+		border-radius: var(--ls-radius-lg, 10px);
+		background: #fff;
+		overflow: hidden;
+		max-width: 56rem;
+	}
+	.ls-trf-stepper-form__steps {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.65rem 1rem;
+		border-bottom: 1px solid rgba(30, 41, 59, 0.1);
+		background: #f8fafc;
+	}
+	.ls-trf-stepper-form__step {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.35rem 0.7rem;
+		border: 1px solid transparent;
+		border-radius: 999px;
+		background: transparent;
+		color: #64748b;
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.ls-trf-stepper-form__step.is-active {
+		background: #fff;
+		border-color: var(--ls-accent, #8b1e2d);
+		color: #1e293b;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+	}
+	.ls-trf-stepper-form__step-index {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.15rem;
+		height: 1.15rem;
+		border-radius: 999px;
+		background: #e2e8f0;
+		color: #475569;
+		font-size: 0.65rem;
+	}
+	.ls-trf-stepper-form__step.is-active .ls-trf-stepper-form__step-index {
+		background: var(--ls-accent, #8b1e2d);
+		color: #fff;
+	}
+	.ls-trf-stepper-form__divider {
+		width: 1.25rem;
+		height: 1px;
+		background: #cbd5e1;
+	}
+	.ls-trf-stepper-form__body {
+		padding: 1rem 1.25rem 1.15rem;
+		min-height: 14rem;
+	}
+	.ls-trf-stepper-form__section + .ls-trf-stepper-form__section {
+		margin-top: 0.85rem;
+		padding-top: 0.85rem;
+		border-top: 1px solid #eef2f7;
+	}
+	.ls-trf-stepper-form__section-title {
+		margin: 0 0 0.75rem;
+		font-size: calc(0.8rem + 2px);
+		font-weight: 700;
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+		color: #1e3a8a;
+	}
+	.ls-trf-stepper-form__hint {
+		margin: -0.35rem 0 0.85rem;
+		color: #64748b;
+	}
+	.ls-trf-stepper-form__footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.75rem 1rem;
+		border-top: 1px solid #e2e8f0;
+		background: #fafbfc;
+	}
+	.ls-trf-stepper-form__dots {
+		display: inline-flex;
+		gap: 0.35rem;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.ls-trf-stepper-form__dot {
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 999px;
+		background: #cbd5e1;
+	}
+	.ls-trf-stepper-form__dot.is-active {
+		background: var(--ls-accent, #8b1e2d);
+	}
+	.ls-trf-stepper-form__actions {
+		display: inline-flex;
+		gap: 0.5rem;
+		margin-left: auto;
+	}
+	.ls-trf-stepper-form .ls-btn--primary {
+		background: var(--ls-accent, #8b1e2d);
+		border-color: var(--ls-accent, #8b1e2d);
+		color: #fff;
 	}
 </style>

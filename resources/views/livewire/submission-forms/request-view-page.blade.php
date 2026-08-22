@@ -405,6 +405,8 @@
             </div>
         </div>
     @endif
+
+    @include('livewire.partials.walk-in-trf-ls-theme')
 </div>
 
 @script
@@ -1245,5 +1247,7 @@
             document.addEventListener('alpine:init', registerRftSampleDescriptionEditor);
         }
     })();
+
+    @include('livewire.partials.walk-in-trf-rft-param-picker-alpine')
 </script>
 @endscript

@@ -7,14 +7,19 @@
     expandAll: {{ $expandAllSampleCards ? 'true' : 'false' }},
     openRow: {{ $expandAllSampleCards ? -1 : 0 }},
     init() {
-        if (! this.expandAll) {
+        if (this.expandAll) {
+            this.$nextTick(() => {
+                for (let i = 0; i < {{ (int) $rowCount }}; i++) {
+                    this.$dispatch('rft-sample-card-shown', { row: i });
+                }
+            });
             return;
         }
-        this.$nextTick(() => {
-            for (let i = 0; i < {{ (int) $rowCount }}; i++) {
-                this.$dispatch('rft-sample-card-shown', { row: i });
-            }
-        });
+        if (this.openRow >= 0) {
+            this.$nextTick(() => {
+                this.$dispatch('rft-sample-card-shown', { row: this.openRow });
+            });
+        }
     },
     setOpenRow(row) {
         if (this.expandAll) {
@@ -37,28 +42,47 @@
 
         <article
             class="rft-sample-row-card"
+            data-trf-sample-index="{{ $rowIndex }}"
             wire:key="row-card-{{ $activeSection->id }}-{{ $rowIndex }}"
             :class="{ 'is-open': expandAll || openRow === {{ $rowIndex }} }"
         >
             <div class="rft-sample-row-card__header">
+                <div
+                    class="flex-grow-1 min-width-0"
+                    x-data="{
+                        rowIndex: {{ $rowIndex }},
+                        analysisLabel: @js($summary['analysis_label']),
+                        paramCount: {{ (int) $summary['param_count'] }},
+                        paramPreview: @js($summary['param_preview']),
+                    }"
+                    @rft-trf-tests-saved.window="
+                        if (Number($event.detail?.rowIndex) !== rowIndex) { return; }
+                        paramCount = Number($event.detail?.count ?? 0);
+                        paramPreview = String($event.detail?.preview ?? '');
+                        analysisLabel = String($event.detail?.analysisLabel ?? analysisLabel);
+                    "
+                >
                 <button
                     type="button"
-                    class="rft-sample-row-card__toggle-main border-0 bg-transparent p-0 text-left flex-grow-1 min-width-0"
+                    class="rft-sample-row-card__toggle-main border-0 bg-transparent p-0 text-left w-100"
                     @click="setOpenRow({{ $rowIndex }})"
                 >
                     <h6 class="rft-sample-row-card__title mb-1">
-                        Sample {{ $rowIndex + 1 }}
+                        Sample {{ $rowIndex + 1 }}<span x-show="analysisLabel !== ''" x-cloak> — <span x-text="analysisLabel"></span></span>
                     </h6>
                     <div class="rft-sample-row-card__summary text-muted small" x-show="!expandAll && openRow !== {{ $rowIndex }}" x-cloak>
-                        <span>{{ $summary['analysis_label'] !== '' ? $summary['analysis_label'] : 'No analysis' }}</span>
+                        <span x-text="analysisLabel !== '' ? analysisLabel : 'No analysis'"></span>
                         <span class="mx-1">·</span>
-                        <span>{{ $summary['param_count'] }} parameter{{ $summary['param_count'] === 1 ? '' : 's' }}</span>
-                        @if($summary['param_preview'] !== '')
-                            <span class="mx-1">·</span>
-                            <span class="rft-sample-row-card__preview">{{ $summary['param_preview'] }}{{ $summary['param_count'] > 2 ? '…' : '' }}</span>
-                        @endif
+                        <span x-text="paramCount + ' parameter' + (paramCount === 1 ? '' : 's')"></span>
+                        <template x-if="paramPreview !== ''">
+                            <span>
+                                <span class="mx-1">·</span>
+                                <span class="rft-sample-row-card__preview" x-text="paramPreview + (paramCount > 2 ? '…' : '')"></span>
+                            </span>
+                        </template>
                     </div>
                 </button>
+                </div>
                 <div class="rft-sample-row-card__header-actions">
                     @if($rowCount > 1)
                         <button
@@ -90,7 +114,47 @@
                 x-cloak
             >
                     @foreach($cardLayout['grid_rows'] as $gridRow)
-                        @if(($gridRow['type'] ?? 'fields') === 'section')
+                        @if(($gridRow['type'] ?? 'fields') === 'catalog')
+                            @if($cardLayout['catalog_row'] ?? null)
+                                @php $catalogRow = $cardLayout['catalog_row']; @endphp
+                                <div class="rv-trf-catalog-row rft-sample-catalog-row rft-sample-catalog-row--type-tests">
+                                    @foreach(['sample_type' => 'Sample type', 'parameters' => 'Tests'] as $catalogKey => $defaultLabel)
+                                        @php $column = $catalogRow[$catalogKey] ?? null; @endphp
+                                        @if($column !== null)
+                                            @php
+                                                $element = $column['element'];
+                                                $field = $column['field'] ?? $fieldMapper->toField($element);
+                                            @endphp
+                                            <div class="rv-trf-catalog-row__cell">
+                                                <label>
+                                                    {{ $column['label'] ?? $defaultLabel }}
+                                                    @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
+                                                </label>
+                                                @if($catalogKey === 'parameters')
+                                                    @include('livewire.partials.walk-in-trf-parameters-cell', [
+                                                        'fieldId' => $element->name.'_'.$rowIndex,
+                                                        'rowIndex' => $rowIndex,
+                                                        'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
+                                                        'formData' => $formData,
+                                                    ])
+                                                @else
+                                                    <div class="rv-trf-select-shell">
+                                                        @include('livewire.sampleworkflow.test-request-field-render', [
+                                                            'field' => $field,
+                                                            'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
+                                                            'fieldId' => $element->name.'_'.$rowIndex,
+                                                            'rowIndex' => $rowIndex,
+                                                            'compact' => false,
+                                                            'hideLabel' => true,
+                                                        ])
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @endif
+                        @elseif(($gridRow['type'] ?? 'fields') === 'section')
                             <div class="rft-sample-section-label">{{ $gridRow['label'] ?? '' }}</div>
                         @elseif(($gridRow['type'] ?? 'fields') === 'divider')
                             <div class="rft-sample-grid-row-divider" aria-hidden="true"></div>
@@ -141,8 +205,18 @@
                                                 @include('livewire.partials.walk-in-trf-qty-unit-cell', [
                                                     'rowIndex' => $rowIndex,
                                                     'compact' => false,
+                                                    'hideLabel' => true,
                                                     'quantityField' => 'sample_quantity',
                                                     'unitField' => 'sample_quantity_unit',
+                                                ])
+                                            @elseif($fieldName === 'sample_description')
+                                                @include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+                                                    'label' => null,
+                                                    'value' => data_get($formData, 'sample_description.'.$rowIndex, ''),
+                                                    'wireModel' => 'formData.sample_description.'.$rowIndex,
+                                                    'editorId' => 'rft-desc-cell-'.$rowIndex,
+                                                    'rowLabel' => 'Sample '.($rowIndex + 1),
+                                                    'compact' => true,
                                                 ])
                                             @else
                                                 @include('livewire.sampleworkflow.test-request-field-render', [
@@ -211,24 +285,48 @@
                         </div>
                     @endif
 
-                    @if($cardLayout['analysis_type_column'] ?? null)
-                        @php
-                            $element = $cardLayout['analysis_type_column']['element'];
-                            $field = $cardLayout['analysis_type_column']['field'] ?? $fieldMapper->toField($element);
-                        @endphp
-                        <div class="rft-sample-field rft-sample-field--full">
-                            <label>
-                                {{ $cardLayout['analysis_type_column']['label'] ?? 'Analysis Type' }}
-                                @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
-                            </label>
-                            @include('livewire.sampleworkflow.test-request-field-render', [
-                                'field' => $field,
-                                'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
-                                'fieldId' => $element->name.'_'.$rowIndex,
-                                'rowIndex' => $rowIndex,
-                                'compact' => false,
-                                'hideLabel' => true,
-                            ])
+                    @php
+                        $catalogRenderedInGrid = collect($cardLayout['grid_rows'] ?? [])->contains(
+                            static fn (array $row): bool => ($row['type'] ?? '') === 'catalog'
+                        );
+                    @endphp
+                    @if(($cardLayout['catalog_row'] ?? null) && ! $catalogRenderedInGrid)
+                        @php $catalogRow = $cardLayout['catalog_row']; @endphp
+                        <div class="rv-trf-catalog-row rft-sample-catalog-row rft-sample-catalog-row--type-tests">
+                            @foreach(['sample_type' => 'Sample type', 'parameters' => 'Tests'] as $catalogKey => $defaultLabel)
+                                @php $column = $catalogRow[$catalogKey] ?? null; @endphp
+                                @if($column !== null)
+                                    @php
+                                        $element = $column['element'];
+                                        $field = $column['field'] ?? $fieldMapper->toField($element);
+                                    @endphp
+                                    <div class="rv-trf-catalog-row__cell">
+                                        <label>
+                                            {{ $column['label'] ?? $defaultLabel }}
+                                            @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
+                                        </label>
+                                        @if($catalogKey === 'parameters')
+                                            @include('livewire.partials.walk-in-trf-parameters-cell', [
+                                                'fieldId' => $element->name.'_'.$rowIndex,
+                                                'rowIndex' => $rowIndex,
+                                                'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
+                                                'formData' => $formData,
+                                            ])
+                                        @else
+                                            <div class="rv-trf-select-shell">
+                                                @include('livewire.sampleworkflow.test-request-field-render', [
+                                                    'field' => $field,
+                                                    'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
+                                                    'fieldId' => $element->name.'_'.$rowIndex,
+                                                    'rowIndex' => $rowIndex,
+                                                    'compact' => false,
+                                                    'hideLabel' => true,
+                                                ])
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                            @endforeach
                         </div>
                     @endif
 
@@ -242,11 +340,13 @@
                                 {{ $cardLayout['parameters_column']['label'] ?? 'Parameters' }}
                                 @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
                             </label>
-                            @include('livewire.partials.walk-in-trf-parameters-cell', [
+                            @include('livewire.partials.walk-in-trf-parameters-multi', [
                                 'fieldId' => $element->name.'_'.$rowIndex,
                                 'rowIndex' => $rowIndex,
                                 'wirePrefix' => 'formData.'.$element->name.'.'.$rowIndex,
-                                'compact' => false,
+                                'label' => $cardLayout['parameters_column']['label'] ?? 'Tests',
+                                'required' => (bool) ($field['required'] ?? false),
+                                'hideLabel' => true,
                             ])
                         </div>
                     @endif

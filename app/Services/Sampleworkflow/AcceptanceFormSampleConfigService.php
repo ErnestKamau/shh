@@ -1565,6 +1565,7 @@ class AcceptanceFormSampleConfigService
             ->map(fn (SampleAnalysisStage $section) => [
                 'id' => (string) $section->id,
                 'name' => (string) $section->name,
+                'code' => trim((string) ($section->code ?? '')),
             ])
             ->values()
             ->all();

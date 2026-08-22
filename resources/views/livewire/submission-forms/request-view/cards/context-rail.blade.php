@@ -7,19 +7,48 @@
     $documents = $contextRail['documents'] ?? [];
     $moreFields = $contextRail['more_fields'] ?? [];
     $canEditTrf = $canEditSampleRows ?? false;
+
+    $clientField = collect($identity)->first(fn (array $field): bool => ($field['name'] ?? '') === 'client_name');
+    $clientTitle = $clientField['value'] ?? 'Client';
+    $companyUnitField = collect($identity)->first(fn (array $field): bool => ($field['name'] ?? '') === 'company_unit');
+    $clientHeadSubtitle = $companyUnitField !== null
+        ? (string) $companyUnitField['value']
+        : 'Contact & company unit';
+    $identityBody = collect($identity)
+        ->reject(fn (array $field): bool => in_array($field['name'] ?? '', ['client_name', 'company_unit'], true))
+        ->values()
+        ->all();
 @endphp
 
 <aside class="rv-console-rail" aria-label="Client info">
     <div class="rv-rail-panel">
         @if(count($identity) > 0 || count($when) > 0 || count($contact) > 0)
-            <section class="rv-rail-section">
-                <div class="rv-rail-section-heading">
-                    <h3 class="rv-rail-section-title mb-0">
-                        <i class="mdi mdi-account-tie-outline" aria-hidden="true"></i>
-                        Client info
-                    </h3>
-                    @if($canEditTrf)
-                        <div class="d-inline-flex align-items-center rv-rail-icon-actions">
+            <section class="rv-rail-section rv-rail-section--client">
+                <div class="rv-rail-head">
+                    <div class="rv-rail-head__copy">
+                        <div class="rv-rail-eyebrow">Client info</div>
+                        <h3 class="rv-rail-head-title">{{ $clientTitle }}</h3>
+                        <p class="rv-rail-head-subtitle">{{ $clientHeadSubtitle }}</p>
+                    </div>
+                    <div class="rv-rail-head__actions">
+                        @if($canEditTrf)
+                            <div class="d-inline-flex align-items-center rv-rail-icon-actions">
+                                <button type="button"
+                                    class="rv-rail-edit-btn rv-rail-edit-btn--icon"
+                                    wire:click="openTrfViewer('customer')"
+                                    title="View customer & contact"
+                                    aria-label="View customer & contact">
+                                    <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+                                </button>
+                                <button type="button"
+                                    class="rv-rail-edit-btn rv-rail-edit-btn--icon"
+                                    wire:click="openTrfEditor('customer')"
+                                    title="Edit customer & contact"
+                                    aria-label="Edit customer & contact">
+                                    <i class="mdi mdi-pencil-outline" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        @else
                             <button type="button"
                                 class="rv-rail-edit-btn rv-rail-edit-btn--icon"
                                 wire:click="openTrfViewer('customer')"
@@ -27,30 +56,15 @@
                                 aria-label="View customer & contact">
                                 <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
                             </button>
-                            <button type="button"
-                                class="rv-rail-edit-btn rv-rail-edit-btn--icon"
-                                wire:click="openTrfEditor('customer')"
-                                title="Edit customer & contact"
-                                aria-label="Edit customer & contact">
-                                <i class="mdi mdi-pencil-outline" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    @else
-                        <button type="button"
-                            class="rv-rail-edit-btn rv-rail-edit-btn--icon"
-                            wire:click="openTrfViewer('customer')"
-                            title="View customer & contact"
-                            aria-label="View customer & contact">
-                            <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
-                        </button>
-                    @endif
+                        @endif
+                    </div>
                 </div>
-                <div class="rv-rail-identity-stack">
+                <div class="rv-rail-body">
                     <dl class="rv-rail-fields">
-                        @foreach($identity as $field)
+                        @foreach($identityBody as $field)
                             <div class="rv-rail-field">
                                 <dt>{{ $field['label'] }}</dt>
-                                <dd class="{{ ($field['name'] ?? '') === 'client_name' ? 'rv-rail-value--emphasis' : '' }}">{{ $field['value'] }}</dd>
+                                <dd class="{{ ($field['name'] ?? '') === 'company_unit' ? 'rv-rail-value--emphasis' : '' }}">{{ $field['value'] }}</dd>
                             </div>
                         @endforeach
                         @foreach($contact as $field)

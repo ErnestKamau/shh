@@ -76,7 +76,10 @@ class PortalDynamicOptionsService
             'store_slot_select' => ['options' => $this->storeSlots($storeId)],
             'sample_condition_select' => ['options' => $this->sampleConditions()],
             'analysis_type_select' => ['options' => $this->analysisTypes($sampleTypeId)],
-            'analysis_elements_select' => ['options' => $this->analysisElements($request->input('analysis_type_id'))],
+            'analysis_elements_select' => ['options' => $this->analysisElements(
+                $request->input('analysis_type_id'),
+                $sampleTypeId
+            )],
             'standard_select' => ['options' => $this->standards()],
             'sample_point_select' => ['options' => $this->samplePoints($clientUnitId)],
             'user_select' => $this->userSelect($search, $page, $perPage),
@@ -338,49 +341,66 @@ class PortalDynamicOptionsService
     }
 
     /**
-     * @return list<array{value: mixed, label: string}>
+     * @return list<array{value: mixed, label: string, meta_analysis_type?: string, meta_method?: string}>
      */
-    private function analysisElements(mixed $analysisTypeId): array
+    private function analysisElements(mixed $analysisTypeId, mixed $sampleTypeId = null): array
     {
-        $ids = [];
-        if (is_array($analysisTypeId)) {
-            $ids = array_values(array_filter(array_map('strval', $analysisTypeId)));
-        } elseif (is_string($analysisTypeId) && str_contains($analysisTypeId, ',')) {
-            $ids = array_values(array_filter(array_map('trim', explode(',', $analysisTypeId))));
-        } elseif ($analysisTypeId !== null && $analysisTypeId !== '') {
-            $ids = [(string) $analysisTypeId];
+        $analysisTypeIds = $this->normalizeIdList($analysisTypeId);
+        $sampleTypeIds = $this->normalizeIdList($sampleTypeId);
+
+        if ($sampleTypeIds === [] && $analysisTypeIds !== []) {
+            $sampleTypeIds = AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->pluck('sample_type_id')
+                ->map(static fn ($id): string => (string) $id)
+                ->unique()
+                ->values()
+                ->all();
         }
 
-        if ($ids === []) {
+        if ($sampleTypeIds === []) {
             return [];
         }
 
-        return AnalysisElements::query()
-            ->whereIn('analysis_type_id', $ids)
-            ->where('active', true)
-            ->with('analyte')
-            ->get()
-            ->map(function (AnalysisElements $element): array {
-                $parameterName = 'Unknown Parameter';
-                if ($element->analyte) {
-                    $parameterName = $element->analyte->name ?? 'Unknown Parameter';
-                } elseif ($element->analyte_id) {
-                    $analyte = Analyte::query()->find($element->analyte_id);
-                    $parameterName = $analyte?->name ?? 'Unknown Parameter';
-                }
+        $catalog = app(\App\Services\Sampleworkflow\WalkInParameterCatalogService::class);
+        $groups = $catalog->groupsForSampleTypes($sampleTypeIds);
 
-                $methodName = 'No Method';
-                if ($element->method) {
-                    $method = \App\AnalysisMethod::query()->find($element->method);
-                    $methodName = $method ? ($method->name ?? $element->method) : $element->method;
-                }
+        if ($analysisTypeIds !== []) {
+            $allowed = array_flip($analysisTypeIds);
+            $groups = array_values(array_filter(
+                $groups,
+                static fn (array $group): bool => isset($allowed[(string) ($group['analysis_type_id'] ?? '')])
+            ));
+        }
 
-                return [
-                    'value' => $element->id,
-                    'label' => $parameterName.' ('.$methodName.')',
-                ];
-            })
-            ->all();
+        $flat = $catalog->flattenGroups($groups);
+
+        return $catalog->enrichSelectOptions(
+            collect($flat)->map(static fn (array $test): array => [
+                'value' => $test['id'],
+                'label' => $test['name'],
+            ])->all()
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeIdList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_filter(array_map('strval', $value)));
+        }
+
+        if (is_string($value) && str_contains($value, ',')) {
+            return array_values(array_filter(array_map('trim', explode(',', $value))));
+        }
+
+        if ($value !== null && $value !== '') {
+            return [(string) $value];
+        }
+
+        return [];
     }
 
     /**

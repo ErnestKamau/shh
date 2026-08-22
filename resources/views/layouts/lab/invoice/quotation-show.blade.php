@@ -96,6 +96,14 @@
                                     <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-file-eye"></i> Preview Quote</span>
                                     <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-printer"></i> Process PDF</span>
                                     @endif
+                                    @if($header->status == 'Quote In Preparation' && $header->quotation_type != 'General')
+                                    <span class="dropdown-item" style="cursor: pointer;" data-target="#quote-commercial-modal" data-toggle="modal" title="Pricelist and billing mode">
+                                        <i class="mdi mdi-cash-multiple"></i> Commercial
+                                        @if(!empty($pricelistChooser['needs_choice']))
+                                            <span class="badge badge-danger ml-1" style="font-size: 9px;">Pick</span>
+                                        @endif
+                                    </span>
+                                    @endif
                                     @if(sizeof($details)>0)
                                     <div class="dropdown-divider"></div>
                                     <form action="{{ route('create_quotation_revision', ['id' => $header->id]) }}" method="POST" class="px-0 m-0">
@@ -108,12 +116,17 @@
                                     <span class="dropdown-item text-danger" style="cursor: pointer;" data-target="#delete-quotation" data-toggle="modal"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
                                     @if(sizeof($details)>0)
                                     <div class="dropdown-divider"></div>
-                                    <span class="dropdown-item text-dark" style="cursor: pointer;" data-target="#request-approval" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Request For Approval</span>
+                                    <span class="dropdown-item text-dark" style="cursor: pointer;"
+                                          onclick="window.Livewire && window.Livewire.dispatch('billing-quotation-open-send-for-approval')">
+                                        <i class="mdi mdi-share-circle"></i> Request For Approval
+                                    </span>
                                     @endif
                                     @endif
-                                    @if($header->status == 'Quote In Approval' && sizeof($details)>0 && (int) $header->is_approved !== 1 && (string) $header->approved_by === (string) auth()->id())
+                                    @if($header->status == 'Quote In Approval' && sizeof($details)>0 && (int) $header->is_approved !== 1)
                                     <div class="dropdown-divider"></div>
-                                    <span class="dropdown-item text-success" style="cursor: pointer;" data-target="#approve-quote" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Approve Quotation</span>
+                                    <span class="dropdown-item text-muted" title="Approve from Billing → Quotations → In Approval">
+                                        <i class="mdi mdi-check-decagram"></i> Approve from In Approval list
+                                    </span>
                                     @endif
                                 </div>
                             </div>
@@ -281,8 +294,14 @@
                             </div>
                             <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
                                 @if($header->status == 'Quote In Preparation')
-                                <button type="button" class="btn btn-outline-secondary btn-sm" id="ls-quote-import-open" data-toggle="modal" data-target="#ls-quote-import-modal">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="ls-quote-import-open" data-toggle="modal" data-target="#ls-quote-import-modal" title="Import lines from Excel or PDF">
                                     <i class="mdi mdi-file-upload-outline"></i> Import
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="ls-quote-pricelist-open" data-toggle="modal" data-target="#quote-commercial-modal" title="Append lines from customer pricelist">
+                                    <i class="mdi mdi-format-list-bulleted-type"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm d-none" id="ls-quote-bulk-delete" title="Delete selected lines">
+                                    <i class="mdi mdi-delete-outline"></i> Delete selected
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="add-row">
                                     <i class="mdi mdi-plus"></i> Add line
@@ -295,26 +314,33 @@
                         </div>
                         @include('layouts.lab.invoice.partials.quotation-import-modal')
                         @include('layouts.lab.invoice.partials.quotation-analysis-line-prototype')
-                        <div class="table-responsive quotation-analysis-lines ls-quotation-table-scroll">
+                        <div class="table-responsive quotation-analysis-lines ls-quotation-table-scroll" id="ls-quote-analysis-lines-workspace"
+                             data-pricelist-id="{{ $header->pricelist_id ? (string) $header->pricelist_id : '' }}"
+                             data-bulk-delete-url="{{ route('quotation.bulk_delete_details', ['id' => $header->id]) }}">
 
                             <table class="table table-hover ls-table ls-table--dense mb-0 livewire-table ls-quote-analysis-table">
                                 <colgroup>
                                     <col class="ls-quote-col--no" style="width:5%">
-                                    <col class="ls-quote-col--sample" style="width:22%">
-                                    <col class="ls-quote-col--params" style="width:42%">
-                                    <col class="ls-quote-col--qty-req" style="width:14%">
-                                    <col class="ls-quote-col--qty" style="width:10%">
-                                    <col class="ls-quote-col--price" style="width:12%">
-                                    <col class="ls-quote-col--total" style="width:12%">
-                                    <col class="ls-quote-col--tax" style="width:9%">
+                                    <col class="ls-quote-col--sample" style="width:18%">
+                                    <col class="ls-quote-col--params" style="width:32%">
+                                    <col class="ls-quote-col--qty-req" style="width:16%">
+                                    <col class="ls-quote-col--qty" style="width:8%">
+                                    <col class="ls-quote-col--price" style="width:16%">
+                                    <col class="ls-quote-col--total" style="width:10%">
+                                    <col class="ls-quote-col--tax" style="width:8%">
                                 </colgroup>
                                 <thead>
                                     <tr>
+                                        <th class="text-center" style="width:2rem;">
+                                            @if($header->status == 'Quote In Preparation')
+                                            <input type="checkbox" id="ls-quote-select-all-lines" title="Select all lines" aria-label="Select all lines">
+                                            @endif
+                                        </th>
                                         <th>No</th>
                                         <th nowrap>Sample Type <span class="text-danger">*</span></th>
                                         <th nowrap>Parameters<span class="text-danger">*</span></th>
                                         <th nowrap>Quantity Required</th>
-                                        <th nowrap>No. of Samples<span class="text-danger">*</span></th>
+                                        <th nowrap>Qty<span class="text-danger">*</span></th>
                                         <th nowrap>Unit Price</th>
                                         <th nowrap>Total Price</th>
                                         <th nowrap>Tax%</th>
@@ -322,7 +348,12 @@
                                 </thead>
                                 <tbody id="create-detail">
                                     @foreach($details as $detail)
-                                    <tr>
+                                    <tr data-saved-detail-id="{{ $detail->id }}">
+                                        @if($header->status == 'Quote In Preparation')
+                                        <td class="text-center align-middle">
+                                            <input type="checkbox" class="ls-quote-line-select" value="{{ $detail->id }}" aria-label="Select line">
+                                        </td>
+                                        @endif
                                         <td class="align-middle ls-quote-line-actions">
                                             <button type="button" class="ls-quote-icon-btn" data-sample="{{$detail->sample_type_name}}" data-detail="{{$detail->id}}" data-toggle="modal" data-target="#detail-edit-mode" title="Edit">
                                                 <i class="mdi mdi-pencil"></i>
@@ -531,8 +562,36 @@
 <link rel="stylesheet" href="/css/quilljs.css" />
 <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 @endsection
+
+@livewire('billing.quotation-send-for-approval', ['quotationHeaderId' => (string) $header->id], key('billing-send-for-approval-'.$header->id))
 @section('script2')
 @include('layouts.lab.invoice.partials.quotation-show-header-scripts')
+@if($header->status == 'Quote In Preparation' && $header->quotation_type != 'General')
+<div class="modal fade ls-quote-commercial-modal" id="quote-commercial-modal" role="dialog" aria-labelledby="quote-commercial-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quote-commercial-modal-title">
+                    <i class="mdi mdi-format-list-bulleted-type"></i> Customer pricelist
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @include('layouts.lab.invoice.partials.quotation-commercial-chooser', [
+                    'header' => $header,
+                    'details' => $details,
+                    'pricelistChooser' => $pricelistChooser ?? null,
+                ])
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm ls-quote-commercial-done" data-dismiss="modal">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 <div class="modal fade ls-quotation-workflow-modal" id="print-quotation" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -548,53 +607,6 @@
                 <a href="/billing-add-quote-detail-index/{{$header->id}}" class="btn btn-sm btn-outline-secondary">Close</a>
                 
             </div>
-        </div>
-    </div>
-</div>
-<div class="modal fade ls-quotation-workflow-modal" id="request-approval" role="dialog">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form action="{{ route('approve-workflow')}}" method="post">
-                @csrf
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-share-circle"></i> Request For Approval
-                    </h5>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="header_id" value="{{$header->id}}">
-                    <input type="hidden" name="stage" value="Quote In Approval">
-                    <div class="ls-field">
-                        <label class="ls-field__label">To Be Approved By <span class="ls-req">*</span></label>
-                        <div class="ls-field__control">
-                        <select name="user_id" class="ls-field__input form-control" required>
-                            <option value="">Select Approver...</option>
-                            @foreach($users as $user)
-                            @if($user->id != $header->prepared_by_id)
-                            <option value="{{$user->id}}">{{$user->name}}</option>
-                            @endif
-                            @endforeach
-                        </select>
-                        </div>
-                    </div>
-                    <div class="form-check mt-3">
-                        <input class="form-check-input" type="checkbox" name="notification" id="req-approval-email" />
-                        <label class="form-check-label" for="req-approval-email">
-                            Send Email Notification
-                        </label>
-                    </div>
-                    <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" name="send_message" id="req-approval-msg" />
-                        <label class="form-check-label" for="req-approval-msg">
-                            Send Message
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-quotation-primary"><i class="mdi mdi-share-circle"></i> Request</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -865,58 +877,328 @@
             capabilityUrl: @json(route('quotation.import_prep_capability')),
             csrf: quotationPricingConfig.csrf,
             format: 'excel',
+            pricingMode: 'per_package',
         };
 
+        var $quoteWorkspace = $('#ls-quote-analysis-lines-workspace');
+
+        function boundPricelistId() {
+            var fromChooser = String($('#ls-quote-commercial-chooser').data('selected-pricelist') || '');
+            var fromWorkspace = String($quoteWorkspace.data('pricelist-id') || '');
+            return fromChooser || fromWorkspace;
+        }
+
+        function currentQuotePricingMode() {
+            if (boundPricelistId() !== '') {
+                var listMode = String($('#ls-quote-commercial-chooser').data('pricelist-billing-mode') || 'per_package');
+                return listMode === 'per_test' ? 'per_test' : 'per_package';
+            }
+            return 'per_package';
+        }
+
+        function applyManualLineModeUi($row) {
+            var locked = boundPricelistId() !== '';
+            var mode = currentQuotePricingMode();
+            var $wrap = $row.find('.ls-quote-line-mode-wrap');
+            var $toggle = $row.find('.ls-quote-line-mode-input');
+            if ($wrap.length) {
+                if (locked) {
+                    $wrap.addClass('d-none');
+                    $toggle.prop('checked', mode === 'per_test').prop('disabled', true);
+                } else {
+                    $wrap.removeClass('d-none');
+                    $toggle.prop('disabled', false);
+                    if (!$toggle.data('userTouched')) {
+                        $toggle.prop('checked', mode === 'per_test');
+                    }
+                }
+            }
+            var rowMode = ($toggle.length && $toggle.is(':checked')) ? 'per_test' : 'per_package';
+            if (locked) {
+                rowMode = mode;
+            }
+            $row.find('.quotation-pricing-mode').val(rowMode);
+            return rowMode;
+        }
+
+        function syncRowPricingModes(mode) {
+            mode = mode === 'per_test' ? 'per_test' : 'per_package';
+            quotationImportConfig.pricingMode = mode;
+            $('#create-detail tr').each(function () {
+                applyManualLineModeUi($(this));
+            });
+            applyManualLineModeUi($('#ls-quote-analysis-line-prototype'));
+            var hint = mode === 'per_test'
+                ? 'Per parameter: each test is billed separately.'
+                : 'Per package: samples × one package price (tests listed for scope).';
+            $('#create-detail .quotation-price-hint').each(function () {
+                var $hint = $(this);
+                if (!$hint.closest('tr').data('pricelistSuggestion')) {
+                    $hint.text(hint);
+                }
+            });
+        }
+
+        (function initQuoteCommercialChooser() {
+            var $root = $('#ls-quote-commercial-chooser');
+            if (!$root.length) {
+                return;
+            }
+
+            syncRowPricingModes(currentQuotePricingMode());
+
+            function initCommercialTooltips() {
+                var $tips = $('#quote-commercial-modal [data-toggle="tooltip"]');
+                if (!$tips.length || typeof $tips.tooltip !== 'function') {
+                    return;
+                }
+                $tips.each(function () {
+                    var $el = $(this);
+                    if ($el.data('bs.tooltip')) {
+                        $el.tooltip('dispose');
+                    }
+                    $el.tooltip({
+                        container: 'body',
+                        trigger: 'hover focus',
+                        boundary: 'window',
+                        template: '<div class="tooltip ls-quote-commercial-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
+                    });
+                });
+            }
+
+            initCommercialTooltips();
+            $('#quote-commercial-modal').on('shown.bs.modal', initCommercialTooltips);
+            $('#quote-commercial-modal').on('hide.bs.modal', function () {
+                $('#quote-commercial-modal [data-toggle="tooltip"]').each(function () {
+                    var $el = $(this);
+                    if ($el.data('bs.tooltip')) {
+                        $el.tooltip('hide');
+                    }
+                });
+                $('.tooltip.ls-quote-commercial-tooltip').remove();
+            });
+
+            $root.on('click', '.ls-quote-pricelist-tile', function () {
+                var $btn = $(this);
+                var pricelistId = String($btn.data('pricelist-id') || '');
+                var url = $root.data('select-pricelist-url');
+                var $status = $('#ls-quote-pricelist-status');
+                if (!pricelistId || !url) {
+                    return;
+                }
+
+                $root.find('.ls-quote-pricelist-tile')
+                    .removeClass('is-active is-saving ls-motion-shake-soft')
+                    .attr('aria-checked', 'false');
+                $btn.addClass('is-active is-saving').attr('aria-checked', 'true');
+                $btn.find('.ls-icon-tile__glyph i')
+                    .removeClass('mdi-format-list-bulleted-type mdi-check-decagram ls-motion-check')
+                    .addClass('mdi-loading ls-motion-spin');
+                $status.removeClass('is-success is-error').text('Applying pricelist…');
+
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: {
+                        _token: quotationPricingConfig.csrf,
+                        pricelist_id: pricelistId,
+                    },
+                }).done(function (res) {
+                    var billingMode = String(res.billing_mode || $btn.data('billing-mode') || 'package');
+                    var pricingMode = billingMode === 'per_test' ? 'per_test' : 'per_package';
+                    $root.attr('data-selected-pricelist', pricelistId).data('selected-pricelist', pricelistId);
+                    $root.attr('data-pricelist-billing-mode', pricingMode).data('pricelist-billing-mode', pricingMode);
+                    $quoteWorkspace.attr('data-pricelist-id', pricelistId).data('pricelist-id', pricelistId);
+                    $root.attr('data-needs-choice', '0').data('needs-choice', 0);
+                    $root.find('.ls-quote-commercial-chooser__nudge').remove();
+                    $root.find('.ls-quote-pricelist-tile').removeClass('ls-motion-shake-soft');
+                    $btn.find('.ls-icon-tile__glyph i')
+                        .removeClass('mdi-loading ls-motion-spin')
+                        .addClass('mdi-check-decagram ls-motion-check');
+                    var code = res.code || $btn.data('pricelist-code') || pricelistId;
+                    var modeLabel = pricingMode === 'per_test' ? 'Per test' : 'Per package';
+                    $('#ls-quote-commercial-summary-pricelist').text(code);
+                    $('#ls-quote-commercial-summary-mode').text(modeLabel);
+                    var created = parseInt(res.lines_created, 10) || 0;
+                    var statusMsg = 'Using ' + code + ' (' + modeLabel + ')';
+                    if (created > 0) {
+                        statusMsg += ' — appended ' + created + ' line(s).';
+                    }
+                    $status.addClass('is-success').text(statusMsg + (res.description ? ' ' + res.description : ''));
+                    syncRowPricingModes(pricingMode);
+                    if (res.reload) {
+                        window.location.reload();
+                    }
+                }).fail(function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.error)
+                        ? xhr.responseJSON.error
+                        : 'Could not apply pricelist.';
+                    $btn.find('.ls-icon-tile__glyph i')
+                        .removeClass('mdi-loading ls-motion-spin mdi-check-decagram')
+                        .addClass('mdi-format-list-bulleted-type');
+                    $btn.removeClass('is-active');
+                    $status.addClass('is-error').text(msg);
+                }).always(function () {
+                    $btn.removeClass('is-saving');
+                });
+            });
+
+            $root.on('click', '#ls-quote-detach-pricelist', function () {
+                var url = $root.data('detach-pricelist-url');
+                if (!url || !confirm('Detach this quotation from the pricelist? New lines will use manual pricing.')) {
+                    return;
+                }
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: { _token: quotationPricingConfig.csrf },
+                }).done(function () {
+                    $root.attr('data-selected-pricelist', '').data('selected-pricelist', '');
+                    $quoteWorkspace.attr('data-pricelist-id', '').data('pricelist-id', '');
+                    $('#ls-quote-commercial-summary-pricelist').text('—');
+                    $('#ls-quote-commercial-summary-mode').text('—');
+                    $('#ls-quote-pricelist-status').text('Pricelist detached. Manual pricing enabled.');
+                    syncRowPricingModes('per_package');
+                    window.location.reload();
+                });
+            });
+        })();
+
+        (function initQuoteLineBulkSelect() {
+            var $bulkBtn = $('#ls-quote-bulk-delete');
+            var $selectAll = $('#ls-quote-select-all-lines');
+            if (!$bulkBtn.length) {
+                return;
+            }
+
+            function selectedLineCheckboxes() {
+                return $('#create-detail .ls-quote-line-select:checked');
+            }
+
+            function refreshBulkUi() {
+                var count = selectedLineCheckboxes().length;
+                $bulkBtn.toggleClass('d-none', count === 0);
+            }
+
+            $(document).on('change', '.ls-quote-line-select', refreshBulkUi);
+            $selectAll.on('change', function () {
+                var checked = $(this).is(':checked');
+                $('#create-detail .ls-quote-line-select').prop('checked', checked);
+                refreshBulkUi();
+            });
+
+            $bulkBtn.on('click', function () {
+                var $checked = selectedLineCheckboxes();
+                if (!$checked.length) {
+                    return;
+                }
+                if (!confirm('Delete ' + $checked.length + ' selected line(s)?')) {
+                    return;
+                }
+                var savedIds = [];
+                $checked.each(function () {
+                    var val = String($(this).val() || '');
+                    var $row = $(this).closest('tr');
+                    if (val !== '') {
+                        savedIds.push(val);
+                    } else {
+                        $row.remove();
+                    }
+                });
+                if (savedIds.length === 0) {
+                    refreshBulkUi();
+                    $selectAll.prop('checked', false);
+                    return;
+                }
+                $.ajax({
+                    url: String($quoteWorkspace.data('bulk-delete-url') || ''),
+                    method: 'POST',
+                    data: {
+                        _token: quotationPricingConfig.csrf,
+                        detail_ids: savedIds,
+                    },
+                }).done(function () {
+                    window.location.reload();
+                }).fail(function () {
+                    alert('Could not delete selected lines.');
+                });
+            });
+        })();
+
+        $(document).on('change', '.ls-quote-line-mode-input', function () {
+            $(this).data('userTouched', true);
+            applyManualLineModeUi($(this).closest('tr'));
+        });
+
         (function initQuoteImportUi() {
-            var $fmtBtns = $('.ls-quote-import-fmt');
-            var $file = $('#ls-quote-import-file');
-            var $err = $('#ls-quote-import-error');
-            var $ok = $('#ls-quote-import-success');
-            var $pdfHint = $('#ls-quote-import-pdf-hint');
-            var $excelHint = $('#ls-quote-import-excel-hint');
-            var $pdfBtn = $('#ls-quote-import-fmt-pdf');
+            var $modal = $('#ls-quote-import-modal');
+            if (!$modal.length) {
+                return;
+            }
+
+            var $fmtBtns = $modal.find('.ls-amspec-fmt');
+            var $modeBtns = $modal.find('.ls-amspec-mode');
+            var $file = $modal.find('#ls-quote-import-file');
+            var $err = $modal.find('#ls-amspec-import-error');
+            var $pdfBtn = $modal.find('#ls-amspec-fmt-pdf');
+            var $excelExplain = $modal.find('.ls-amspec-fmt-explain--excel');
+            var $pdfExplain = $modal.find('.ls-amspec-fmt-explain--pdf');
+            var $packageExplain = $modal.find('.ls-amspec-mode-explain--package');
+            var $testExplain = $modal.find('.ls-amspec-mode-explain--test');
+            var $dropHint = $modal.find('.ls-upload__drop-hint');
 
             function setFormat(fmt) {
                 quotationImportConfig.format = fmt;
-                $fmtBtns.removeClass('is-active btn-secondary').addClass('btn-outline-secondary');
-                $fmtBtns.filter('[data-format="' + fmt + '"]').addClass('is-active btn-secondary').removeClass('btn-outline-secondary');
+                $fmtBtns.removeClass('is-active');
+                $fmtBtns.filter('[data-format="' + fmt + '"]').addClass('is-active');
                 if (fmt === 'pdf') {
                     $file.attr('accept', '.pdf,application/pdf');
-                    $excelHint.prop('hidden', true);
-                    $pdfHint.prop('hidden', false);
+                    $excelExplain.prop('hidden', true);
+                    $pdfExplain.prop('hidden', false);
+                    $dropHint.text('Amspec Quotation – preparation PDF · up to 20 MB');
                 } else {
                     $file.attr('accept', '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-                    $excelHint.prop('hidden', false);
-                    $pdfHint.prop('hidden', true);
+                    $excelExplain.prop('hidden', false);
+                    $pdfExplain.prop('hidden', true);
+                    $dropHint.text('Excel (.xlsx / .xls / .csv) · up to 20 MB');
                 }
                 $err.prop('hidden', true).text('');
-                $ok.prop('hidden', true).text('');
+            }
+
+            function setPricingMode(mode) {
+                quotationImportConfig.pricingMode = mode;
+                $modeBtns.removeClass('is-active');
+                $modeBtns.filter('[data-mode="' + mode + '"]').addClass('is-active');
+                if (mode === 'per_test') {
+                    $packageExplain.prop('hidden', true);
+                    $testExplain.prop('hidden', false);
+                } else {
+                    $packageExplain.prop('hidden', false);
+                    $testExplain.prop('hidden', true);
+                }
             }
 
             $fmtBtns.on('click', function () {
-                var fmt = $(this).data('format');
-                if (fmt === 'pdf' && $pdfBtn.prop('disabled')) {
+                if ($(this).prop('disabled')) {
                     return;
                 }
-                setFormat(fmt);
+                setFormat($(this).data('format'));
             });
 
-            $.getJSON(quotationImportConfig.capabilityUrl)
-                .done(function (data) {
-                    var pdf = (data && data.pdf) ? data.pdf : {};
-                    if (pdf.available) {
-                        $pdfHint.text(pdf.hint || 'PDF import is available.').prop('hidden', true);
-                        $pdfBtn.prop('disabled', false);
-                    } else {
-                        $pdfBtn.prop('disabled', true).attr('title', pdf.hint || 'Install poppler-utils');
-                        $pdfHint.text(pdf.hint || 'PDF import unavailable — use Excel.').prop('hidden', false);
-                    }
-                });
+            $modeBtns.on('click', function () {
+                setPricingMode($(this).data('mode'));
+            });
 
-            $('#ls-quote-import-submit').on('click', function () {
+            $.getJSON(quotationImportConfig.capabilityUrl).done(function (data) {
+                var pdf = (data && data.pdf) ? data.pdf : {};
+                if (!pdf.available) {
+                    $pdfBtn.prop('disabled', true).attr('title', pdf.hint || 'Install poppler-utils');
+                }
+            });
+
+            $('#ls-amspec-import-submit').on('click', function () {
                 var fileInput = $file.get(0);
                 $err.prop('hidden', true).text('');
-                $ok.prop('hidden', true).text('');
                 if (!fileInput || !fileInput.files || !fileInput.files[0]) {
                     $err.text('Choose a file to import.').prop('hidden', false);
                     return;
@@ -925,6 +1207,7 @@
                 var fd = new FormData();
                 fd.append('file', fileInput.files[0]);
                 fd.append('format', quotationImportConfig.format);
+                fd.append('pricing_mode', quotationImportConfig.pricingMode);
                 fd.append('_token', quotationImportConfig.csrf);
 
                 var $btn = $(this);
@@ -938,20 +1221,37 @@
                 }).done(function (res) {
                     var created = (res && res.created) ? res.created : 0;
                     var warnings = (res && res.warnings) ? res.warnings : [];
-                    var msg = 'Imported ' + created + ' line(s).';
+                    var msg = 'Imported ' + created + ' quotation line(s).';
                     if (warnings.length) {
                         msg += ' Warnings: ' + warnings.slice(0, 3).join(' ');
                     }
-                    $ok.text(msg).prop('hidden', false);
-                    setTimeout(function () { window.location.reload(); }, 700);
+                    $modal.modal('hide');
+                    if (typeof window.showImaraToast === 'function') {
+                        window.showImaraToast({
+                            type: created > 0 ? 'success' : 'error',
+                            title: created > 0 ? 'Success' : 'Import',
+                            message: msg,
+                        });
+                    }
+                    setTimeout(function () { window.location.reload(); }, 650);
                 }).fail(function (xhr) {
                     var msg = (xhr.responseJSON && xhr.responseJSON.error)
                         ? xhr.responseJSON.error
                         : 'Import failed.';
                     $err.text(msg).prop('hidden', false);
+                    if (typeof window.showImaraToast === 'function') {
+                        window.showImaraToast({ type: 'error', title: 'Error', message: msg });
+                    }
                 }).always(function () {
                     $btn.prop('disabled', false);
                 });
+            });
+
+            $modal.on('hidden.bs.modal', function () {
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+                document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.remove(); });
             });
 
             setFormat('excel');
@@ -1524,6 +1824,8 @@
             // Prototype controls are disabled so they never block HTML5 submit; re-enable on real rows.
             $row.find('input, select, textarea, button').prop('disabled', false);
             $row.find('input[data-ls-quote-required="1"]').prop('required', true);
+            $row.find('.ls-quote-line-select').prop('disabled', false).val('');
+            applyManualLineModeUi($row);
 
             initLsSampleTypeSelect($row.find('select.select-sample-type'));
 
@@ -1546,7 +1848,12 @@
                     $row.find('.quotation-tax').val(0);
                     $row.find('.quotation-tax-display').text('0%');
                     $row.removeData('pricelistSuggestion');
-                    $row.find('.quotation-price-hint').text('Open Parameters to select tests (package billed as qty × unit price once).');
+                    var rowMode = applyManualLineModeUi($row);
+                    $row.find('.quotation-price-hint').text(
+                        rowMode === 'per_test'
+                            ? 'Open Parameters to select tests (each test billed separately).'
+                            : 'Open Parameters to select tests (package billed as qty × unit price once).'
+                    );
                 } else {
                     clearRowParameterFields($row);
                 }

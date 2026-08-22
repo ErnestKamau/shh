@@ -12,6 +12,10 @@ class Pricelist extends Model
 {
     use HasUuids;
 
+    public const BILLING_MODE_PACKAGE = 'package';
+
+    public const BILLING_MODE_PER_TEST = 'per_test';
+
     protected $table = 'pricelists';
 
     protected $keyType = 'string';

@@ -27,30 +27,41 @@ class BatchResultsTemplateExport implements FromArray, WithHeadings, WithTitle, 
 
     public const HEADING_RESULT = 'Result';
 
+    public const HEADING_WORKSHEET_NUMBER = 'Worksheet Number';
+
     /**
      * @param  list<array<string, mixed>>  $flatRows
      */
     public function __construct(
         private readonly array $flatRows,
         private readonly string $sheetTitle = 'Results',
+        private readonly bool $includeWorksheetNumber = false,
     ) {}
 
     public function array(): array
     {
-        return array_map(static fn (array $row): array => [
-            (string) ($row['captured_result_id'] ?? ''),
-            (string) ($row['batch_code'] ?? ''),
-            (string) ($row['lab_section_name'] ?? ''),
-            (string) ($row['sample_code'] ?? $row['sample_label'] ?? ''),
-            (string) ($row['test_label'] ?? ''),
-            (string) ($row['analysts'] ?? ''),
-            (string) ($row['result'] ?? ''),
-        ], $this->flatRows);
+        return array_map(function (array $row): array {
+            $base = [
+                (string) ($row['captured_result_id'] ?? ''),
+                (string) ($row['batch_code'] ?? ''),
+                (string) ($row['lab_section_name'] ?? ''),
+                (string) ($row['sample_code'] ?? $row['sample_label'] ?? ''),
+                (string) ($row['test_label'] ?? ''),
+                (string) ($row['analysts'] ?? ''),
+                (string) ($row['result'] ?? ''),
+            ];
+
+            if ($this->includeWorksheetNumber) {
+                array_splice($base, 1, 0, [(string) ($row['worksheet_number'] ?? '')]);
+            }
+
+            return $base;
+        }, $this->flatRows);
     }
 
     public function headings(): array
     {
-        return [
+        $headings = [
             self::HEADING_ROW_KEY,
             self::HEADING_BATCH_CODE,
             self::HEADING_LAB_SECTION,
@@ -59,6 +70,12 @@ class BatchResultsTemplateExport implements FromArray, WithHeadings, WithTitle, 
             self::HEADING_ANALYSTS,
             self::HEADING_RESULT,
         ];
+
+        if ($this->includeWorksheetNumber) {
+            array_splice($headings, 1, 0, [self::HEADING_WORKSHEET_NUMBER]);
+        }
+
+        return $headings;
     }
 
     public function title(): string

@@ -24,6 +24,7 @@
 		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
 		box-shadow:
+			inset 3px 0 0 0 var(--lab-chrome-blue-accent),
 			inset 0 1px 0 rgba(255, 255, 255, 0.2),
 			0 4px 14px rgba(0, 0, 0, 0.2) !important;
 		color: #fff !important;

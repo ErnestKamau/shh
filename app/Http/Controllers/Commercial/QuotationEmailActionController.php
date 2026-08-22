@@ -30,44 +30,13 @@ class QuotationEmailActionController extends Controller
             abort(403, 'This approval link is invalid or has expired.');
         }
 
-        if ($approvalService->isApprovedReadyToSend($enquiry, $quotation)
-            || $quotationService->quotationWasSentToCustomer($enquiry)
-            || (int) $quotation->is_approved === 1
-        ) {
-            return view('commercial.quotations.email-action-result', [
-                'title' => 'Quotation already approved',
-                'message' => $approvalService->alreadyApprovedMessage($quotation),
-                'variant' => 'info',
-            ]);
-        }
-
-        if (! $approvalService->isPendingApproval($enquiry, $quotation)) {
-            return view('commercial.quotations.email-action-result', [
-                'title' => 'Quotation not awaiting approval',
-                'message' => 'This quotation is no longer pending approval.',
-                'variant' => 'warning',
-            ]);
-        }
-
-        try {
-            // Email approval link: approve only. Do NOT send to customer from email.
-            // Notify requester (in-app bell + email) to log into LIMS and send via the approve/send modal.
-            $approvalService->approveViaEmailToken($enquiry, $quotation);
-            $enquiry = $enquiry->fresh(['customer', 'contact', 'currentQuotation']) ?? $enquiry;
-            $quotation = $enquiry->currentQuotation ?? $quotation;
-        } catch (RuntimeException $exception) {
-            return view('commercial.quotations.email-action-result', [
-                'title' => 'Could not approve quotation',
-                'message' => $exception->getMessage(),
-                'variant' => 'danger',
-            ]);
-        }
-
+        // Approver email is notify-only: approvals must be completed in LIMS.
         return view('commercial.quotations.email-action-result', [
-            'title' => 'Quotation approved',
-            'message' => 'Quotation '.$quotation->quote_number.' has been approved. '
-                .'The requester has been notified to log into LIMS and send it to the customer.',
-            'variant' => 'success',
+            'title' => 'Approve in LIMS',
+            'message' => 'Quotation approval from email is disabled. Please log into LIMS to review and approve quotation '
+                .($quotation->quote_number ?? '')
+                .'.',
+            'variant' => 'info',
         ]);
     }
 

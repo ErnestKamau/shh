@@ -16,6 +16,8 @@
 <title>{{ $requestForTestingLabel }} | Sample WorkFlow</title>
 @include('layouts.lab.partials.lab-panel-theme-styles')
 @include('layouts.rft.partials.rft-theme-styles')
+@include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
+@include('livewire.partials.walk-in-trf-ls-theme')
 <style>
 	.rft-theme .trf-signature-pad.acc-signature-pad {
 		border: 1px solid #e2e8f0;
@@ -70,7 +72,7 @@
     @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
-    <div class="container-fluid workflow-board-page rft-page-shell rft-theme lab-panel-theme px-3 px-md-4 pt-2 pb-4">
+    <div class="container-fluid workflow-board-page rft-page-shell rft-theme lab-panel-theme ls-ui-kit trf-ls-theme px-3 px-md-4 pt-2 pb-4">
         @if ($errors->any())
             <div class="alert alert-danger mt-2">
                 <ul class="mb-0">

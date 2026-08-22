@@ -98,6 +98,19 @@ final class RequestTestWorksheetPdfService
     }
 
     /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function storeLabSectionWorksheetPdf(array $payload, SubmissionFormInstance $instance): string
+    {
+        $worksheetNumber = trim((string) ($payload['worksheet_number'] ?? 'worksheet'));
+        $path = 'request-test-worksheets/section-'.$this->safeFilename($worksheetNumber).'.pdf';
+        Storage::disk('public')->makeDirectory(dirname($path));
+        $this->makePdf($payload)->save(Storage::disk('public')->path($path));
+
+        return $path;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function integrityPayloadFromStoredData(SubmissionFormInstance $instance): array

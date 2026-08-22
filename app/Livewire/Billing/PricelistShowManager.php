@@ -149,6 +149,7 @@ class PricelistShowManager extends Component
             'pricelistForm.status' => 'required|string|max:50',
             'pricelistForm.is_master' => 'boolean',
             'pricelistForm.active' => 'boolean',
+            'pricelistForm.billing_mode' => 'required|in:package,per_test',
         ];
     }
 
@@ -315,7 +316,7 @@ class PricelistShowManager extends Component
                 $item->analysis_type_name = $analysisType->name ?? null;
                 $item->analysis_type_code = $analysisType->code ?? null;
                 $item->analyte_name = $item->is_package
-                    ? ('Package ('.$coveredCount.' parameters)')
+                    ? (string) ($sampleType->name ?? 'Package')
                     : ($analyte?->name ?? 'N/A');
                 $item->analyte_code = $item->is_package ? 'PKG' : $analyte?->code;
                 $item->display_selling_price = $displaySelling;
@@ -395,9 +396,7 @@ class PricelistShowManager extends Component
     {
         return $this->groupedItems
             ->flatMap(function ($sampleGroup) {
-                return $sampleGroup->analysis_groups->flatMap(
-                    fn ($analysisGroup) => $analysisGroup->rows
-                );
+                return collect($sampleGroup->rows ?? []);
             })
             ->values();
     }
@@ -1081,6 +1080,7 @@ class PricelistShowManager extends Component
                         'status' => $this->pricelistForm['status'],
                         'is_master' => (bool) ($this->pricelistForm['is_master'] ?? false),
                         'active' => (bool) ($this->pricelistForm['active'] ?? true),
+                        'billing_mode' => (string) ($this->pricelistForm['billing_mode'] ?? Pricelist::BILLING_MODE_PACKAGE),
                         'updated_at' => now(),
                     ]);
 
@@ -1496,6 +1496,10 @@ class PricelistShowManager extends Component
 
     public function setItemPricingMode(bool $isPackage): void
     {
+        if ($this->isPackagePricelist() !== $isPackage) {
+            return;
+        }
+
         $this->itemForm['is_package'] = $isPackage;
 
         // Create flow: keep Active on by default when leaving package mode.
@@ -1579,6 +1583,7 @@ class PricelistShowManager extends Component
 
     public function saveItem(): void
     {
+        $this->itemForm['is_package'] = $this->isPackagePricelist();
         $this->validate($this->itemRules());
 
         if (count($this->itemElementRows) === 0) {
@@ -1968,6 +1973,7 @@ class PricelistShowManager extends Component
                     'currency_id' => $this->cloneForm['currency_id'],
                     'is_master' => (bool) ($this->cloneForm['is_master'] ?? false),
                     'active' => (bool) ($this->cloneForm['active'] ?? true),
+                    'billing_mode' => (string) ($this->pricelist->billing_mode ?? Pricelist::BILLING_MODE_PACKAGE),
                     'document_no' => $numbers['document_no'],
                     'revision_number' => '1',
                     'status' => 'no-changes',
@@ -2088,6 +2094,7 @@ class PricelistShowManager extends Component
             'status' => $pricelist->status ?? 'no-changes',
             'is_master' => (bool) ($pricelist->is_master ?? false),
             'active' => (bool) ($pricelist->active ?? true),
+            'billing_mode' => (string) ($pricelist->billing_mode ?? Pricelist::BILLING_MODE_PACKAGE),
         ];
     }
 
@@ -2142,7 +2149,7 @@ class PricelistShowManager extends Component
             'internal_use' => false,
             'external_view' => true,
             'active' => true,
-            'is_package' => false,
+            'is_package' => $this->isPackagePricelist(),
             'package_cost_price' => 0,
             'package_selling_price' => 0,
             'package_vat' => true,
@@ -2371,6 +2378,7 @@ class PricelistShowManager extends Component
         $this->showImportModal = false;
         $this->importFile = null;
         $this->resetValidation();
+        $this->dispatch('amspec-import-closed');
     }
 
     public function submitImport(PricelistPackageImportService $importService, PdfTextExtractor $pdfTextExtractor): void
@@ -2457,6 +2465,16 @@ class PricelistShowManager extends Component
         ];
     }
 
+    private function isPackagePricelist(): bool
+    {
+        $mode = strtolower(trim((string) ($this->pricelist?->billing_mode ?? '')));
+        if ($mode === Pricelist::BILLING_MODE_PER_TEST) {
+            return false;
+        }
+
+        return $mode === '' || $mode === Pricelist::BILLING_MODE_PACKAGE;
+    }
+
     private function formatAccountSettingLabel(?string $raw): string
     {
         $normalized = strtoupper(trim((string) $raw));
@@ -2477,37 +2495,22 @@ class PricelistShowManager extends Component
             ->map(function ($sampleItems) {
                 $firstSampleItem = $sampleItems->first();
 
-                $analysisGroups = $sampleItems
-                    ->groupBy(function ($item) {
-                        return (string) ($item->analysis_id ?? '');
-                    })
-                    ->map(function ($analysisItems) {
-                        $firstAnalysisItem = $analysisItems->first();
-
-                        return (object) [
-                            'analysis_id' => (string) ($firstAnalysisItem->analysis_id ?? ''),
-                            'analysis_type_name' => $firstAnalysisItem->analysis_type_name ?? 'Unassigned Analysis',
-                            'analysis_type_code' => $firstAnalysisItem->analysis_type_code,
-                            'total_amount' => (float) $analysisItems->sum(function ($item) {
-                                return (float) ($item->display_selling_price ?? $item->selling_price ?? 0);
-                            }),
-                            'rows' => $analysisItems,
-                        ];
-                    })
-                    ->sortBy(function ($group) {
-                        return mb_strtolower((string) ($group->analysis_type_name ?? ''));
-                    })
-                    ->values();
-
                 return (object) [
                     'sample_type_id' => (string) ($firstSampleItem->sample_type_id ?? ''),
                     'sample_type_name' => $firstSampleItem->sample_type_name ?? 'Unassigned Sample Type',
                     'sample_type_code' => $firstSampleItem->sample_type_code,
-                    'analysis_groups' => $analysisGroups,
+                    'total_amount' => (float) $sampleItems->sum(function ($item) {
+                        return (float) ($item->display_selling_price ?? $item->selling_price ?? 0);
+                    }),
+                    'rows' => $sampleItems
+                        ->sortBy(function ($item) {
+                            return mb_strtolower((string) ($item->analyte_name ?? ''));
+                        })
+                        ->values(),
                 ];
             })
             ->filter(function ($group) {
-                return $group->analysis_groups->count() > 0;
+                return $group->rows->count() > 0;
             })
             ->sortBy(function ($group) {
                 return mb_strtolower((string) ($group->sample_type_name ?? ''));
@@ -2565,9 +2568,7 @@ class PricelistShowManager extends Component
                 return $this->countItemsInSampleGroups($group);
             }
 
-            return (int) collect($group->analysis_groups ?? [])->sum(
-                fn ($analysisGroup): int => collect($analysisGroup->rows ?? [])->count()
-            );
+            return (int) collect($group->rows ?? [])->count();
         });
     }
 

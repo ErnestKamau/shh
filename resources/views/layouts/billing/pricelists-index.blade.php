@@ -6,6 +6,7 @@
 
 @section('content2')
     <main>
+        @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
         <?php
             $items = [
                 [

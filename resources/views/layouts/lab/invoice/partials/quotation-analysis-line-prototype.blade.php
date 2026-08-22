@@ -16,6 +16,9 @@
 <table class="d-none" aria-hidden="true">
 	<tbody>
 		<tr id="ls-quote-analysis-line-prototype">
+			<td class="text-center align-middle">
+				<input type="checkbox" class="ls-quote-line-select" value="" aria-label="Select line" disabled>
+			</td>
 			<td class="text-center align-middle ls-quote-line-actions">
 				<span class="ls-quote-line-no">0</span>
 				<button type="button" class="ls-quote-icon-btn ls-quote-icon-btn--danger js-delete-line" title="Remove line">
@@ -34,6 +37,12 @@
 					'variant' => 'slate',
 					'extraSelectClass' => 'select-sample-type',
 				])
+				<div class="ls-quote-line-mode-wrap mt-1" data-manual-only="1">
+					<label class="ls-quote-line-mode-toggle mb-0" title="Package = samples × one price. Per parameter = each test billed separately.">
+						<input type="checkbox" class="ls-quote-line-mode-input" disabled>
+						<span class="ls-quote-line-mode-label">Per parameter</span>
+					</label>
+				</div>
 				{{-- Derived from selected parameters' analysis_type_id on modal save. --}}
 				<input type="hidden" class="form-control select-part-final" value="" name="part_number_final[]" id="select-part-final-proto" disabled>
 			</td>
@@ -43,6 +52,7 @@
 				</div>
 			</td>
 			<td class="align-middle ls-quote-col-qty-req">
+				<input type="hidden" name="pricing_mode[]" class="quotation-pricing-mode" value="per_package" disabled>
 				<div class="ls-field ls-compact mb-0">
 					<div class="ls-field__control">
 						<input type="text" name="quantity_required[]" class="ls-field__input quotation-qty-required" value="" placeholder="e.g. Per Sample" disabled>

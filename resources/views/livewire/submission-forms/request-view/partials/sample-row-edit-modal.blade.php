@@ -316,10 +316,10 @@
                                                  x-show="open"
                                                  x-cloak>
                                                 <div class="row">
-                                                    {{-- Catalog selects: type | analysis, then tests --}}
-                                                    @if($sampleTypeField || $analysisTypeField)
+                                                    {{-- Catalog: sample type | tests (dropdown) --}}
+                                                    @if($sampleTypeField || $parametersField)
                                                         <div class="col-12 mb-3">
-                                                            <div class="rv-trf-catalog-row">
+                                                            <div class="rv-trf-catalog-row rv-trf-catalog-row--type-tests">
                                                                 @if($sampleTypeField)
                                                                     <div class="rv-trf-catalog-row__cell">
                                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
@@ -328,24 +328,15 @@
                                                                         ])
                                                                     </div>
                                                                 @endif
-                                                                @if($analysisTypeField)
+                                                                @if($parametersField)
                                                                     <div class="rv-trf-catalog-row__cell">
                                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $analysisTypeField,
+                                                                            'field' => $parametersField,
                                                                             'hideOuterCol' => true,
                                                                         ])
                                                                     </div>
                                                                 @endif
                                                             </div>
-                                                        </div>
-                                                    @endif
-
-                                                    @if($parametersField)
-                                                        <div class="col-12 mb-3">
-                                                            @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                'field' => $parametersField,
-                                                                'hideOuterCol' => true,
-                                                            ])
                                                         </div>
                                                     @endif
 
@@ -455,8 +446,9 @@
                         <button type="button"
                             class="btn btn-sm btn-primary"
                             data-sample-row-save
-                            wire:click="saveTrfEditor"
-                            wire:loading.attr="disabled">
+                            wire:loading.attr="disabled"
+                            wire:target="saveTrfEditor"
+                            x-on:click.prevent="(async () => { try { if (typeof window.flushWalkInParameterPickers === 'function') { await window.flushWalkInParameterPickers(); } } catch (error) { console.error('TRF edit save sync failed', error); } $wire.saveTrfEditor(); })()">
                             <span wire:loading.remove wire:target="saveTrfEditor">Save changes</span>
                             <span wire:loading wire:target="saveTrfEditor">Saving…</span>
                         </button>

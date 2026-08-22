@@ -68,18 +68,21 @@ final class PricelistSeedService
                 (string) $currency->id,
                 true,
                 $companyId,
+                Pricelist::BILLING_MODE_PER_TEST,
             );
             $customer = $this->createPricelist(
                 'Customer Contract Per-Parameter Pricelist',
                 (string) $currency->id,
                 false,
                 $companyId,
+                Pricelist::BILLING_MODE_PER_TEST,
             );
             $package = $this->createPricelist(
                 'Water & Food Analysis Package Pricelist',
                 (string) $currency->id,
                 false,
                 $companyId,
+                Pricelist::BILLING_MODE_PACKAGE,
             );
 
             $itemCount = $this->createPerParameterItems($master, $customer, $masterElements);
@@ -328,6 +331,7 @@ final class PricelistSeedService
         string $currencyId,
         bool $isMaster,
         ?string $companyId,
+        string $billingMode = Pricelist::BILLING_MODE_PACKAGE,
     ): Pricelist {
         $numbers = $this->numberGenerator->next($companyId);
 
@@ -337,6 +341,7 @@ final class PricelistSeedService
             'description' => $description,
             'currency_id' => $currencyId,
             'is_master' => $isMaster,
+            'billing_mode' => $billingMode,
             'active' => true,
             'document_no' => $numbers['document_no'],
             'revision_number' => '1',

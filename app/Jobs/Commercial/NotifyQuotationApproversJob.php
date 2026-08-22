@@ -23,7 +23,7 @@ class NotifyQuotationApproversJob implements ShouldQueue
 
     public function __construct(
         public string $quotationHeaderId,
-        public string $enquiryId,
+        public ?string $enquiryId,
         public string $actorUserId,
         public bool $notifyEmail = true,
     ) {}
@@ -31,10 +31,12 @@ class NotifyQuotationApproversJob implements ShouldQueue
     public function handle(QuotationApprovalService $approvalService): void
     {
         $header = QuotationHeader::query()->find($this->quotationHeaderId);
-        $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
         $actor = User::query()->find($this->actorUserId);
+        $enquiry = $this->enquiryId
+            ? SampleSubmissionRequest::query()->find($this->enquiryId)
+            : null;
 
-        if ($header === null || $enquiry === null || $actor === null) {
+        if ($header === null || $actor === null) {
             Log::warning('NotifyQuotationApproversJob skipped: missing models', [
                 'quotation_header_id' => $this->quotationHeaderId,
                 'enquiry_id' => $this->enquiryId,
