@@ -116,10 +116,10 @@ final class LabSectionWorksheetIssueService
             $issued[] = [
                 'worksheet' => $worksheet,
                 'pdf_url' => $pdfPath !== null
-                    ? Storage::disk('public')->url($pdfPath).'?v='.now()->timestamp
+                    ? route('lab-section-worksheets.pdf', ['worksheet' => $worksheet->id]).'?v='.now()->timestamp
                     : null,
                 'excel_url' => $excelPath !== null
-                    ? Storage::disk('public')->url($excelPath).'?v='.now()->timestamp
+                    ? route('lab-section-worksheets.excel', ['worksheet' => $worksheet->id]).'?v='.now()->timestamp
                     : null,
                 'excel_download' => $mode === 'excel',
             ];
@@ -141,6 +141,12 @@ final class LabSectionWorksheetIssueService
             'test_label' => (string) ($row['test_label'] ?? ''),
             'sample_label' => (string) ($row['sample_label'] ?? ''),
             'lab_section_id' => (string) ($row['lab_section_id'] ?? ''),
+            'method' => (string) ($row['method'] ?? ''),
+            'lod' => (string) ($row['lod'] ?? ''),
+            'loq' => (string) ($row['loq'] ?? ''),
+            'mu' => (string) ($row['mu'] ?? ''),
+            'equipment' => (string) ($row['equipment'] ?? ''),
+            'analysts' => (string) ($row['analysts'] ?? ''),
         ], $flatRows));
     }
 
@@ -176,7 +182,7 @@ final class LabSectionWorksheetIssueService
 
         $users = User::query()->whereIn('id', $analystIds)->get();
         $pdfUrl = $worksheet->pdf_path !== null
-            ? Storage::disk('public')->url($worksheet->pdf_path)
+            ? route('lab-section-worksheets.pdf', ['worksheet' => $worksheet->id])
             : null;
 
         $this->notificationService->notifyUsers(

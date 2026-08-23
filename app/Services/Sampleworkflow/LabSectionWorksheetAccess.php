@@ -7,13 +7,45 @@ use App\User;
 
 final class LabSectionWorksheetAccess
 {
+    /**
+     * Elevated roles that may view/download any lab-section worksheet on a job.
+     *
+     * @var list<string>
+     */
+    private const ELEVATED_ROLES = [
+        'Admin',
+        'admin',
+        'Lab Manager',
+        'super admin',
+        'super-admin',
+        'system admin',
+        'system-admin',
+    ];
+
     public function __construct(
         private readonly LabSectionResultAccess $labSectionAccess,
     ) {}
 
     public function canViewWorksheet(?User $user, LabSectionWorksheet $worksheet): bool
     {
-        return $user !== null;
+        if ($user === null) {
+            return false;
+        }
+
+        if ($this->isElevated($user)) {
+            return true;
+        }
+
+        if ($this->isAssignedAnalyst($user, $worksheet)) {
+            return true;
+        }
+
+        $sectionId = trim((string) ($worksheet->lab_section_id ?? ''));
+        if ($sectionId === '') {
+            return false;
+        }
+
+        return in_array($sectionId, $this->labSectionAccess->allowedLabSectionIds($user), true);
     }
 
     public function canDownloadWorksheet(?User $user, LabSectionWorksheet $worksheet): bool
@@ -25,6 +57,10 @@ final class LabSectionWorksheetAccess
     {
         if ($user === null) {
             return false;
+        }
+
+        if ($this->isElevated($user)) {
+            return true;
         }
 
         if ($this->isAssignedAnalyst($user, $worksheet)) {
@@ -42,6 +78,16 @@ final class LabSectionWorksheetAccess
     public function denyImportMessage(?User $user): string
     {
         return 'You can only import results for worksheets assigned to you or for your lab section(s).';
+    }
+
+    public function denyViewMessage(?User $user): string
+    {
+        return 'You can only view worksheets assigned to you, your lab section(s), or as a lab manager/admin.';
+    }
+
+    private function isElevated(User $user): bool
+    {
+        return $user->hasRole(self::ELEVATED_ROLES);
     }
 
     private function isAssignedAnalyst(?User $user, LabSectionWorksheet $worksheet): bool

@@ -318,13 +318,19 @@ class Samples extends Component
      *     worksheet_number: string,
      *     section_id: string,
      *     section_name: string,
+     *     section_code: string,
      *     test_count: int,
+     *     sample_labels: string,
+     *     test_labels: string,
      *     analyst_names: string,
+     *     issued_by: string,
      *     issued_at: ?string,
+     *     downloaded_at: ?string,
      *     imported_at: ?string,
      *     status: string,
      *     has_pdf: bool,
-     *     has_excel: bool
+     *     has_excel: bool,
+     *     can_download: bool
      * }>
      */
     public function getLabSectionWorksheetsProperty(): array
@@ -361,7 +367,14 @@ class Samples extends Component
             ? collect()
             : User::query()->whereIn('id', $analystIds)->pluck('name', 'id');
 
-        return $worksheets->map(function (LabSectionWorksheet $worksheet) use ($analystNamesById): array {
+        $access = app(\App\Services\Sampleworkflow\LabSectionWorksheetAccess::class);
+        $actingUser = auth()->user();
+
+        return $worksheets->map(function (LabSectionWorksheet $worksheet) use ($analystNamesById, $access, $actingUser): ?array {
+            if (! $access->canViewWorksheet($actingUser, $worksheet)) {
+                return null;
+            }
+
             $assignedIds = is_array($worksheet->assigned_analyst_ids)
                 ? array_values(array_filter(array_map('strval', $worksheet->assigned_analyst_ids)))
                 : [];
@@ -374,21 +387,39 @@ class Samples extends Component
             }
 
             $snapshot = is_array($worksheet->test_snapshot) ? $worksheet->test_snapshot : [];
+            $sampleLabels = [];
+            $testLabels = [];
+            foreach ($snapshot as $row) {
+                $sample = trim((string) ($row['sample_label'] ?? ''));
+                $test = trim((string) ($row['test_label'] ?? ''));
+                if ($sample !== '') {
+                    $sampleLabels[$sample] = true;
+                }
+                if ($test !== '') {
+                    $testLabels[$test] = true;
+                }
+            }
 
             return [
                 'id' => (string) $worksheet->id,
                 'worksheet_number' => (string) $worksheet->worksheet_number,
                 'section_id' => (string) ($worksheet->lab_section_id ?? ''),
                 'section_name' => (string) ($worksheet->labSection?->name ?? 'Lab section'),
+                'section_code' => (string) ($worksheet->labSection?->code ?? ''),
                 'test_count' => count($snapshot),
+                'sample_labels' => $sampleLabels !== [] ? implode(', ', array_keys($sampleLabels)) : '—',
+                'test_labels' => $testLabels !== [] ? implode(', ', array_keys($testLabels)) : '—',
                 'analyst_names' => $names !== [] ? implode(', ', $names) : 'None assigned',
+                'issued_by' => (string) ($worksheet->generatedBy?->name ?? '—'),
                 'issued_at' => $worksheet->issued_at?->format('Y-m-d H:i'),
+                'downloaded_at' => $worksheet->downloaded_at?->format('Y-m-d H:i'),
                 'imported_at' => $worksheet->imported_at?->format('Y-m-d H:i'),
                 'status' => (string) ($worksheet->status ?? 'issued'),
                 'has_pdf' => filled($worksheet->pdf_path),
                 'has_excel' => filled($worksheet->excel_path),
+                'can_download' => $access->canDownloadWorksheet($actingUser, $worksheet),
             ];
-        })->values()->all();
+        })->filter()->values()->all();
     }
 
     /**

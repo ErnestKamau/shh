@@ -44,6 +44,7 @@
 		<a href="#ls-sec-search-bars-amp-searchable-select" onclick="document.getElementById('ls-sec-search-bars-amp-searchable-select').open=true">Search bars &amp; searchable select</a>
 		<a href="#ls-sec-select2-multi-dropdown-search-columns-view-edit" onclick="document.getElementById('ls-sec-select2-multi-dropdown-search-columns-view-edit').open=true">Select2 multi — dropdown search, columns, view/edit</a>
 		<a href="#ls-sec-cards" onclick="document.getElementById('ls-sec-cards').open=true">Cards</a>
+		<a href="#ls-sec-modals" onclick="document.getElementById('ls-sec-modals').open=true">Modals (5)</a>
 		<a href="#ls-sec-tables" onclick="document.getElementById('ls-sec-tables').open=true">Tables</a>
 		<a href="#ls-sec-upload" onclick="document.getElementById('ls-sec-upload').open=true">Upload</a>
 		<a href="#ls-sec-card-stepper" onclick="document.getElementById('ls-sec-card-stepper').open=true">Card + stepper</a>
@@ -363,6 +364,68 @@
 				</div>
 			</div>
 		</div>
+		</div>
+	</details>
+
+	{{-- Modals (info ×3 + CTA ×2) --}}
+	<details class="ls-gallery-section" id="ls-sec-modals" open>
+		<summary>
+			<div>
+				<h3>Modals (5)</h3>
+				<p class="lead-muted">3 information cards + 2 CTA action cards. Toggle Ready / Loading (skeletons) / Empty (Lottie). Primary actions stay in the footer.</p>
+			</div>
+		</summary>
+		<div class="ls-gallery-section__body">
+			<p class="small text-muted mb-3">
+				Includes live under <code>layouts.lab.partials.ls-ui.modals.*</code>. Styles ship with <code>ls-ui-tokens-and-styles</code>.
+			</p>
+			<div class="row">
+				<div class="col-lg-6 mb-4">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.modals.ls-modal-info-tip')</code>
+						@include('layouts.lab.partials.ls-ui.modals.ls-modal-gallery-demo', [
+							'include' => 'ls-modal-info-tip',
+							'label' => 'Info · Tip',
+						])
+					</div>
+				</div>
+				<div class="col-lg-6 mb-4">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.modals.ls-modal-info-dossier')</code>
+						@include('layouts.lab.partials.ls-ui.modals.ls-modal-gallery-demo', [
+							'include' => 'ls-modal-info-dossier',
+							'label' => 'Info · Dossier',
+						])
+					</div>
+				</div>
+				<div class="col-lg-6 mb-4">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.modals.ls-modal-info-spotlight')</code>
+						@include('layouts.lab.partials.ls-ui.modals.ls-modal-gallery-demo', [
+							'include' => 'ls-modal-info-spotlight',
+							'label' => 'Info · Spotlight / empty',
+						])
+					</div>
+				</div>
+				<div class="col-lg-6 mb-4">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.modals.ls-modal-cta-confirm')</code>
+						@include('layouts.lab.partials.ls-ui.modals.ls-modal-gallery-demo', [
+							'include' => 'ls-modal-cta-confirm',
+							'label' => 'CTA · Confirm / choices',
+						])
+					</div>
+				</div>
+				<div class="col-lg-8 mb-4">
+					<div class="ls-gallery-demo">
+						<code class="ls-gallery-include">@@include('layouts.lab.partials.ls-ui.modals.ls-modal-cta-form')</code>
+						@include('layouts.lab.partials.ls-ui.modals.ls-modal-gallery-demo', [
+							'include' => 'ls-modal-cta-form',
+							'label' => 'CTA · Form / configure',
+						])
+					</div>
+				</div>
+			</div>
 		</div>
 	</details>
 
@@ -936,6 +999,88 @@
 		initLsDndTree();
 	});
 })(jQuery);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" defer></script>
+<script>
+(function () {
+	function prefersReducedMotion() {
+		return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	}
+
+	function initLsModalLotties(root) {
+		if (typeof lottie === 'undefined') {
+			return;
+		}
+		var scope = root && root.querySelectorAll ? root : document;
+		scope.querySelectorAll('[data-ls-lottie]').forEach(function (el) {
+			if (el.getAttribute('data-ls-lottie-ready') === '1') {
+				return;
+			}
+			var src = el.getAttribute('data-ls-lottie');
+			if (!src) {
+				return;
+			}
+			if (prefersReducedMotion()) {
+				el.setAttribute('data-ls-lottie-ready', '1');
+				return;
+			}
+			var fallback = el.querySelector('[data-ls-lottie-fallback]');
+			try {
+				el.setAttribute('data-ls-lottie-ready', '1');
+				var anim = lottie.loadAnimation({
+					container: el,
+					renderer: 'svg',
+					loop: true,
+					autoplay: true,
+					path: src
+				});
+				anim.addEventListener('DOMLoaded', function () {
+					if (fallback) {
+						fallback.style.display = 'none';
+					}
+				});
+				anim.addEventListener('data_failed', function () {
+					el.removeAttribute('data-ls-lottie-ready');
+					if (fallback) {
+						fallback.style.display = '';
+					}
+				});
+			} catch (e) {
+				el.removeAttribute('data-ls-lottie-ready');
+				if (fallback) {
+					fallback.style.display = '';
+				}
+			}
+		});
+	}
+
+	window.lsInitModalLotties = initLsModalLotties;
+
+	function boot() {
+		initLsModalLotties(document);
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', function () {
+			setTimeout(boot, 50);
+		});
+	} else {
+		setTimeout(boot, 50);
+	}
+
+	document.addEventListener('click', function (e) {
+		var btn = e.target.closest('.ls-modal-demo__states button');
+		if (!btn) {
+			return;
+		}
+		setTimeout(function () {
+			var demo = btn.closest('.ls-modal-demo');
+			if (demo) {
+				initLsModalLotties(demo);
+			}
+		}, 30);
+	});
+})();
 </script>
 @endpush
 @endsection

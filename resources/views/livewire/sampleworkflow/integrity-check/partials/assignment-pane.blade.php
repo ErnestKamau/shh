@@ -7,6 +7,15 @@
     $sampleSummaries = $sampleSummaries ?? [];
     $testRows = $testRows ?? [];
     $analystNamesById = $analystNamesById ?? [];
+    $filteredCount = count($this->filteredTestRows);
+    $pagination = $this->testsPagination;
+    $activeFilterCount = $this->activeTestFilterCount;
+    $visibleKeys = array_values(array_map(
+        static fn (array $row): string => (string) ($row['row_key'] ?? ''),
+        $visibleRows
+    ));
+    $allVisibleSelected = $visibleKeys !== []
+        && count(array_diff($visibleKeys, $selectedRowKeys)) === 0;
 @endphp
 <section class="integrity-panel integrity-assign-panel" aria-label="Tests and assignment for selected sample">
     <div class="integrity-panel__head">
@@ -16,51 +25,20 @@
         </h3>
     </div>
 
-    <div class="integrity-assign-toolbar">
-        <div class="integrity-assign-stats">
-            <span class="ls-quotation-meta-chip">
-                {{ $activeSampleDossier['display_label'] ?? ($activeSample['display_label'] ?? 'Sample') }}
-            </span>
-            @if($activeSample)
-                <span class="ls-quotation-meta-chip {{ $activeSample['complete'] === $activeSample['total'] ? 'ls-quotation-meta-chip--ok' : 'ls-quotation-meta-chip--warn' }}">
-                    {{ $activeSample['complete'] }}/{{ $activeSample['total'] }} assigned
-                </span>
-            @endif
-            <span class="ls-quotation-meta-chip">{{ count($visibleRows) }} shown</span>
-        </div>
-        <div class="integrity-assign-controls">
-            @include('layouts.lab.partials.ls-ui.fields.ls-search-bar', [
-                'placeholder' => 'Search tests…',
-                'variant' => 'plain',
-                'wireModel' => 'testSearch',
-                'fullWidth' => false,
-            ])
-            <div class="integrity-filter-tabs" role="group" aria-label="Test filter">
-                <button type="button"
-                    class="quotation-stage-tab {{ $testFilter === 'all' ? 'is-active' : '' }}"
-                    wire:click="setTestFilter('all')">
-                    All
-                </button>
-                <button type="button"
-                    class="quotation-stage-tab {{ $testFilter === 'incomplete' ? 'is-active' : '' }}"
-                    wire:click="setTestFilter('incomplete')">
-                    Incomplete
-                </button>
-                <button type="button"
-                    class="quotation-stage-tab {{ $testFilter === 'subcontracted' ? 'is-active' : '' }}"
-                    wire:click="setTestFilter('subcontracted')">
-                    Subcontracted
-                </button>
-            </div>
-        </div>
-    </div>
-
     @if($selectedCount > 0)
         @php
             $bulkSectionOptions = $this->bulkAnalystSectionOptions;
             $bulkSubcontractAll = $this->bulkSubcontractAllSelected;
+            $bulkSelectedSectionIds = array_values(array_map(
+                static fn (array $section): string => (string) ($section['id'] ?? ''),
+                $bulkSectionOptions
+            ));
+            $labSectionSelectOptions = [];
+            foreach ($this->labSections as $section) {
+                $labSectionSelectOptions[(string) ($section['id'] ?? '')] = (string) ($section['name'] ?? 'Lab section');
+            }
         @endphp
-        <div class="integrity-bulk-bar" wire:key="integrity-bulk-bar-{{ $selectedCount }}">
+        <div class="integrity-bulk-bar" wire:key="integrity-bulk-bar-{{ $selectedCount }}-{{ implode('_', $bulkSelectedSectionIds) }}">
             <div class="integrity-bulk-toolbar">
                 <div class="integrity-bulk-count">
                     <strong>{{ $selectedCount }}</strong> selected
@@ -74,15 +52,26 @@
                 </div>
                 <div class="integrity-bulk-lab-sections-group">
                     <span class="integrity-bulk-group-label">Lab sections</span>
-                    <div wire:ignore class="integrity-bulk-select-wrap is-empty">
-                        <select class="form-control form-control-sm integrity-bulk-section-select"
-                            multiple
-                            data-placeholder="Set lab section(s)…">
-                            @foreach($this->labSections as $section)
-                                <option value="{{ $section['id'] }}">{{ $section['name'] }}</option>
-                            @endforeach
-                        </select>
+                    <div class="integrity-bulk-select-wrap {{ $bulkSelectedSectionIds === [] ? 'is-empty' : 'has-values' }}">
+                        @include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-dropdown-search', [
+                            'label' => null,
+                            'id' => 'integrity-bulk-lab-sections',
+                            'name' => 'bulkLabSectionIds',
+                            'placeholder' => 'Set lab section(s)…',
+                            'options' => $labSectionSelectOptions,
+                            'selected' => $bulkSelectedSectionIds,
+                            'variant' => 'slate',
+                            'wireIgnore' => true,
+                            'extraSelectClass' => 'integrity-bulk-section-select',
+                            'selectedValuesJson' => json_encode(array_values($bulkSelectedSectionIds)),
+                        ])
                     </div>
+                    <button type="button"
+                        class="integrity-toggle-btn integrity-bulk-save-sections"
+                        title="Apply lab section assignments to selected tests"
+                        aria-label="Apply lab section assignments to selected tests">
+                        <i class="mdi mdi-content-save-outline" aria-hidden="true"></i>
+                    </button>
                 </div>
                 <div class="d-flex align-items-center ml-auto" style="gap: 0.35rem;">
                     <button type="button"
@@ -161,21 +150,117 @@
     @endif
 
     <div class="integrity-panel__body">
-        @if($visibleRows === [])
+        <div
+            class="integrity-assign-list__toolbar"
+            x-data
+            @click.outside="if ($wire.testFiltersOpen) $wire.closeTestFilters()"
+            @keydown.escape.window="if ($wire.testFiltersOpen) $wire.closeTestFilters()"
+        >
+            <label class="integrity-assign-card__check mb-0">
+                <input type="checkbox"
+                    title="Select all visible"
+                    wire:key="select-all-{{ $selectedCount }}-{{ count($visibleRows) }}-{{ $pagination['current_page'] }}"
+                    @checked($allVisibleSelected)
+                    @disabled($visibleRows === [])
+                    wire:click="{{ $allVisibleSelected ? 'clearRowSelection' : 'selectAllVisibleRows' }}">
+                <span class="small text-muted ml-1">Select all visible</span>
+            </label>
+
+            <div class="integrity-assign-list__search">
+                @include('layouts.lab.partials.ls-ui.fields.ls-search-bar', [
+                    'placeholder' => 'Search tests…',
+                    'variant' => 'ghost',
+                    'wireModel' => 'testSearch',
+                    'fullWidth' => false,
+                    'filterWireClick' => 'toggleTestFilters',
+                    'filtersOpen' => $testFiltersOpen,
+                    'filterBadge' => $activeFilterCount,
+                ])
+
+                @if($activeFilterCount > 0 || $testSearch !== '')
+                    <button type="button" class="ls-quotation-search-toolbar__clear" wire:click="clearTestFilters" title="Clear filters">
+                        <i class="mdi mdi-close-circle-outline"></i>
+                        <span>Clear</span>
+                    </button>
+                @endif
+
+                @if($testFiltersOpen)
+                    <div class="ls-quotation-filter-panel integrity-assign-filter-panel">
+                        <div class="ls-quotation-filter-panel__head">
+                            <span><i class="mdi mdi-filter-variant"></i> Filters</span>
+                            <button type="button" class="ls-quotation-filter-panel__close" wire:click="closeTestFilters" aria-label="Close filters">
+                                <i class="mdi mdi-close"></i>
+                            </button>
+                        </div>
+
+                        <div class="ls-quotation-filter-panel__grid ls-compact">
+                            <div class="ls-field">
+                                <label class="ls-field__label" for="integrity-filter-status">Status</label>
+                                <div class="ls-field__control">
+                                    <select id="integrity-filter-status" class="ls-field__input" wire:model.live="testFilter">
+                                        <option value="all">All</option>
+                                        <option value="incomplete">Incomplete</option>
+                                        <option value="subcontracted">Subcontracted</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="ls-field">
+                                <label class="ls-field__label" for="integrity-filter-lab-section">Lab section</label>
+                                <div class="ls-field__control">
+                                    <select id="integrity-filter-lab-section" class="ls-field__input" wire:model.live="filterLabSectionId">
+                                        <option value="">All lab sections</option>
+                                        @foreach($this->labSections as $section)
+                                            <option value="{{ $section['id'] }}">{{ $section['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="ls-field">
+                                <label class="ls-field__label" for="integrity-filter-analysis-type">Analysis type</label>
+                                <div class="ls-field__control">
+                                    <select id="integrity-filter-analysis-type" class="ls-field__input" wire:model.live="filterAnalysisType">
+                                        <option value="">All analysis types</option>
+                                        @foreach($this->filterAnalysisTypeOptions as $analysisType)
+                                            <option value="{{ $analysisType }}">{{ $analysisType }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="ls-field">
+                                <label class="ls-field__label" for="integrity-filter-sample-type">Sample type</label>
+                                <div class="ls-field__control">
+                                    <select id="integrity-filter-sample-type" class="ls-field__input" wire:model.live="filterSampleType">
+                                        <option value="">All sample types</option>
+                                        @foreach($this->filterSampleTypeOptions as $sampleType)
+                                            <option value="{{ $sampleType }}">{{ $sampleType }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ls-quotation-filter-panel__foot">
+                            <button type="button" class="ls-btn" wire:click="clearTestFilters">
+                                Clear all
+                            </button>
+                            <button type="button" class="ls-btn ls-btn--secondary-fill" wire:click="closeTestFilters">
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        @if($filteredCount === 0)
             <div class="integrity-assign-empty">
                 No tests match the current filter for this sample.
             </div>
         @else
             <div class="integrity-assign-list">
-                <label class="integrity-assign-card__check mb-0 px-2 pt-1">
-                    <input type="checkbox"
-                        title="Select all visible"
-                        wire:key="select-all-{{ $selectedCount }}-{{ count($visibleRows) }}"
-                        @checked($selectedCount > 0 && $selectedCount === count($visibleRows) && count($visibleRows) > 0)
-                        wire:click="{{ $selectedCount === count($visibleRows) && count($visibleRows) > 0 ? 'clearRowSelection' : 'selectAllVisibleRows' }}">
-                    <span class="small text-muted ml-1">Select all visible</span>
-                </label>
-
                 @foreach($visibleRows as $row)
                     @php
                         $rowKey = (string) ($row['row_key'] ?? '');
@@ -203,14 +288,21 @@
                                     wire:model.live="selectedRowKeys">
                             </label>
                             <div>
-                                <h4 class="integrity-assign-card__title">{{ $row['test_label'] ?? '—' }}</h4>
+                                <h4 class="integrity-assign-card__title">
+                                    <button type="button"
+                                        class="integrity-assign-card__title-btn"
+                                        wire:click="startEditingRow('{{ $rowKey }}')"
+                                        title="Edit assignment">
+                                        {{ $row['test_label'] ?? '—' }}
+                                    </button>
+                                </h4>
                                 <div class="integrity-assign-card__meta">
                                     @if($isSubcontracted)
                                         <span class="ls-quotation-meta-chip ls-quotation-meta-chip--warn">
                                             <i class="mdi mdi-truck-delivery-outline"></i> Subcontracted
                                         </span>
                                     @elseif($isComplete)
-                                        <span class="ls-quotation-meta-chip ls-quotation-meta-chip--ok">
+                                        <span class="integrity-assign-status-chip integrity-assign-status-chip--assigned">
                                             <i class="mdi mdi-check-circle-outline"></i> Assigned
                                         </span>
                                     @else
@@ -264,10 +356,10 @@
                                     <i class="mdi mdi-truck-delivery-outline" aria-hidden="true"></i>
                                 </button>
                                 <button type="button"
-                                    class="integrity-toggle-btn {{ $isEditing ? 'is-edit-active' : '' }}"
-                                    title="{{ $isEditing ? 'Close editor' : 'Edit assignment' }}"
-                                    wire:click="startEditingRow('{{ $rowKey }}')">
-                                    <i class="mdi {{ $isEditing ? 'mdi-close' : 'mdi-pencil-outline' }}" aria-hidden="true"></i>
+                                    class="integrity-toggle-btn integrity-toggle-btn--info"
+                                    title="View test information"
+                                    wire:click.prevent="openTestInfoModal('{{ $rowKey }}')">
+                                    <i class="mdi mdi-information-outline" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
@@ -330,6 +422,33 @@
                     </article>
                 @endforeach
             </div>
+
+            @if($pagination['total'] > 0)
+                <div class="integrity-assign-pagination {{ $pagination['last_page'] <= 1 ? 'integrity-assign-pagination--meta-only' : '' }}">
+                    <div class="integrity-assign-pagination__meta">
+                        Showing {{ $pagination['from'] }}–{{ $pagination['to'] }} of {{ $pagination['total'] }}
+                    </div>
+                    @if($pagination['last_page'] > 1)
+                        <div class="integrity-assign-pagination__controls">
+                            <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                wire:click="goToTestsPage({{ $pagination['current_page'] - 1 }})"
+                                @disabled($pagination['current_page'] <= 1)>
+                                Prev
+                            </button>
+                            <span class="integrity-assign-pagination__page">
+                                Page {{ $pagination['current_page'] }} / {{ $pagination['last_page'] }}
+                            </span>
+                            <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                wire:click="goToTestsPage({{ $pagination['current_page'] + 1 }})"
+                                @disabled($pagination['current_page'] >= $pagination['last_page'])>
+                                Next
+                            </button>
+                        </div>
+                    @endif
+                </div>
+            @endif
         @endif
     </div>
 </section>

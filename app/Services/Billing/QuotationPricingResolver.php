@@ -380,7 +380,16 @@ class QuotationPricingResolver
 
     /**
      * @param  list<string>  $elementIds
-     * @return array{unit_price: float, tax: float, source: string, hint: string, is_package: bool, pricing_mode: string, max_tat: int|null}
+     * @return array{
+     *     unit_price: float,
+     *     tax: float,
+     *     source: string,
+     *     hint: string,
+     *     is_package: bool,
+     *     pricing_mode: string,
+     *     max_tat: int|null,
+     *     element_prices?: array<string, array{unit_price: float, tax: float}>
+     * }
      */
     public function suggestManualLinePricing(
         QuotationHeader $header,
@@ -482,21 +491,29 @@ class QuotationPricingResolver
 
         $total = 0.0;
         $taxes = [];
+        /** @var array<string, array{unit_price: float, tax: float}> $elementPrices */
+        $elementPrices = [];
         foreach ($elementIds as $elementId) {
             $element = AnalysisElements::query()->find($elementId);
             $analysisTypeId = (string) ($element?->analysis_type_id ?? $defaultAnalysisTypeId);
-            $total += $this->suggestPrefillUnitPrice(
+            $rowPrice = round($this->suggestPrefillUnitPrice(
                 $pricelist,
                 $sampleTypeId,
                 $analysisTypeId,
                 $elementId,
-            );
-            $taxes[] = $this->quotationLineTaxResolver->resolveLineTaxPercent(
+            ), 2);
+            $rowTax = round($this->quotationLineTaxResolver->resolveLineTaxPercent(
                 $pricelist,
                 $sampleTypeId,
                 $analysisTypeId,
                 $elementId,
-            );
+            ), 2);
+            $total += $rowPrice;
+            $taxes[] = $rowTax;
+            $elementPrices[(string) $elementId] = [
+                'unit_price' => $rowPrice,
+                'tax' => $rowTax,
+            ];
         }
 
         $displayTax = $taxes !== [] ? max($taxes) : 0.0;
@@ -511,6 +528,7 @@ class QuotationPricingResolver
             'is_package' => false,
             'pricing_mode' => $pricingMode === self::PRICING_MODE_AUTO ? self::PRICING_MODE_PER_TEST : $pricingMode,
             'max_tat' => $maxTat,
+            'element_prices' => $elementPrices,
         ];
     }
 

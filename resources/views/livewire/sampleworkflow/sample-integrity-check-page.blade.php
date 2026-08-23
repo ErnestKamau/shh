@@ -15,6 +15,8 @@
         'canAccept' => $this->canAccept,
         'collectionLabelUrl' => $this->collectionLabelUrl,
         'registrationLabelUrl' => $this->registrationLabelUrl,
+        'trfPdfUrl' => $this->trfPdfUrl,
+        'quotationPdfUrl' => $this->quotationPdfUrl,
     ])
 
     @php
@@ -65,13 +67,33 @@
                                         : 0;
                                 @endphp
                                 <div class="integrity-sample-tile">
-                                    <button type="button"
-                                        class="integrity-sample-tab {{ $selectedSampleKey === $sample['key'] ? 'is-active' : '' }}"
-                                        wire:click="selectSample('{{ $sample['key'] }}')"
-                                        title="{{ $sampleLabel }}">
-                                        <div class="integrity-sample-tab__compact">
-                                            <span class="integrity-sample-tab__description">{{ $sampleLabel }}</span>
-                                            <span class="integrity-sample-tab__counter">{{ $sample['complete'] }}/{{ $sample['total'] }}</span>
+                                    <div class="integrity-sample-tab {{ $selectedSampleKey === $sample['key'] ? 'is-active' : '' }}">
+                                        <div class="integrity-sample-tab__row">
+                                            <button type="button"
+                                                class="integrity-sample-tab__select"
+                                                wire:click="selectSample('{{ $sample['key'] }}')"
+                                                title="{{ $sampleLabel }}">
+                                                <span class="integrity-sample-tab__compact">
+                                                    <span class="integrity-sample-tab__icon-wrap" aria-hidden="true">
+                                                        <span class="integrity-sample-tab__icon">
+                                                            <i class="mdi mdi-test-tube"></i>
+                                                        </span>
+                                                    </span>
+                                                    <span class="integrity-sample-tab__copy">
+                                                        <span class="integrity-sample-tab__description">{{ $sampleLabel }}</span>
+                                                        <span class="integrity-sample-tab__counter">{{ $sample['complete'] }}/{{ $sample['total'] }}</span>
+                                                    </span>
+                                                </span>
+                                            </button>
+                                            <div class="integrity-sample-tab__actions">
+                                                <button type="button"
+                                                    class="integrity-sample-info-btn"
+                                                    wire:click.stop="openSampleInfoModal('{{ $sample['key'] }}')"
+                                                    title="View sample information"
+                                                    aria-label="View sample information for {{ $sampleLabel }}">
+                                                    <i class="mdi mdi-information-outline" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                         @if(!empty($sample['condition_not_acceptable']))
                                             <div class="integrity-sample-condition-flag mt-1" title="Condition not acceptable">
@@ -81,35 +103,12 @@
                                         <div class="integrity-progress" aria-hidden="true">
                                             <div class="integrity-progress-bar" style="width: {{ $progressPct }}%"></div>
                                         </div>
-                                    </button>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
                     </div>
                 </aside>
-            </div>
-
-            <div class="col-12 col-xl-4 integrity-dossier-col">
-                <div class="integrity-panel" x-data="{ open: true }">
-                    <div class="integrity-panel__head d-none d-xl-flex">
-                        <h3 class="integrity-panel__title">
-                            <i class="mdi mdi-file-document-outline"></i>
-                            Sample dossier
-                        </h3>
-                    </div>
-                    <button type="button"
-                        class="integrity-dossier-collapse-toggle d-xl-none"
-                        @click="open = !open"
-                        :aria-expanded="open">
-                        <span>Sample dossier</span>
-                        <i class="mdi" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
-                    </button>
-                    <div class="integrity-panel__body" x-show="open" x-cloak>
-                        @include('livewire.sampleworkflow.integrity-check.partials.sample-dossier', [
-                            'dossier' => $activeSampleDossier,
-                        ])
-                    </div>
-                </div>
             </div>
 
             <div class="col-12 col-xl integrity-assignment-col">
@@ -122,7 +121,6 @@
                     'sampleSummaries' => $sampleSummaries,
                     'testRows' => $testRows,
                     'analystNamesById' => $analystNamesById,
-                    'testFilter' => $testFilter,
                     'editingRowKey' => $editingRowKey,
                     'bulkAnalystIdsBySection' => $bulkAnalystIdsBySection,
                 ])
@@ -133,8 +131,21 @@
 
     @include('livewire.sampleworkflow.integrity-check.partials.worksheet-issue-modal', [
         'showWorksheetModal' => $showWorksheetModal,
+        'worksheetModalMode' => $worksheetModalMode,
         'worksheetSectionOptions' => $this->worksheetSectionOptions,
         'selectedWorksheetSectionIds' => $selectedWorksheetSectionIds,
+    ])
+
+    @include('livewire.sampleworkflow.integrity-check.partials.test-info-modal', [
+        'showTestInfoModal' => $showTestInfoModal,
+        'testInfo' => $this->viewingTestInfo,
+    ])
+
+    @include('livewire.sampleworkflow.integrity-check.partials.sample-info-modal', [
+        'showSampleInfoModal' => $showSampleInfoModal,
+        'dossier' => $activeSampleDossier,
+        'requestNumber' => $this->pageHeader['request_number'] ?? '',
+        'formNumber' => $this->pageHeader['form_number'] ?? '',
     ])
 
     @if($showAcceptConfirmModal)
@@ -235,72 +246,104 @@
                 $select.attr('data-integrity-bound', '1');
             };
 
+            const clampLsSelect2Search = ($el) => {
+                const $container = $el.next('.select2-container');
+                $container.find('.select2-search--inline .select2-search__field').attr(
+                    'style',
+                    'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;'
+                );
+                $container.css({ maxWidth: '100%', overflow: 'hidden' });
+            };
+
+            const wireLsMultiDropdownSearch = ($el) => {
+                $el.off('select2:open.lsDdSearch select2:close.lsDdSearch select2:select.lsDdSearch select2:unselect.lsDdSearch')
+                    .on('select2:open.lsDdSearch', function () {
+                        clampLsSelect2Search($el);
+                        const $dropdown = window.jQuery('.select2-container--open .select2-dropdown');
+                        if ($dropdown.find('.ls-dd-search').length) {
+                            $dropdown.find('.ls-dd-search input').val('').trigger('focus');
+                            return;
+                        }
+                        const $box = window.jQuery(
+                            '<div class="ls-dd-search"><i class="mdi mdi-magnify" aria-hidden="true"></i><input type="search" placeholder="Search…" autocomplete="off"><\/div>'
+                        );
+                        $dropdown.prepend($box);
+                        const $input = $box.find('input');
+                        $input.on('input keyup', function () {
+                            const q = $input.val();
+                            let $hidden = $el.data('select2')?.$selection
+                                ? $el.data('select2').$selection.find('.select2-search__field')
+                                : window.jQuery();
+                            if (!$hidden.length) {
+                                $hidden = window.jQuery('.select2-container--open .select2-search--inline .select2-search__field');
+                            }
+                            $hidden.val(q).trigger('input').trigger('keyup');
+                        });
+                        window.setTimeout(() => $input.trigger('focus'), 0);
+                    })
+                    .on('select2:close.lsDdSearch select2:select.lsDdSearch select2:unselect.lsDdSearch', function () {
+                        clampLsSelect2Search($el);
+                    });
+            };
+
             const bindBulkSelect = () => {
                 const $select = window.jQuery('.integrity-bulk-section-select');
-                if (!$select.length || $select.attr('data-integrity-bound') === '1') {
+                if (!$select.length) {
                     return;
                 }
 
-                if (!$select.hasClass('select2-hidden-accessible')) {
-                    $select.select2({
-                        width: '100%',
-                        placeholder: $select.data('placeholder') || 'Set lab section(s)…',
-                        allowClear: false,
-                        closeOnSelect: false,
-                        dropdownParent: window.jQuery('.integrity-bulk-bar').first().length
-                            ? window.jQuery('.integrity-bulk-bar').first()
-                            : window.jQuery(document.body),
-                    });
+                if ($select.data('select2') || $select.hasClass('select2-hidden-accessible')) {
+                    try {
+                        $select.select2('destroy');
+                    } catch (err) {
+                        // ignore
+                    }
                 }
+
+                $select.select2({
+                    width: '100%',
+                    placeholder: $select.data('placeholder') || 'Set lab section(s)…',
+                    allowClear: true,
+                    closeOnSelect: false,
+                    dropdownCssClass: 'ls-select2-dropdown-search',
+                    dropdownParent: window.jQuery('.integrity-bulk-bar').first().length
+                        ? window.jQuery('.integrity-bulk-bar').first()
+                        : window.jQuery(document.body),
+                    templateResult: function (data) {
+                        if (!data.id) {
+                            return data.text;
+                        }
+                        const selected = ($select.val() || []).indexOf(String(data.id)) !== -1;
+                        const $row = window.jQuery(
+                            '<span class="ls-select2-meta-row"><span class="ls-select2-check">' +
+                            (selected ? '✓' : '') +
+                            '<\/span><span class="ls-select2-meta-row__label"><\/span><\/span>'
+                        );
+                        $row.find('.ls-select2-meta-row__label').text(data.text);
+                        return $row;
+                    },
+                    escapeMarkup: function (markup) {
+                        return markup;
+                    },
+                });
+
+                wireLsMultiDropdownSearch($select);
+                clampLsSelect2Search($select);
 
                 const $wrap = $select.closest('.integrity-bulk-select-wrap');
                 const syncBulkSelectLayout = () => {
                     const hasValues = ($select.val() || []).length > 0;
                     $wrap.toggleClass('has-values', hasValues);
                     $wrap.toggleClass('is-empty', !hasValues);
-                    const $field = $select.next('.select2-container').find('.select2-search__field');
-                    $field.css({
-                        width: hasValues ? '0.75em' : '100%',
-                        textAlign: hasValues ? 'left' : 'center',
-                        margin: 0,
-                        height: hasValues ? '22px' : '24px',
-                        lineHeight: hasValues ? '22px' : '24px',
-                    });
-                    if (!hasValues) {
-                        $field.attr('placeholder', $select.data('placeholder') || 'Set lab section(s)…');
-                    } else {
-                        $field.attr('placeholder', '');
-                    }
                 };
-
-                const select2 = $select.data('select2');
-                if (select2?.selection?.resizeSearch) {
-                    select2.selection.resizeSearch = function () {
-                        const hasValues = ($select.val() || []).length > 0;
-                        this.$search.css('width', hasValues ? '0.75em' : '100%');
-                    };
-                    select2.selection.resizeSearch();
-                }
 
                 syncBulkSelectLayout();
 
                 $select
                     .off('change.integrityBulkSections select2:close.integrityBulkSections')
-                    .on('change.integrityBulkSections', function () {
+                    .on('change.integrityBulkSections select2:close.integrityBulkSections', function () {
                         syncBulkSelectLayout();
-                    })
-                    .on('select2:close.integrityBulkSections', function () {
-                        syncBulkSelectLayout();
-                        const wire = getWire();
-                        const values = $select.val() || [];
-                        if (!wire || values.length === 0) {
-                            return;
-                        }
-
-                        wire.call('applyBulkLabSections', values, true);
                     });
-
-                $select.attr('data-integrity-bound', '1');
             };
 
             const initSelects = () => {
@@ -328,6 +371,21 @@
                     }
                 });
 
+                Livewire.on('download-integrity-worksheet-excel', (event) => {
+                    const payload = Array.isArray(event) ? (event[0] ?? {}) : (event ?? {});
+                    const url = payload.url ?? payload.detail?.url ?? null;
+                    if (!url) {
+                        return;
+                    }
+                    const anchor = document.createElement('a');
+                    anchor.href = url;
+                    anchor.rel = 'noopener';
+                    anchor.style.display = 'none';
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
+                });
+
                 Livewire.on('acceptance-form-completed', (event) => {
                     const payload = Array.isArray(event) ? (event[0] ?? {}) : (event ?? {});
                     const redirectUrl = payload.redirectUrl
@@ -342,6 +400,40 @@
 
                 setTimeout(initSelects, 50);
 
+                const applyBulkLabSectionsFromSelect = () => {
+                    const $select = window.jQuery('.integrity-bulk-section-select');
+                    const wire = getWire();
+
+                    if (!wire || !$select.length) {
+                        return;
+                    }
+
+                    const values = $select.val() || [];
+
+                    if ($select.data('select2') || $select.hasClass('select2-hidden-accessible')) {
+                        try {
+                            $select.select2('close');
+                        } catch (err) {
+                            // ignore
+                        }
+                    }
+
+                    wire.call('syncBulkLabSections', values);
+                };
+
+                // mousedown: Select2 otherwise consumes the first click to close its dropdown.
+                window.jQuery(document)
+                    .off('mousedown.integrityBulkSave click.integrityBulkSave')
+                    .on('mousedown.integrityBulkSave', '.integrity-bulk-save-sections', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        applyBulkLabSectionsFromSelect();
+                    })
+                    .on('click.integrityBulkSave', '.integrity-bulk-save-sections', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    });
+
                 window.jQuery(document).on('click.integrityBulkRemove', '.integrity-bulk-remove-sections', function () {
                     const $select = window.jQuery('.integrity-bulk-section-select');
                     const values = $select.val() || [];
@@ -352,14 +444,10 @@
                     }
 
                     if (values.length === 0) {
-                        wire.call('removeBulkLabSections', [], false);
-
                         return;
                     }
 
-                    wire.call('removeBulkLabSections', values, false).then(() => {
-                        $select.val(null).trigger('change');
-                    });
+                    wire.call('removeBulkLabSections', values, false);
                 });
 
                 Livewire.hook('commit', ({ succeed }) => {

@@ -156,6 +156,11 @@
         line-height: 1.45;
     }
 
+    .ls-custody-timeline__field-value.is-action {
+        font-weight: 600;
+        color: #0f172a;
+    }
+
     .ls-custody-timeline__badge {
         display: inline-flex;
         align-items: center;
@@ -185,12 +190,17 @@
                 $isCompleted = ! empty($event->is_completed) || $badge === 'success';
                 $isWorkflow = ($event->source ?? '') === 'workflow_event';
                 $dotClass = $isCompleted ? 'is-success' : ($badge === 'warning' ? 'is-warning' : ($isWorkflow ? 'is-workflow' : ''));
-                $hasDetails = filled($event->how ?? null)
+                $metadata = is_array($event->metadata ?? null) ? $event->metadata : [];
+                $actionText = filled($event->comment ?? null) ? $event->comment : null;
+                $hasDetails = filled($actionText)
+                    || filled($event->user_name ?? null)
+                    || filled($event->occurred_at ?? null)
+                    || filled($event->what ?? null)
+                    || filled($event->how ?? null)
                     || filled($event->why ?? null)
                     || filled($event->where ?? null)
-                    || filled($event->comment ?? null)
-                    || ! empty($event->metadata);
-                $metadata = is_array($event->metadata ?? null) ? $event->metadata : [];
+                    || $metadata !== []
+                    || ($event->source ?? '') === 'batch';
             @endphp
             <div class="ls-custody-timeline__event" x-data="{ open: {{ $index === 0 ? 'true' : 'false' }} }">
                 <span class="ls-custody-timeline__dot {{ $dotClass }}" aria-hidden="true"></span>
@@ -223,6 +233,24 @@
                     @if($hasDetails)
                         <div class="ls-custody-timeline__body" x-show="open" x-cloak>
                             <div class="ls-custody-timeline__grid">
+                                @if(filled($actionText))
+                                    <div class="md:col-span-2">
+                                        <span class="ls-custody-timeline__field-label">Action</span>
+                                        <span class="ls-custody-timeline__field-value is-action">{{ $actionText }}</span>
+                                    </div>
+                                @endif
+                                @if(! empty($event->user_name))
+                                    <div>
+                                        <span class="ls-custody-timeline__field-label">Who</span>
+                                        <span class="ls-custody-timeline__field-value">{{ $event->user_name }}</span>
+                                    </div>
+                                @endif
+                                @if(! empty($event->occurred_at))
+                                    <div>
+                                        <span class="ls-custody-timeline__field-label">When</span>
+                                        <span class="ls-custody-timeline__field-value">{{ $event->occurred_at->format('Y-m-d H:i:s') }}</span>
+                                    </div>
+                                @endif
                                 @if(! empty($event->what))
                                     <div>
                                         <span class="ls-custody-timeline__field-label">What</span>
@@ -235,22 +263,16 @@
                                         <span class="ls-custody-timeline__field-value">{{ $event->how }}</span>
                                     </div>
                                 @endif
-                                @if(! empty($event->why))
-                                    <div>
-                                        <span class="ls-custody-timeline__field-label">Why</span>
-                                        <span class="ls-custody-timeline__field-value">{{ $event->why }}</span>
-                                    </div>
-                                @endif
                                 @if(! empty($event->where))
                                     <div>
                                         <span class="ls-custody-timeline__field-label">Where</span>
                                         <span class="ls-custody-timeline__field-value">{{ $event->where }}</span>
                                     </div>
                                 @endif
-                                @if(! empty($event->comment))
+                                @if(! empty($event->why))
                                     <div>
-                                        <span class="ls-custody-timeline__field-label">Comments</span>
-                                        <span class="ls-custody-timeline__field-value">{{ $event->comment }}</span>
+                                        <span class="ls-custody-timeline__field-label">Why</span>
+                                        <span class="ls-custody-timeline__field-value">{{ $event->why }}</span>
                                     </div>
                                 @endif
                                 @if($event->source === 'batch' && isset($event->is_completed))
@@ -273,6 +295,11 @@
                                         <div>
                                             <span class="ls-custody-timeline__field-label">{{ ucwords(str_replace('_', ' ', (string) $metaKey)) }}</span>
                                             <span class="ls-custody-timeline__field-value">{{ $metaValue }}</span>
+                                        </div>
+                                    @elseif(is_array($metaValue) && $metaValue !== [])
+                                        <div>
+                                            <span class="ls-custody-timeline__field-label">{{ ucwords(str_replace('_', ' ', (string) $metaKey)) }}</span>
+                                            <span class="ls-custody-timeline__field-value">{{ implode(', ', array_map('strval', $metaValue)) }}</span>
                                         </div>
                                     @endif
                                 @endforeach

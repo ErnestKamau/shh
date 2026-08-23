@@ -3,7 +3,7 @@
 		<span class="workflow-stat-strip__dot workflow-stat-strip__dot--warning" aria-hidden="true"></span>
 		<div>
 			<p class="workflow-stat-strip__value">{{ $receivingDashboardStats['sub_contracting'] ?? 0 }}</p>
-			<p class="workflow-stat-strip__label">Sub-contracting</p>
+			<p class="workflow-stat-strip__label">Subcontracted</p>
 			<p class="workflow-stat-strip__meta">Awaiting + dispatched</p>
 		</div>
 	</div>

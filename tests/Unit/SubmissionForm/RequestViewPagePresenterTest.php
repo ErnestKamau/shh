@@ -72,7 +72,7 @@ class RequestViewPagePresenterTest extends TestCase
         $this->assertNotContains('accept_samples', $keys);
     }
 
-    public function test_legacy_in_review_enquiry_maps_to_ready_for_reception_without_receive_primary(): void
+    public function test_legacy_in_review_enquiry_shows_in_review_badge_with_receive_primary(): void
     {
         [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
             SampleSubmissionRequest::STATUS_IN_REVIEW
@@ -88,20 +88,56 @@ class RequestViewPagePresenterTest extends TestCase
         );
 
         $this->assertSame(
-            RequestViewPagePresenter::STAGE_READY_FOR_RECEPTION,
+            RequestViewPagePresenter::STAGE_IN_REVIEW,
             $presenter->enquiryDisplayStatus()
         );
 
         $actions = $presenter->nextStepActions('Samples Receiving');
         $keys = $this->actionKeys($actions);
 
-        // Legacy In Review display stage still maps to Ready for Reception stage label.
         $this->assertSame('receive_samples', $actions['primary']['key'] ?? null);
         $this->assertSame('Receive Samples', $actions['primary']['label'] ?? null);
         $this->assertNotContains('open_review_board', $keys);
         $this->assertNotContains('process_enquiry', $keys);
         $this->assertNotContains('record_po', $keys);
         $this->assertNotContains('accept_samples', $keys);
+    }
+
+    public function test_quotation_pending_approval_shows_exact_badge_label(): void
+    {
+        [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
+            SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL
+        );
+
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $form,
+            commercialEnquiry: $enquiry,
+        );
+
+        $this->assertSame(
+            RequestViewPagePresenter::STAGE_QUOTATION_PENDING_APPROVAL,
+            $presenter->enquiryDisplayStatus()
+        );
+    }
+
+    public function test_sample_integrity_check_is_not_overridden_by_acceptance_forms(): void
+    {
+        [$form, $instance, $enquiry] = $this->createTrfWithEnquiry(
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK
+        );
+
+        // Even if acceptance form scaffolding exists, badge follows enquiry status.
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance->fresh(['batches', 'analysisAcceptanceForms']),
+            submissionForm: $form,
+            commercialEnquiry: $enquiry->fresh(),
+        );
+
+        $this->assertSame(
+            RequestViewPagePresenter::STAGE_SAMPLE_INTEGRITY_CHECK,
+            $presenter->enquiryDisplayStatus()
+        );
     }
 
     public function test_accepted_enquiry_shows_accepted_and_hides_accept_sample(): void

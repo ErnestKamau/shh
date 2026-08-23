@@ -61,6 +61,26 @@
 			@endif
 		</button>
 	@elseif($variant === 'ghost')
-		<button type="button" class="ls-search-bar__filter ls-search-bar__filter--ghost" aria-label="Filter"><i class="mdi mdi-tune-variant"></i></button>
+		@php $filterBadgeCount = (int) ($filterBadge ?? 0); @endphp
+		<button
+			type="button"
+			class="ls-search-bar__filter {{ $filterBadgeCount > 0 ? '' : 'ls-search-bar__filter--ghost' }} {{ ! empty($filtersOpen) ? 'is-open' : '' }}"
+			aria-label="Filter"
+			@if(! empty($filterWireClick))
+				wire:click="{{ $filterWireClick }}"
+			@elseif($useFilterAlpine)
+				@click.prevent="{{ $filterClick ?? 'filtersOpen = !filtersOpen' }}"
+				:class="{ 'is-open': {{ $filterOpenAlpine ?? 'filtersOpen' }} }"
+			@endif
+			@if(isset($filtersOpen))
+				aria-expanded="{{ ! empty($filtersOpen) ? 'true' : 'false' }}"
+				aria-haspopup="dialog"
+			@endif
+		>
+			<i class="mdi mdi-tune-variant"></i>
+			@if($filterBadgeCount > 0)
+				<span class="ls-quotation-search-toolbar__badge">{{ $filterBadgeCount }}</span>
+			@endif
+		</button>
 	@endif
 </div>

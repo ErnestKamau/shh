@@ -22,6 +22,7 @@ use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
 use App\Lab;
@@ -63,7 +64,7 @@ class WorkflowBoard extends Component
             'accepted' => 'Accepted',
             'in_additional_info' => 'Request Additional Info',
             // 'complete' => 'Complete Requests',
-            'sub_contracting' => 'Sub-contracting',
+            'sub_contracting' => 'Subcontracted',
             // 'interzone_transfers' => 'Interzone Transfers',
         ];
     }
@@ -213,6 +214,11 @@ class WorkflowBoard extends Component
     public array $receiveFormSummaries = [];
 
     public bool $showQuotationAcceptanceModal = false;
+
+    public bool $showSubcontractedViewModal = false;
+
+    /** @var array<string, mixed>|null */
+    public ?array $subcontractedViewPayload = null;
 
     /** When true, modal only captures PO for an already-accepted quotation. */
     public bool $quotationAcceptancePoOnly = false;
@@ -900,6 +906,28 @@ class WorkflowBoard extends Component
     }
 
     /**
+     * Request Additional Info tab — driven by SampleSubmissionRequest.status
+     * (instance status kept in sync for portal compatibility).
+     */
+    protected function requestAdditionalInfoSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->receivingSubmissionFormsBaseQuery()
+            ->where(function ($outer): void {
+                $outer->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                    $enquiryQuery->where('status', SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO);
+                })->orWhere(function ($legacy): void {
+                    $legacy->where('status', 'in_additional_info')
+                        ->where(function ($inner): void {
+                            $inner->whereDoesntHave('sampleSubmissionRequest')
+                                ->orWhereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                                    $enquiryQuery->where('status', '!=', SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO);
+                                });
+                        });
+                });
+            });
+    }
+
+    /**
      * Submitted Requests tab: instance-based commercial pipeline before physical reception.
      */
     protected function submittedCommercialPipelineSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
@@ -909,6 +937,8 @@ class WorkflowBoard extends Component
             fn (string $status): bool => ! in_array($status, [
                 SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
                 SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
+                SampleSubmissionRequest::STATUS_IN_REVIEW,
+                SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO,
             ], true)
         ));
 
@@ -928,13 +958,9 @@ class WorkflowBoard extends Component
     }
 
     /**
-     * Sub-contracting queue: requests with at least one subcontracted parameter
-     * (master flag or Integrity Check `subcontracted_parameter_keys`).
-     *
-     * Membership is driven by subcontracting_dispatch_status, not by AmSpec
-     * acceptance. Awaiting includes post-accept enquiries (STATUS_ACCEPTED /
-     * received_at_lab = accepted at AmSpec, NOT received by a subcontract lab)
-     * and does not exclude instances whose batch is already in Samples In Lab.
+     * Subcontracted queue: accepted requests that have subcontracted tests.
+     * Not an enquiry status — rows also remain on the Accepted tab.
+     * Membership is driven by subcontracted parameters + dispatch state.
      */
     protected function subcontractingSubmissionFormsQuery(?string $dispatchStatusOverride = null): \Illuminate\Database\Eloquent\Builder
     {
@@ -1151,7 +1177,7 @@ SQL);
     }
 
     /**
-     * Dispatch-state counts for the Sub-contracting tab.
+     * Dispatch-state counts for the Subcontracted tab.
      *
      * @return array<string, int>
      */
@@ -1286,6 +1312,12 @@ SQL);
                     $acceptedQuery = SubmissionFormInstance::query()->requestReviewAccepted();
                     $this->applyReceivingSubmissionFormFilters($acceptedQuery);
                     $counts[$tabKey] = (int) $acceptedQuery->count();
+                    continue;
+                }
+                if ($tabKey === 'in_additional_info') {
+                    $additionalInfoQuery = $this->requestAdditionalInfoSubmissionFormsQuery();
+                    $this->applyReceivingSubmissionFormFilters($additionalInfoQuery);
+                    $counts[$tabKey] = (int) $additionalInfoQuery->count();
                     continue;
                 }
                 $fallbackQuery = $this->receivingSubmissionFormsBaseQuery()->where('status', $tabKey);
@@ -1480,6 +1512,7 @@ SQL);
                 'submitted' => $this->submittedCommercialPipelineSubmissionFormsQuery(),
                 'sub_contracting' => $this->subcontractingSubmissionFormsQuery(),
                 'accepted' => SubmissionFormInstance::query()->requestReviewAccepted(),
+                'in_additional_info' => $this->requestAdditionalInfoSubmissionFormsQuery(),
                 default => $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus),
             };
 
@@ -3184,7 +3217,12 @@ SQL);
 
         $instances = SubmissionFormInstance::query()
             ->whereIn('id', $this->selectedFormInstanceIds)
-            ->where('status', 'in_additional_info')
+            ->where(function ($query): void {
+                $query->where('status', 'in_additional_info')
+                    ->orWhereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+                        $enquiryQuery->where('status', SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO);
+                    });
+            })
             ->get();
 
         foreach ($instances as $instance) {
@@ -3229,7 +3267,7 @@ SQL);
         $this->syncSelectedFormInstanceIds($ids);
 
         if (count($this->selectedFormInstanceIds) !== 1) {
-            $this->workflowNotify('error', 'Select exactly one subcontracting request before dispatching.');
+            $this->workflowNotify('error', 'Select exactly one subcontracted request before dispatching.');
 
             return;
         }
@@ -3240,6 +3278,36 @@ SQL);
             instanceIds: $this->selectedFormInstanceIds,
             summaries: $summaries,
         );
+    }
+
+    public function openSubcontractedViewModal(string $instanceId): void
+    {
+        $instance = SubmissionFormInstance::query()
+            ->with(['sampleSubmissionRequest.batch', 'sampleSubmissionRequest.subcontractingDispatchAssignments.lab'])
+            ->find($instanceId);
+
+        $enquiry = $instance?->sampleSubmissionRequest;
+        if ($enquiry === null) {
+            $this->workflowNotify('error', 'No commercial enquiry is linked to this request.');
+
+            return;
+        }
+
+        if (! $enquiry->hasSubcontractedWork()) {
+            $this->workflowNotify('error', 'This request has no subcontracted tests.');
+
+            return;
+        }
+
+        $this->subcontractedViewPayload = app(SubcontractingAssignmentService::class)
+            ->buildSubcontractedSampleOverview($enquiry);
+        $this->showSubcontractedViewModal = true;
+    }
+
+    public function closeSubcontractedViewModal(): void
+    {
+        $this->showSubcontractedViewModal = false;
+        $this->subcontractedViewPayload = null;
     }
 
     public function onSubcontractDispatchCompleted(): void

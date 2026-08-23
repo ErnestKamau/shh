@@ -42,9 +42,11 @@
                             <tr>
                                 <th>Worksheet no.</th>
                                 <th>Lab section</th>
-                                <th>Tests</th>
+                                <th>Sample(s)</th>
+                                <th>Test(s)</th>
                                 <th>Analysts</th>
                                 <th>Issued</th>
+                                <th>Downloaded</th>
                                 <th>Status</th>
                                 <th class="text-right">Actions</th>
                             </tr>
@@ -53,10 +55,26 @@
                             @foreach($labSectionWorksheets as $worksheet)
                                 <tr>
                                     <td class="font-weight-bold">{{ $worksheet['worksheet_number'] }}</td>
-                                    <td>{{ $worksheet['section_name'] }}</td>
-                                    <td>{{ $worksheet['test_count'] }}</td>
+                                    <td>
+                                        {{ $worksheet['section_name'] }}
+                                        @if(! empty($worksheet['section_code']))
+                                            <span class="text-muted d-block" style="font-size: 10px;">{{ $worksheet['section_code'] }}</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $worksheet['sample_labels'] }}</td>
+                                    <td title="{{ $worksheet['test_labels'] }}">
+                                        <span class="d-inline-block text-truncate" style="max-width: 180px;">
+                                            {{ $worksheet['test_count'] }} · {{ $worksheet['test_labels'] }}
+                                        </span>
+                                    </td>
                                     <td>{{ $worksheet['analyst_names'] }}</td>
-                                    <td>{{ $worksheet['issued_at'] ?? '—' }}</td>
+                                    <td>
+                                        {{ $worksheet['issued_at'] ?? '—' }}
+                                        @if(! empty($worksheet['issued_by']) && $worksheet['issued_by'] !== '—')
+                                            <span class="text-muted d-block" style="font-size: 10px;">by {{ $worksheet['issued_by'] }}</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $worksheet['downloaded_at'] ?? '—' }}</td>
                                     <td>
                                         @if(($worksheet['status'] ?? '') === 'imported')
                                             <span class="badge badge-success">Imported</span>
@@ -68,20 +86,24 @@
                                         @endif
                                     </td>
                                     <td class="text-right text-nowrap">
-                                        @if($worksheet['has_pdf'])
-                                            <a href="{{ route('lab-section-worksheets.pdf', ['worksheet' => $worksheet['id']]) }}"
-                                                target="_blank"
-                                                class="btn btn-outline-secondary btn-xs btn-sm py-0 px-2"
-                                                title="Download PDF">
-                                                <i class="mdi mdi-file-pdf-box"></i>
-                                            </a>
-                                        @endif
-                                        @if($worksheet['has_excel'])
-                                            <a href="{{ route('lab-section-worksheets.excel', ['worksheet' => $worksheet['id']]) }}"
-                                                class="btn btn-outline-secondary btn-xs btn-sm py-0 px-2"
-                                                title="Download Excel template">
-                                                <i class="mdi mdi-file-excel-outline"></i>
-                                            </a>
+                                        @if(! empty($worksheet['can_download']))
+                                            @if($worksheet['has_pdf'])
+                                                <a href="{{ route('lab-section-worksheets.pdf', ['worksheet' => $worksheet['id']]) }}"
+                                                    target="_blank"
+                                                    class="btn btn-outline-secondary btn-xs btn-sm py-0 px-2"
+                                                    title="Download PDF">
+                                                    <i class="mdi mdi-file-pdf-box"></i>
+                                                </a>
+                                            @endif
+                                            @if($worksheet['has_excel'])
+                                                <a href="{{ route('lab-section-worksheets.excel', ['worksheet' => $worksheet['id']]) }}"
+                                                    class="btn btn-outline-secondary btn-xs btn-sm py-0 px-2"
+                                                    title="Download Excel template">
+                                                    <i class="mdi mdi-file-excel-outline"></i>
+                                                </a>
+                                            @endif
+                                        @else
+                                            <span class="text-muted" title="Not permitted for your role/assignment">—</span>
                                         @endif
                                     </td>
                                 </tr>

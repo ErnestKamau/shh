@@ -48,6 +48,8 @@ class SampleSubmissionRequest extends Model
 
     public const STATUS_IN_REVIEW = 'In Review';
 
+    public const STATUS_REQUEST_ADDITIONAL_INFO = 'Request Additional Info';
+
     /**
      * Samples accepted at AmSpec (job/batch created; may be in Samples In Lab).
      * Stored value remains `received_at_lab` for legacy rows — this is NOT
@@ -75,19 +77,15 @@ class SampleSubmissionRequest extends Model
     }
 
     /**
-     * Enquiry statuses that may appear on Sample Receiving → Sub-contracting.
-     * Includes AmSpec-accepted enquiries so pending external dispatch stays visible
-     * after the batch is routed to Samples In Lab.
+     * Enquiry statuses that may appear on Sample Receiving → Subcontracted.
+     * Subcontracted is a parallel queue (has subcontracted tests), not an enquiry status.
+     * Rows remain Accepted and also appear on the Accepted tab.
      *
      * @return list<string>
      */
     public static function subcontractingQueueEnquiryStatuses(): array
     {
         return [
-            self::STATUS_QUOTATION_ACCEPTED,
-            self::STATUS_READY_FOR_RECEPTION,
-            self::STATUS_SAMPLE_INTEGRITY_CHECK,
-            self::STATUS_IN_REVIEW,
             self::STATUS_ACCEPTED,
         ];
     }
@@ -121,7 +119,50 @@ class SampleSubmissionRequest extends Model
         self::STATUS_QUOTATION_ACCEPTED,
         self::STATUS_READY_FOR_RECEPTION,
         self::STATUS_SAMPLE_INTEGRITY_CHECK,
+        self::STATUS_IN_REVIEW,
+        self::STATUS_REQUEST_ADDITIONAL_INFO,
     ];
+
+    /**
+     * Ordered receiving / commercial statuses for UI (badge, CoC, board).
+     *
+     * @return list<string>
+     */
+    public static function receivingWorkflowStatuses(): array
+    {
+        return [
+            self::STATUS_DRAFT,
+            self::STATUS_REQUESTED,
+            self::STATUS_QUOTATION_IN_PROGRESS,
+            self::STATUS_QUOTATION_PENDING_APPROVAL,
+            self::STATUS_QUOTATION_READY_TO_SEND,
+            self::STATUS_QUOTATION_SENT,
+            self::STATUS_QUOTATION_UNDER_REVIEW,
+            self::STATUS_QUOTATION_ACCEPTED,
+            self::STATUS_READY_FOR_RECEPTION,
+            self::STATUS_SAMPLE_INTEGRITY_CHECK,
+            self::STATUS_IN_REVIEW,
+            self::STATUS_REQUEST_ADDITIONAL_INFO,
+            self::STATUS_ACCEPTED,
+        ];
+    }
+
+    /**
+     * Human-readable badge / header label for the current enquiry status.
+     * Always derived from SampleSubmissionRequest.status (not form instance status).
+     */
+    public function displayStatus(): string
+    {
+        $status = (string) ($this->status ?? '');
+
+        return match ($status) {
+            self::STATUS_DRAFT, 'draft' => 'Draft',
+            'submitted', 'Submitted' => self::STATUS_REQUESTED,
+            'Pending Quotation' => self::STATUS_QUOTATION_READY_TO_SEND,
+            self::STATUS_ACCEPTED, 'Received at Lab' => 'Accepted',
+            default => $status !== '' ? $status : '—',
+        };
+    }
 
     protected $keyType = 'string';
 
@@ -293,20 +334,7 @@ class SampleSubmissionRequest extends Model
 
     public function commercialStatus(): string
     {
-        $status = (string) ($this->status ?? '');
-
-        return match ($status) {
-            'submitted', 'Submitted' => self::STATUS_REQUESTED,
-            self::STATUS_QUOTATION_READY_TO_SEND, 'Pending Quotation' => 'Quotation Pending',
-            self::STATUS_QUOTATION_PENDING_APPROVAL => self::STATUS_QUOTATION_PENDING_APPROVAL,
-            self::STATUS_SAMPLE_INTEGRITY_CHECK => self::STATUS_SAMPLE_INTEGRITY_CHECK,
-            self::STATUS_READY_FOR_RECEPTION => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
-            // Legacy In Review folds into Ready for Reception (Accept Samples).
-            self::STATUS_IN_REVIEW => $this->sample_header_id ? 'Sales Order Created' : 'Ready for Reception',
-            self::STATUS_ACCEPTED => 'Accepted',
-            'Received at Lab' => 'Sales Order Created',
-            default => $status,
-        };
+        return $this->displayStatus();
     }
 
     public function isCommercialEnquiry(): bool

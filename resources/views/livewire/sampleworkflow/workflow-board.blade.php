@@ -1753,7 +1753,7 @@
 									x-cloak>
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
 										<span class="badge badge-light border text-dark">
-											<i class="mdi mdi-truck-delivery-outline mr-1"></i> Sub-contracting queue
+											<i class="mdi mdi-truck-delivery-outline mr-1"></i> Subcontracted queue
 										</span>
 										<button type="button"
 											class="btn btn-sm btn-outline-primary"
@@ -2896,11 +2896,20 @@
 																		<i class="mdi mdi-delete"></i>
 																	</button>
 																@else
-																	<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}"
-																		class="btn btn-sm rm-act-btn rm-act-btn--view"
-																		title="View details">
-																		<i class="mdi mdi-eye"></i>
-																	</a>
+																	@if($status === 'Samples Receiving' && $workflowSubTab === 'sub_contracting')
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			wire:click="openSubcontractedViewModal('{{ $instance->id }}')"
+																			title="View subcontracted samples &amp; tests">
+																			<i class="mdi mdi-eye"></i>
+																		</button>
+																	@else
+																		<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			title="View details">
+																			<i class="mdi mdi-eye"></i>
+																		</a>
+																	@endif
 																	@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
 																		@php
 																			$readyQuotationId = $instance->sampleSubmissionRequest?->accepted_quotation_header_id
@@ -8001,6 +8010,8 @@
 
 	@livewire('sampleworkflow.acceptance-form-wizard')
 	@livewire('sampleworkflow.process-enquiry-wizard')
+
+	@include('livewire.sampleworkflow.partials.subcontracted-view-modal')
 
 	@if($showQuotationAcceptanceModal)
 		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45); overflow-y: auto;">

@@ -51,6 +51,18 @@ class SampleIntegrityCheckPage extends Component
     /** @var 'all'|'incomplete'|'subcontracted' */
     public string $testFilter = 'all';
 
+    public bool $testFiltersOpen = false;
+
+    public string $filterLabSectionId = '';
+
+    public string $filterAnalysisType = '';
+
+    public string $filterSampleType = '';
+
+    public int $testsPage = 1;
+
+    public int $testsPerPage = 10;
+
     /** @var list<string> */
     public array $selectedRowKeys = [];
 
@@ -77,8 +89,17 @@ class SampleIntegrityCheckPage extends Component
 
     public bool $showWorksheetModal = false;
 
+    /** pdf|excel — which Actions entry opened the modal */
+    public string $worksheetModalMode = 'pdf';
+
     /** @var list<string> */
     public array $selectedWorksheetSectionIds = [];
+
+    public bool $showTestInfoModal = false;
+
+    public string $viewingTestInfoRowKey = '';
+
+    public bool $showSampleInfoModal = false;
 
     public function mount(string $submissionFormId, string $instanceId): void
     {
@@ -120,6 +141,68 @@ class SampleIntegrityCheckPage extends Component
     {
         $this->resetBulkAnalystState();
         $this->syncBulkAnalystSectionsFromSelection();
+        $this->bulkLabSectionIds = $this->selectedTestsLabSectionIds();
+    }
+
+    /**
+     * Apply the bulk lab-section Select2 values to every selected test (exact set).
+     *
+     * @param  list<string|int>  $labSectionIds
+     */
+    public function syncBulkLabSections(array $labSectionIds = []): void
+    {
+        if ($this->selectedRowKeys === []) {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $nextIds = $configService->normalizeLabSectionIds($labSectionIds);
+        $selected = array_flip($this->selectedRowKeys);
+        $updated = 0;
+
+        foreach ($this->testRows as $index => $row) {
+            $rowKey = (string) ($row['row_key'] ?? '');
+            if (! isset($selected[$rowKey])) {
+                continue;
+            }
+
+            $existing = $configService->normalizeLabSectionIds(
+                is_array($row['lab_section_ids'] ?? null) ? $row['lab_section_ids'] : []
+            );
+
+            $existingSorted = $existing;
+            $nextSorted = $nextIds;
+            sort($existingSorted);
+            sort($nextSorted);
+
+            if ($existingSorted === $nextSorted) {
+                continue;
+            }
+
+            $this->applyLabSectionsToIndex($index, $nextIds);
+            $updated++;
+        }
+
+        $this->bulkLabSectionIds = $nextIds;
+        $this->persistAssignments(reload: false);
+        $this->syncBulkAnalystSectionsFromSelection();
+
+        if ($updated > 0) {
+            $this->setFlashMessage($updated.' test(s) updated with lab section(s).', 'success');
+        }
+    }
+
+    /**
+     * Union of lab section IDs already assigned on the currently selected tests.
+     *
+     * @return list<string>
+     */
+    private function selectedTestsLabSectionIds(): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (array $section): string => (string) ($section['id'] ?? ''),
+            $this->bulkAnalystSectionOptions
+        )));
     }
 
     public function updatedBulkAnalystLabSectionIds(): void
@@ -156,18 +239,6 @@ class SampleIntegrityCheckPage extends Component
         $this->applyBulkAnalystsToSelection($labSectionId, silent: true);
     }
 
-    public function updatedTestSearch(): void
-    {
-        $this->selectedRowKeys = [];
-        $this->resetBulkAnalystState();
-    }
-
-    public function updatedTestFilter(): void
-    {
-        $this->selectedRowKeys = [];
-        $this->resetBulkAnalystState();
-    }
-
     public function selectSample(string $sampleKey): void
     {
         $this->selectedSampleKey = $sampleKey;
@@ -175,6 +246,8 @@ class SampleIntegrityCheckPage extends Component
         $this->editingRowKey = '';
         $this->bulkLabSectionIds = [];
         $this->resetBulkAnalystState();
+        $this->testsPage = 1;
+        $this->testFiltersOpen = false;
     }
 
     public function setTestFilter(string $filter): void
@@ -185,6 +258,66 @@ class SampleIntegrityCheckPage extends Component
 
         $this->testFilter = $filter;
         $this->selectedRowKeys = [];
+        $this->testsPage = 1;
+    }
+
+    public function toggleTestFilters(): void
+    {
+        $this->testFiltersOpen = ! $this->testFiltersOpen;
+    }
+
+    public function closeTestFilters(): void
+    {
+        $this->testFiltersOpen = false;
+    }
+
+    public function clearTestFilters(): void
+    {
+        $this->testSearch = '';
+        $this->testFilter = 'all';
+        $this->filterLabSectionId = '';
+        $this->filterAnalysisType = '';
+        $this->filterSampleType = '';
+        $this->selectedRowKeys = [];
+        $this->testsPage = 1;
+    }
+
+    public function updatedTestSearch(): void
+    {
+        $this->testsPage = 1;
+        $this->selectedRowKeys = [];
+        $this->resetBulkAnalystState();
+    }
+
+    public function updatedTestFilter(): void
+    {
+        $this->testsPage = 1;
+        $this->selectedRowKeys = [];
+        $this->resetBulkAnalystState();
+    }
+
+    public function updatedFilterLabSectionId(): void
+    {
+        $this->testsPage = 1;
+        $this->selectedRowKeys = [];
+    }
+
+    public function updatedFilterAnalysisType(): void
+    {
+        $this->testsPage = 1;
+        $this->selectedRowKeys = [];
+    }
+
+    public function updatedFilterSampleType(): void
+    {
+        $this->testsPage = 1;
+        $this->selectedRowKeys = [];
+    }
+
+    public function goToTestsPage(int $page): void
+    {
+        $lastPage = max(1, (int) ($this->testsPagination['last_page'] ?? 1));
+        $this->testsPage = max(1, min($page, $lastPage));
     }
 
     public function toggleRowSelection(string $rowKey): void
@@ -803,6 +936,80 @@ class SampleIntegrityCheckPage extends Component
         ]);
     }
 
+    public function getTrfPdfUrlProperty(): string
+    {
+        return route('test-request-form.pdf', $this->instance->id);
+    }
+
+    public function getTrfViewUrlProperty(): string
+    {
+        return route('submission-forms.instances.show', [
+            'submissionForm' => $this->submissionFormId,
+            'instance' => $this->instanceId,
+        ]);
+    }
+
+    public function getQuotationPdfUrlProperty(): ?string
+    {
+        $quotation = $this->enquiry?->currentQuotation ?? $this->enquiry?->acceptedQuotation;
+        if ($quotation === null) {
+            return null;
+        }
+
+        return route('quotation.preview.pdf', ['id' => $quotation->id]);
+    }
+
+    public function openSampleInfoModal(?string $sampleKey = null): void
+    {
+        if (is_string($sampleKey) && $sampleKey !== '') {
+            $this->selectSample($sampleKey);
+        }
+
+        $this->showSampleInfoModal = true;
+    }
+
+    public function closeSampleInfoModal(): void
+    {
+        $this->showSampleInfoModal = false;
+    }
+
+    public function openTestInfoModal(string $rowKey): void
+    {
+        $this->viewingTestInfoRowKey = $rowKey;
+        $this->showTestInfoModal = true;
+    }
+
+    public function closeTestInfoModal(): void
+    {
+        $this->showTestInfoModal = false;
+        $this->viewingTestInfoRowKey = '';
+    }
+
+    /**
+     * @return array{test_label: string, fields: array<string, string>}
+     */
+    public function getViewingTestInfoProperty(): array
+    {
+        if ($this->viewingTestInfoRowKey === '') {
+            return ['test_label' => '', 'fields' => []];
+        }
+
+        foreach ($this->testRows as $row) {
+            if ((string) ($row['row_key'] ?? '') !== $this->viewingTestInfoRowKey) {
+                continue;
+            }
+
+            $fields = is_array($row['test_info'] ?? null) ? $row['test_info'] : [];
+
+            return [
+                'test_label' => (string) ($row['test_label'] ?? 'Test'),
+                'fields' => $fields,
+            ];
+        }
+
+        return ['test_label' => '', 'fields' => []];
+    }
+
     public function sampleCollectionLabelUrlForConfig(string $configKey): string
     {
         return route('submission-forms.instances.sample-collection-label', [
@@ -821,8 +1028,9 @@ class SampleIntegrityCheckPage extends Component
         ]);
     }
 
-    public function openWorksheetModal(): void
+    public function openWorksheetModal(string $mode = 'pdf'): void
     {
+        $this->worksheetModalMode = in_array($mode, ['pdf', 'excel'], true) ? $mode : 'pdf';
         $this->selectedWorksheetSectionIds = array_values(array_map(
             static fn (array $option): string => (string) ($option['id'] ?? ''),
             $this->worksheetSectionOptions,
@@ -833,6 +1041,7 @@ class SampleIntegrityCheckPage extends Component
     public function closeWorksheetModal(): void
     {
         $this->showWorksheetModal = false;
+        $this->worksheetModalMode = 'pdf';
     }
 
     /**
@@ -959,7 +1168,7 @@ class SampleIntegrityCheckPage extends Component
             $this->setFlashMessage(
                 $mode === 'notify'
                     ? "{$count} worksheet(s) issued and assigned analysts notified."
-                    : "{$count} worksheet PDF(s) generated and opened in new tab(s).",
+                    : "{$count} worksheet PDF(s) opened in new tab(s).",
                 'success',
             );
 
@@ -969,12 +1178,12 @@ class SampleIntegrityCheckPage extends Component
         foreach ($issued as $item) {
             $excelUrl = trim((string) ($item['excel_url'] ?? ''));
             if ($excelUrl !== '') {
-                $this->dispatch('open-integrity-worksheet-pdf', url: $excelUrl);
+                $this->dispatch('download-integrity-worksheet-excel', url: $excelUrl);
             }
         }
 
         $count = count($issued);
-        $this->setFlashMessage("{$count} worksheet Excel file(s) downloaded.", 'success');
+        $this->setFlashMessage("{$count} worksheet Excel file(s) ready to download.", 'success');
     }
 
     private function userFacingWorksheetFailureMessage(\Throwable $exception): string
@@ -1250,6 +1459,7 @@ class SampleIntegrityCheckPage extends Component
 
     /**
      * @return array{
+     *     form_number: string,
      *     request_number: string,
      *     client_name: string,
      *     form_name: string
@@ -1257,11 +1467,15 @@ class SampleIntegrityCheckPage extends Component
      */
     public function getPageHeaderProperty(): array
     {
+        $formNumber = trim((string) (
+            $this->instance->getDocumentControlNumber()
+            ?? $this->instance->form_number
+            ?? ''
+        ));
+
         $requestNumber = trim((string) (
             $this->enquiry?->formatted_number
             ?? $this->enquiry?->request_number
-            ?? $this->instance->getDocumentControlNumber()
-            ?? $this->instance->form_number
             ?? ''
         ));
 
@@ -1272,6 +1486,7 @@ class SampleIntegrityCheckPage extends Component
         ));
 
         return [
+            'form_number' => $formNumber,
             'request_number' => $requestNumber,
             'client_name' => $clientName,
             'form_name' => trim((string) ($this->submissionForm->name ?? '')),
@@ -1298,6 +1513,18 @@ class SampleIntegrityCheckPage extends Component
                 'customer_sample_id' => '',
                 'condition_name' => '',
                 'condition_not_acceptable' => false,
+                'client_title' => 'Client',
+                'customer' => [],
+                'customer_card' => [
+                    'client_name' => '',
+                    'contact_person' => '',
+                    'email' => '',
+                    'mobile' => '',
+                    'address' => '',
+                ],
+                'collection' => [],
+                'sample_info' => [],
+                'sample_tests' => [],
                 'identity' => [],
                 'tests' => [],
             ];
@@ -1314,9 +1541,12 @@ class SampleIntegrityCheckPage extends Component
     /**
      * @return list<array<string, mixed>>
      */
-    public function getVisibleTestRowsProperty(): array
+    public function getFilteredTestRowsProperty(): array
     {
         $needle = mb_strtolower(trim($this->testSearch));
+        $labSectionFilter = trim($this->filterLabSectionId);
+        $analysisTypeFilter = trim($this->filterAnalysisType);
+        $sampleTypeFilter = trim($this->filterSampleType);
         $rows = [];
 
         foreach ($this->testRows as $row) {
@@ -1334,8 +1564,32 @@ class SampleIntegrityCheckPage extends Component
                 continue;
             }
 
+            if ($labSectionFilter !== '') {
+                $assignedSections = array_map('strval', $row['lab_section_ids'] ?? []);
+                if (! in_array($labSectionFilter, $assignedSections, true)) {
+                    continue;
+                }
+            }
+
+            if ($analysisTypeFilter !== '') {
+                if (trim((string) ($row['analysis_type'] ?? '')) !== $analysisTypeFilter) {
+                    continue;
+                }
+            }
+
+            if ($sampleTypeFilter !== '') {
+                if (trim((string) ($row['sample_type'] ?? '')) !== $sampleTypeFilter) {
+                    continue;
+                }
+            }
+
             if ($needle !== '') {
-                $haystack = mb_strtolower((string) ($row['test_label'] ?? ''));
+                $haystack = mb_strtolower(implode(' ', array_filter([
+                    (string) ($row['test_label'] ?? ''),
+                    (string) ($row['analysis_type'] ?? ''),
+                    (string) ($row['sample_type'] ?? ''),
+                    (string) ($row['method'] ?? ''),
+                ])));
                 if (! str_contains($haystack, $needle)) {
                     continue;
                 }
@@ -1354,6 +1608,110 @@ class SampleIntegrityCheckPage extends Component
         }
 
         return $rows;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function getVisibleTestRowsProperty(): array
+    {
+        $filtered = $this->filteredTestRows;
+        $perPage = max(1, $this->testsPerPage);
+        $lastPage = max(1, (int) ceil(count($filtered) / $perPage));
+        $page = max(1, min($this->testsPage, $lastPage));
+        $offset = ($page - 1) * $perPage;
+
+        return array_values(array_slice($filtered, $offset, $perPage));
+    }
+
+    /**
+     * @return array{
+     *     total: int,
+     *     from: int,
+     *     to: int,
+     *     current_page: int,
+     *     last_page: int,
+     *     per_page: int
+     * }
+     */
+    public function getTestsPaginationProperty(): array
+    {
+        $total = count($this->filteredTestRows);
+        $perPage = max(1, $this->testsPerPage);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $currentPage = max(1, min($this->testsPage, $lastPage));
+        $from = $total === 0 ? 0 : (($currentPage - 1) * $perPage) + 1;
+        $to = $total === 0 ? 0 : min($total, $currentPage * $perPage);
+
+        return [
+            'total' => $total,
+            'from' => $from,
+            'to' => $to,
+            'current_page' => $currentPage,
+            'last_page' => $lastPage,
+            'per_page' => $perPage,
+        ];
+    }
+
+    public function getActiveTestFilterCountProperty(): int
+    {
+        $count = 0;
+        if ($this->testFilter !== 'all') {
+            $count++;
+        }
+        if (trim($this->filterLabSectionId) !== '') {
+            $count++;
+        }
+        if (trim($this->filterAnalysisType) !== '') {
+            $count++;
+        }
+        if (trim($this->filterSampleType) !== '') {
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getFilterAnalysisTypeOptionsProperty(): array
+    {
+        $options = [];
+        foreach ($this->testRows as $row) {
+            if ((string) ($row['config_id'] ?? '') !== $this->selectedSampleKey) {
+                continue;
+            }
+            $value = trim((string) ($row['analysis_type'] ?? ''));
+            if ($value !== '') {
+                $options[$value] = $value;
+            }
+        }
+        $values = array_values($options);
+        sort($values, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $values;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getFilterSampleTypeOptionsProperty(): array
+    {
+        $options = [];
+        foreach ($this->testRows as $row) {
+            if ((string) ($row['config_id'] ?? '') !== $this->selectedSampleKey) {
+                continue;
+            }
+            $value = trim((string) ($row['sample_type'] ?? ''));
+            if ($value !== '') {
+                $options[$value] = $value;
+            }
+        }
+        $values = array_values($options);
+        sort($values, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $values;
     }
 
     /**

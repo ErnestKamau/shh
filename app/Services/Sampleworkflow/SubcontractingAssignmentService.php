@@ -114,7 +114,7 @@ class SubcontractingAssignmentService
 
     /**
      * @param  list<string>  $elementIds
-     * @return list<array{id: string, label: string, analysis_type: string}>
+     * @return list<array{id: string, label: string, analysis_type: string, period: string}>
      */
     private function mapElementsToTests(array $elementIds): array
     {
@@ -135,16 +135,195 @@ class SubcontractingAssignmentService
                 }
 
                 $analysisType = trim((string) ($element->analysis_type?->name ?? $element->analysis_type?->code ?? ''));
+                $period = trim((string) ($element->reporting_time ?? ''));
 
                 return [
                     'id' => (string) $element->id,
                     'label' => $label,
                     'analysis_type' => $analysisType !== '' ? $analysisType : '—',
+                    'period' => $period !== '' ? $period : '—',
                 ];
             })
             ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
             ->all();
+    }
+
+    /**
+     * Sample-centric overview for the Subcontracted queue View modal
+     * (no customer details — samples, subcontracted tests, labs, period).
+     *
+     * @return array{
+     *     request_no: string,
+     *     batch_code: ?string,
+     *     dispatch_status: string,
+     *     dispatch_date: ?string,
+     *     samples: list<array{
+     *         sample_label: string,
+     *         sample_type: string,
+     *         sample_marking: string,
+     *         in_house_count: int,
+     *         subcontracted_tests: list<array{
+     *             id: string,
+     *             label: string,
+     *             analysis_type: string,
+     *             period: string,
+     *             lab: string
+     *         }>
+     *     }>
+     * }
+     */
+    public function buildSubcontractedSampleOverview(SampleSubmissionRequest $enquiry): array
+    {
+        $enquiry->loadMissing([
+            'submissionFormInstance',
+            'batch',
+            'subcontractingDispatchAssignments.lab',
+            'subcontractingDispatchAssignments.analysisElement.analyte',
+            'subcontractingDispatchAssignments.analysisElement.analysis_type',
+        ]);
+
+        $labByElement = $this->labByElementIdForRequest($enquiry);
+        $labs = Lab::query()
+            ->whereIn('id', array_values(array_unique(array_filter($labByElement))))
+            ->get()
+            ->keyBy(fn (Lab $lab): string => (string) $lab->id);
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $configs = is_array($enquiry->enquiry_sample_configuration)
+            ? $configService->flattenToPerSampleConfigs($enquiry->enquiry_sample_configuration)
+            : [];
+
+        $allSubcontractedIds = array_flip($this->resolveSubcontractedElementIds($enquiry));
+        $samples = [];
+
+        foreach ($configs as $index => $config) {
+            if (! is_array($config)) {
+                continue;
+            }
+
+            $parameterKeys = array_values(array_map(
+                'strval',
+                is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : []
+            ));
+            $subcontractedKeys = $configService->normalizeSubcontractedParameterKeys(
+                $config['subcontracted_parameter_keys'] ?? [],
+                $parameterKeys,
+            );
+
+            // Fall back to master/global subcontracted ids intersecting this sample's parameters.
+            if ($subcontractedKeys === [] && $parameterKeys !== []) {
+                $subcontractedKeys = array_values(array_filter(
+                    $parameterKeys,
+                    fn (string $id): bool => isset($allSubcontractedIds[$id])
+                ));
+            }
+
+            if ($subcontractedKeys === []) {
+                continue;
+            }
+
+            $tests = [];
+            foreach ($this->mapElementsToTests($subcontractedKeys) as $test) {
+                $labId = (string) ($labByElement[$test['id']] ?? '');
+                $lab = $labId !== '' ? $labs->get($labId) : null;
+                $labLabel = $lab
+                    ? trim(($lab->code ? $lab->code.' - ' : '').($lab->name ?? ''))
+                    : (trim((string) ($enquiry->subcontracting_dispatch_lab_names ?? '')) ?: 'Not assigned');
+
+                $tests[] = [
+                    'id' => $test['id'],
+                    'label' => $test['label'],
+                    'analysis_type' => $test['analysis_type'],
+                    'period' => $test['period'],
+                    'lab' => $labLabel !== '' ? $labLabel : 'Not assigned',
+                ];
+            }
+
+            if ($tests === []) {
+                continue;
+            }
+
+            $customerSampleId = trim((string) ($config['customer_sample_id'] ?? ''));
+            $sampleCode = trim((string) ($config['sample_code'] ?? $config['sample_code_prefix'] ?? ''));
+            $sampleLabel = $customerSampleId !== ''
+                ? $customerSampleId
+                : ($sampleCode !== '' ? $sampleCode : 'Sample '.((int) $index + 1));
+
+            $sampleType = trim((string) ($config['sample_type_name'] ?? $config['sample_type'] ?? ''));
+            $sampleMarking = trim((string) ($config['sample_marking'] ?? ''));
+            $inHouseCount = count(array_filter(
+                $parameterKeys,
+                fn (string $id): bool => ! in_array($id, $subcontractedKeys, true)
+            ));
+
+            $samples[] = [
+                'sample_label' => $sampleLabel,
+                'sample_type' => $sampleType !== '' ? $sampleType : '—',
+                'sample_marking' => $sampleMarking !== '' ? $sampleMarking : '—',
+                'in_house_count' => $inHouseCount,
+                'subcontracted_tests' => $tests,
+            ];
+        }
+
+        // Enquiry-level fallback when configs have no per-sample subcontract flags.
+        if ($samples === []) {
+            $tests = [];
+            foreach ($this->resolveSubcontractedTests($enquiry) as $test) {
+                $labId = (string) ($labByElement[$test['id']] ?? '');
+                $lab = $labId !== '' ? $labs->get($labId) : null;
+                $labLabel = $lab
+                    ? trim(($lab->code ? $lab->code.' - ' : '').($lab->name ?? ''))
+                    : (trim((string) ($enquiry->subcontracting_dispatch_lab_names ?? '')) ?: 'Not assigned');
+
+                $period = '—';
+                foreach ($this->mapElementsToTests([(string) $test['id']]) as $mapped) {
+                    $period = $mapped['period'];
+                }
+
+                $tests[] = [
+                    'id' => (string) $test['id'],
+                    'label' => (string) $test['label'],
+                    'analysis_type' => (string) ($test['analysis_type'] ?? '—'),
+                    'period' => $period,
+                    'lab' => $labLabel !== '' ? $labLabel : 'Not assigned',
+                ];
+            }
+
+            if ($tests !== []) {
+                $samples[] = [
+                    'sample_label' => 'All samples',
+                    'sample_type' => '—',
+                    'sample_marking' => '—',
+                    'in_house_count' => count($this->resolveInHouseTests($enquiry)),
+                    'subcontracted_tests' => $tests,
+                ];
+            }
+        }
+
+        $instance = $enquiry->submissionFormInstance;
+        $requestNo = trim((string) (
+            $instance?->getDocumentControlNumber()
+            ?? $instance?->form_number
+            ?? $enquiry->formatted_number
+            ?? ''
+        ));
+
+        $dispatchDate = $enquiry->subcontracting_dispatch_date;
+
+        return [
+            'request_no' => $requestNo !== '' ? $requestNo : '—',
+            'batch_code' => filled($enquiry->batch?->batch_code) ? (string) $enquiry->batch->batch_code : null,
+            'dispatch_status' => match ($enquiry->subcontractingDispatchStatus()) {
+                SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED_AND_ASSIGNED => 'Dispatched & assigned',
+                SampleSubmissionRequest::SUBCONTRACT_DISPATCH_DISPATCHED => 'Dispatched',
+                default => 'Awaiting dispatch',
+            },
+            'dispatch_date' => $dispatchDate
+                ? $dispatchDate->format('Y-m-d H:i')
+                : null,
+            'samples' => $samples,
+        ];
     }
 
     /**

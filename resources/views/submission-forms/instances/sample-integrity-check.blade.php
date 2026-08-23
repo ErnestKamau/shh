@@ -10,6 +10,7 @@
     @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
     @include('layouts.lab.partials.ls-ui.quotation.ls-quotation-overview-styles')
     @include('layouts.lab.invoice.partials.quotation-show-styles')
+    @include('layouts.lab.partials.request-view-page-styles')
     @include('layouts.lab.partials.sample-integrity-check-styles')
 
     @php

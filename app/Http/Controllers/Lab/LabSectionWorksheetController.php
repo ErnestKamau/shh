@@ -13,7 +13,7 @@ class LabSectionWorksheetController extends Controller
 {
     public function downloadPdf(LabSectionWorksheet $worksheet, LabSectionWorksheetAccess $access): StreamedResponse|BinaryFileResponse
     {
-        abort_unless($access->canDownloadWorksheet(request()->user(), $worksheet), 403);
+        abort_unless($access->canDownloadWorksheet(request()->user(), $worksheet), 403, $access->denyViewMessage(request()->user()));
 
         $path = trim((string) ($worksheet->pdf_path ?? ''));
         abort_if($path === '' || ! Storage::disk('public')->exists($path), 404);
@@ -22,12 +22,16 @@ class LabSectionWorksheetController extends Controller
 
         $filename = $this->safeFilename((string) $worksheet->worksheet_number).'.pdf';
 
-        return Storage::disk('public')->download($path, $filename);
+        // Inline so "Print worksheet PDF" opens a live-streamed viewer tab.
+        return Storage::disk('public')->response($path, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
     }
 
     public function downloadExcel(LabSectionWorksheet $worksheet, LabSectionWorksheetAccess $access): StreamedResponse|BinaryFileResponse
     {
-        abort_unless($access->canDownloadWorksheet(request()->user(), $worksheet), 403);
+        abort_unless($access->canDownloadWorksheet(request()->user(), $worksheet), 403, $access->denyViewMessage(request()->user()));
 
         $path = trim((string) ($worksheet->excel_path ?? ''));
         abort_if($path === '' || ! Storage::disk('public')->exists($path), 404);

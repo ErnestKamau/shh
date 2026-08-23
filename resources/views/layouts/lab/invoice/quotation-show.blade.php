@@ -320,14 +320,15 @@
 
                             <table class="table table-hover ls-table ls-table--dense mb-0 livewire-table ls-quote-analysis-table">
                                 <colgroup>
-                                    <col class="ls-quote-col--no" style="width:5%">
-                                    <col class="ls-quote-col--sample" style="width:18%">
-                                    <col class="ls-quote-col--params" style="width:32%">
-                                    <col class="ls-quote-col--qty-req" style="width:16%">
-                                    <col class="ls-quote-col--qty" style="width:8%">
-                                    <col class="ls-quote-col--price" style="width:16%">
-                                    <col class="ls-quote-col--total" style="width:10%">
-                                    <col class="ls-quote-col--tax" style="width:8%">
+                                    <col class="ls-quote-col--select" style="width:2.5%">
+                                    <col class="ls-quote-col--no" style="width:4%">
+                                    <col class="ls-quote-col--sample" style="width:15%">
+                                    <col class="ls-quote-col--params" style="width:31%">
+                                    <col class="ls-quote-col--qty-req" style="width:14%">
+                                    <col class="ls-quote-col--qty" style="width:6%">
+                                    <col class="ls-quote-col--price" style="width:11%">
+                                    <col class="ls-quote-col--total" style="width:9%">
+                                    <col class="ls-quote-col--tax" style="width:7.5%">
                                 </colgroup>
                                 <thead>
                                     <tr>
@@ -369,7 +370,7 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="align-middle" style="min-width: 220px; max-width: 340px;">
+                                        <td class="align-middle ls-quote-col-params">
                                             @php
                                                 $paramCount = count($detail->default ?? [])
                                                     + count($detail->sub_acc ?? [])
@@ -1126,8 +1127,60 @@
         })();
 
         $(document).on('change', '.ls-quote-line-mode-input', function () {
-            $(this).data('userTouched', true);
-            applyManualLineModeUi($(this).closest('tr'));
+            var $input = $(this);
+            $input.data('userTouched', true);
+            var $row = $input.closest('tr');
+            var mode = applyManualLineModeUi($row);
+            if (mode !== 'per_test') {
+                return;
+            }
+            var ids = collectElementIdsFromRow($row);
+            if (ids.length < 2) {
+                return;
+            }
+            // Already has multiple chips on a package-style row — explode now.
+            var state = {
+                tests: [],
+                analysisTypeIds: String($row.find('input.select-part-final, input[name="part_number_final[]"]').val() || '')
+                    .split(',')
+                    .map(function (s) { return s.trim(); })
+                    .filter(Boolean),
+                analytes_accreditted: splitCsvIds($row.find('input[name="accreditted_analytes[]"]').val()),
+                analyte_sub: splitCsvIds($row.find('input[name="sub_analytes[]"]').val()),
+                sub_acc: splitCsvIds($row.find('input[name="sub_acc[]"]').val()),
+                default_analytes: splitCsvIds($row.find('input[name="default_analytes[]"]').val()),
+                loqMap: {},
+                spans: [],
+            };
+            var loqRaw = $row.find('input[name="element_loq_json[]"]').val();
+            if (loqRaw) {
+                try {
+                    state.loqMap = JSON.parse(loqRaw) || {};
+                } catch (err) {
+                    state.loqMap = {};
+                }
+            }
+            var nameById = {};
+            $row.find('.ls-quote-param-chip').each(function (idx) {
+                if (ids[idx]) {
+                    nameById[ids[idx]] = $(this).clone().children().remove().end().text().trim();
+                }
+            });
+            ids.forEach(function (id) {
+                var isAcc = state.analytes_accreditted.indexOf(id) !== -1 || state.sub_acc.indexOf(id) !== -1;
+                var isSub = state.analyte_sub.indexOf(id) !== -1 || state.sub_acc.indexOf(id) !== -1;
+                state.tests.push({
+                    id: id,
+                    name: nameById[id] || id,
+                    analysisTypeId: state.analysisTypeIds[0] || '',
+                    isAcc: isAcc,
+                    isSub: isSub,
+                    loq: state.loqMap[id] || '',
+                });
+            });
+            if (state.tests.length > 1) {
+                explodeRowIntoPerTestLines($row, state);
+            }
         });
 
         (function initQuoteImportUi() {
@@ -1285,23 +1338,27 @@
          * Amspec math: chips are scope (tests); commercial total = qty × unit price once.
          * When chip count > 7, start collapsed with a numeric badge only (e.g. "12").
          */
-        function buildParamsPanelHtml(title, rowNo, sampleTypeId, sampleTypeName, chipsHtml, openIcon) {
+        function buildParamsPanelHtml(title, rowNo, sampleTypeId, sampleTypeName, chipsHtml, openIcon, options) {
+            options = options || {};
             var icon = openIcon || 'mdi-pencil';
             var safeTitle = escapeQuoteHtml(title || sampleTypeName || 'Parameters');
             var safeCode = escapeQuoteHtml(sampleTypeName || '');
             var $tmp = $('<div>' + (chipsHtml || '') + '</div>');
             var chipCount = $tmp.find('.ls-quote-param-chip').length;
-            var collapsed = chipCount > 7;
+            var collapsed = !options.compact && chipCount > 7;
             var countBadge = collapsed
                 ? '<span class="ls-quote-params__count">' + chipCount + '</span>'
                 : '';
+            var titleHtml = options.compact
+                ? ''
+                : ('<button type="button" class="ls-quote-params__title js-quote-params-toggle" title="' + (collapsed ? 'Show parameters' : 'Hide parameters') + '">' +
+                    safeTitle + countBadge +
+                   '</button>');
             return '' +
-                '<div class="ls-quote-params' + (collapsed ? ' is-collapsed' : '') + '" data-param-count="' + chipCount + '">' +
-                    '<div class="ls-quote-params__toolbar">' +
-                        '<button type="button" class="ls-quote-params__title js-quote-params-toggle" title="' + (collapsed ? 'Show parameters' : 'Hide parameters') + '">' +
-                            safeTitle + countBadge +
-                        '</button>' +
-                        '<button type="button" class="ls-btn ls-quote-params__edit" data-target="#quote-description-analytes" data-row="' + rowNo + '" data-samplecode="' + safeCode + '" data-toggle="modal" data-sampletype="' + escapeQuoteHtml(sampleTypeId || '') + '" title="Edit parameters">' +
+                '<div class="ls-quote-params' + (collapsed ? ' is-collapsed' : '') + (options.compact ? ' ls-quote-params--compact' : '') + '" data-param-count="' + chipCount + '">' +
+                    '<div class="ls-quote-params__toolbar' + (options.compact ? ' ls-quote-params__toolbar--compact' : '') + '">' +
+                        titleHtml +
+                        '<button type="button" class="ls-btn ls-quote-params__edit" data-row="' + rowNo + '" data-samplecode="' + safeCode + '" data-sampletype="' + escapeQuoteHtml(sampleTypeId || '') + '" title="Edit parameters">' +
                             '<i class="mdi ' + icon + '"></i>' +
                         '</button>' +
                     '</div>' +
@@ -1459,30 +1516,42 @@
             return 'This quotation is limited to lab section(s): ' + names.join(', ') + '.';
         }
 
-        function showQuoteParamsEmpty(title, message) {
+        function setQuoteParamsStageVisible(which) {
             var $empty = $('#quote-params-empty');
             var $wrap = $('#quote-params-table-wrap');
             var $skel = $('#quote-params-skeleton');
+            $empty.add($wrap).add($skel).removeClass('is-stage-visible');
+            // Always force display via class — [hidden] alone has raced with flex layout and left a blank stage.
+            if (which === 'table') {
+                $empty.prop('hidden', true).attr('hidden', 'hidden');
+                $skel.prop('hidden', true).attr('hidden', 'hidden');
+                $wrap.prop('hidden', false).removeAttr('hidden').addClass('is-stage-visible');
+                $('#save-analytes').prop('disabled', false);
+            } else if (which === 'skeleton') {
+                $empty.prop('hidden', true).attr('hidden', 'hidden');
+                $wrap.prop('hidden', true).attr('hidden', 'hidden');
+                $skel.prop('hidden', false).removeAttr('hidden').addClass('is-stage-visible');
+                $('#save-analytes').prop('disabled', true);
+            } else {
+                $wrap.prop('hidden', true).attr('hidden', 'hidden');
+                $skel.prop('hidden', true).attr('hidden', 'hidden');
+                $empty.prop('hidden', false).removeAttr('hidden').addClass('is-stage-visible');
+                $('#save-analytes').prop('disabled', true);
+            }
+        }
+
+        function showQuoteParamsEmpty(title, message) {
             $('#quote-params-empty-title').text(title || 'No parameters available');
             $('#quote-params-empty-text').text(message || '');
-            $empty.prop('hidden', false).removeAttr('hidden');
-            $wrap.prop('hidden', true).attr('hidden', 'hidden');
-            $skel.prop('hidden', true).attr('hidden', 'hidden');
-            $('#save-analytes').prop('disabled', true);
+            setQuoteParamsStageVisible('empty');
         }
 
         function showQuoteParamsSkeleton() {
-            $('#quote-params-empty').prop('hidden', true).attr('hidden', 'hidden');
-            $('#quote-params-table-wrap').prop('hidden', true).attr('hidden', 'hidden');
-            $('#quote-params-skeleton').prop('hidden', false).removeAttr('hidden');
-            $('#save-analytes').prop('disabled', true);
+            setQuoteParamsStageVisible('skeleton');
         }
 
         function showQuoteParamsTable() {
-            $('#quote-params-empty').prop('hidden', true).attr('hidden', 'hidden');
-            $('#quote-params-skeleton').prop('hidden', true).attr('hidden', 'hidden');
-            $('#quote-params-table-wrap').prop('hidden', false).removeAttr('hidden');
-            $('#save-analytes').prop('disabled', false);
+            setQuoteParamsStageVisible('table');
         }
 
         function showEditParamsEmpty(title, message) {
@@ -1550,7 +1619,7 @@
         });
 
         function clearRowParameterFields($row) {
-            var $desc = $row.find('#quote-description');
+            var $desc = $row.find('.quote-description-cell').first();
             $desc.empty().append(
                 $('<div class="ls-quote-params ls-quote-params--empty"><span class="text-muted small">Select sample type, then Parameters</span></div>')
             );
@@ -1569,7 +1638,7 @@
             var accreditedIds = data.accredited_ids || [];
             var defaultIds = data.default_ids || [];
             var parameters = data.parameters || [];
-            var $desc = $row.find('#quote-description');
+            var $desc = $row.find('.quote-description-cell').first();
             $desc.empty().removeClass('text-center');
 
             if (!defaultIds.length && elementIds.length) {
@@ -1610,7 +1679,7 @@
 
             if (!analysisTypeIds) {
                 var rowNoEmpty = $row.attr('id').replace('detail-row-', '');
-                var $descEmpty = $row.find('#quote-description');
+                var $descEmpty = $row.find('.quote-description-cell').first();
                 $descEmpty.empty().removeClass('text-center');
                 $descEmpty.append($(buildParamsPanelHtml(sampleTypeName, rowNoEmpty, sampleTypeId, sampleTypeName, '', 'mdi-eye-outline')));
                 $hint.text('Open Parameters to select tests for this sample type.');
@@ -1629,7 +1698,7 @@
 
                 // Keep eye button for manual param selection; clear prior package CSVs.
                 var rowNo = $row.attr('id').replace('detail-row-', '');
-                var $desc = $row.find('#quote-description');
+                var $desc = $row.find('.quote-description-cell').first();
                 var hasManualParams = $desc.find('input[name="default_analytes[]"]').length > 0
                     && ($desc.find('input[name="default_analytes[]"]').val() || '').length > 0;
 
@@ -1674,6 +1743,7 @@
             var analysisTypeIds = $row.find('input.select-part-final, input#select-part-final, input[name="part_number_final[]"]').val() || '';
             var elementIds = collectElementIdsFromRow($row);
             var $hint = $row.find('.quotation-price-hint');
+            var pricingMode = String($row.find('.quotation-pricing-mode').val() || 'per_package');
 
             if (!sampleTypeId || !analysisTypeIds) {
                 $hint.text('Select sample type and analysis type.');
@@ -1692,6 +1762,7 @@
                 sample_type_id: sampleTypeId,
                 analysis_type_ids: analysisTypeIds,
                 element_ids: elementIds.join(','),
+                pricing_mode: pricingMode,
             }).done(function(data) {
                 if (applyValues) {
                     applyPricelistSuggestionToRow($row, data);
@@ -1703,16 +1774,6 @@
                 $hint.text('Could not load pricelist suggestion.');
             });
         }
-
-        $(document).on('click', '.quotation-apply-pricelist', function() {
-            var $row = $(this).closest('tr');
-            var data = $row.data('pricelistSuggestion');
-            if (data && parseFloat(data.unit_price) > 0) {
-                applyPricelistSuggestionToRow($row, data);
-                return;
-            }
-            refreshQuotationRowPricingHint($row, true);
-        });
 
         $('form.ls-quotation-lines-form select[name="currency_id"]').on('change', function() {
             var currencyId = $(this).val();
@@ -1809,64 +1870,16 @@
         });
 
         $('#add-row').on('click', function() {
-
-            var roeNo = $('#create-detail').find('tr').length + 1;
-            var $row = $('#ls-quote-analysis-line-prototype').clone(false, false);
-            $row.attr('id', 'detail-row-' + roeNo);
-            $row.find('.ls-quote-line-no').text(roeNo);
-            $row.find('.quote-description-cell').attr('id', 'quote-description');
-            $row.find('.select-part-final').attr('id', 'select-part-final').val('');
-            $row.find('select.select-sample-type').attr('id', 'select-sample-type').val('');
-            // Destroy any residual select2 markup from a previous accidental init on the prototype.
-            $row.find('.select2-container').remove();
-            $row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
-            $row.find('select option').removeAttr('data-select2-id');
-            // Prototype controls are disabled so they never block HTML5 submit; re-enable on real rows.
-            $row.find('input, select, textarea, button').prop('disabled', false);
-            $row.find('input[data-ls-quote-required="1"]').prop('required', true);
-            $row.find('.ls-quote-line-select').prop('disabled', false).val('');
-            applyManualLineModeUi($row);
-
-            initLsSampleTypeSelect($row.find('select.select-sample-type'));
-
-            $row.find('.js-delete-line').on('click', function() {
-                if (confirm("Are you sure you want to delete this row?")) {
-                    $(this).closest('tr').remove();
-                }
-            });
-
-            $row.find('select.select-sample-type').on('change', function() {
-                $(this).addClass('choose');
-                var sample_type = $(this).val();
-                var sample_code = $(this).find('option:selected').text() || '';
-                if (sample_type != '') {
-                    $row.find('input.select-part-final').val('');
-                    $row.find('#quote-description').empty().append(
-                        $(buildParamsPanelHtml(sample_code, roeNo, sample_type, sample_code, '', 'mdi-eye-outline'))
-                    );
-                    $row.find('.quotation-unit-price').val(0);
-                    $row.find('.quotation-tax').val(0);
-                    $row.find('.quotation-tax-display').text('0%');
-                    $row.removeData('pricelistSuggestion');
-                    var rowMode = applyManualLineModeUi($row);
-                    $row.find('.quotation-price-hint').text(
-                        rowMode === 'per_test'
-                            ? 'Open Parameters to select tests (each test billed separately).'
-                            : 'Open Parameters to select tests (package billed as qty × unit price once).'
-                    );
-                } else {
-                    clearRowParameterFields($row);
-                }
-            });
-
+            var roeNo = nextDetailRowNo();
+            var $row = cloneBlankAnalysisLine(roeNo);
             $('#create-detail').append($row);
-
+            renumberQuoteAnalysisLines();
         });
 
         var quotationDetailProp = function(data, sample_type, rowNo, sample_code) {
             var $row = $('#create-detail').find('tr#detail-row-' + rowNo);
             $row.find('input.select-part-final').val('');
-            $row.find('#quote-description').empty().append($(buildParamsPanelHtml(sample_code, rowNo, sample_type, sample_code, '', 'mdi-eye-outline')));
+            $row.find('.quote-description-cell').first().empty().append($(buildParamsPanelHtml(sample_code, rowNo, sample_type, sample_code, '', 'mdi-eye-outline')));
             $row.find('.quotation-price-hint').text('Open Parameters to select tests for this sample type.');
         }
 
@@ -2150,6 +2163,7 @@
             var loqMap = {};
             var maxTat = null;
             var spans = [];
+            var tests = [];
 
             $scope.find('.analyte-selected').each(function() {
                 var $selected = $(this);
@@ -2189,6 +2203,14 @@
                     default_analytes.push(analyte_id);
                 }
                 spans.push(buildParamChipHtml(analyte_name, isAcc, isSub));
+                tests.push({
+                    id: analyte_id,
+                    name: analyte_name,
+                    analysisTypeId: analysisTypeId,
+                    isAcc: !!isAcc,
+                    isSub: !!isSub,
+                    loq: analyte_id ? String(loqMap[analyte_id] || '') : '',
+                });
             });
 
             return {
@@ -2200,6 +2222,7 @@
                 loqMap: loqMap,
                 maxTat: maxTat,
                 spans: spans,
+                tests: tests,
             };
         }
 
@@ -2219,24 +2242,135 @@
                 $('#edit-detail-analytes').modal('hide');
             });
         });
-        $('#quote-description-analytes').on('show.bs.modal', function(e) {
-            var sample_code = $(e.relatedTarget).data('sampletype');
-            var type_name = $(e.relatedTarget).data('samplecode');
-            var row_no = $(e.relatedTarget).data('row');
+        var quoteParamsLoadToken = 0;
+        var quoteParamsOpenContext = null;
+        var quoteParamsXhr = null;
+        var quoteParamsLoadTimer = null;
+
+        function readQuoteParamsButtonContext($btn) {
+            if (!$btn || !$btn.length) {
+                return null;
+            }
+            // Prefer .attr() over .data() — jQuery data() caches/coerces and can go stale after explode/rebuild.
+            return {
+                row: $btn.attr('data-row') || $btn.data('row'),
+                sampletype: $btn.attr('data-sampletype') || $btn.data('sampletype'),
+                samplecode: $btn.attr('data-samplecode') || $btn.data('samplecode'),
+            };
+        }
+
+        function readRowPricingModeSafe($row) {
+            if (!$row || !$row.length) {
+                return 'per_package';
+            }
+            var mode = String($row.find('.quotation-pricing-mode').val() || '');
+            if (mode !== 'per_test' && $row.find('.ls-quote-line-mode-input').is(':checked')) {
+                mode = 'per_test';
+            }
+            return mode === 'per_test' ? 'per_test' : 'per_package';
+        }
+
+        function scheduleLoadQuoteParametersModal() {
+            if (quoteParamsLoadTimer) {
+                clearTimeout(quoteParamsLoadTimer);
+            }
+            // Collapse click + show.bs.modal (and any double-fire) into one load.
+            quoteParamsLoadTimer = setTimeout(function () {
+                quoteParamsLoadTimer = null;
+                loadQuoteParametersModal();
+            }, 0);
+        }
+
+        function loadQuoteParametersModal() {
+            var ctx = quoteParamsOpenContext || {};
+            var sample_code = String(ctx.sampletype || '');
+            var type_name = String(ctx.samplecode || '');
+            var row_no = ctx.row || '';
             quoteDescriptionModalRowNo = row_no;
             quoteDescriptionModalSampleCode = sample_code;
             quoteDescriptionModalTypeName = type_name;
-            var $detailRow = $('#create-detail').find('tr#detail-row-' + row_no);
-            // Load ALL analysis types for this sample (lab-section filtered). Analysis type is derived from selected tests.
-            var part_no_analysis = 'all';
-            var savedState = readRowParameterState($detailRow);
+
+            var $detailRow = (row_no !== '' && row_no !== null && typeof row_no !== 'undefined')
+                ? $('#create-detail').find('tr#detail-row-' + row_no)
+                : $();
+
+            var groupId = $detailRow.length ? String($detailRow.attr('data-per-test-group') || '') : '';
+            if (groupId) {
+                var $lead = $('#create-detail > tr.ls-quote-line--per-test-lead[data-per-test-group="' + groupId + '"]').first();
+                if ($lead.length) {
+                    $detailRow = $lead;
+                    quoteDescriptionModalRowNo = String($lead.attr('id') || '').replace('detail-row-', '');
+                    var leadType = String($lead.find('select[name="sample_type[]"]').val() || '');
+                    if (leadType) {
+                        sample_code = leadType;
+                    }
+                    type_name = $lead.find('select[name="sample_type[]"] option:selected').text() || type_name;
+                    quoteDescriptionModalSampleCode = sample_code;
+                    quoteDescriptionModalTypeName = type_name;
+                }
+            }
+
+            if ((!sample_code || sample_code === 'undefined') && $detailRow.length) {
+                sample_code = String(
+                    $detailRow.find('select[name="sample_type[]"]').val()
+                    || $detailRow.find('input.ls-quote-per-test-sample-type').val()
+                    || ''
+                );
+                type_name = $detailRow.find('select[name="sample_type[]"] option:selected').text() || type_name || '';
+                quoteDescriptionModalSampleCode = sample_code;
+                quoteDescriptionModalTypeName = type_name;
+            }
+
+            var savedState = $detailRow.length
+                ? readRowParameterState($detailRow)
+                : { hasSavedState: false, selectedIds: [] };
+            if (groupId) {
+                var merged = {
+                    selectedIds: [],
+                    accreditedIds: [],
+                    subIds: [],
+                    subAccIds: [],
+                    defaultIds: [],
+                    loqMap: {},
+                    hasSavedState: false,
+                };
+                $('#create-detail > tr[data-per-test-group="' + groupId + '"]').each(function () {
+                    var part = readRowParameterState($(this));
+                    merged.selectedIds = merged.selectedIds.concat(part.selectedIds);
+                    merged.accreditedIds = merged.accreditedIds.concat(part.accreditedIds);
+                    merged.subIds = merged.subIds.concat(part.subIds);
+                    merged.subAccIds = merged.subAccIds.concat(part.subAccIds);
+                    merged.defaultIds = merged.defaultIds.concat(part.defaultIds);
+                    Object.assign(merged.loqMap, part.loqMap || {});
+                });
+                var uniq = function (arr) {
+                    return arr.filter(function (id, index, all) { return id && all.indexOf(id) === index; });
+                };
+                merged.selectedIds = uniq(merged.selectedIds);
+                merged.accreditedIds = uniq(merged.accreditedIds);
+                merged.subIds = uniq(merged.subIds);
+                merged.subAccIds = uniq(merged.subAccIds);
+                merged.defaultIds = uniq(merged.defaultIds);
+                merged.hasSavedState = merged.selectedIds.length > 0;
+                savedState = merged;
+            }
+
             var sectionHint = labSectionHintText();
+            var rowMode = readRowPricingModeSafe($detailRow);
+            var $caption = $('#quote-description-analytes .ls-quote-params-hero__caption');
+            if ($caption.length) {
+                $caption.text(rowMode === 'per_test'
+                    ? 'Select tests for this sample. Each selected test becomes its own billed line (qty × unit price). Grouped by analysis type; only lab sections on the quotation are shown.'
+                    : 'Select tests for this sample package. Billing is qty × unit price once — not per test. Grouped by analysis type; only lab sections on the quotation are shown.');
+            }
 
-            $('#analysis-analytes-holder').empty();
             $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
-            showQuoteParamsSkeleton();
+            // Keep existing rows visible if any; otherwise show skeleton (never leave all panes hidden).
+            if (!$('#analysis-analytes-holder tr.ls-quote-analyte-row').length) {
+                showQuoteParamsSkeleton();
+            }
 
-            if (!sample_code) {
+            if (!sample_code || sample_code === 'undefined') {
                 showQuoteParamsEmpty(
                     'Sample type required',
                     'Choose a sample type on this line before opening Quotation Parameters.'
@@ -2244,44 +2378,442 @@
                 return;
             }
 
-            $.ajax({
-                url: '/fetch-sample-analytes/' + sample_code + '/' + encodeURIComponent(part_no_analysis) + '?quotation_header_id=' + encodeURIComponent(quotationPricingConfig.quotationHeaderId),
-                beforeSend: function() {
-                    $('#analysis-analytes-holder').empty();
-                    $('#select-analyte-all, #select-accredited-all, #select-sub-all').prop('checked', false);
-                    showQuoteParamsSkeleton();
-                },
-                success: function(data) {
-                    var analyteCount = countAnalytePayload(data);
-                    if (analyteCount === 0) {
-                        var msg = 'No tests/parameters were found for this sample type.';
-                        if (sectionHint) {
-                            msg = sectionHint
-                                + ' No matching parameters exist for this sample within those section(s). '
-                                + 'Update the quotation lab section(s) in the header, or check sample setup.';
-                        }
-                        showQuoteParamsEmpty('No parameters available', msg);
+            if (quoteParamsXhr && typeof quoteParamsXhr.abort === 'function') {
+                try { quoteParamsXhr.abort(); } catch (err) {}
+            }
+
+            var loadToken = ++quoteParamsLoadToken;
+            var headerId = quotationPricingConfig && quotationPricingConfig.quotationHeaderId
+                ? quotationPricingConfig.quotationHeaderId
+                : '';
+            quoteParamsXhr = $.ajax({
+                url: '/fetch-sample-analytes/' + encodeURIComponent(sample_code) + '/' + encodeURIComponent('all')
+                    + '?quotation_header_id=' + encodeURIComponent(headerId),
+                success: function (data) {
+                    if (loadToken !== quoteParamsLoadToken) {
                         return;
                     }
-                    showQuoteParamsTable();
-                    $.each(data, function(i, e) {
-                        var analysis_text = $(`<tr class="ls-quote-analyte-group"><td colspan="7">${escapeQuoteHtml(i)}</td></tr>`);
-                        $('#analysis-analytes-holder').append(analysis_text);
-                        $.each(e, function(j, s) {
-                            var rows = quoteAnalytesRow(s);
-                            $('#analysis-analytes-holder').append(rows);
+                    try {
+                        var analyteCount = countAnalytePayload(data);
+                        if (analyteCount === 0) {
+                            var msg = 'No tests/parameters were found for this sample type.';
+                            if (sectionHint) {
+                                msg = sectionHint
+                                    + ' No matching parameters exist for this sample within those section(s). '
+                                    + 'Update the quotation lab section(s) in the header, or check sample setup.';
+                            }
+                            $('#analysis-analytes-holder').empty();
+                            showQuoteParamsEmpty('No parameters available', msg);
+                            return;
+                        }
+
+                        var rowNodes = [];
+                        $.each(data, function (i, e) {
+                            rowNodes.push($('<tr class="ls-quote-analyte-group"><td colspan="7">' + escapeQuoteHtml(i) + '</td></tr>')[0]);
+                            $.each(e, function (j, s) {
+                                var $rowEl = quoteAnalytesRow(s);
+                                if ($rowEl && $rowEl.length) {
+                                    rowNodes.push($rowEl[0]);
+                                }
+                            });
                         });
-                    });
-                    applyParameterStateToModal($('#quote-description-analytes'), savedState);
+                        $('#analysis-analytes-holder').empty().append(rowNodes);
+                        showQuoteParamsTable();
+
+                        if (savedState && savedState.hasSavedState) {
+                            applyParameterStateToModal($('#quote-description-analytes'), savedState);
+                        } else if (rowMode === 'per_package') {
+                            $('#quote-description-analytes').find('.analyte-selected').prop('checked', true);
+                            $('#select-analyte-all').prop('checked', true);
+                        } else {
+                            $('#quote-description-analytes').find('.analyte-selected').prop('checked', false);
+                            $('#select-analyte-all').prop('checked', false);
+                        }
+                        showQuoteParamsTable();
+                    } catch (err) {
+                        $('#analysis-analytes-holder').empty();
+                        showQuoteParamsEmpty(
+                            'Could not load parameters',
+                            'Something went wrong while rendering parameters. Close and try again.'
+                        );
+                    }
                 },
-                error: function() {
+                error: function (xhr, status) {
+                    if (loadToken !== quoteParamsLoadToken || status === 'abort') {
+                        return;
+                    }
+                    $('#analysis-analytes-holder').empty();
                     showQuoteParamsEmpty(
                         'Could not load parameters',
                         'Something went wrong while loading parameters. Check the sample type and lab section settings, then try again.'
                     );
+                },
+            });
+        }
+
+        $(document).on('click', '#create-detail .ls-quote-params__edit', function (e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            quoteParamsOpenContext = readQuoteParamsButtonContext($(this));
+            var $modal = $('#quote-description-analytes');
+            // Show skeleton immediately so the stage is never blank white during the open animation.
+            if (!$('#analysis-analytes-holder tr.ls-quote-analyte-row').length) {
+                showQuoteParamsSkeleton();
+            }
+            if ($modal.hasClass('show')) {
+                scheduleLoadQuoteParametersModal();
+            } else {
+                $modal.modal('show');
+            }
+        });
+
+        $('#quote-description-analytes')
+            .off('show.bs.modal.lsQuoteParams shown.bs.modal.lsQuoteParams hide.bs.modal.lsQuoteParams')
+            .on('show.bs.modal.lsQuoteParams', function () {
+                if (!$('#analysis-analytes-holder tr.ls-quote-analyte-row').length) {
+                    showQuoteParamsSkeleton();
+                }
+                scheduleLoadQuoteParametersModal();
+            })
+            .on('shown.bs.modal.lsQuoteParams', function () {
+                // Only re-assert the pane that is already active — never force skeleton over a loaded table.
+                var $wrap = $('#quote-params-table-wrap');
+                var $empty = $('#quote-params-empty');
+                if ($wrap.hasClass('is-stage-visible') || $('#analysis-analytes-holder tr.ls-quote-analyte-row').length) {
+                    showQuoteParamsTable();
+                } else if ($empty.hasClass('is-stage-visible')) {
+                    setQuoteParamsStageVisible('empty');
+                } else if (!$wrap.hasClass('is-stage-visible') && !$empty.hasClass('is-stage-visible')) {
+                    showQuoteParamsSkeleton();
+                }
+            })
+            .on('hide.bs.modal.lsQuoteParams', function () {
+                if (quoteParamsLoadTimer) {
+                    clearTimeout(quoteParamsLoadTimer);
+                    quoteParamsLoadTimer = null;
+                }
+                quoteParamsLoadToken += 1;
+                if (quoteParamsXhr && typeof quoteParamsXhr.abort === 'function') {
+                    try { quoteParamsXhr.abort(); } catch (err) {}
                 }
             });
-        });
+        function nextDetailRowNo() {
+            var max = 0;
+            $('#create-detail tr[id^="detail-row-"]').each(function () {
+                var n = parseInt(String(this.id).replace('detail-row-', ''), 10);
+                if (!isNaN(n) && n > max) {
+                    max = n;
+                }
+            });
+            return max + 1;
+        }
+
+        function renumberQuoteAnalysisLines() {
+            $('#create-detail > tr').each(function (index) {
+                $(this).find('.ls-quote-line-no').first().text(index + 1);
+            });
+        }
+
+        function newPerTestGroupId() {
+            return 'ptg-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+        }
+
+        function rowPricingMode($row) {
+            applyManualLineModeUi($row);
+            return String($row.find('.quotation-pricing-mode').val() || 'per_package');
+        }
+
+        function removePerTestGroupSiblings($keepRow, groupId) {
+            if (!groupId) {
+                return;
+            }
+            $('#create-detail > tr').each(function () {
+                var $tr = $(this);
+                if ($tr[0] === $keepRow[0]) {
+                    return;
+                }
+                if (String($tr.attr('data-per-test-group') || '') === String(groupId)) {
+                    $tr.remove();
+                }
+            });
+        }
+
+        function clearPerTestVisuals($row) {
+            $row.removeClass('ls-quote-line--per-test ls-quote-line--per-test-lead ls-quote-line--per-test-cont');
+            $row.removeAttr('data-per-test-group');
+            $row.find('.ls-quote-per-test-band, .ls-quote-per-test-cont-label').remove();
+            $row.find('.ls-quote-col-sample .select2-container, .ls-quote-line-mode-wrap').css('display', '');
+            var $sample = $row.find('td.ls-quote-col-sample').first();
+            $sample.removeAttr('rowspan').removeClass('ls-quote-col-sample--merged-away').css('display', '');
+        }
+
+        function writeSingleTestParameterFields($row, test, sampleTypeId, sampleTypeName) {
+            var rowNo = String($row.attr('id') || '').replace('detail-row-', '');
+            var $desc = $row.find('.quote-description-cell').first();
+            $desc.attr('id', 'quote-description-' + rowNo);
+            $desc.empty().removeClass('text-center');
+
+            var chipsHtml = buildParamChipHtml(test.name, test.isAcc, test.isSub);
+            // Compact panel: chip only (no duplicate title above the pill).
+            $desc.append(buildParamsPanelHtml('', rowNo, sampleTypeId, sampleTypeName, chipsHtml, 'mdi-pencil', { compact: true }));
+
+            var acc = test.isAcc && !test.isSub ? test.id : '';
+            var sub = test.isSub && !test.isAcc ? test.id : '';
+            var both = test.isAcc && test.isSub ? test.id : '';
+            var def = (!test.isAcc && !test.isSub) ? test.id : '';
+            var loqMap = {};
+            if (test.id && test.loq !== undefined && test.loq !== null && String(test.loq) !== '') {
+                loqMap[test.id] = String(test.loq);
+            }
+
+            $desc.append($('<input type="hidden" name="accreditted_analytes[]">').val(acc));
+            $desc.append($('<input type="hidden" name="sub_analytes[]">').val(sub));
+            $desc.append($('<input type="hidden" name="sub_acc[]">').val(both));
+            $desc.append($('<input type="hidden" name="default_analytes[]">').val(def));
+            $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(loqMap)));
+
+            $row.find('input.select-part-final, input[name="part_number_final[]"]').val(test.analysisTypeId || '');
+            $row.find('.quotation-pricing-mode').val('per_test');
+            $row.find('.ls-quote-line-mode-input').prop('checked', true).data('userTouched', true);
+        }
+
+        function markPerTestLead($row, groupId, testCount, sampleTypeName) {
+            clearPerTestVisuals($row);
+            $row.addClass('ls-quote-line--per-test ls-quote-line--per-test-lead');
+            $row.attr('data-per-test-group', groupId);
+            $row.find('.ls-quote-col-sample .ls-quote-per-test-band').remove();
+            $row.find('.ls-quote-col-sample').append(
+                $('<div class="ls-quote-per-test-band"></div>').html(
+                    '<i class="mdi mdi-view-list-outline"></i> Per parameter · '
+                    + testCount + ' test' + (testCount === 1 ? '' : 's')
+                )
+            );
+        }
+
+        function markPerTestContinuation($row, groupId, sampleTypeName) {
+            clearPerTestVisuals($row);
+            $row.addClass('ls-quote-line--per-test ls-quote-line--per-test-cont');
+            $row.attr('data-per-test-group', groupId);
+            $row.find('.ls-quote-line-mode-wrap').addClass('d-none');
+            // Keep sample_type[] for submit, but hide the cell visually (merged into lead via rowspan CSS/JS).
+            $row.find('.ls-quote-per-test-cont-label').remove();
+        }
+
+        function syncPerTestSampleTypeMerge(groupId) {
+            if (!groupId) {
+                return;
+            }
+            var $rows = $('#create-detail > tr[data-per-test-group="' + groupId + '"]');
+            if (!$rows.length) {
+                return;
+            }
+            var $lead = $rows.filter('.ls-quote-line--per-test-lead').first();
+            if (!$lead.length) {
+                $lead = $rows.first().addClass('ls-quote-line--per-test-lead').removeClass('ls-quote-line--per-test-cont');
+            }
+            var sampleTypeId = String($lead.find('select[name="sample_type[]"]').val() || '');
+            var $leadSample = $lead.find('td.ls-quote-col-sample').first();
+            if (!$leadSample.length) {
+                return;
+            }
+            $leadSample.attr('rowspan', $rows.length);
+            $leadSample.removeClass('ls-quote-col-sample--merged-away').css({ display: '', verticalAlign: 'middle' });
+
+            $rows.each(function () {
+                var $tr = $(this);
+                if ($tr[0] === $lead[0]) {
+                    return;
+                }
+                var $sample = $tr.find('td.ls-quote-col-sample').first();
+                var val = sampleTypeId;
+                if ($sample.length) {
+                    val = String($sample.find('select[name="sample_type[]"]').val() || sampleTypeId);
+                    $sample.remove();
+                }
+                var $host = $tr.find('td.quote-description-cell, #quote-description').first();
+                if ($host.length) {
+                    $host.find('input.ls-quote-per-test-sample-type').remove();
+                    $host.prepend(
+                        $('<input type="hidden" class="ls-quote-per-test-sample-type" name="sample_type[]">').val(val)
+                    );
+                }
+            });
+        }
+
+        function cloneBlankAnalysisLine(rowNo) {
+            var $row = $('#ls-quote-analysis-line-prototype').clone(false, false);
+            $row.attr('id', 'detail-row-' + rowNo);
+            $row.find('.ls-quote-line-no').text(rowNo);
+            $row.find('.quote-description-cell').attr('id', 'quote-description-' + rowNo);
+            $row.find('.select-part-final').attr('id', 'select-part-final-' + rowNo).val('');
+            $row.find('select.select-sample-type').attr('id', 'select-sample-type-' + rowNo).val('');
+            $row.find('.select2-container').remove();
+            $row.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
+            $row.find('select option').removeAttr('data-select2-id');
+            $row.find('input, select, textarea, button').prop('disabled', false);
+            $row.find('input[data-ls-quote-required="1"]').prop('required', true);
+            $row.find('.ls-quote-line-select').prop('disabled', false).val('');
+            applyManualLineModeUi($row);
+            initLsSampleTypeSelect($row.find('select.select-sample-type'));
+
+            $row.find('.js-delete-line').on('click', function () {
+                if (confirm('Are you sure you want to delete this row?')) {
+                    var $tr = $(this).closest('tr');
+                    var groupId = String($tr.attr('data-per-test-group') || '');
+                    $tr.remove();
+                    if (groupId) {
+                        var $remaining = $('#create-detail > tr[data-per-test-group="' + groupId + '"]');
+                        if ($remaining.length) {
+                            if (!$remaining.filter('.ls-quote-line--per-test-lead').length) {
+                                var $next = $remaining.first();
+                                $next.removeClass('ls-quote-line--per-test-cont').addClass('ls-quote-line--per-test-lead');
+                                // Restore a sample-type cell if it was merged away.
+                                if (!$next.find('td.ls-quote-col-sample').length) {
+                                    var $protoSample = $('#ls-quote-analysis-line-prototype td.ls-quote-col-sample').clone(false, false);
+                                    $protoSample.find('select').attr('id', 'select-sample-type-' + String($next.attr('id') || '').replace('detail-row-', ''));
+                                    $next.find('td.ls-quote-line-actions').after($protoSample);
+                                    initLsSampleTypeSelect($protoSample.find('select.select-sample-type'));
+                                    var st = String($next.find('input.ls-quote-per-test-sample-type').val() || '');
+                                    if (st) {
+                                        $protoSample.find('select.select-sample-type').val(st).trigger('change.select2');
+                                    }
+                                }
+                            }
+                            syncPerTestSampleTypeMerge(groupId);
+                        }
+                    }
+                    renumberQuoteAnalysisLines();
+                }
+            });
+
+            $row.find('select.select-sample-type').on('change', function () {
+                if ($row.data('lsSkipSampleWipe')) {
+                    $row.removeData('lsSkipSampleWipe');
+                    return;
+                }
+                $(this).addClass('choose');
+                var sample_type = $(this).val();
+                var sample_code = $(this).find('option:selected').text() || '';
+                var thisRowNo = String($row.attr('id') || '').replace('detail-row-', '');
+                if (sample_type != '') {
+                    $row.find('input.select-part-final').val('');
+                    $row.find('.quote-description-cell').first().empty().append(
+                        $(buildParamsPanelHtml(sample_code, thisRowNo, sample_type, sample_code, '', 'mdi-eye-outline'))
+                    );
+                    $row.find('.quotation-unit-price').val(0);
+                    $row.find('.quotation-tax').val(0);
+                    $row.find('.quotation-tax-display').text('0%');
+                    $row.removeData('pricelistSuggestion');
+                    clearPerTestVisuals($row);
+                    var rowMode = applyManualLineModeUi($row);
+                    $row.find('.quotation-price-hint').text(
+                        rowMode === 'per_test'
+                            ? 'Open Parameters to select tests (each test billed separately).'
+                            : 'Open Parameters to select tests (package billed as qty × unit price once).'
+                    );
+                } else {
+                    clearRowParameterFields($row);
+                    clearPerTestVisuals($row);
+                }
+            });
+
+            return $row;
+        }
+
+        function applyElementPriceToRow($row, elementId, elementPrices) {
+            var priceInfo = elementPrices && elementId ? elementPrices[elementId] : null;
+            if (!priceInfo) {
+                $row.find('.quotation-price-hint').text('Enter unit price for this test.');
+                updateQuoteLineTotal($row);
+                return;
+            }
+            applyPricelistSuggestionToRow($row, {
+                unit_price: priceInfo.unit_price,
+                tax: priceInfo.tax,
+                hint: 'Per-test pricelist price.',
+                is_package: false,
+                pricing_mode: 'per_test',
+            });
+        }
+
+        function explodeRowIntoPerTestLines($sourceRow, state) {
+            var tests = (state && state.tests) ? state.tests.slice() : [];
+            if (tests.length === 0) {
+                return;
+            }
+
+            var sampleTypeId = $sourceRow.find('select[name="sample_type[]"]').val() || '';
+            var sampleTypeName = $sourceRow.find('select[name="sample_type[]"] option:selected').text() || '';
+            var qty = $sourceRow.find('.quotation-qty, input[name="quantity[]"]').val();
+            var qtyReq = $sourceRow.find('.quotation-qty-required, input[name="quantity_required[]"]').val() || '';
+            var groupId = String($sourceRow.attr('data-per-test-group') || '') || newPerTestGroupId();
+
+            removePerTestGroupSiblings($sourceRow, groupId);
+
+            writeSingleTestParameterFields($sourceRow, tests[0], sampleTypeId, sampleTypeName);
+            $sourceRow.find('.quotation-qty, input[name="quantity[]"]').val(qty);
+            $sourceRow.find('.quotation-qty-required, input[name="quantity_required[]"]').val(qtyReq);
+            markPerTestLead($sourceRow, groupId, tests.length, sampleTypeName);
+
+            var $insertAfter = $sourceRow;
+            var createdRows = [$sourceRow];
+
+            for (var i = 1; i < tests.length; i++) {
+                var rowNo = nextDetailRowNo();
+                var $new = cloneBlankAnalysisLine(rowNo);
+                $new.data('lsSkipSampleWipe', 1);
+                $new.find('select.select-sample-type').val(sampleTypeId).trigger('change');
+                writeSingleTestParameterFields($new, tests[i], sampleTypeId, sampleTypeName);
+                $new.find('.quotation-qty, input[name="quantity[]"]').val(qty);
+                $new.find('.quotation-qty-required, input[name="quantity_required[]"]').val(qtyReq);
+                markPerTestContinuation($new, groupId, sampleTypeName);
+                $insertAfter.after($new);
+                $insertAfter = $new;
+                createdRows.push($new);
+            }
+
+            renumberQuoteAnalysisLines();
+            syncPerTestSampleTypeMerge(groupId);
+
+            var allIds = tests.map(function (t) { return t.id; }).filter(Boolean);
+            var analysisCsv = (state.analysisTypeIds || []).join(',');
+            $.post(quotationPricingConfig.suggestUrl, {
+                _token: quotationPricingConfig.csrf,
+                sample_type_id: sampleTypeId,
+                analysis_type_ids: analysisCsv,
+                element_ids: allIds.join(','),
+                pricing_mode: 'per_test',
+            }).done(function (data) {
+                var elementPrices = (data && data.element_prices) ? data.element_prices : {};
+                createdRows.forEach(function ($r, idx) {
+                    var test = tests[idx];
+                    applyElementPriceToRow($r, test ? test.id : '', elementPrices);
+                });
+            }).fail(function () {
+                createdRows.forEach(function ($r) {
+                    $r.find('.quotation-price-hint').text('Could not load per-test prices — enter manually.');
+                    updateQuoteLineTotal($r);
+                });
+            });
+        }
+
+        function writePackageParameterFields($row, state, sampleTypeId, sampleTypeName) {
+            var rowNo = String($row.attr('id') || '').replace('detail-row-', '');
+            var $desc = $row.find('.quote-description-cell').first();
+            $desc.attr('id', 'quote-description-' + rowNo);
+            $desc.empty().removeClass('text-center');
+            clearPerTestVisuals($row);
+            $desc.append(buildParamsPanelHtml(sampleTypeName, rowNo, sampleTypeId, sampleTypeName, state.spans.join(''), 'mdi-pencil'));
+            $desc.append($('<input type="hidden" name="accreditted_analytes[]">').val(state.analytes_accreditted.toString()));
+            $desc.append($('<input type="hidden" name="sub_analytes[]">').val(state.analyte_sub.toString()));
+            $desc.append($('<input type="hidden" name="sub_acc[]">').val(state.sub_acc.toString()));
+            $desc.append($('<input type="hidden" name="default_analytes[]">').val(state.default_analytes.toString()));
+            $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(state.loqMap)));
+            $row.find('input.select-part-final, input[name="part_number_final[]"]').val((state.analysisTypeIds || []).join(','));
+            $row.find('.quotation-pricing-mode').val('per_package');
+            $row.find('.ls-quote-line-mode-input').prop('checked', false);
+            refreshQuotationRowPricingHint($row, true);
+        }
 
         $('#save-analytes').off('click').on('click', function(e) {
             e.preventDefault();
@@ -2295,29 +2827,33 @@
             var $modal = $('#quote-description-analytes');
             persistEditedLoqs($modal).always(function() {
                 var state = collectSelectedAnalyteState($modal);
-                var selectedCount = (state.analytes_accreditted.length
-                    + state.analyte_sub.length
-                    + state.sub_acc.length
-                    + state.default_analytes.length);
+                var selectedCount = (state.tests && state.tests.length)
+                    ? state.tests.length
+                    : (state.analytes_accreditted.length
+                        + state.analyte_sub.length
+                        + state.sub_acc.length
+                        + state.default_analytes.length);
                 if (selectedCount === 0) {
                     window.alert('Select at least one test (left checkbox / Select all) before saving parameters.');
                     return;
                 }
 
-                var $desc = $('#create-detail').find('tr#detail-row-' + row_no).find('#quote-description');
-                $desc.empty().removeClass('text-center');
-                // Append HTML string directly — $(html) can drop content for large chip lists.
-                $desc.append(buildParamsPanelHtml(type_name, row_no, sample_code, type_name, state.spans.join(''), 'mdi-pencil'));
-                $desc.append($('<input type="hidden" name="accreditted_analytes[]">').val(state.analytes_accreditted.toString()));
-                $desc.append($('<input type="hidden" name="sub_analytes[]">').val(state.analyte_sub.toString()));
-                $desc.append($('<input type="hidden" name="sub_acc[]">').val(state.sub_acc.toString()));
-                $desc.append($('<input type="hidden" name="default_analytes[]">').val(state.default_analytes.toString()));
-                $desc.append($('<input type="hidden" name="element_loq_json[]">').val(JSON.stringify(state.loqMap)));
-
                 var $row = $('#create-detail').find('tr#detail-row-' + row_no);
-                // Derive analysis type IDs from selected elements (no Analysis Type column).
-                $row.find('input.select-part-final').val((state.analysisTypeIds || []).join(','));
-                refreshQuotationRowPricingHint($row, true);
+                if (!$row.length) {
+                    return;
+                }
+
+                var mode = rowPricingMode($row);
+                if (mode === 'per_test') {
+                    explodeRowIntoPerTestLines($row, state);
+                } else {
+                    var existingGroup = String($row.attr('data-per-test-group') || '');
+                    if (existingGroup) {
+                        removePerTestGroupSiblings($row, existingGroup);
+                    }
+                    writePackageParameterFields($row, state, sample_code, type_name);
+                    renumberQuoteAnalysisLines();
+                }
                 $('#quote-description-analytes').modal('hide');
             });
         });
@@ -2325,7 +2861,8 @@
         var quoteAnalytesRow = function(data) {
             var check_acc = '';
             var check_sub = '';
-            var selected = 'checked';
+            // Leave unchecked by default; loadQuoteParametersModal applies package/per-test selection state.
+            var selected = '';
 
             // Element is accredited unless explicitly marked non-accredited.
             if (!(parseInt(data.non_accredited, 10) === 1 || data.non_accredited === true || data.non_accredited === 'true')) {
@@ -2429,6 +2966,13 @@
         $(document).on('change', '#quote-description-analytes .analyte-accredited, #edit-detail-analytes .analyte-accredited', function(e) {
             e.stopPropagation();
             syncMethodPillAccreditation($(this).closest('tr.ls-quote-analyte-row'));
+            if ($('#quote-description-analytes').hasClass('show')) {
+                showQuoteParamsTable();
+            }
+        });
+
+        $(document).on('change click', '#quote-description-analytes .analyte-selected, #edit-detail-analytes .analyte-selected', function(e) {
+            e.stopPropagation();
             if ($('#quote-description-analytes').hasClass('show')) {
                 showQuoteParamsTable();
             }

@@ -702,8 +702,16 @@
 
 	.ls-quotation-table-scroll {
 		overflow-x: auto;
+		overflow-y: visible;
+		-webkit-overflow-scrolling: touch;
 		border: 1px solid #e2e8f0;
 		border-radius: 10px;
+		max-width: 100%;
+	}
+
+	.quotation-show-page .quotation-analysis-lines.ls-quotation-table-scroll {
+		/* Keep Tax / trailing columns reachable when the workspace is narrower than the grid. */
+		overflow-x: auto !important;
 	}
 
 	.quotation-show-page .ls-quotation-lines-panel .ls-table thead th {
@@ -767,6 +775,59 @@
 
 	.quotation-show-page .ls-quote-line-mode-label {
 		font-weight: 600;
+	}
+
+	/* Per-parameter explode: one commercial strip per test */
+	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-lead > td {
+		background: linear-gradient(180deg, #fff8fa 0%, #fff 70%);
+	}
+
+	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-lead > td.ls-quote-col-sample {
+		border-top: 2px solid #8b1538;
+		vertical-align: middle !important;
+		background: linear-gradient(180deg, #fff5f7 0%, #fff 55%);
+	}
+
+	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-cont > td {
+		background: #fcfcfd;
+		border-top-color: #f1e4e8;
+	}
+
+	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-cont > td:first-child {
+		border-left: 2px solid #f5c2d1;
+	}
+
+	.quotation-show-page .ls-quote-per-test-band {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		margin-top: 0.4rem;
+		padding: 0.15rem 0.5rem;
+		border-radius: 999px;
+		font-size: 0.625rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: #8b1538;
+		background: #fce7ef;
+		border: 1px solid #f5c2d1;
+	}
+
+	.quotation-show-page .ls-quote-per-test-band .mdi {
+		font-size: 0.75rem;
+	}
+
+	.quotation-show-page .ls-quote-params--compact .ls-quote-params__toolbar--compact {
+		justify-content: flex-end;
+		margin-bottom: 0.25rem;
+	}
+
+	.quotation-show-page .ls-quote-params--compact .ls-quote-params__chips {
+		margin-top: 0;
+	}
+
+	.quotation-show-page .ls-quote-line--per-test .ls-quote-params__chips .ls-quote-param-chip {
+		max-width: 100%;
 	}
 
 	.quotation-show-page .ls-quote-icon-btn {
@@ -936,56 +997,100 @@
 		min-height: 3rem;
 	}
 
-	/* Fixed layout is required — auto table layout ignored th/td widths when Select2 content was wider. */
+	/*
+	 * Column order (Quote In Preparation):
+	 * 1 select | 2 No | 3 Sample Type | 4 Parameters | 5 Qty Required | 6 Qty | 7 Unit Price | 8 Total | 9 Tax%
+	 * nth-child must include the leading checkbox column or Sample Type steals Parameters' width.
+	 * Specificity must beat .ls-quotation-shell .ls-quotation-table-scroll > .ls-table { min-width: 1100px }.
+	 */
+	.quotation-show-page .ls-quotation-table-scroll > .ls-table.ls-quote-analysis-table,
 	.quotation-show-page .ls-quote-analysis-table {
 		table-layout: fixed;
-		width: 100%;
-		min-width: 1420px;
+		width: max(100%, 1680px);
+		min-width: 1680px;
+	}
+
+	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--select,
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(1),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(1) {
+		width: 2.5% !important;
+		min-width: 2.25rem;
+	}
+
+	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--no,
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(2),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(2) {
+		width: 4% !important;
+		min-width: 3.25rem;
 	}
 
 	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--sample,
-	.quotation-show-page .ls-quote-analysis-table th:nth-child(2),
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(2) {
-		width: 18% !important;
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(3),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(3) {
+		width: 15% !important;
+		min-width: 10rem;
 	}
 
 	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--params,
-	.quotation-show-page .ls-quote-analysis-table th:nth-child(3),
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(3) {
-		width: 32% !important;
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(4),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(4),
+	.quotation-show-page .ls-quote-analysis-table td.ls-quote-col-params,
+	.quotation-show-page .ls-quote-analysis-table td.quote-description-cell {
+		width: 31% !important;
+		min-width: 15rem;
 	}
 
 	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--qty-req,
-	.quotation-show-page .ls-quote-analysis-table th:nth-child(4),
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(4) {
-		width: 16% !important;
-		min-width: 10.5rem;
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(5),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(5),
+	.quotation-show-page .ls-quote-analysis-table td.ls-quote-col-qty-req {
+		width: 14% !important;
+		min-width: 12rem;
 	}
 
 	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--qty,
-	.quotation-show-page .ls-quote-analysis-table th:nth-child(5),
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(5) {
-		width: 8% !important;
-		min-width: 5.5rem;
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(6),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(6),
+	.quotation-show-page .ls-quote-analysis-table td.ls-quote-col-qty {
+		width: 6% !important;
+		min-width: 5rem;
 	}
 
 	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--price,
-	.quotation-show-page .ls-quote-analysis-table th:nth-child(6),
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) {
-		width: 16% !important;
-		min-width: 9.5rem;
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(7),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(7),
+	.quotation-show-page .ls-quote-analysis-table td.ls-quote-col-price {
+		width: 11% !important;
+		min-width: 7.5rem;
+	}
+
+	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--total,
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(8),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(8),
+	.quotation-show-page .ls-quote-analysis-table td.ls-quote-col-total {
+		width: 9% !important;
+		min-width: 6.5rem;
 	}
 
 	.quotation-show-page .ls-quote-analysis-table .ls-quote-col--tax,
-	.quotation-show-page .ls-quote-analysis-table th:nth-child(8),
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(8) {
-		width: 8% !important;
+	.quotation-show-page .ls-quote-analysis-table th:nth-child(9),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(9),
+	.quotation-show-page .ls-quote-analysis-table td.ls-quote-col-tax {
+		width: 7.5% !important;
+		min-width: 5rem;
 	}
 
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(2),
 	.quotation-show-page .ls-quote-analysis-table td:nth-child(3),
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) {
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(4),
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(7) {
 		overflow: hidden;
+	}
+
+	/* Beat .ls-quotation-shell … td { white-space: nowrap } so parameter chips can wrap. */
+	.quotation-show-page .ls-quotation-table-scroll .ls-quote-analysis-table td:nth-child(4),
+	.quotation-show-page .ls-quote-analysis-table td.ls-quote-col-params,
+	.quotation-show-page .ls-quote-analysis-table td.quote-description-cell {
+		white-space: normal;
 	}
 
 	.quotation-show-page .ls-quote-analysis-table .select2-container {
@@ -993,21 +1098,20 @@
 		max-width: 100% !important;
 	}
 
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) .ls-field__control {
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(7) .ls-field__control {
 		position: relative;
-		padding-right: 1.45rem;
 	}
 
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) .ls-field__input,
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) .quotation-unit-price {
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(7) .ls-field__input,
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(7) .quotation-unit-price {
 		padding-left: 0.25rem;
 		padding-right: 0.25rem;
 		font-size: 0.68rem;
 		line-height: 1.2;
 	}
 
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) .ls-field__hint,
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) .quotation-price-hint {
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(7) .ls-field__hint,
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(7) .quotation-price-hint {
 		font-size: 0.58rem;
 		line-height: 1.35;
 		margin-top: 0.15rem;
@@ -1017,19 +1121,7 @@
 		word-break: break-word;
 	}
 
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(6) .ls-field__action-btn {
-		position: absolute;
-		right: 2px;
-		top: 50%;
-		transform: translateY(-50%);
-		padding: 0 0.25rem;
-		font-size: 0.6rem;
-		min-width: 0;
-		height: 1.25rem;
-		line-height: 1;
-	}
-
-	.quotation-show-page .ls-quote-analysis-table td:nth-child(8) .ls-quote-tax-display {
+	.quotation-show-page .ls-quote-analysis-table td:nth-child(9) .ls-quote-tax-display {
 		font-size: 0.72rem;
 		min-height: 32px;
 		padding: 0 0.35rem;
@@ -1252,9 +1344,19 @@
 		width: 100%;
 	}
 
-	.ls-quote-params-stage > .ls-quote-analyte-table:not([hidden]) {
-		display: block;
+	.ls-quote-params-stage > .ls-quote-analyte-table:not([hidden]),
+	.ls-quote-params-stage > .ls-quote-analyte-table.is-stage-visible {
+		display: block !important;
 		overflow: auto;
+		min-height: 180px;
+	}
+
+	.ls-quote-params-stage > .ls-quote-params-skeleton.is-stage-visible {
+		display: flex !important;
+	}
+
+	.ls-quote-params-stage > .ls-quote-params-empty.is-stage-visible {
+		display: flex !important;
 	}
 
 	.ls-quote-params-stage::after {
@@ -1303,6 +1405,21 @@
 	.ls-quote-params-skeleton[hidden],
 	.ls-quote-analyte-table[hidden] {
 		display: none !important;
+	}
+
+	/* Force visible stage panes even if a [hidden] race leaves the attribute briefly. */
+	.ls-quote-params-stage > .ls-quote-analyte-table.is-stage-visible {
+		display: block !important;
+		overflow: auto;
+		min-height: 180px;
+	}
+
+	.ls-quote-params-stage > .ls-quote-params-skeleton.is-stage-visible {
+		display: flex !important;
+	}
+
+	.ls-quote-params-stage > .ls-quote-params-empty.is-stage-visible {
+		display: flex !important;
 	}
 
 	.ls-quote-params-empty__art {

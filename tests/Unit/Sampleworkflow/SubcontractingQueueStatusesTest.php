@@ -24,13 +24,14 @@ class SubcontractingQueueStatusesTest extends TestCase
     }
 
     #[Test]
-    public function subcontracting_queue_statuses_include_amspec_accepted(): void
+    public function subcontracting_queue_statuses_are_accepted_only_not_an_enquiry_stage(): void
     {
         $statuses = SampleSubmissionRequest::subcontractingQueueEnquiryStatuses();
 
-        $this->assertContains(SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK, $statuses);
-        $this->assertContains(SampleSubmissionRequest::STATUS_ACCEPTED, $statuses);
+        $this->assertSame([SampleSubmissionRequest::STATUS_ACCEPTED], $statuses);
         $this->assertContains('received_at_lab', $statuses);
+        $this->assertNotContains(SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK, $statuses);
+        $this->assertFalse(defined(SampleSubmissionRequest::class.'::STATUS_SUB_CONTRACTING'));
     }
 
     #[Test]

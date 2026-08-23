@@ -2,11 +2,12 @@
 	Hidden prototype row for Analysis quotation lines (Amspec UAE prep model).
 
 	Commercial math (see QuotationPricingResolver):
-	  Total price = No. of samples × Unit price  (ONCE for the sample package)
-	  NOT number of tests × unit price.
+	  Package (default): Total = No. of samples × Unit price ONCE for the sample package.
+	  Per parameter: each selected test becomes its own billed line (qty × unit price each).
 
 	quantity_required = free text (e.g. "Per Sample Swab") — not a multiplier.
 	Flow: Sample Type → Parameters modal → save. Analysis type is NOT a line column.
+	Per-parameter mode explodes the prep row into one commercial strip per test in the UI.
 --}}
 @php
 	$sampleTypeSelectOptions = collect($sample_types ?? [])->mapWithKeys(
@@ -70,7 +71,6 @@
 				<div class="ls-field ls-compact mb-0">
 					<div class="ls-field__control">
 						<input type="number" name="unit_price[]" class="ls-field__input quotation-unit-price" min="0" step="1" value="0" placeholder="0" disabled>
-						<button type="button" class="ls-field__action-btn quotation-apply-pricelist" title="Apply pricelist suggestion" disabled>$</button>
 					</div>
 					<p class="ls-field__hint quotation-price-hint mb-0"></p>
 				</div>

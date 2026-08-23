@@ -19,6 +19,7 @@ class BatchCustodyTimelineBuilderTest extends TestCase
         $this->assertSame('Sample Integrity & Acceptance Check', $tabs['sample_integrity_check'] ?? null);
         $this->assertSame('Accepted', $tabs['accepted'] ?? null);
         $this->assertSame('Request Additional Info', $tabs['in_additional_info'] ?? null);
+        $this->assertSame('Subcontracted', $tabs['sub_contracting'] ?? null);
 
         $this->assertTrue(class_exists(BatchCustodyTimelineBuilder::class));
     }

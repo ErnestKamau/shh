@@ -31,6 +31,7 @@ use App\Services\SubmissionForm\SubmissionFormInstanceTrfEditService;
 use App\Support\TrfToast;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use App\Services\SubmissionForm\TrfDocumentCodeForSampleType;
+use App\Services\Sampleworkflow\BatchCustodyTimelineBuilder;
 use App\Services\Sampleworkflow\WalkInParameterCatalogService;
 use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Contracts\View\View;
@@ -355,6 +356,7 @@ class RequestViewPage extends Component
 
     public function closeQuotationAcceptanceModal(): void
     {
+        $this->dispatch('quotation-acceptance-modal-closed');
         $this->showQuotationAcceptanceModal = false;
         $this->quotationAcceptancePoOnly = false;
         $this->quotationAcceptanceSignerName = '';
@@ -462,6 +464,7 @@ class RequestViewPage extends Component
                 ],
             );
 
+            $this->refreshCommercialState();
             $this->closeQuotationAcceptanceModal();
             $this->dispatch('imara-toast', [
                 'type' => 'success',
@@ -525,6 +528,7 @@ class RequestViewPage extends Component
                 ],
             );
 
+            $this->refreshCommercialState();
             $this->closeQuotationAcceptanceModal();
             session()->flash('request_view_message', 'PO recorded. This request is ready for physical reception on the Samples Receiving board.');
         } catch (\Illuminate\Validation\ValidationException $exception) {
@@ -616,15 +620,50 @@ class RequestViewPage extends Component
     #[On('receive-completed')]
     public function onReceiveCompleted(): void
     {
+        $this->refreshCommercialState();
+    }
+
+    #[On('process-enquiry-completed')]
+    public function onProcessEnquiryCompleted(): void
+    {
+        $this->refreshCommercialState();
+    }
+
+    #[On('acceptance-wizard-closed')]
+    public function onAcceptanceWizardClosed(): void
+    {
+        $this->refreshCommercialState();
+    }
+
+    #[On('acceptance-form-completed')]
+    public function onAcceptanceFormCompleted(): void
+    {
+        $this->refreshCommercialState();
+    }
+
+    /**
+     * Reload enquiry + instance so header badge and CTAs reflect SampleSubmissionRequest.status.
+     */
+    public function refreshCommercialState(): void
+    {
         $this->instance = $this->instance->fresh([
             'submissionForm',
             'crmCustomer',
             'batches.samples',
             'analysisAcceptanceForms',
-            'sampleSubmissionRequest',
+            'sampleSubmissionRequest.currentQuotation.approvedByUser',
+            'sampleSubmissionRequest.customer',
+            'sampleSubmissionRequest.contact',
             'values.element',
         ]) ?? $this->instance;
-        $this->commercialEnquiry = $this->instance->sampleSubmissionRequest;
+
+        $this->commercialEnquiry = $this->instance->sampleSubmissionRequest
+            ?? SampleSubmissionRequest::query()
+                ->with(['currentQuotation.approvedByUser', 'customer', 'contact'])
+                ->where('submission_form_instance_id', $this->instance->id)
+                ->first();
+
+        $this->syncQuotationApprovalUiState();
     }
 
     #[Renderless]
@@ -790,6 +829,7 @@ class RequestViewPage extends Component
             $this->canApproveQuotation = false;
             $this->syncQuotationApprovalUiState();
             $this->closeApproveQuotationModal();
+            $this->refreshCommercialState();
 
             $this->dispatch('imara-toast', [
                 'type' => 'success',
@@ -965,7 +1005,7 @@ class RequestViewPage extends Component
 
             $this->commercialEnquiry = $enquiry;
             $this->approvalDecisionComments = '';
-            $this->syncQuotationApprovalUiState();
+            $this->refreshCommercialState();
             session()->flash('request_view_message', 'Quotation returned for revision.');
         } catch (\Throwable $exception) {
             session()->flash('request_view_message', $exception->getMessage());
@@ -1004,7 +1044,7 @@ class RequestViewPage extends Component
 
             $channel = strtolower((string) ($enquiry->source_channel ?? ''));
             $this->commercialEnquiry = $enquiry;
-            $this->syncQuotationApprovalUiState();
+            $this->refreshCommercialState();
             $this->closeSendApprovedQuotationModal();
 
             $message = $channel === 'walk_in'
@@ -1095,7 +1135,7 @@ class RequestViewPage extends Component
             $this->showChangeLabManagerForm = false;
             $this->reassignLabManagerId = null;
             $this->canApproveQuotation = false;
-            $this->syncQuotationApprovalUiState();
+            $this->refreshCommercialState();
 
             $managerName = trim((string) ($this->commercialEnquiry->currentQuotation?->approvedByUser?->name ?? ''));
             session()->flash(
@@ -2087,11 +2127,18 @@ class RequestViewPage extends Component
             return is_array($payload['options'] ?? null) ? $payload['options'] : [];
         };
 
+        $analysisTypeIds = $this->normalizeRowSelectValues($rowFields['analysis_type_id'] ?? null);
+
         return [
             'sample_type_id' => $this->mergeSelectedSelectOptions(
                 $resolve('sample_type_select'),
                 $this->normalizeRowSelectValues($rowFields['sample_type_id'] ?? null),
                 fn (string $id): ?string => \App\SampleType::query()->whereKey($id)->value('name'),
+            ),
+            'analysis_type_id' => $this->mergeSelectedSelectOptions(
+                $resolve('analysis_type_select'),
+                $analysisTypeIds,
+                fn (string $id): ?string => \App\AnalysisType::query()->whereKey($id)->value('name'),
             ),
             'parameters' => $this->enrichParameterSelectOptions(
                 $this->mergeSelectedSelectOptions(
@@ -2485,6 +2532,8 @@ class RequestViewPage extends Component
                 'sampleSubmissionRequest.requestedAnalyses',
             ]) ?? $this->instance;
 
+            $this->refreshCommercialState();
+
             $message = 'Request tests/parameters synced from quotation '
                 .((string) ($enquiry->currentQuotation?->quote_number ?? '')).'.';
 
@@ -2609,19 +2658,20 @@ class RequestViewPage extends Component
     {
         $batch = $this->instance->batches->first();
         if (($batch && $batch->status === 'Samples Request Review')
-            || $this->instance->analysisAcceptanceForms->isNotEmpty()) {
+            || $this->instance->analysisAcceptanceForms->isNotEmpty()
+            || (string) ($this->commercialEnquiry?->status ?? '') === SampleSubmissionRequest::STATUS_ACCEPTED) {
             return 'accepted';
         }
 
-        if ($this->commercialEnquiry !== null
-            && in_array((string) $this->commercialEnquiry->status, [
-                SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
-                SampleSubmissionRequest::STATUS_IN_REVIEW,
-            ], true)) {
-            return 'ready_for_reception';
-        }
+        $enquiryStatus = (string) ($this->commercialEnquiry?->status ?? '');
 
-        return 'submitted';
+        return match ($enquiryStatus) {
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => 'ready_for_reception',
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
+            SampleSubmissionRequest::STATUS_IN_REVIEW => 'sample_integrity_check',
+            SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO => 'in_additional_info',
+            default => 'submitted',
+        };
     }
 
     public function render(): View

@@ -791,8 +791,23 @@ class SubmissionFormInstance extends Model implements Auditable
 
     public function isEligibleForAdditionalInfoRequest(): bool
     {
-        return in_array($this->status, self::additionalInfoEligibleStatuses(), true)
-            && $this->receivingOriginChannel() === 'portal';
+        if ($this->receivingOriginChannel() !== 'portal') {
+            return false;
+        }
+
+        $this->loadMissing('sampleSubmissionRequest');
+        $enquiryStatus = (string) ($this->sampleSubmissionRequest?->status ?? '');
+
+        if (in_array($enquiryStatus, [
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
+            SampleSubmissionRequest::STATUS_IN_REVIEW,
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+        ], true)) {
+            return true;
+        }
+
+        return in_array($this->status, self::additionalInfoEligibleStatuses(), true);
     }
 
     /**
@@ -814,6 +829,11 @@ class SubmissionFormInstance extends Model implements Auditable
 
         $this->logAction('additional_info_requested', $user, null, $notes);
 
+        $enquiry = $this->sampleSubmissionRequest;
+        if ($enquiry !== null) {
+            $enquiry->update(['status' => SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO]);
+        }
+
         if ($notifyCustomer) {
             $message = trim((string) $notes);
             if ($message !== '') {
@@ -830,7 +850,13 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function markAdditionalInfoProvided(User $portalUser, ?string $reply = null): bool
     {
-        if ($this->status !== 'in_additional_info') {
+        $this->loadMissing('sampleSubmissionRequest');
+
+        $enquiryStatus = (string) ($this->sampleSubmissionRequest?->status ?? '');
+        $isAdditionalInfo = $this->status === 'in_additional_info'
+            || $enquiryStatus === SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO;
+
+        if (! $isAdditionalInfo) {
             return false;
         }
 
@@ -866,7 +892,14 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function resumeFromAdditionalInfo(User $user, ?string $notes = null): bool
     {
-        if ($this->status !== 'in_additional_info') {
+        $this->loadMissing('sampleSubmissionRequest');
+
+        $enquiry = $this->sampleSubmissionRequest;
+        $enquiryStatus = (string) ($enquiry?->status ?? '');
+        $isAdditionalInfo = $this->status === 'in_additional_info'
+            || $enquiryStatus === SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO;
+
+        if (! $isAdditionalInfo) {
             return false;
         }
 
@@ -879,6 +912,11 @@ class SubmissionFormInstance extends Model implements Auditable
             'reviewed_by' => $user->id,
             'review_notes' => $notes ?? $this->review_notes,
         ]);
+
+        if ($enquiry !== null
+            && $enquiryStatus === SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO) {
+            $enquiry->update(['status' => SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION]);
+        }
 
         $this->logAction('additional_info_resumed', $user, [
             'status' => ['from' => $previousStatus, 'to' => $resumeStatus],
@@ -896,13 +934,17 @@ class SubmissionFormInstance extends Model implements Auditable
 
         $enquiryStatus = (string) ($this->sampleSubmissionRequest?->status ?? '');
 
-        if ($enquiryStatus === SampleSubmissionRequest::STATUS_IN_REVIEW) {
+        if (in_array($enquiryStatus, [
+            SampleSubmissionRequest::STATUS_IN_REVIEW,
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
+        ], true)) {
             return 'in_review';
         }
 
         if (in_array($enquiryStatus, [
             SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
             SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+            SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO,
         ], true)) {
             return 'submitted';
         }
@@ -913,7 +955,13 @@ class SubmissionFormInstance extends Model implements Auditable
 
     public function hasCustomerRespondedToAdditionalInfo(): bool
     {
-        return $this->status === 'in_additional_info' && $this->additional_info_responded_at !== null;
+        $this->loadMissing('sampleSubmissionRequest');
+
+        $enquiryStatus = (string) ($this->sampleSubmissionRequest?->status ?? '');
+
+        return ($this->status === 'in_additional_info'
+                || $enquiryStatus === SampleSubmissionRequest::STATUS_REQUEST_ADDITIONAL_INFO)
+            && $this->additional_info_responded_at !== null;
     }
 
     /**

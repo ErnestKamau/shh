@@ -53,9 +53,30 @@ final class SampleIntegrityCheckService
                 'mmethod',
                 'ltmethod',
                 'analysis_type.sample_type',
+                'equipment:id,name,equipment_number',
+                'formular:id,name',
+                'methodSequence:id,name',
+                'reportingUnit:id,name',
             ])
             ->whereIn('id', $elementIds)
-            ->get(['id', 'analyte_id', 'operator_id', 'lab_section_id', 'analysis_type_id', 'reporting_time', 'method'])
+            ->get([
+                'id',
+                'analyte_id',
+                'operator_id',
+                'lab_section_id',
+                'analysis_type_id',
+                'reporting_time',
+                'method',
+                'lod',
+                'hod',
+                'reporting_unit',
+                'equipment_id',
+                'formular_id',
+                'has_method_sequence',
+                'method_sequence_id',
+                'measurement_uncertainty',
+                'non_accredited',
+            ])
             ->keyBy(fn (AnalysisElements $element): string => (string) $element->id);
         $matchedSamplesByConfigIndex = $this->matchedTrfSamplesByConfigIndex($instance, $enquiry, $configs);
         $rows = [];
@@ -163,6 +184,7 @@ final class SampleIntegrityCheckService
                     'default_operator_id' => $defaultOperatorId !== '' ? $defaultOperatorId : null,
                     'default_operator_name' => trim((string) ($element?->operator?->name ?? '')),
                     'subcontracted' => isset($configSubcontracted[$elementId]) || isset($subcontractedIds[$elementId]),
+                    'test_info' => $this->testInfoFromElement($element, $rowSampleType, $rowAnalysisType, $sampleTestCategory),
                 ];
             }
         }
@@ -521,6 +543,10 @@ final class SampleIntegrityCheckService
      *     customer_sample_id: string,
      *     condition_name: string,
      *     condition_not_acceptable: bool,
+     *     customer: list<array{label: string, value: string}>,
+     *     collection: list<array{label: string, value: string}>,
+     *     sample_info: list<array{label: string, value: string}>,
+     *     sample_tests: list<string>,
      *     identity: list<array{label: string, value: string}>,
      *     tests: list<array{
      *         test: string,
@@ -539,22 +565,81 @@ final class SampleIntegrityCheckService
         ?SampleSubmissionRequest $enquiry,
         array $testRows,
     ): array {
+        $empty = [
+            'display_label' => '',
+            'export_label' => '',
+            'customer_sample_id' => '',
+            'condition_name' => '',
+            'condition_not_acceptable' => false,
+            'client_title' => 'Client',
+            'customer' => [],
+            'customer_card' => [
+                'client_name' => '',
+                'contact_person' => '',
+                'email' => '',
+                'mobile' => '',
+                'address' => '',
+            ],
+            'collection' => [],
+            'sample_info' => [],
+            'sample_tests' => [],
+            'identity' => [],
+            'tests' => [],
+        ];
+
         if ($configId === '' || $enquiry === null) {
-            return [
-                'display_label' => '',
-                'export_label' => '',
-                'customer_sample_id' => '',
-                'condition_name' => '',
-                'condition_not_acceptable' => false,
-                'identity' => [],
-                'tests' => [],
-            ];
+            return $empty;
         }
 
+        $catalog = $this->integrityPdfCatalog($instance, $enquiry);
         $info = $this->sampleInfoByConfigKey($instance, $enquiry, $testRows)[$configId] ?? null;
         $configs = $this->resolveConfigs($enquiry, $instance);
+        $configIndex = null;
+        foreach ($configs as $index => $config) {
+            if ((string) ($config['id'] ?? '') === $configId) {
+                $configIndex = $index;
+                break;
+            }
+        }
+
         $conditionByConfigId = TrfLabUseFieldsService::conditionNameByConfigId($configs);
         $conditionName = trim((string) ($conditionByConfigId[$configId] ?? ''));
+
+        $sampleInfo = [];
+        if ($configIndex !== null && isset($catalog['samples'][$configIndex])) {
+            $catalogSample = $catalog['samples'][$configIndex];
+            foreach (is_array($catalogSample['fields'] ?? null) ? $catalogSample['fields'] : [] as $field) {
+                $sampleInfo[] = [
+                    'label' => (string) ($field['label'] ?? ''),
+                    'value' => (string) ($field['value'] ?? ''),
+                ];
+            }
+            $customerSampleIdFromCatalog = trim((string) ($catalogSample['customer_sample_id'] ?? ''));
+            if ($customerSampleIdFromCatalog !== '' && ! $this->identityHasLabel($sampleInfo, 'Customer sample ID')) {
+                array_unshift($sampleInfo, [
+                    'label' => 'Customer sample ID',
+                    'value' => $customerSampleIdFromCatalog,
+                ]);
+            }
+        }
+
+        foreach (is_array($info['details'] ?? null) ? $info['details'] : [] as $field) {
+            $label = trim((string) ($field['label'] ?? ''));
+            $value = trim((string) ($field['value'] ?? ''));
+            if ($label === '' || $value === '' || $value === '—') {
+                continue;
+            }
+            if ($this->identityHasLabel($sampleInfo, $label)) {
+                continue;
+            }
+            $sampleInfo[] = ['label' => $label, 'value' => $value];
+        }
+
+        $sampleInfo = $this->catalogFields($sampleInfo);
+        $sampleTests = array_values(array_filter(array_unique(array_map(
+            static fn (mixed $test): string => trim((string) $test),
+            is_array($info['tests'] ?? null) ? $info['tests'] : []
+        )), static fn (string $test): bool => $test !== ''));
 
         $identityLabels = [
             'customer sample id' => 'Customer sample ID',
@@ -619,6 +704,33 @@ final class SampleIntegrityCheckService
             $description = trim((string) ($info['export_label'] ?? ''));
         }
 
+        $clientTitle = 'Client';
+        $clientFieldsByLabel = [];
+        foreach ($catalog['client'] as $field) {
+            $label = trim((string) ($field['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+            $clientFieldsByLabel[mb_strtolower($label)] = trim((string) ($field['value'] ?? ''));
+            if (strcasecmp($label, 'Client name') === 0) {
+                $title = trim((string) ($field['value'] ?? ''));
+                if ($title !== '') {
+                    $clientTitle = $title;
+                }
+            }
+        }
+
+        $sampleInfo = array_values(array_filter(
+            $sampleInfo,
+            static function (array $field): bool {
+                $label = mb_strtolower(trim((string) ($field['label'] ?? '')));
+
+                return $label !== ''
+                    && ! str_contains($label, 'sampling point')
+                    && ! str_contains($label, 'sampling location');
+            }
+        ));
+
         return [
             'display_label' => $description !== '' ? $description : 'Sample',
             'sample_description' => $description,
@@ -626,9 +738,105 @@ final class SampleIntegrityCheckService
             'customer_sample_id' => $customerSampleId,
             'condition_name' => $conditionName,
             'condition_not_acceptable' => TrfLabUseFieldsService::isNotAcceptableConditionName($conditionName),
+            'client_title' => $clientTitle,
+            'customer' => $catalog['client'],
+            'customer_card' => $this->customerCardForSampleInfoModal($instance, $enquiry, $clientFieldsByLabel, $clientTitle),
+            'collection' => $catalog['collection'],
+            'sample_info' => $sampleInfo,
+            'sample_tests' => $sampleTests,
             'identity' => $identity,
             'tests' => $tests,
         ];
+    }
+
+    /**
+     * Compact customer block for the sample info modal (Client | Contact person).
+     *
+     * @param  array<string, string>  $clientFieldsByLabel
+     * @return array{
+     *     client_name: string,
+     *     contact_person: string,
+     *     email: string,
+     *     mobile: string,
+     *     address: string
+     * }
+     */
+    private function customerCardForSampleInfoModal(
+        SubmissionFormInstance $instance,
+        ?SampleSubmissionRequest $enquiry,
+        array $clientFieldsByLabel,
+        string $clientTitle,
+    ): array {
+        $instance->loadMissing(['crmCustomer.mainContact']);
+        $crm = $instance->crmCustomer ?? $enquiry?->customer;
+        if ($crm !== null) {
+            $crm->loadMissing(['mainContact']);
+        }
+
+        $mainContact = $crm?->mainContact;
+        $contactPerson = $this->firstNonEmptyString([
+            $clientFieldsByLabel['customer contact name'] ?? '',
+            (string) ($crm?->contact_person ?? ''),
+            trim(implode(' ', array_filter([
+                (string) ($mainContact?->first_name ?? ''),
+                (string) ($mainContact?->middle_name ?? ''),
+                (string) ($mainContact?->last_name ?? ''),
+            ]))),
+            (string) ($mainContact?->name ?? ''),
+        ]);
+
+        $email = $this->firstNonEmptyString([
+            $clientFieldsByLabel['customer contact email'] ?? '',
+            $clientFieldsByLabel['email'] ?? '',
+            (string) ($mainContact?->email ?? ''),
+            (string) ($crm?->email ?? ''),
+        ]);
+
+        $mobile = $this->firstNonEmptyString([
+            $clientFieldsByLabel['customer contact phone'] ?? '',
+            $clientFieldsByLabel['mobile number'] ?? '',
+            $clientFieldsByLabel['mobile'] ?? '',
+            (string) ($mainContact?->mobile ?? ''),
+            (string) ($mainContact?->telephone ?? ''),
+            (string) ($crm?->telephone1 ?? ''),
+        ]);
+
+        $address = $this->firstNonEmptyString([
+            (string) ($crm?->physical_address ?? ''),
+            (string) ($crm?->postal_address ?? ''),
+            (string) ($crm?->billing_address ?? ''),
+            $clientFieldsByLabel['address'] ?? '',
+        ]);
+
+        $clientName = $this->firstNonEmptyString([
+            $clientFieldsByLabel['client name'] ?? '',
+            $clientTitle !== 'Client' ? $clientTitle : '',
+            (string) ($crm?->name ?? ''),
+            (string) ($enquiry?->customer?->name ?? ''),
+        ]);
+
+        return [
+            'client_name' => $clientName,
+            'contact_person' => $contactPerson,
+            'email' => $email,
+            'mobile' => $mobile,
+            'address' => $address,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $candidates
+     */
+    private function firstNonEmptyString(array $candidates): string
+    {
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -774,6 +982,65 @@ final class SampleIntegrityCheckService
         ));
 
         return SubmissionFormSchemaHelper::testCategoryLabel(implode(',', $tokens));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function testInfoFromElement(
+        ?AnalysisElements $element,
+        string $sampleType,
+        string $analysisType,
+        string $testCategory,
+    ): array {
+        if ($element === null) {
+            return [];
+        }
+
+        $equipmentName = trim((string) ($element->equipment?->name ?? ''));
+        if ($equipmentName === '') {
+            $equipmentName = trim((string) ($element->equipment?->equipment_number ?? ''));
+        }
+
+        $unit = trim((string) ($element->reporting_unit ?? ''));
+        if ($unit === '' && $element->relationLoaded('reportingUnit')) {
+            $unit = trim((string) ($element->reportingUnit?->name ?? ''));
+        }
+
+        $hasFormula = trim((string) ($element->formular_id ?? '')) !== '';
+        $hasMethodSequence = (bool) ($element->has_method_sequence ?? false)
+            || trim((string) ($element->method_sequence_id ?? '')) !== '';
+
+        return [
+            'TAT' => trim((string) ($element->reporting_time ?? '')),
+            'Method' => $this->elementMethodName($element),
+            'Sample type' => $sampleType,
+            'Analysis type' => $analysisType,
+            'Test category' => $testCategory,
+            'LOD' => $this->formatTestInfoNumber($element->lod),
+            'LOQ' => $this->formatTestInfoNumber($element->hod),
+            'Equipment' => $equipmentName,
+            'Unit' => $unit,
+            'Has formula' => $hasFormula ? 'Yes' : 'No',
+            'Has method sequence' => $hasMethodSequence ? 'Yes' : 'No',
+            'MU' => $this->formatTestInfoNumber($element->measurement_uncertainty),
+            'Accredited' => ! (bool) ($element->non_accredited ?? false) ? 'Yes' : 'No',
+        ];
+    }
+
+    private function formatTestInfoNumber(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if (! is_numeric($value)) {
+            return trim((string) $value);
+        }
+
+        $formatted = rtrim(rtrim(number_format((float) $value, 6, '.', ''), '0'), '.');
+
+        return $formatted === '' ? '0' : $formatted;
     }
 
     /**

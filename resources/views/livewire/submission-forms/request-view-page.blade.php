@@ -380,15 +380,20 @@
                             </select>
                         </div>
                         <div class="form-group mb-0">
-                            <label for="quotationAcceptanceAttachment">Upload attachment (optional)</label>
-                            <input type="file"
-                                id="quotationAcceptanceAttachment"
-                                class="form-control-file"
-                                wire:model="quotationAcceptanceAttachment">
-                            <small class="text-muted d-block">Use this for a purchase order or supporting document. Signature is still required to accept.</small>
-                            @error('quotationAcceptanceAttachment')
-                                <small class="text-danger d-block mt-1">{{ $message }}</small>
-                            @enderror
+                            @include('layouts.lab.partials.ls-ui.upload.ls-upload-files', [
+                                'title' => 'Upload attachment (optional)',
+                                'subtitle' => 'Use this for a purchase order or supporting document. Signature is still required to accept.',
+                                'hint' => 'JPEG, PNG, or PDF, up to 10 MB.',
+                                'accept' => '.pdf,.png,.jpg,.jpeg',
+                                'showUrlImport' => false,
+                                'showDemoFiles' => false,
+                                'showHeadClose' => false,
+                                'multiple' => false,
+                                'inputId' => 'quotationAcceptanceAttachment',
+                                'wireModel' => 'quotationAcceptanceAttachment',
+                                'errorBag' => 'quotationAcceptanceAttachment',
+                            ])
+                            <div wire:loading wire:target="quotationAcceptanceAttachment" class="small text-muted mt-1">Uploading…</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -485,6 +490,21 @@
     let requestViewQuotationPad = null;
     let requestViewQuotationPadToken = 0;
 
+    function scheduleRequestViewQuotationPadInit(callback) {
+        requestAnimationFrame(function () {
+            requestAnimationFrame(callback);
+        });
+    }
+
+    function resetRequestViewQuotationPad() {
+        requestViewQuotationPadToken += 1;
+        requestViewQuotationPad = null;
+        const canvas = document.getElementById('request-view-quotation-acceptance-canvas');
+        if (canvas) {
+            delete canvas.dataset.quotationAcceptancePadReady;
+        }
+    }
+
     function ensureSignaturePadLoaded() {
         if (typeof SignaturePad !== 'undefined') {
             return Promise.resolve();
@@ -534,6 +554,10 @@
             return;
         }
 
+        if (canvas.dataset.quotationAcceptancePadReady === '1' && requestViewQuotationPad) {
+            return;
+        }
+
         const token = ++requestViewQuotationPadToken;
         const existingStrokeData = (requestViewQuotationPad && !requestViewQuotationPad.isEmpty())
             ? requestViewQuotationPad.toData()
@@ -544,6 +568,7 @@
             backgroundColor: 'rgb(255,255,255)',
             penColor: 'rgb(0,0,0)',
         });
+        canvas.dataset.quotationAcceptancePadReady = '1';
 
         if (clearBtn) {
             clearBtn.onclick = function () {
@@ -564,37 +589,46 @@
         await applyRequestViewQuotationSignature(initialSignature || '', token);
     }
 
-    Livewire.on('quotation-acceptance-modal-opened', (payload) => {
-        const data = payload?.detail ?? payload ?? {};
-        const signature = data.signature ?? data[0]?.signature ?? '';
-        ensureSignaturePadLoaded()
-            .then(() => setTimeout(() => initRequestViewQuotationPad(signature), 250))
-            .catch(() => {});
-    });
+    if (!window.__requestViewQuotationAcceptancePadBound) {
+        window.__requestViewQuotationAcceptancePadBound = true;
 
-    Livewire.on('quotation-acceptance-signature-changed', (payload) => {
-        const data = payload?.detail ?? payload ?? {};
-        const signature = data.signature ?? data[0]?.signature ?? '';
-        const token = requestViewQuotationPadToken;
-        setTimeout(() => applyRequestViewQuotationSignature(signature, token), 50);
-    });
+        Livewire.on('quotation-acceptance-modal-opened', (payload) => {
+            const data = payload?.detail ?? payload ?? {};
+            const signature = data.signature ?? data[0]?.signature ?? '';
+            resetRequestViewQuotationPad();
+            ensureSignaturePadLoaded()
+                .then(() => scheduleRequestViewQuotationPadInit(() => initRequestViewQuotationPad(signature)))
+                .catch(() => {});
+        });
 
-    document.addEventListener('click', (e) => {
-        const btn = e.target.closest('#request-view-quotation-acceptance-submit');
-        if (!btn) {
-            return;
-        }
+        Livewire.on('quotation-acceptance-modal-closed', () => {
+            resetRequestViewQuotationPad();
+        });
 
-        e.preventDefault();
-        e.stopImmediatePropagation();
+        Livewire.on('quotation-acceptance-signature-changed', (payload) => {
+            const data = payload?.detail ?? payload ?? {};
+            const signature = data.signature ?? data[0]?.signature ?? '';
+            const token = requestViewQuotationPadToken;
+            scheduleRequestViewQuotationPadInit(() => applyRequestViewQuotationSignature(signature, token));
+        });
 
-        if (!requestViewQuotationPad || requestViewQuotationPad.isEmpty()) {
-            alert('Please provide the customer signature.');
-            return;
-        }
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('#request-view-quotation-acceptance-submit');
+            if (!btn) {
+                return;
+            }
 
-        $wire.call('submitQuotationAcceptanceSignature', requestViewQuotationPad.toDataURL('image/png'));
-    }, true);
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            if (!requestViewQuotationPad || requestViewQuotationPad.isEmpty()) {
+                alert('Please provide the customer signature.');
+                return;
+            }
+
+            $wire.call('submitQuotationAcceptanceSignature', requestViewQuotationPad.toDataURL('image/png'));
+        }, true);
+    }
 
     (function initSampleRowEditModalUi() {
         if (window.__sampleRowEditModalUiBound) {

@@ -1,5 +1,7 @@
 @php
     $pageHeader = $pageHeader ?? [];
+    $trfPdfUrl = $trfPdfUrl ?? null;
+    $quotationPdfUrl = $quotationPdfUrl ?? null;
 @endphp
 <div class="row mb-3">
     <div class="col-12">
@@ -9,7 +11,9 @@
                     <div>
                         <h2 class="integrity-header-title">
                             <i class="mdi mdi-shield-check-outline"></i>
-                            @if(! empty($pageHeader['request_number']))
+                            @if(! empty($pageHeader['form_number']))
+                                {{ $pageHeader['form_number'] }}
+                            @elseif(! empty($pageHeader['request_number']))
                                 {{ $pageHeader['request_number'] }}
                             @else
                                 Sample Integrity Check
@@ -35,6 +39,26 @@
                     </div>
 
                     <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
+                        @if(! empty($trfPdfUrl))
+                            <a href="{{ $trfPdfUrl }}"
+                                class="btn btn-sm btn-outline-secondary integrity-doc-btn"
+                                target="_blank"
+                                rel="noopener"
+                                title="Test Request Form PDF">
+                                <i class="mdi mdi-file-pdf-box"></i>
+                                <span class="d-none d-md-inline">TRF</span>
+                            </a>
+                        @endif
+                        @if(! empty($quotationPdfUrl))
+                            <a href="{{ $quotationPdfUrl }}"
+                                class="btn btn-sm btn-outline-secondary integrity-doc-btn"
+                                target="_blank"
+                                rel="noopener"
+                                title="View quotation PDF">
+                                <i class="mdi mdi-currency-usd"></i>
+                                <span class="d-none d-md-inline">Quotation</span>
+                            </a>
+                        @endif
                         <button type="button"
                             class="btn btn-sm btn-integrity-primary"
                             wire:click="openAcceptConfirm"
@@ -56,36 +80,19 @@
                                  @click="if ($event.target.closest('.dropdown-item')) { open = false; }">
                                 <button type="button"
                                     class="dropdown-item"
-                                    wire:click="openWorksheetModal"
+                                    wire:click="openWorksheetModal('pdf')"
                                     wire:loading.attr="disabled"
                                     wire:target="openWorksheetModal,issueWorksheetPdf,issueWorksheetExcel,issueAndNotifyAnalysts">
-                                    <i class="mdi mdi-file-document-multiple-outline mr-2"></i>
-                                    Issue lab section worksheet…
-                                </button>
-                                <div class="dropdown-divider"></div>
-                                <button type="button"
-                                    class="dropdown-item"
-                                    wire:click="generateWorksheetPdf"
-                                    wire:loading.attr="disabled"
-                                    wire:target="generateWorksheetPdf">
-                                    <span wire:loading.remove wire:target="generateWorksheetPdf">
-                                        <i class="mdi mdi-file-pdf-box mr-2"></i> Print combined worksheet PDF
-                                    </span>
-                                    <span wire:loading wire:target="generateWorksheetPdf">
-                                        <i class="mdi mdi-loading mdi-spin mr-2"></i> Generating…
-                                    </span>
+                                    <i class="mdi mdi-file-pdf-box mr-2"></i>
+                                    Print worksheet PDF…
                                 </button>
                                 <button type="button"
                                     class="dropdown-item"
-                                    wire:click="downloadExcel"
+                                    wire:click="openWorksheetModal('excel')"
                                     wire:loading.attr="disabled"
-                                    wire:target="downloadExcel">
-                                    <span wire:loading.remove wire:target="downloadExcel">
-                                        <i class="mdi mdi-file-excel-outline mr-2"></i> Print combined worksheet Excel
-                                    </span>
-                                    <span wire:loading wire:target="downloadExcel">
-                                        <i class="mdi mdi-loading mdi-spin mr-2"></i> Downloading…
-                                    </span>
+                                    wire:target="openWorksheetModal,issueWorksheetPdf,issueWorksheetExcel,issueAndNotifyAnalysts">
+                                    <i class="mdi mdi-file-excel-outline mr-2"></i>
+                                    Print worksheet Excel…
                                 </button>
                                 <div class="dropdown-divider"></div>
                                 <a href="{{ $collectionLabelUrl }}" target="_blank" class="dropdown-item">

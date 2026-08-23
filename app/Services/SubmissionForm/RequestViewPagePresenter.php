@@ -15,6 +15,10 @@ class RequestViewPagePresenter
 
     public const STAGE_QUOTATION_IN_PROGRESS = 'Quotation In Progress';
 
+    public const STAGE_QUOTATION_PENDING_APPROVAL = 'Quotation Pending Approval';
+
+    public const STAGE_QUOTATION_READY_TO_SEND = 'Quotation Ready to Send';
+
     public const STAGE_QUOTATION_SENT = 'Quotation Sent';
 
     public const STAGE_QUOTATION_UNDER_REVIEW = 'Quotation Under Review';
@@ -25,19 +29,27 @@ class RequestViewPagePresenter
 
     public const STAGE_SAMPLE_INTEGRITY_CHECK = 'Sample Integrity Check';
 
-    /** @deprecated In Review was removed; acceptance runs on the Sample Integrity Check page. */
     public const STAGE_IN_REVIEW = 'In Review';
 
+    public const STAGE_REQUEST_ADDITIONAL_INFO = 'Request Additional Info';
+
     public const STAGE_ACCEPTED = 'Accepted';
+
+    public const STAGE_DRAFT = 'Draft';
 
     /** @var list<string> */
     public const ENQUIRY_PROGRESS_STAGES = [
         self::STAGE_REQUESTED,
         self::STAGE_QUOTATION_IN_PROGRESS,
+        self::STAGE_QUOTATION_PENDING_APPROVAL,
+        self::STAGE_QUOTATION_READY_TO_SEND,
         self::STAGE_QUOTATION_SENT,
         self::STAGE_QUOTATION_UNDER_REVIEW,
         self::STAGE_QUOTATION_ACCEPTED,
         self::STAGE_READY_FOR_RECEPTION,
+        self::STAGE_SAMPLE_INTEGRITY_CHECK,
+        self::STAGE_IN_REVIEW,
+        self::STAGE_REQUEST_ADDITIONAL_INFO,
         self::STAGE_ACCEPTED,
     ];
 
@@ -162,37 +174,9 @@ class RequestViewPagePresenter
             return null;
         }
 
-        if ($this->isAccepted()) {
-            return self::STAGE_ACCEPTED;
-        }
+        $label = $this->commercialEnquiry->displayStatus();
 
-        // Past physical check-in (legacy In Review) still awaits Accept Samples.
-        if ($this->isPastReception()) {
-            return self::STAGE_READY_FOR_RECEPTION;
-        }
-
-        $raw = (string) ($this->commercialEnquiry->status ?? '');
-        $commercial = $this->commercialEnquiry->commercialStatus();
-
-        if ($commercial === 'Sales Order Created' || $raw === 'Received at Lab') {
-            return self::STAGE_READY_FOR_RECEPTION;
-        }
-
-        return match ($raw) {
-            'submitted', 'Submitted' => self::STAGE_REQUESTED,
-            SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND, 'Pending Quotation' => self::STAGE_QUOTATION_IN_PROGRESS,
-            SampleSubmissionRequest::STATUS_REQUESTED => self::STAGE_REQUESTED,
-            SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => self::STAGE_QUOTATION_IN_PROGRESS,
-            SampleSubmissionRequest::STATUS_QUOTATION_PENDING_APPROVAL => self::STAGE_QUOTATION_IN_PROGRESS,
-            SampleSubmissionRequest::STATUS_QUOTATION_SENT => self::STAGE_QUOTATION_SENT,
-            SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => self::STAGE_QUOTATION_UNDER_REVIEW,
-            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => self::STAGE_QUOTATION_ACCEPTED,
-            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION => self::STAGE_READY_FOR_RECEPTION,
-            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK => self::STAGE_SAMPLE_INTEGRITY_CHECK,
-            SampleSubmissionRequest::STATUS_IN_REVIEW => self::STAGE_READY_FOR_RECEPTION,
-            'received_at_lab' => self::STAGE_ACCEPTED,
-            default => $commercial !== '' ? $commercial : ($raw !== '' ? $raw : null),
-        };
+        return $label !== '—' ? $label : null;
     }
 
     /**
@@ -816,7 +800,22 @@ class RequestViewPagePresenter
 
     public function canEditSampleRows(): bool
     {
-        return ! $this->isPastReception();
+        if ($this->commercialEnquiry === null) {
+            return true;
+        }
+
+        $status = (string) ($this->commercialEnquiry->status ?? '');
+
+        return ! in_array($status, [
+            SampleSubmissionRequest::STATUS_SAMPLE_INTEGRITY_CHECK,
+            SampleSubmissionRequest::STATUS_IN_REVIEW,
+            SampleSubmissionRequest::STATUS_ACCEPTED,
+            'Received at Lab',
+        ], true)
+            && $this->instance->batches->isEmpty()
+            && ! $this->instance->analysisAcceptanceForms->contains(
+                fn ($form): bool => (string) $form->status === AnalysisAcceptanceForm::STATUS_COMPLETED
+            );
     }
 
     /**
@@ -1592,55 +1591,6 @@ class RequestViewPagePresenter
         ];
     }
 
-    private function isAccepted(): bool
-    {
-        if ($this->commercialEnquiry === null) {
-            return false;
-        }
-
-        $raw = (string) ($this->commercialEnquiry->status ?? '');
-        if ($raw === 'received_at_lab' || $this->commercialEnquiry->commercialStatus() === 'Accepted') {
-            return true;
-        }
-
-        return $this->instance->analysisAcceptanceForms->contains(
-            fn ($form): bool => (string) $form->status === AnalysisAcceptanceForm::STATUS_COMPLETED
-        );
-    }
-
-    private function isPastReception(): bool
-    {
-        if ($this->commercialEnquiry === null) {
-            return false;
-        }
-
-        if (! empty($this->commercialEnquiry->sample_header_id)) {
-            return true;
-        }
-
-        $instanceStatus = strtolower((string) $this->instance->status);
-        if (in_array($instanceStatus, ['received', 'in_review', 'in_additional_info', 'approved', 'rejected', 'complete'], true)) {
-            return in_array((string) $this->commercialEnquiry->status, [
-                SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
-                SampleSubmissionRequest::STATUS_IN_REVIEW,
-                'Received at Lab',
-                'received_at_lab',
-            ], true)
-                || $this->instance->batches->isNotEmpty()
-                || $this->instance->analysisAcceptanceForms->isNotEmpty();
-        }
-
-        if ($this->instance->batches->contains(fn ($batch) => (string) $batch->status === 'Samples Request Review')) {
-            return true;
-        }
-
-        if ($this->instance->analysisAcceptanceForms->isNotEmpty()) {
-            return true;
-        }
-
-        return false;
-    }
-
     /**
      * @param  array<string, mixed>  $section
      */
@@ -1896,6 +1846,8 @@ class RequestViewPagePresenter
         $earlyQuote = in_array($stage, [
             self::STAGE_REQUESTED,
             self::STAGE_QUOTATION_IN_PROGRESS,
+            self::STAGE_QUOTATION_PENDING_APPROVAL,
+            self::STAGE_QUOTATION_READY_TO_SEND,
             self::STAGE_QUOTATION_SENT,
             self::STAGE_QUOTATION_UNDER_REVIEW,
         ], true);
@@ -1920,7 +1872,7 @@ class RequestViewPagePresenter
             }
         } elseif ($stage === self::STAGE_QUOTATION_ACCEPTED) {
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');
-        } elseif ($stage === self::STAGE_READY_FOR_RECEPTION) {
+        } elseif (in_array($stage, [self::STAGE_READY_FOR_RECEPTION, self::STAGE_IN_REVIEW], true)) {
             $primary = $this->action(
                 'receive_samples',
                 'Receive Samples',
@@ -1964,14 +1916,16 @@ class RequestViewPagePresenter
     private function isActionAllowedInStage(string $key, string $stage): bool
     {
         $blockedByStage = match ($stage) {
-            self::STAGE_READY_FOR_RECEPTION => [
+            self::STAGE_READY_FOR_RECEPTION,
+            self::STAGE_IN_REVIEW => [
                 'process_enquiry',
                 'record_po',
                 'record_walk_in_acceptance',
                 'send_for_review',
                 'accept_samples',
             ],
-            self::STAGE_SAMPLE_INTEGRITY_CHECK => [
+            self::STAGE_SAMPLE_INTEGRITY_CHECK,
+            self::STAGE_REQUEST_ADDITIONAL_INFO => [
                 'process_enquiry',
                 'record_po',
                 'record_walk_in_acceptance',
@@ -1995,6 +1949,8 @@ class RequestViewPagePresenter
             ],
             self::STAGE_REQUESTED,
             self::STAGE_QUOTATION_IN_PROGRESS,
+            self::STAGE_QUOTATION_PENDING_APPROVAL,
+            self::STAGE_QUOTATION_READY_TO_SEND,
             self::STAGE_QUOTATION_SENT,
             self::STAGE_QUOTATION_UNDER_REVIEW => [
                 'record_po',

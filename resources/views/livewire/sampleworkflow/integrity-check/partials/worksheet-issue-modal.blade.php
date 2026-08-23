@@ -1,6 +1,10 @@
 @php
     $worksheetSectionOptions = $worksheetSectionOptions ?? [];
     $selectedWorksheetSectionIds = $selectedWorksheetSectionIds ?? [];
+    $worksheetModalMode = in_array(($worksheetModalMode ?? 'pdf'), ['pdf', 'excel'], true)
+        ? $worksheetModalMode
+        : 'pdf';
+    $isPdfMode = $worksheetModalMode === 'pdf';
 @endphp
 
 @if($showWorksheetModal ?? false)
@@ -9,8 +13,13 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="mdi mdi-file-document-multiple-outline mr-1"></i>
-                        Issue lab section worksheet
+                        @if($isPdfMode)
+                            <i class="mdi mdi-file-pdf-box mr-1"></i>
+                            Print worksheet PDF
+                        @else
+                            <i class="mdi mdi-file-excel-outline mr-1"></i>
+                            Print worksheet Excel
+                        @endif
                     </h5>
                     <button type="button" class="close" wire:click="closeWorksheetModal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
@@ -23,8 +32,14 @@
                         </p>
                     @else
                         <p class="text-muted small mb-3">
-                            Select one or more lab sections. Each section receives its own numbered worksheet
-                            (<code>YYMMDD-SECTION.###</code>) with sample, collection, and test details for that section only.
+                            Choose lab section(s). Each section gets its own numbered worksheet
+                            (<code>YYMMDD-SECTION.###</code>) with only that section’s tests
+                            (sample, collection, LOD/LOQ/MU/method/equipment). Client details are omitted.
+                            @if($isPdfMode)
+                                PDF opens in a new tab for viewing. Use <strong>Issue &amp; notify analysts</strong> only when you want to notify assignees.
+                            @else
+                                Excel downloads to your computer. Use <strong>Issue &amp; notify analysts</strong> only when you want to notify assignees.
+                            @endif
                         </p>
                         <div class="integrity-worksheet-section-list">
                             @foreach($worksheetSectionOptions as $option)
@@ -59,28 +74,31 @@
                         Cancel
                     </button>
                     <div class="d-flex flex-wrap" style="gap: 8px;">
-                        <button type="button"
-                            class="btn btn-outline-secondary btn-sm"
-                            wire:click="issueWorksheetExcel"
-                            wire:loading.attr="disabled"
-                            wire:target="issueWorksheetExcel"
-                            @disabled($worksheetSectionOptions === [] || $selectedWorksheetSectionIds === [])>
-                            <span wire:loading.remove wire:target="issueWorksheetExcel">
-                                <i class="mdi mdi-file-excel-outline"></i> Excel
-                            </span>
-                            <span wire:loading wire:target="issueWorksheetExcel">Issuing…</span>
-                        </button>
-                        <button type="button"
-                            class="btn btn-outline-secondary btn-sm"
-                            wire:click="issueWorksheetPdf"
-                            wire:loading.attr="disabled"
-                            wire:target="issueWorksheetPdf"
-                            @disabled($worksheetSectionOptions === [] || $selectedWorksheetSectionIds === [])>
-                            <span wire:loading.remove wire:target="issueWorksheetPdf">
-                                <i class="mdi mdi-file-pdf-box"></i> PDF
-                            </span>
-                            <span wire:loading wire:target="issueWorksheetPdf">Issuing…</span>
-                        </button>
+                        @if($isPdfMode)
+                            <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                wire:click="issueWorksheetPdf"
+                                wire:loading.attr="disabled"
+                                wire:target="issueWorksheetPdf"
+                                @disabled($worksheetSectionOptions === [] || $selectedWorksheetSectionIds === [])>
+                                <span wire:loading.remove wire:target="issueWorksheetPdf">
+                                    <i class="mdi mdi-file-pdf-box"></i> View PDF
+                                </span>
+                                <span wire:loading wire:target="issueWorksheetPdf">Opening…</span>
+                            </button>
+                        @else
+                            <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                wire:click="issueWorksheetExcel"
+                                wire:loading.attr="disabled"
+                                wire:target="issueWorksheetExcel"
+                                @disabled($worksheetSectionOptions === [] || $selectedWorksheetSectionIds === [])>
+                                <span wire:loading.remove wire:target="issueWorksheetExcel">
+                                    <i class="mdi mdi-file-excel-outline"></i> Download Excel
+                                </span>
+                                <span wire:loading wire:target="issueWorksheetExcel">Preparing…</span>
+                            </button>
+                        @endif
                         <button type="button"
                             class="btn btn-primary btn-sm"
                             wire:click="issueAndNotifyAnalysts"
