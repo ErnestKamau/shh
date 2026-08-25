@@ -1395,6 +1395,24 @@ class RequisitionController extends Controller
 		return redirect()->route('view-request-details', ['stage' => $rfq->request_type, 'id' => $rfq->id])->with('success', 'Purchase Request successfuly created.');
 	}
 
+	private function resolveInventoryDepartmentId(?string $preferred = null): ?string
+	{
+		$preferred = $this->uuidOrNull($preferred);
+		if ($preferred) {
+			return $preferred;
+		}
+
+		$authDepartment = $this->uuidOrNull(\Auth::user()->department_id ?? null);
+		if ($authDepartment) {
+			return $authDepartment;
+		}
+
+		return \App\InventoryDepartment::query()
+			->whereIn('name', ['Store Keeping', 'store', 'Procurement', 'Admin', 'Finance'])
+			->orderByRaw("CASE name WHEN 'Store Keeping' THEN 1 WHEN 'store' THEN 2 WHEN 'Procurement' THEN 3 WHEN 'Admin' THEN 4 ELSE 5 END")
+			->value('id');
+	}
+
 	public function affect_inventory($action, $item, $entity)
 	{
 		$inventoryC = new \App\Http\Controllers\InventoryItemController;
@@ -1409,7 +1427,7 @@ class RequisitionController extends Controller
 			$req->lot_no = $item->lot_no;
 			$req->slot = $item->slot_id;
 			$req->store = $item->store_id;
-			$req->transfer_to = $theUser->department_id;
+			$req->transfer_to = $this->resolveInventoryDepartmentId($theUser->department_id ?? null);
 			$req->issued_to = $theUser->id;
 			$req->item_brand_id = $item->item_brand_id;
 
@@ -1434,7 +1452,9 @@ class RequisitionController extends Controller
 			$myRequest->store = $item->store_id;
 			$myRequest->expiry = $item->gr_expiry;
 			$myRequest->date_of_manufacture = $item->date_of_manufacture;
-			$myRequest->inventory_department_id = systemVariables('procurement_department');
+			$myRequest->inventory_department_id = $this->resolveInventoryDepartmentId(
+				$this->uuidOrNull($entity->department)
+			);
 
 			$receivedItem = $inventoryC->add($myRequest, true);
 
@@ -1781,6 +1801,13 @@ class RequisitionController extends Controller
 				return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
 			}
 		}
+
+		// Drop incomplete receive rows left by a previous failed stock-in attempt.
+		RequestEntityItem::query()
+			->where('request_id', $entity->id)
+			->where('action', 'issued_received')
+			->whereNull('inventory_item_id')
+			->delete();
 
 		$anyPendingItems = array();
 		foreach ($items['req_item_id'] as $i => $id) {

@@ -1972,25 +1972,9 @@ function getNamingConventionCode($model, $name, $requiredName = '')
 	}
 
 	$namingConV = App\NamingConvensionConsensus::where('string_part', $nameString)->where('model', $model)->first();
-	if ($model == 'Samples') {
-		$header = App\SampleHeader::latest('id')->first();
-		$nameInteger = 0;
-		if ($namingConV && isset($namingConV->string_part)) {
-			$nameInteger = intval("15001") + $header->id + 1;
-			$nameInteger = str_pad($nameInteger, $defaultPadding, "0", STR_PAD_LEFT);
-		} else {
-			$namingConV = new App\NamingConvensionConsensus;
-			$namingConV->string_part = $nameString;
-			$namingConV->model = $model;
-			$namingConV->company_id = getUserCompany();
-		}
-		$namingConV->integer_part = $nameInteger;
-		$namingConV->save();
 
-		return $nameString . "" . $nameInteger;
-	}
-
-
+	// Inventory batch codes reuse model "Samples". SampleHeader ids are UUIDs now,
+	// so do not derive the sequence from header->id (legacy int math).
 	$nameInteger = "1";
 
 	if ($namingConV && isset($namingConV->string_part)) {
@@ -2001,6 +1985,12 @@ function getNamingConventionCode($model, $name, $requiredName = '')
 		$namingConV->string_part = $nameString;
 		$namingConV->model = $model;
 		$namingConV->company_id = getUserCompany();
+
+		if ($model === 'Samples') {
+			// Preserve a high starting range similar to the old 15001 + header_id scheme.
+			$headerCount = App\SampleHeader::query()->count();
+			$nameInteger = str_pad((string) max(1, 15001 + $headerCount), $defaultPadding, "0", STR_PAD_LEFT);
+		}
 	}
 	$nameInteger = str_pad($nameInteger, $defaultPadding, "0", STR_PAD_LEFT);
 	$namingConV->integer_part = $nameInteger;

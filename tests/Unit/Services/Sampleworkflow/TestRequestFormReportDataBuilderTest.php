@@ -239,14 +239,15 @@ class TestRequestFormReportDataBuilderTest extends TestCase
         $this->assertSame('WW-456', $data['wasteWaterFields']['sample_number']);
         $this->assertSame('1. Sewage Manhole', $data['wasteWaterFields']['sample_description']);
         $this->assertSame('AMS/C/INS/134', $data['wasteWaterFields']['ph_meter_id']);
-        $this->assertStringContainsString('Sampler: AMS/C/INS/200', $data['wasteWaterFields']['sampling_apparatus_others']);
+        $this->assertSame('', $data['wasteWaterFields']['sampling_apparatus_others']);
+        $this->assertStringContainsString('Sampler: AMS/C/INS/200', $data['wasteWaterFields']['extra_sampling_equipment']);
         $this->assertTrue($data['wasteWaterFields']['field_data_requirement_checks']['MICROBIOLOGY']);
         $this->assertTrue($data['wasteWaterFields']['field_data_requirement_checks']['CHEMISTRY']);
         $this->assertSame('Grayish', $data['wasteWaterFields']['field_data_appearance']);
         $this->assertSame(['GRAB', 'COMPOSITE', 'OTHER'], $data['collectionGrid']['technique_ordered_keys']);
     }
 
-    public function test_waste_water_field_data_falls_back_to_legacy_row_values(): void
+    public function test_waste_water_field_data_does_not_use_legacy_row_fallbacks(): void
     {
         $wasteWater = SampleType::query()->create([
             'id' => (string) Str::uuid7(),
@@ -260,14 +261,41 @@ class TestRequestFormReportDataBuilderTest extends TestCase
                 'customer_name' => 'Legacy Co',
                 'field_color' => ['Light Gray'],
                 'field_ph' => ['7.1'],
+                'sample_quantity' => ['3'],
+                'sample_quantity_unit' => ['kg'],
             ],
             $wasteWater,
             null,
             false
         );
 
-        $this->assertSame('Light Gray', $data['wasteWaterFields']['field_data_color']);
-        $this->assertSame('7.1', $data['wasteWaterFields']['field_data_ph']);
+        $this->assertSame('', $data['wasteWaterFields']['field_data_color']);
+        $this->assertSame('', $data['wasteWaterFields']['field_data_ph']);
+        $this->assertSame('', $data['wasteWaterFields']['field_data_quantity']);
+    }
+
+    public function test_waste_water_description_does_not_fall_back_to_row_sample_description(): void
+    {
+        $wasteWater = SampleType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Waste Water',
+            'code' => 'SMP-WWTR',
+            'active' => true,
+        ]);
+
+        $data = app(TestRequestFormReportDataBuilder::class)->buildFromDraft(
+            [
+                'customer_name' => 'ABC',
+                'sample_sampling_point_description' => '',
+                'sample_description' => ['chicken'],
+            ],
+            $wasteWater,
+            null,
+            false
+        );
+
+        $this->assertSame('waste_water', $data['variant']);
+        $this->assertSame('', $data['wasteWaterFields']['sample_description']);
     }
 
     public function test_field_data_requirement_checks_maps_combined_option(): void
