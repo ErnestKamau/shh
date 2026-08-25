@@ -498,14 +498,14 @@ class PricelistManager extends Component
 
             $created = (int) ($result['created'] ?? 0);
             $updated = (int) ($result['updated'] ?? 0);
-            $warnings = $result['warnings'] ?? [];
-            $msg = "Imported {$created} new / {$updated} updated pricelist item(s).";
-            if ($warnings !== []) {
-                $msg .= ' Warnings: '.implode(' ', array_slice($warnings, 0, 3));
-            }
+            $skipped = (int) ($result['skipped'] ?? count($result['warnings'] ?? []));
+            $msg = $importService->formatImportSummary($result);
+            $toastType = ($created + $updated) === 0
+                ? 'danger'
+                : ($skipped > 0 ? 'warning' : 'success');
 
             $this->closeImportModal();
-            $this->showMessage($msg, $created + $updated > 0 ? 'success' : 'danger');
+            $this->showMessage($msg, $toastType);
         } catch (\Throwable $e) {
             $this->showMessage('Import failed: '.$e->getMessage(), 'danger');
         }

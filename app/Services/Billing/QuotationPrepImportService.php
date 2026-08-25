@@ -3,11 +3,13 @@
 namespace App\Services\Billing;
 
 use App\AnalysisElements;
+use App\Analyte;
 use App\QuotationDetailAnalysisSplit;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use RuntimeException;
@@ -27,11 +29,18 @@ use RuntimeException;
  */
 class QuotationPrepImportService
 {
+    /** @var Collection<int, SampleType>|null */
+    private ?Collection $sampleTypeCatalog = null;
+
+    /** @var Collection<int, Analyte>|null */
+    private ?Collection $analyteCatalog = null;
+
     public function __construct(
         private readonly QuotationPricingResolver $quotationPricingResolver,
         private readonly QuotationLabSectionScope $quotationLabSectionScope,
         private readonly PdfTextExtractor $pdfTextExtractor,
         private readonly AmspecPackagePdfParser $amspecPackagePdfParser,
+        private readonly AmspecImportLabelMatcher $labelMatcher,
     ) {}
 
     /**
@@ -390,12 +399,14 @@ class QuotationPrepImportService
             return null;
         }
 
-        return SampleType::query()
-            ->where(function ($q) use ($name) {
-                $q->whereRaw('LOWER(name) = ?', [strtolower($name)])
-                    ->orWhereRaw('LOWER(code) = ?', [strtolower($name)]);
-            })
-            ->first();
+        foreach ($this->sampleTypeCatalog() as $sampleType) {
+            if ($this->labelMatcher->matches($name, (string) ($sampleType->name ?? ''))
+                || $this->labelMatcher->matches($name, (string) ($sampleType->code ?? ''))) {
+                return $sampleType;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -416,13 +427,14 @@ class QuotationPrepImportService
     {
         $ids = [];
         foreach ($tokens as $token) {
+            $analyte = $this->resolveAnalyte($token);
+            if ($analyte === null) {
+                continue;
+            }
+
             $element = AnalysisElements::query()
-                ->where(function ($q) use ($token) {
-                    $q->whereRaw('LOWER(parametername) = ?', [strtolower($token)])
-                        ->orWhereHas('analyte', function ($aq) use ($token) {
-                            $aq->whereRaw('LOWER(name) = ?', [strtolower($token)]);
-                        });
-                })
+                ->where('analyte_id', $analyte->id)
+                ->orderBy('id')
                 ->first();
 
             if ($element !== null) {
@@ -431,6 +443,41 @@ class QuotationPrepImportService
         }
 
         return array_values(array_unique($ids));
+    }
+
+    private function resolveAnalyte(string $token): ?Analyte
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+
+        foreach ($this->analyteCatalog() as $analyte) {
+            if ($this->labelMatcher->matches($token, (string) ($analyte->name ?? ''))
+                || $this->labelMatcher->matches($token, (string) ($analyte->code ?? ''))) {
+                return $analyte;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return Collection<int, SampleType>
+     */
+    private function sampleTypeCatalog(): Collection
+    {
+        return $this->sampleTypeCatalog ??= SampleType::query()
+            ->get(['id', 'name', 'code']);
+    }
+
+    /**
+     * @return Collection<int, Analyte>
+     */
+    private function analyteCatalog(): Collection
+    {
+        return $this->analyteCatalog ??= Analyte::query()
+            ->get(['id', 'name', 'code']);
     }
 
     /**
