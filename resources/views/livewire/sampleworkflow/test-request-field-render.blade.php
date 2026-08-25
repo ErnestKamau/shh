@@ -34,7 +34,7 @@
     $outerLabelShown = ! $hideLabel
         && ! $compact
         && ! in_array($field['type'] ?? '', ['client_select', 'client_unit_select', 'client_contact_select', 'customer_sample_point_select', 'signature'], true)
-        && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'company_unit_id', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id', 'state_of_sample', 'sample_type_id', 'sample_type', 'analysis_type_id', 'analysis_type', 'analysis_types', 'parameters', 'parameter', 'sample_temp', 'field_sample_temp', 'sample_temperature'], true);
+        && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'company_unit_id', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id', 'state_of_sample', 'sample_type_id', 'sample_type', 'analysis_type_id', 'analysis_type', 'analysis_types', 'parameters', 'parameter', 'sample_temp', 'field_sample_temp', 'sample_temperature', 'field_data_temperature'], true);
     // When parent already printed a label (hideLabel) or this partial printed one, LS includes must not repeat it.
     $lsFieldLabel = ($hideLabel || $compact || $outerLabelShown)
         ? null
