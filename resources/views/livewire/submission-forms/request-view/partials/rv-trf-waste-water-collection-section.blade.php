@@ -138,7 +138,7 @@
         @endforeach
     </div>
 
-    {{-- Row 4: transport | test category --}}
+    {{-- Row 4: transport | sample types --}}
     <div class="trf-ww-collection-row4">
         @if($collectionByName->has('transport_condition'))
             @include($fieldPartial, [
@@ -148,12 +148,12 @@
                 'optionGridClass' => 'rv-trf-option-grid trf-option-grid--ww-transport',
             ])
         @endif
-        @if($collectionByName->has('field_data_requirements'))
+        @if($collectionByName->has('sample_types_ww'))
             @include($fieldPartial, [
-                'field' => array_merge($collectionByName->get('field_data_requirements'), ['label' => 'Test category']),
+                'field' => array_merge($collectionByName->get('sample_types_ww'), ['label' => 'Sample types']),
                 'colClass' => '',
                 'hideOuterCol' => true,
-                'optionGridClass' => 'rv-trf-option-grid trf-option-grid--ww-test-category',
+                'optionGridClass' => 'rv-trf-option-grid trf-option-grid--ww-sample-types',
             ])
         @endif
     </div>
@@ -180,7 +180,7 @@
     </div>
 
     <div class="d-none">
-        @foreach(['date_received', 'sample_types_ww'] as $name)
+        @foreach(['date_received', 'field_data_requirements'] as $name)
             @if($collectionByName->has($name))
                 @include($fieldPartial, ['field' => $collectionByName->get($name), 'colClass' => '', 'hideOuterCol' => true])
             @endif

@@ -161,7 +161,6 @@ trait BuildsSubmissionFormTrfSections
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'chemistry', 'label' => 'Chemistry'],
             ]],
-            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 11],
         ];
     }
 
@@ -369,6 +368,8 @@ trait BuildsSubmissionFormTrfSections
             'field_ph',
             'field_sample_temp',
             'field_free_chlorine',
+            'field_residual_chlorine',
+            'picture_of_samples',
         ]);
         $this->patchMiscellaneousSection($form);
     }

@@ -193,6 +193,21 @@
 	$myCCs = explode(',', $request->cost_center ?? $theUser->department()->name);
 
 	$allStores = getUserStores();
+	$allStoreIds = collect($allStores)->pluck('id')->unique()->filter()->values();
+	$allStores = \App\InventoryStore::with('slots')
+		->whereIn('id', $allStoreIds)
+		->orderBy('name')
+		->get();
+	if ($allStores->isEmpty()) {
+		$locationId = getCurrentUserLocation()->id ?? null;
+		$allStores = \App\InventoryStore::with('slots')
+			->when($locationId, fn ($q) => $q->where('inventory_location_id', $locationId))
+			->where(function ($q) {
+				$q->where('is_frozen', false)->orWhere('is_frozen', '0')->orWhereNull('is_frozen');
+			})
+			->orderBy('name')
+			->get();
+	}
 ?>
 <?php
 	$gate_pass_category = getConfigByName('gate_pass_category_id');
@@ -1329,29 +1344,47 @@
 									@if(!in_array($stage,["Purchase Request", "Gate Pass", "Loan", "Lend", "Request to Store"]))
 									<td>
 										<div class="form-group">
-											<select name="items[store_id][]" data-selected="{{ $req_item->store_id }}" style="min-width: 180px"
+											<?php
+												$storeEditable = !isset($request->status)
+													|| in_array($request->status, [
+														"In Preparation",
+														"Approval Complete",
+														"Partially Approved",
+														"Partially Fulfilled",
+														"Awaiting User Reception",
+													]);
+												$selectedStoreId = $req_item->store_id ?: ($allStores->first()->id ?? null);
+												$storeForSlots = $allStores->firstWhere('id', $selectedStoreId) ?? $allStores->first();
+												$selectedSlotId = $req_item->slot_id
+													?: ($storeForSlots?->slots->first()->id ?? null);
+											?>
+											<select name="items[store_id][]" data-selected="{{ $selectedStoreId }}" style="min-width: 180px"
 												class="form-control selected-store {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
-												data-placeholder="Select Store..." {!! (isset($request->status) && in_array($request->status,
-												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
-												"Awaiting User Reception"))) || !isset($request->status) ? '' : 'disabled="true"' !!} {{
-												in_array($stage, ["Goods Receipt", "Material Issuance"]) && $request->status != "Awaiting
-												Approval" ? "required" : "" }}>
+												data-placeholder="Select Store..." {!! $storeEditable ? '' : 'disabled="true"' !!}
+												{{ in_array($stage, ["Goods Receipt", "Material Issuance"]) && $request->status != "Awaiting Approval" ? "required" : "" }}>
+												<option value="">Select Store...</option>
 												@foreach ($allStores as $store)
-												<option value="{{ $store->id }}" {{ $store->id == $req_item->store_id ? 'selected' : '' }}
-													data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
+												<option value="{{ $store->id }}" {{ $store->id == $selectedStoreId ? 'selected' : '' }}
+													data-slots='@json($store->slots->map->only(["id", "name"]))'>{{ $store->name }}</option>
 												@endforeach
 											</select>
 										</div>
 									</td>
 									<td>
 										<div class="form-group">
-											<select name="items[slot_id][]" data-slot="{{ $req_item->slot_id }}" style="min-width: 160px"
+											<select name="items[slot_id][]" data-slot="{{ $selectedSlotId }}" style="min-width: 160px"
 												class="form-control store-slots {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
-												data-placeholder="Select Slot..." {!! (isset($request->status) && in_array($request->status,
-												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
-												"Awaiting User Reception"))) || !isset($request->status) ? '' : 'disabled="true"' !!} {{
-												in_array($stage, ["Goods Receipt", "Material Issuance"]) && $request->status != "Awaiting
-												Approval" ? "required" : "" }}></select>
+												data-placeholder="Select Slot..." {!! $storeEditable ? '' : 'disabled="true"' !!}
+												{{ in_array($stage, ["Goods Receipt", "Material Issuance"]) && $request->status != "Awaiting Approval" ? "required" : "" }}>
+												<option value="">Select Slot...</option>
+												@if($storeForSlots)
+													@foreach($storeForSlots->slots as $slotOption)
+														<option value="{{ $slotOption->id }}" {{ $slotOption->id == $selectedSlotId ? 'selected' : '' }}>
+															{{ $slotOption->name }}
+														</option>
+													@endforeach
+												@endif
+											</select>
 										</div>
 									</td>
 									<td>
@@ -2455,8 +2488,7 @@
 					<div class="form-group reason-textarea mt-1">
 						<label class="control-label"><em>Reason for your rating</em></label>
 						<textarea class="form-control form-control-sm rating-delivery-reason" data-type="reason"
-							name="delivery_rating[{{ $gSRC->id }}]reason" placeholder="Reason..."
-							required>{{ $score_reason }}</textarea>
+							name="delivery_rating[{{ $gSRC->id }}]reason" placeholder="Reason...">{{ $score_reason }}</textarea>
 					</div>
 				</div>
 				@endforeach
@@ -3219,32 +3251,7 @@
 		</form>
 	</div>
 </div>
-@if(isOTPOptional())
-<div id="accept-goods-otp-modal" class="modal fade" role="dialog">
-	<div class="modal-dialog">
-		<!-- Modal content-->
-		<div class="modal-content">
-			@csrf
-			<div class="modal-header">
-				<h5 class="modal-title"><i class="mdi mdi-numeric"></i> Confirm Goods Receipt</h5>
-			</div>
-			<div class="modal-body">
-				<div class="alert alert-callout alert-info text-lg">
-					<i class="mdi mdi-information fa-1x"></i> Are you sure that you want to accept these items into the inventory?
-				</div>
-				<div class="form-group">
-					<input type="hidden" name="requester_otp" class="form-control" value="123456" />
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-success save-details-form" id="accept-goods-otp-modal-save-btn"
-					data-type="accept-goods-receipt">Yes, Proceed</button>
-				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-			</div>
-		</div>
-	</div>
-</div>
-@else
+{{-- Send RFQ email body modal (independent of OTP optional setting) --}}
 <div id="Send-RFQ-modal" class="modal fade" role="dialog">
 	<form class="modal-dialog" action="{{ route('add-email-body-rfq', $request->id ?? 0) }}" method="POST">
 		<!-- Modal content-->
@@ -3323,7 +3330,6 @@
 		</div>
 	</form>
 </div>
-@endif
 <div id="send-to-finance-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -4719,7 +4725,7 @@
 				if(type == 'accept-goods-receipt'){
 					var $acceptModal = thisBTN.closest('.modal');
 					if($acceptModal.length === 0){
-						$acceptModal = $('#accept-goods-otp-modal').filter(':visible').first();
+						$acceptModal = $('.update-supplier-criteria-rating-modal:visible').first();
 					}
 					if($acceptModal.length === 0){
 						$acceptModal = $('#accept-goods-otp-modal').first();
@@ -4731,15 +4737,36 @@
 						return false;
 					}
 
-					var missingReasons = [];
-					$acceptModal.find('.rating-delivery').each(function(){
-						var reason = $.trim($(this).find('.rating-delivery-reason').val() || '');
-						if($(this).find('.rating-delivery-reason').length && reason === ''){
-							missingReasons.push($.trim($(this).find('h6').clone().children().remove().end().text()) || 'rating');
+					var missingStoreSlot = false;
+					$('#req-items tr.item-row').each(function(){
+						var $tr = $(this);
+						var $store = $tr.find('[name="items[store_id][]"]');
+						var $slot = $tr.find('[name="items[slot_id][]"]');
+
+						$store.prop('disabled', false).removeAttr('disabled');
+						$slot.prop('disabled', false).removeAttr('disabled');
+
+						if(!$store.val()){
+							var firstStore = $store.find('option[value!=""]').first().val();
+							if(firstStore){
+								$store.val(firstStore).trigger('change');
+							}
+						}
+
+						if(!$slot.val()){
+							var firstSlot = $slot.find('option[value!=""]').first().val();
+							if(firstSlot){
+								$slot.val(firstSlot).trigger('change');
+							}
+						}
+
+						if(!$store.val() || !$slot.val()){
+							missingStoreSlot = true;
 						}
 					});
-					if(missingReasons.length > 0){
-						alert('Please provide a reason for: '+missingReasons.join(', '));
+
+					if(missingStoreSlot){
+						alert('Please open the Items tab and select Store and Slot for each line before confirming receipt.');
 						return false;
 					}
 
@@ -4747,7 +4774,7 @@
 					$acceptModal.find('.rating-delivery').each(function(){
 						let gSID = $(this).data('rid');
 						let criteria = $(this).find('.rating-delivery-criteria').val();
-						let reason = $(this).find('.rating-delivery-reason').val();
+						let reason = $(this).find('.rating-delivery-reason').val() || '';
 
 						delivery_rating.push({
 							"id": gSID,
@@ -4756,9 +4783,22 @@
 						});
 					});
 
-					$('#details-form').append(`<input type="hidden" name="supplier_rating_criteria" value='${JSON.stringify(delivery_rating)}' />`);
-					$('#details-form').append(`<input type="hidden" name="accept_goods_receipt" value="1" />`);
-					$('#details-form').append(`<input type="hidden" name="otp_value" value="${otp_value}" />`);
+					$('#details-form').find('input[name="supplier_rating_criteria"], input[name="accept_goods_receipt"], input[name="otp_value"]').remove();
+					$('<input>', {
+						type: 'hidden',
+						name: 'supplier_rating_criteria',
+						value: JSON.stringify(delivery_rating)
+					}).appendTo('#details-form');
+					$('<input>', {
+						type: 'hidden',
+						name: 'accept_goods_receipt',
+						value: '1'
+					}).appendTo('#details-form');
+					$('<input>', {
+						type: 'hidden',
+						name: 'otp_value',
+						value: otp_value
+					}).appendTo('#details-form');
 				}
 
 				if(type == 'issue-items'){
@@ -4968,13 +5008,21 @@
 				}
 
 				if(subMit){
-					$('#details-form').submit();
-					thisBTN.off('click');
+					thisBTN.prop('disabled', true);
+					// Native submit() skips HTML5 constraint validation on hidden-tab required fields.
+					// jQuery .submit() can cancel silently then leave the button dead if we unbind click.
+					var detailsForm = document.getElementById('details-form');
+					if(detailsForm){
+						detailsForm.submit();
+					}
 				}
 				else{
 					alert("Confirm that you have provided all the values for ("+theFieldsInval.join(',')+")");
 					$('#details-form').find('input[name="accept_goods_receipt"]').remove();
 					$('#details-form').find('input[name="issue_out_items"]').remove();
+					$('#details-form').find('input[name="supplier_rating_criteria"]').remove();
+					$('#details-form').find('input[name="otp_value"]').remove();
+					thisBTN.prop('disabled', false);
 				}
 			});
 
@@ -5023,21 +5071,32 @@
 
 			$('#req-items').on('change', 'tr .selected-store', function(){
 				var selected = $(this).children('option:selected');
-				var slots = selected.data('slots');
+				var slots = selected.data('slots') || [];
 
-				console.log(slots);
+				if(typeof slots === 'string'){
+					try { slots = JSON.parse(slots); } catch (e) { slots = []; }
+				}
 
 				var slotDiv = $(this).parents('tr').find('[name="items[slot_id][]"]');
-				var selectedVal = slotDiv.data('slot')
+				var selectedVal = slotDiv.data('slot') || slotDiv.val();
 
-				slotDiv.html('');
+				slotDiv.html('<option value="">Select Slot...</option>');
 
 				$.each(slots, function(i, s){
 					var newOption = new Option(s.name, s.id, false, false);
-					slotDiv.append(newOption).trigger('change');
+					slotDiv.append(newOption);
 				});
 
-				slotDiv.val(selectedVal).trigger('change');
+				if(selectedVal){
+					slotDiv.val(selectedVal);
+				}
+				else{
+					var firstSlot = slotDiv.find('option[value!=""]').first().val();
+					if(firstSlot){
+						slotDiv.val(firstSlot);
+					}
+				}
+				slotDiv.trigger('change');
 			});
 
 			var fetchAvailableStock = function($parentTr, brand_id=0, item_id){
@@ -5070,9 +5129,9 @@
 				});
 			}
 
-			var defaultStores = $(`<option></option>
+			var defaultStores = $(`<option value=""></option>
 				@foreach ($allStores as $store)
-					<option value="{{ $store->id }}" data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
+					<option value="{{ $store->id }}" data-slots='@json($store->slots->map->only(["id", "name"]))'>{{ $store->name }}</option>
 				@endforeach`);
 
 			$('#req-items').on('change', 'tr select.selected-item-brand', function(){

@@ -85,7 +85,7 @@
     </div>
 </div>
 
-{{-- Row 4: Transport (1-col chips) | Test category (Microbiology / Chemistry) --}}
+{{-- Row 4: Transport | Sample types (LWS-036 checkboxes) --}}
 <div class="trf-ww-collection-row4" wire:key="ww-collection-row-4">
     <div wire:key="ww-field-transport">
         @php $el = $collectionField('transport_condition'); @endphp
@@ -96,12 +96,12 @@
             ])
         @endif
     </div>
-    <div wire:key="ww-field-test-category">
-        @php $el = $collectionField('field_data_requirements'); @endphp
+    <div wire:key="ww-field-sample-types">
+        @php $el = $collectionField('sample_types_ww'); @endphp
         @if($el)
             @include('livewire.sampleworkflow.test-request-field-render', [
-                'field' => array_merge($fieldMapper->toField($el), ['label' => 'Test category']),
-                'optionGridClass' => 'trf-option-grid trf-option-grid--ww-test-category',
+                'field' => array_merge($fieldMapper->toField($el), ['label' => 'Sample types']),
+                'optionGridClass' => 'trf-option-grid trf-option-grid--ww-sample-types',
             ])
         @endif
     </div>
@@ -143,6 +143,6 @@
 <div class="d-none" wire:key="ww-field-hidden-schema">
     @php $el = $collectionField('date_received'); @endphp
     @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
-    @php $el = $collectionField('sample_types_ww'); @endphp
+    @php $el = $collectionField('field_data_requirements'); @endphp
     @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
 </div>

@@ -1721,32 +1721,76 @@ class RequisitionController extends Controller
 
 		// return response()->json($request->all(), 200);
 
-		$otp_value = $request->otp_value;
+		$items = $request->input('items', []);
+		if (!isset($items['req_item_id']) || !is_array($items['req_item_id']) || count($items['req_item_id']) === 0) {
+			return redirect()->back()->with('error', 'No goods receipt items were submitted.');
+		}
 
-		$OTPController = new OTPController;
+		$resolvedStores = [];
+		$resolvedSlots = [];
+		foreach ($items['req_item_id'] as $i => $id) {
+			$entityItem = RequestEntityItem::find($id);
+			if (!$entityItem) {
+				return redirect()->back()->with('error', 'One or more goods receipt items could not be found.');
+			}
 
-		$otp = $OTPController->close(
-			(object)[
-				"code" => $otp_value,
-				"model" => "Goods Receipt",
-				"model_id" => $entity->id,
-				"approved_by" => \Auth::user()->id
-			]
-		);
+			$store = $items['store_id'][$i] ?? $entityItem->store_id;
+			$slot = $items['slot_id'][$i] ?? $entityItem->slot_id;
 
-		if (!isset($otp->code)) {
-			return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
+			if (empty($store) || empty($slot)) {
+				$locationId = $entity->company_unit ?: (\Auth::user()->location_id ?? null);
+				$defaultStore = \App\InventoryStore::with('slots')
+					->where('inventory_location_id', $locationId)
+					->where(function ($query) {
+						$query->where('is_frozen', false)->orWhere('is_frozen', '0')->orWhereNull('is_frozen');
+					})
+					->orderBy('name')
+					->first();
+
+				if ($defaultStore && $defaultStore->slots->isNotEmpty()) {
+					$store = $store ?: $defaultStore->id;
+					$slot = $slot ?: $defaultStore->slots->first()->id;
+				}
+			}
+
+			if (empty($store) || empty($slot)) {
+				return redirect()->back()->with(
+					'error',
+					'Please open the Items tab and select Store and Slot for each line before confirming receipt.'
+				);
+			}
+
+			$resolvedStores[$i] = $store;
+			$resolvedSlots[$i] = $slot;
+		}
+
+		$otp = null;
+		if (!$isInternal) {
+			$OTPController = new OTPController;
+
+			$otp = $OTPController->close(
+				(object)[
+					"code" => $request->otp_value,
+					"model" => "Goods Receipt",
+					"model_id" => $entity->id,
+					"approved_by" => \Auth::user()->id
+				]
+			);
+
+			if (!isset($otp->code)) {
+				return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
+			}
 		}
 
 		$anyPendingItems = array();
-		foreach ($request->items['req_item_id'] as $i => $id) {
+		foreach ($items['req_item_id'] as $i => $id) {
 			$entityItem = RequestEntityItem::find($id);
-			$quantity = $request->items['received_quantity'][$i];
-			$expiry = $request->items['expiry'][$i] ?? '2099-12-31';
-			$date_of_manufacture = $request->items['date_of_manufacture'][$i] ?? '2099-12-31';
-			$lot_no = $request->items['lot_no'][$i] ?? $request->request_code;
-			$store = $request->items['store_id'][$i];
-			$slot = $request->items['slot_id'][$i];
+			$quantity = $items['received_quantity'][$i] ?? 0;
+			$expiry = $items['expiry'][$i] ?? '2099-12-31';
+			$date_of_manufacture = $items['date_of_manufacture'][$i] ?? '2099-12-31';
+			$lot_no = $items['lot_no'][$i] ?? $request->request_code;
+			$store = $resolvedStores[$i];
+			$slot = $resolvedSlots[$i];
 
 			$entityItem->slot_id = $slot;
 			$entityItem->store_id = $store;
@@ -1796,7 +1840,7 @@ class RequisitionController extends Controller
 
 		$parentReq = \App\RequestEntity::find($entity->parent_request_id);
 
-		if (in_array($parentReq->request_type, ["Lend", "Loan"])) {
+		if ($parentReq && in_array($parentReq->request_type, ["Lend", "Loan"])) {
 			$parentReq->status = "Goods Accepted";
 			$parentReq->save();
 		}
@@ -1804,19 +1848,19 @@ class RequisitionController extends Controller
 		$entity->status = $status;
 		$entity->save();
 
-		$Requester = \App\User::find($otp->user_id);
+		$Requester = ($otp && isset($otp->user_id)) ? \App\User::find($otp->user_id) : \Auth::user();
 
 		$companyDetails = getCompanyDetails();
 
 		$body = '
-			Hi ' . $Requester->name . ',<br><br>
+			Hi ' . ($Requester->name ?? 'User') . ',<br><br>
 			Items from Goods Receipt[' . $entity->request_code . '] have been added to the inventory.
 			Regards,<br>
 			' . $companyDetails['name'] . '
 		';
 
 		$mailData = array(
-			'contacts' => array($Requester->email),
+			'contacts' => array($Requester->email ?? \Auth::user()->email),
 			'body' => $body,
 			'subject' => '[' . $entity->request_code . '] Goods Receipt Confirmation'
 		);
@@ -1848,7 +1892,7 @@ class RequisitionController extends Controller
 			$newReqOBJ->merge(['request_id'=>$entity->id]);
 
 			$suppRating = new SuppliersRatingCriteriaController();
-			return $suppRating->update($newReqOBJ, $parentReq->supplier_id);
+			return $suppRating->update($newReqOBJ, $parentReq->supplier_id ?? $entity->supplier_id);
 		}
 		else{
 			throw new \Error("Issue setting rating.");
