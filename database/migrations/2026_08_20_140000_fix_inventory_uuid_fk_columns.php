@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Column type changes are blocked while this view depends on them.
+        DB::statement('DROP VIEW IF EXISTS view_request_entities');
+
         if (Schema::hasTable('request_entities')) {
             $this->convertIntegerFkToUuid('request_entities', 'parent_request_id');
             $this->convertIntegerFkToUuid('request_entities', 'parent_material_requisition');
@@ -18,6 +21,8 @@ return new class extends Migration
         if (Schema::hasTable('supplier_categories') && Schema::hasColumn('supplier_categories', 'inventory_item_brand_id')) {
             DB::statement('ALTER TABLE supplier_categories ALTER COLUMN inventory_item_brand_id DROP NOT NULL');
         }
+
+        $this->createViewRequestEntities();
     }
 
     public function down(): void
@@ -40,8 +45,104 @@ return new class extends Migration
             return;
         }
 
-        // Null out non-UUID legacy integers, then cast column to uuid.
-        DB::statement("UPDATE {$table} SET {$column} = NULL WHERE {$column} IS NOT NULL AND {$column}::text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'");
-        DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} TYPE uuid USING {$column}::text::uuid");
+        DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} DROP DEFAULT");
+        DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} DROP NOT NULL");
+
+        // Legacy integer ids cannot map to UUIDs; keep only values that are already UUID text.
+        DB::statement("
+            ALTER TABLE {$table}
+            ALTER COLUMN {$column} TYPE uuid
+            USING CASE
+                WHEN {$column}::text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                    THEN {$column}::text::uuid
+                ELSE NULL
+            END
+        ");
+    }
+
+    private function createViewRequestEntities(): void
+    {
+        if (! Schema::hasTable('request_entities')) {
+            return;
+        }
+
+        // Full view (with is_supplement) is owned by a later migration.
+        // Recreate here only when that column already exists (e.g. re-run after view was created).
+        if (! Schema::hasColumn('request_entities', 'is_supplement')) {
+            return;
+        }
+
+        DB::statement('DROP VIEW IF EXISTS view_request_entities');
+
+        DB::statement(<<<'SQL'
+            CREATE VIEW view_request_entities AS
+            SELECT
+                re.id,
+                re.priority,
+                re.currency,
+                re.request_code,
+                re.status,
+                re.parent_request,
+                re.due_date,
+                re.parent_request_id,
+                re.request_type,
+                re.approval_count,
+                re.required_approvals,
+                re.created_by,
+                re.description,
+                re.nature_of_purchase,
+                re.created_at,
+                re.updated_at,
+                re.net_value,
+                re.is_lab_kit,
+                re.quote_net_value,
+                re.submission_deadline,
+                re.supplier_id,
+                COALESCE(re.delete, 0) AS delete,
+                re.client_unit_id,
+                re.request_initiator,
+                re.inventory_location_id,
+                re.parent_material_requisition,
+                re.approval_status,
+                re.ammendment,
+                re.in_ammendment,
+                re.quotes_reminder_sent,
+                re.gate_pass,
+                re.time_out,
+                re.vehicle_no,
+                re.issue_to,
+                re.usage,
+                re.note_bearer,
+                re.destination,
+                re.bank_notified,
+                re.supplier_bank_notification,
+                re.cost_center,
+                re.downloadable_link,
+                re.catalog_number,
+                re.kit_total_price,
+                COALESCE(re.is_supplement, false) AS is_supplement,
+                COALESCE(u.name, '') AS creator_name,
+                COALESCE(d.name, '') AS departmental_name,
+                u.department_id AS department_id,
+                COALESCE(s.name, '') AS supplier_name,
+                parent.request_code AS parent_request_code,
+                COALESCE((
+                    SELECT string_agg(DISTINCT isc.name, ', ' ORDER BY isc.name)
+                    FROM request_entity_items rei
+                    INNER JOIN inventory_sub_categories isc
+                        ON isc.id::text = rei.inventory_sub_category_id::text
+                    WHERE rei.request_id::text = re.id::text
+                      AND COALESCE(rei.action, 'normal') = 'normal'
+                ), '') AS item_names
+            FROM request_entities re
+            LEFT JOIN users u
+                ON u.id::text = re.created_by::text
+            LEFT JOIN inventory_departments d
+                ON d.id::text = u.department_id::text
+            LEFT JOIN suppliers s
+                ON s.id::text = re.supplier_id::text
+            LEFT JOIN request_entities parent
+                ON parent.id::text = re.parent_request_id::text
+        SQL);
     }
 };

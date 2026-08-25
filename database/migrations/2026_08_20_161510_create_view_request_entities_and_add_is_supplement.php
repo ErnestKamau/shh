@@ -78,8 +78,8 @@ return new class extends Migration
                     SELECT string_agg(DISTINCT isc.name, ', ' ORDER BY isc.name)
                     FROM request_entity_items rei
                     INNER JOIN inventory_sub_categories isc
-                        ON isc.id = rei.inventory_sub_category_id
-                    WHERE rei.request_id = re.id
+                        ON isc.id::text = rei.inventory_sub_category_id::text
+                    WHERE rei.request_id::text = re.id::text
                       AND COALESCE(rei.action, 'normal') = 'normal'
                 ), '') AS item_names
             FROM request_entities re

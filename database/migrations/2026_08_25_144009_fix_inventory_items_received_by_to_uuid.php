@@ -6,16 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * inventory_items.received_by / edited_by were integers while users.id is uuid.
+     */
     public function up(): void
     {
-        // criteria_id may already be uuid from 2026_08_20_141000; convert remaining int FKs.
-        $this->convertIntegerFkToUuid('supplier_rating_criteria_guides', 'criteria_id');
-        $this->convertIntegerFkToUuid('suppliers_rating_criterias', 'criteria_id');
-        $this->convertIntegerFkToUuid('suppliers_rating_criterias', 'rating_by');
-
-        if (Schema::hasTable('suppliers_rating_criterias') && Schema::hasColumn('suppliers_rating_criterias', 'request_id')) {
-            $this->convertIntegerFkToUuid('suppliers_rating_criterias', 'request_id');
-        }
+        $this->convertIntegerFkToUuid('inventory_items', 'received_by');
+        $this->convertIntegerFkToUuid('inventory_items', 'edited_by');
     }
 
     public function down(): void
@@ -49,10 +46,5 @@ return new class extends Migration
                 ELSE NULL
             END
         ");
-
-        $nulls = DB::table($table)->whereNull($column)->count();
-        if ($nulls === 0) {
-            DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} SET NOT NULL");
-        }
     }
 };

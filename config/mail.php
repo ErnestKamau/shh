@@ -38,10 +38,10 @@ return [
             'transport' => 'smtp',
             'host' => env('MAIL_HOST', 'smtp.mailgun.org'),
             'port' => env('MAIL_PORT', 587),
-            'encryption' => env('MAIL_ENCRYPTION', 'tls'),
+            'encryption' => ($encryption = env('MAIL_ENCRYPTION')) ? strtolower($encryption) : 'tls',
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'timeout' => (int) env('MAIL_TIMEOUT', 10),
         ],
 
         'ses' => [

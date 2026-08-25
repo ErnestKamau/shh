@@ -10,6 +10,7 @@ use App\InventoryStoreSlotContent;
 use App\User;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class StockTakingController extends Controller
@@ -49,13 +50,18 @@ class StockTakingController extends Controller
 	public function show(Request $request, $id, $print=false)
 	{
 		$taking = StockTaking::find($id);
-		$store_ids = explode(',', $taking->stores);
 
-		$itemsNo = StockTakingSheet::where('stock_taking_id', $id)->get()->count();
+		if (! $taking) {
+			abort(404);
+		}
 
-		if($itemsNo > 0){
-			$items= StockTakingSheet::where('stock_taking_sheets.stock_taking_id', $id)
-				->leftJoin('inventory_items', function($join) use ($id){
+		$store_ids = array_values(array_filter(array_map('trim', explode(',', (string) $taking->stores))));
+
+		$itemsNo = StockTakingSheet::where('stock_taking_id', $id)->count();
+
+		if ($itemsNo > 0) {
+			$items = StockTakingSheet::where('stock_taking_sheets.stock_taking_id', $id)
+				->leftJoin('inventory_items', function ($join) use ($id) {
 					$join->on('stock_taking_sheets.inventory_sub_category_id', '=', 'inventory_items.inventory_sub_category_id');
 					$join->on('stock_taking_sheets.store_id', '=', 'inventory_items.inventory_store_id');
 					$join->on('stock_taking_sheets.slot_id', '=', 'inventory_items.inventory_store_slot_id');
@@ -64,24 +70,52 @@ class StockTakingController extends Controller
 				->join('inventory_sub_categories as isc', 'isc.id', '=', 'stock_taking_sheets.inventory_sub_category_id')
 				->join('inventory_stores as s', 's.id', '=', 'stock_taking_sheets.store_id')
 				->join('inventory_store_slots as ss', 'ss.id', '=', 'stock_taking_sheets.slot_id')
-				->selectRaw('stock_taking_sheets.id as sid, stock_taking_sheets.comments, stock_taking_sheets.system_quantity, COALESCE(stock_taking_sheets.lot_no, inventory_items.lot_no) as lot_no, COALESCE(stock_taking_sheets.expiry, inventory_items.expiry) as expiry, stock_taking_sheets.available_quantity, isc.name, isc.unit_type, isc.unit_price, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, stock_taking_sheets.store_id as store_id, stock_taking_sheets.slot_id as slot_id, stock_taking_sheets.inventory_sub_category_id as item_id')
-				->groupBy('stock_taking_sheets.id')
+				->selectRaw('stock_taking_sheets.id as sid, stock_taking_sheets.comments, stock_taking_sheets.system_quantity, COALESCE(stock_taking_sheets.lot_no, MAX(inventory_items.lot_no)) as lot_no, COALESCE(stock_taking_sheets.expiry, MAX(inventory_items.expiry)) as expiry, stock_taking_sheets.available_quantity, isc.name, isc.unit_type, isc.unit_price, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, stock_taking_sheets.store_id as store_id, stock_taking_sheets.slot_id as slot_id, stock_taking_sheets.inventory_sub_category_id as item_id')
+				->groupBy(
+					'stock_taking_sheets.id',
+					'stock_taking_sheets.comments',
+					'stock_taking_sheets.system_quantity',
+					'stock_taking_sheets.lot_no',
+					'stock_taking_sheets.expiry',
+					'stock_taking_sheets.available_quantity',
+					'isc.name',
+					'isc.unit_type',
+					'isc.unit_price',
+					'isc.code',
+					's.name',
+					'ss.name',
+					'stock_taking_sheets.store_id',
+					'stock_taking_sheets.slot_id',
+					'stock_taking_sheets.inventory_sub_category_id'
+				)
 				->orderBy('s.name', 'asc')->orderBy('ss.name', 'asc')->orderBy('isc.name', 'asc')->get();
-		}
-		else{
-			$items= InventoryItem::whereIn('inventory_items.inventory_store_id', $store_ids)
-				->leftJoin('stock_taking_sheets as sts', function($join) use ($id){
-					$join->on('sts.inventory_sub_category_id', '=', 'inventory_items.inventory_sub_category_id');
-					$join->on('sts.store_id', '=', 'inventory_items.inventory_store_id');
-					$join->on('sts.slot_id', '=', 'inventory_items.inventory_store_slot_id');
-					$join->where('sts.stock_taking_id', '=', $id);
-				})
+		} else {
+			$itemsQuery = InventoryItem::query()
 				->join('inventory_sub_categories as isc', 'isc.id', '=', 'inventory_items.inventory_sub_category_id')
 				->join('inventory_stores as s', 's.id', '=', 'inventory_items.inventory_store_id')
 				->join('inventory_store_slots as ss', 'ss.id', '=', 'inventory_items.inventory_store_slot_id')
-				->selectRaw('sts.comments, sts.system_quantity, COALESCE(sts.lot_no, COALESCE(inventory_items.lot_no, "NA")) as lot_no, COALESCE(sts.expiry, inventory_items.expiry) as expiry, sts.available_quantity, isc.name, isc.unit_type, isc.unit_price, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id')
-				->groupBy('lot_no', 'inventory_items.inventory_store_id', 'inventory_items.inventory_store_slot_id', 'inventory_items.inventory_sub_category_id')
-				->orderBy('s.name', 'asc')->orderBy('ss.name', 'asc')->orderBy('isc.name', 'asc')->get();
+				->selectRaw("NULL as sid, NULL as comments, NULL as system_quantity, COALESCE(inventory_items.lot_no, 'NA') as lot_no, MAX(inventory_items.expiry) as expiry, NULL as available_quantity, isc.name, isc.unit_type, isc.unit_price, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id")
+				->groupBy(
+					DB::raw("COALESCE(inventory_items.lot_no, 'NA')"),
+					'isc.name',
+					'isc.unit_type',
+					'isc.unit_price',
+					'isc.code',
+					's.name',
+					'ss.name',
+					'inventory_items.inventory_store_id',
+					'inventory_items.inventory_store_slot_id',
+					'inventory_items.inventory_sub_category_id'
+				)
+				->orderBy('s.name', 'asc')->orderBy('ss.name', 'asc')->orderBy('isc.name', 'asc');
+
+			if (count($store_ids) > 0) {
+				$itemsQuery->whereIn('inventory_items.inventory_store_id', $store_ids);
+			} else {
+				$itemsQuery->whereRaw('1 = 0');
+			}
+
+			$items = $itemsQuery->get();
 		}
 
 		// return response()->json($items, 200);

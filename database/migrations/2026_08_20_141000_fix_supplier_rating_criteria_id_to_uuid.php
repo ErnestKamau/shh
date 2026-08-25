@@ -35,9 +35,16 @@ return new class extends Migration
             return;
         }
 
-        // Null out non-UUID legacy integers, then cast column to uuid.
-        DB::statement("UPDATE {$table} SET {$column} = NULL WHERE {$column} IS NOT NULL AND {$column}::text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'");
+        DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} DROP DEFAULT");
         DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} DROP NOT NULL");
-        DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} TYPE uuid USING {$column}::text::uuid");
+        DB::statement("
+            ALTER TABLE {$table}
+            ALTER COLUMN {$column} TYPE uuid
+            USING CASE
+                WHEN {$column}::text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                    THEN {$column}::text::uuid
+                ELSE NULL
+            END
+        ");
     }
 };
