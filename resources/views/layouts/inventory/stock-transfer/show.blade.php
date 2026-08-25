@@ -37,7 +37,7 @@
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 	<h4 class="p-4">
 		<i class="mdi mdi-format-list-bulleted-type"></i> Stock Transfer - {{ $transfer->code ?? 'New Transfer' }} <small class="badge badge-light badge-pill text-muted" style="font-weight: 500"><i class="mdi mdi-information"></i> {{ $transfer->status ?? "In Preparation" }}</small>
-		@if(isset($transfer->location_id) && $transfer->status != "Completed")
+		@if(($transfer->inventory_location_id ?? $transfer->location_id) && $transfer->status != "Completed")
 			<button class="btn btn-default text-success btn-sm float-right save-form-btn" data-type="save_items"><i class="mdi mdi-content-save"></i> Save</button>
 			@if ($transfer->status == "Transfer Items Updated")
 				<button class="btn btn-default text-danger btn-sm float-right save-form-btn" data-type="transfer_items"><i class="mdi mdi-bank-transfer-out"></i> Transfer Items</button>
@@ -75,7 +75,7 @@
 				@csrf
 				<div class="card-body">
 					<h5 class="card-title"><i class="mdi mdi-package-variant"></i> Transfer Items
-						@if(isset($transfer->location_id) && $transfer->status != "Completed")
+						@if(($transfer->inventory_location_id ?? $transfer->location_id) && $transfer->status != "Completed")
 							<span class="btn btn-sm btn-default text-info float-right add-item-row"><i class="mdi mdi-plus"></i> Row</span>
 						@endif
 					</h5>
@@ -123,13 +123,13 @@
 		}
 
 		var itemrow = function(data = {}){
-			var isDisabled = "{{ isset($transfer->location_id) && $transfer->status != 'Completed' ? '' : 'disabled' }}";
+			var isDisabled = "{{ ($transfer->inventory_location_id ?? $transfer->location_id) && $transfer->status != 'Completed' ? '' : 'disabled' }}";
 
 			var dataID = data.id ?? randomIntFromInterval(2345123213, 4545123213);
 			var rowww = $(`
 			<tr>
 				<td>
-					@if(isset($transfer->location_id) && $transfer->status != "Completed")
+					@if(($transfer->inventory_location_id ?? $transfer->location_id) && $transfer->status != "Completed")
 						<span class="btn btn-default btn-sm text-danger remove-item-row" data-transfer-id="${data.id}">
 							<i class="mdi mdi-delete"></i>
 						</span>
@@ -294,7 +294,7 @@
 		}
 
 		$(function(){
-			var LOCATIONS = {"local": '{{ getCurrentUserLocation()->id }}', "target": '{{ $transfer->location_id }}'}
+			var LOCATIONS = {"local": '{{ getCurrentUserLocation()?->id }}', "target": '{{ $transfer->inventory_location_id ?? $transfer->location_id }}'}
 			var transferItems = $('#items-holder').data('items');
 			var editorInstance;
 			$('.toggle-desc').on('click', function(){

@@ -162,6 +162,11 @@ class RequisitionController extends Controller
 	{
 		$isSomeBody = isUserSomebody(\Auth::user());
 
+		$currentLocation = getCurrentUserLocation();
+		if (! $currentLocation) {
+			return redirect()->route('inventory-home')->with('error', 'No inventory location is set for your account.');
+		}
+
 		// $list = \App\ViewRequestEntity::where('request_type', $stage)
 		// 	->where('inventory_location_id', getCurrentUserLocation()->id)
 		// 	->where('is_lab_kit', 0)->where('delete', 0)->where('status', '!=', 'Completed')
@@ -185,9 +190,9 @@ class RequisitionController extends Controller
 		$lab_department_id = getConfigByName('lab_department_id');
 		$lab_department_id = count($lab_department_id) > 0 ? $lab_department_id[0]->value : 0;
 
-		if (\Auth::user()->department_id == $lab_department_id && $stage == "Purchase Request") {
-			$kit_list =  \App\ViewRequestEntity::where('request_type', $stage)
-				->where('inventory_location_id', getCurrentUserLocation()->id)
+		if ((\Auth::user()->department_id == $lab_department_id && $stage == "Purchase Request") || $stage == "Request to Store") {
+			$kit_list = \App\ViewRequestEntity::where('request_type', $stage)
+				->where('inventory_location_id', $currentLocation->id)
 				->where('is_lab_kit', 1)->where('delete', 0)->orderBy('id', 'desc')->get();
 		}
 		// return response()->json($kit_list, 200);

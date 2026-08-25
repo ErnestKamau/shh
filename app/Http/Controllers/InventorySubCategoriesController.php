@@ -133,7 +133,7 @@ class InventorySubCategoriesController extends Controller
 			$supCat = new SupplierCategory;
 			$supCat->supplier_id = $s;
 			$supCat->inventory_sub_category_id = $subCatID;
-			$supCat->inventory_item_brand_id = 0;
+			$supCat->inventory_item_brand_id = null;
 			$supCat->supplier_image = '/images/no-logo.png';
 			$supCat->status = 1;
 			$supCat->save();

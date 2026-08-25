@@ -100,7 +100,7 @@ class InventoryCategoriesController extends Controller
 			$cat->delete();
 		}
 
-		return \redirect()->back()->with('success', 'Category not removed successfully.');
+		return \redirect()->back()->with('success', 'Category removed successfully.');
 	}
 
 	public function set_default_store(Request $request, $id){

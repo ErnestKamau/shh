@@ -152,7 +152,7 @@ class StockTransferController extends Controller
 			$myRequest->store = $items['target_store_id'][$i];
 			$myRequest->expiry = $items['expiry'][$i];
 			$myRequest->inventory_department_id = $transfer->department_id;
-			$myRequest->override_location_id = $transfer->location_id;
+			$myRequest->override_location_id = $transfer->inventory_location_id ?? $transfer->location_id;
 			$myRequest->storage_state_id = $items['target_state_id'][$i] ?? null;
 
 			$itemsTransferredArray['in'][] = array(

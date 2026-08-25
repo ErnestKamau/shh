@@ -35,7 +35,7 @@
     <h3 class="p-4">
 			<i class="mdi mdi-format-list-checks"></i> {{ $stage }}
 			@if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend")) && $isInventoryAssistantSupervisor)
-				<a class="btn btn-primary btn-sm float-right" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>time()]) }}">
+				<a class="btn btn-primary btn-sm float-right" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>'new']) }}">
 					<i class="mdi mdi-plus"></i> Create Request
 				</a>
 			@endif

@@ -145,11 +145,11 @@ class InventoryItemController extends Controller
 		$item->date_of_manufacture = $request->date_of_manufacture;
 		$item->barcode = $request->barcode ?? 'n/a';
 		$item->price = $request->price;
-		$item->inventory_store_id = $request->store ?? 0;
-		$item->inventory_store_slot_id = $request->slot ?? 0;
-		$item->item_brand_id = $request->item_brand_id ?? 0;
+		$item->inventory_store_id = $request->store ?: null;
+		$item->inventory_store_slot_id = $request->slot ?: null;
+		$item->item_brand_id = $request->item_brand_id ?: null;
 		$item->status = isset($request->requires_qc) ? 'pending' : 'approved';
-		$item->inventory_location_id = $request->override_location_id ?? getCurrentUserLocation()->id;
+		$item->inventory_location_id = $request->override_location_id ?? getCurrentUserLocation()?->id;
 
 		if ($internal) {
 			$item->inventory_department_id = $request->inventory_department_id;
@@ -221,10 +221,10 @@ class InventoryItemController extends Controller
 		$item->lot_no = $request->lot_no ?? null;
 		$item->inventory_department_id = $request->transfer_to;
 		$item->received_by = $request->issued_to;
-		$item->inventory_location_id = getCurrentUserLocation()->id;
-		$item->inventory_store_slot_id = $request->slot ?? 0;
-		$item->inventory_store_id = $request->store ?? 0;
-		$item->item_brand_id = $request->item_brand_id ?? 0;
+		$item->inventory_location_id = getCurrentUserLocation()?->id;
+		$item->inventory_store_slot_id = $request->slot ?: null;
+		$item->inventory_store_id = $request->store ?: null;
+		$item->item_brand_id = $request->item_brand_id ?: null;
 
 		if ($request->storage_state_id) {
 			$item->storage_state_id = $request->storage_state_id;

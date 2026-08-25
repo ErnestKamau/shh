@@ -49,11 +49,11 @@
     <h3 class="p-4" id="has-procurement" data-procurement="{{ $isInventoryProcurement ? 'Yes' : 'No' }}">
 			<i class="mdi mdi-format-list-checks"></i> {{ $stage }}
 			@if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend")) && $isInventoryAssistantSupervisor)
-				<a class="btn btn-primary btn-sm float-right" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>time()]) }}">
+				<a class="btn btn-primary btn-sm float-right" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>'new']) }}">
 					<i class="mdi mdi-plus"></i> Create Request
 				</a>
 			@endif
-			@if(in_array($stage,["Purchase Request", "Request to Store"]))
+			@if(in_array($stage,["Purchase Request"]) && $isLabDepartmentUser)
 			<span class="btn btn-sm btn-transparent text-success float-right" data-toggle="modal"
 				data-target="#clone-this-request" data-url="{{ route('clone-request-details', ['stage'=>$stage]) }}">
 				<i class="mdi mdi-content-duplicate"></i> Clone
@@ -95,7 +95,7 @@
 					<div class="tab-pane fade show active p-3" id="Requests" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title mb-3">Requests</h5>
 						<div class="table-responsive">
-							<table data-url="{{ route('get_req_enitites_server_side', ['stage'=>$stage, 'type'=>'list']) }}" class="status-table table table-condensed my-small-text table-striped table-hover table-bordered table-sm" data-fixedcls="true">
+							<table data-url="{{ route('get_req_enitites_server_side', ['stage'=>$stage, 'type'=>'list']) }}" class="status-table server-side table table-condensed my-small-text table-striped table-hover table-bordered table-sm" data-fixedcls="true">
 								<thead>
 									<tr>
 										<th>#</th>
@@ -129,7 +129,7 @@
 					<div class="tab-pane fade p-3" id="Completed" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title mb-3">Completed Requests</h5>
 						<div class="table-responsive">
-							<table data-url="{{ route('get_req_enitites_server_side', ['stage'=>$stage, 'type'=>'completed_list']) }}" class="status-table table table-condensed my-small-text table-striped table-hover table-bordered table-sm" data-fixedcls="true">
+							<table data-url="{{ route('get_req_enitites_server_side', ['stage'=>$stage, 'type'=>'completed_list']) }}" class="status-table server-side table table-condensed my-small-text table-striped table-hover table-bordered table-sm" data-fixedcls="true">
 								<thead>
 									<tr>
 										<th>#</th>
@@ -205,39 +205,25 @@
 						<div class="tab-pane fade p-3" id="Clonable-Requests" role="tabpanel" aria-labelledby="one-tab">
 							<h5 class="card-title mb-3">Frequent Requests</h5>
 							<div class="table-responsive">
-								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm" data-fixedcls="true">
+								<table data-url="{{ route('get_req_enitites_server_side', ['stage'=>$stage, 'type'=>'kit_list']) }}" class="status-table server-side table table-condensed my-small-text table-striped table-hover table-bordered table-sm" data-fixedcls="true">
 									<thead>
 										<tr>
+											<th>#</th>
 											<th></th>
 											<th nowrap>Code</th>
+											<th nowrap>Items</th>
+											<th nowrap>Priority</th>
+											<th nowrap>Status</th>
 											<th nowrap>Description</th>
+											<th nowrap>Due Date</th>
 											<th nowrap>Created By</th>
+											<th nowrap>Department</th>
 											<th nowrap>Created On</th>
+											<th nowrap>Approvals</th>
+											<th nowrap>Total Value</th>
 										</tr>
 									</thead>
-									<tbody>
-										@foreach ($kit_list as $l)
-											<tr>
-												<td nowrap>
-													<input type="checkbox" name="request_id[]" class="submittable-entity-ids" data-code="{{ $l->request_code }}" value="{{ $l->id }}" />
-													@if(($l->created_by == \Auth::user()->id || $isInventoryProcurement) && $l->status == "In Preparation")
-														<span class="btn btn-sm btn-transparent text-danger" data-toggle="modal"
-															data-target="#delete-entity-modal" data-stage="{{ $stage }}" data-id="{{ $l->id }}">
-															<i class="mdi mdi-delete"></i>
-														</span>
-													@endif
-												</td>
-												<td nowrap>
-													<a href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>$l->id]) }}">
-														{{ $l->request_code }}
-													</a>
-												</td>
-												<td nowrap>{{ $l->description ?? 'No items set' }}</td>
-												<td nowrap>{{ $l->creator_name }}</td>
-												<td nowrap>{{ $l->created_at }}</td>
-											</tr>
-										@endforeach
-									</tbody>
+									<tbody></tbody>
 								</table>
 							</div>
 						</div>
@@ -477,7 +463,15 @@
 							}
 						},
 						{ data: "priority" },
-						{ data: "status" },
+						{
+							data: null, name: 'status',
+							render: function ( data, type, row ) {
+								var approvalDetail = (data.status === 'Partially Approved' && data.approval_status)
+									? ` <small>${data.approval_status}</small>`
+									: '';
+								return `${data.status || ''}${approvalDetail}`;
+							}
+						},
 						{ data: "description" },
 						{ data: "due_date" },
 						@if ((array_search($stage, $stages) > 0) || $stage == "Material Issuance")
@@ -485,8 +479,9 @@
 								data: null, name: 'parent_request_code',
 								render: function(data, type, row){
 									if(data.parent_request && data.parent_request != ''){
+										var parentLabel = String(data.parent_request).replace(/s$/, '');
 										return `<a href="/req/${data.parent_request}/${data.parent_request_id}">
-											${data.parent_request} - ${data.parent_request_code}
+											${parentLabel} - ${data.parent_request_code}
 										</a>`;
 									}
 									else{
@@ -507,12 +502,21 @@
 								return `${data.approval_count} / ${data.required_approvals}`
 							}
 						},
-						{ data: "net_value" },
+						{
+							data: null, name: 'net_value',
+							render: function(data, type, row){
+								var amount = parseFloat(data.net_value);
+								if (isNaN(amount)) {
+									amount = 0;
+								}
+								var currency = data.currency_name ? `${data.currency_name} ` : '';
+								return currency + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+							}
+						},
 					],
 					"rowCallback" : function(row, data, index){
 						var r_css = status_colors(data.status);
 						$(row).addClass(r_css);
-            console.log(row, data, index);
         	},
 					destroy: true,
 					processing: true,
