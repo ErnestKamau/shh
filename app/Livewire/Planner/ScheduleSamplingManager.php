@@ -1465,7 +1465,9 @@ class ScheduleSamplingManager extends Component
         if (!$this->selectedSampleTypeId) {
             return null;
         }
-        return \App\SampleType::find($this->selectedSampleTypeId);
+        return \App\SampleType::query()
+            ->with('sampleTypeCategory')
+            ->find($this->selectedSampleTypeId);
     }
 
     public function getIsFoodProperty()
@@ -1479,21 +1481,26 @@ class ScheduleSamplingManager extends Component
 
     public function getIsWaterProperty()
     {
-        $st = $this->selectedSampleType;
-        if (!$st) {
+        if ($this->isWasteWater) {
             return false;
         }
-        $isWasteWater = stripos($st->name, 'Waste Water') !== false || stripos($st->code, 'WWTR') !== false;
-        return !$isWasteWater && (stripos($st->name, 'Water') !== false || stripos($st->code, 'WTR') !== false);
+
+        $st = $this->selectedSampleType;
+        if (! $st) {
+            return false;
+        }
+
+        return app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isWater($st);
     }
 
     public function getIsWasteWaterProperty()
     {
         $st = $this->selectedSampleType;
-        if (!$st) {
+        if (! $st) {
             return false;
         }
-        return stripos($st->name, 'Waste Water') !== false || stripos($st->code, 'WWTR') !== false;
+
+        return app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class)->isWasteWater($st);
     }
 
     public function getDefaultSampleRow()

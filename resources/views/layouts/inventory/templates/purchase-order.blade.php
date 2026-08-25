@@ -1,7 +1,13 @@
 <?php
 	$supplierDetails = \App\Supplier::find($entity->supplier_id);
-	$extras = \App\RequestEntityExtraCharge::join('module_pre_configs as mpc', 'mpc.id', 'request_entity_extra_charges.currency_id')
-				->selectRaw('request_entity_extra_charges.*, mpc.name as currency')->where('request_id', $entity->id)->get();
+	$extras = \Illuminate\Support\Facades\Schema::hasTable('request_entity_extra_charges')
+		? \App\RequestEntityExtraCharge::join('module_pre_configs as mpc', function ($join) {
+			$join->whereRaw('mpc.id::text = request_entity_extra_charges.currency_id::text');
+		})
+			->selectRaw('request_entity_extra_charges.*, mpc.name as currency')
+			->where('request_id', $entity->id)
+			->get()
+		: collect();
 	$active = getActiveCompany();
 
 	// echo json_encode($active)
@@ -258,7 +264,11 @@
 			$PO_TOTAL = 0;
 		?>
 		@foreach ($normalItems as $item)
-		<?php $isKitRow = !is_numeric($item->catalog_number); ?>
+		<?php
+			$isKitRow = filled($item->catalog_number)
+				&& ! is_numeric($item->catalog_number)
+				&& ! \Illuminate\Support\Str::isUuid((string) $item->catalog_number);
+		?>
 		<tr style="padding: 4px 2px; font-size: 12px; font-family:'Courier New', Courier, monospace">
 			<td style="padding-right: 2px; text-align: center; width: 3.83333%;">{{ $loop->iteration }}</td>
 			<td style="padding-right: 2px; width: 6.66667%; text-align: right">{{ $isKitRow ? 1 : number_format($item->quantity, 3).$item->unit_type }}</td>

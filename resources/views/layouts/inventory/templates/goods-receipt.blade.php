@@ -60,7 +60,9 @@
 {{-- <pre>{{ json_encode($normalItems, JSON_PRETTY_PRINT) }}</pre> --}}
 @foreach ($normalItems as $item)
 <?php
-	$isKitItem = !is_numeric($item->catalog_number);
+	$isKitItem = filled($item->catalog_number)
+		&& ! is_numeric($item->catalog_number)
+		&& ! \Illuminate\Support\Str::isUuid((string) $item->catalog_number);
 ?>
 <tr style="height: 21px;">
 	<td style="padding: 1px 3px">{{ getInventoryItemClassification($item->item_classification) }}</td>

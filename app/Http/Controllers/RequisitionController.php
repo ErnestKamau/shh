@@ -378,12 +378,19 @@ class RequisitionController extends Controller
 		}
 
 		$approvals = getStageApprovals('Requisition', 'Goods Receipt');
+		$currentLocation = getCurrentUserLocation();
 
 		$firstApprover = false;
 
 		$previousApprovers = [];
 		foreach ($approvals as $app) {
 			$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers);
+			if ($approver === null) {
+				$approver = $this->getFirstUserForRoleGroup($app->role_group_name, []);
+			}
+			if ($approver === null) {
+				continue;
+			}
 			$approverID = $approver->id;
 
 			$entity_approval =  \App\EntityApproval::where('model_id', $purchaseOrder->id)->where('approval_id', $app->id)
@@ -392,8 +399,12 @@ class RequisitionController extends Controller
 			$entity_approval->approval_id = $app->id;
 			$entity_approval->model = 'Goods Receipt';
 			$entity_approval->model_id = $purchaseOrder->id;
-			$entity_approval->inventory_location_id = getCurrentUserLocation()->id;
+			$entity_approval->inventory_location_id = $currentLocation?->id ?? $purchaseOrder->inventory_location_id;
 			$entity_approval->user_id = $approverID;
+			$entity_approval->status = 'Pending';
+			$entity_approval->approved_at = null;
+			$entity_approval->description = '';
+			$entity_approval->is_current = 0;
 			$entity_approval->save();
 
 			$previousApprovers[] = $approverID;
@@ -402,6 +413,8 @@ class RequisitionController extends Controller
 				$firstApprover = true;
 				$entity_approval->is_current = 1;
 				$entity_approval->save();
+				$purchaseOrder->approval_status = 'Pending: '.$app->title;
+				$purchaseOrder->save();
 			}
 		}
 
@@ -999,17 +1012,17 @@ class RequisitionController extends Controller
 					$entity_approval = \App\EntityApproval::where('model_id', $purchaseOrder->id)->where('approval_id', $app->id)
 						->where('model', 'Purchase Orders')->first() ?? new \App\EntityApproval;
 
-					if (!$firstApprover) {
-						$firstApprover = $approver;
-						$entity_approval->is_current = 1;
-						$entity_approval->save();
-					}
-
 					$entity_approval->approval_id = $app->id;
 					$entity_approval->model = 'Purchase Orders';
 					$entity_approval->model_id = $purchaseOrder->id;
 					$entity_approval->inventory_location_id = getCurrentUserLocation()->id;
 					$entity_approval->user_id = $approverID;
+
+					if (!$firstApprover) {
+						$firstApprover = $approver;
+						$entity_approval->is_current = 1;
+					}
+
 					$entity_approval->save();
 
 					$previousApprovers[] = $approverID;
@@ -1033,9 +1046,17 @@ class RequisitionController extends Controller
 				$iO = $i->replicate();
 				$iO->request_id = $purchaseOrder->id;
 				$iO->net_value = $quote->quote_amount;
-				$iO->currency = $quote->currency_id;
-				$iO->vat_inc = $quote->vat_inc;
-				$iO->vat_perc = $quote->vat_perc;
+				$iO->currency = is_numeric($quote->currency_id) ? $quote->currency_id : 0;
+				if (\Illuminate\Support\Facades\Schema::hasColumn('request_entity_items', 'vat_inc')) {
+					$iO->vat_inc = $quote->vat_inc;
+				} else {
+					$iO->offsetUnset('vat_inc');
+				}
+				if (\Illuminate\Support\Facades\Schema::hasColumn('request_entity_items', 'vat_perc')) {
+					$iO->vat_perc = $quote->vat_perc;
+				} else {
+					$iO->offsetUnset('vat_perc');
+				}
 				if ($request->has('split_items') && in_array($i->id, $split_items) && in_array($quote->supplier_id, $split_suppliers)) {
 					$iO->net_value = 0;
 					$iO->quantity = 0;
@@ -1124,59 +1145,92 @@ class RequisitionController extends Controller
 
 	public function create_rfq_from_material_requisition($entity, $internal = false)
 	{
-		$existsRFQ = \App\RequestEntity::where('parent_request_id', $entity->id)->where('request_type', 'Request for Quotation')->get();
+		$existingRfq = \App\RequestEntity::where('parent_request_id', $entity->id)
+			->where('request_type', 'Request for Quotation')
+			->first();
 
-		if ($existsRFQ->count() > 0) {
+		$existingRfqIsComplete = $existingRfq !== null
+			&& RequestEntityItem::where('request_id', $existingRfq->id)->exists()
+			&& \App\EntityApproval::where('model_id', $existingRfq->id)
+				->where('model', 'Request for Quotation')
+				->exists();
+
+		if ($existingRfqIsComplete) {
 			if ($internal) {
-				return $existsRFQ->first();
+				return $existingRfq;
 			}
 
 			return redirect()->back()->with('error', 'RFQ already created!');
 		}
 
-		$config = "Currency";
-		$module = "Inventory-Management";
+		if ($existingRfq !== null) {
+			$rfq = $existingRfq;
+		} else {
+			$config = "Currency";
+			$module = "Inventory-Management";
 
-		$defaultCurrency = \App\ModulePreConfigs::query()
-			->where('type', $config)
-			->where('module', $module)
-			->where('name', 'KES')
-			->first()
-			?? \App\ModulePreConfigs::query()
+			$defaultCurrency = \App\ModulePreConfigs::query()
 				->where('type', $config)
 				->where('module', $module)
-				->when(filled($entity->currency), function ($query) use ($entity) {
-					$query->where('id', $entity->currency);
-				})
+				->where('name', 'KES')
 				->first()
-			?? \App\ModulePreConfigs::query()
-				->where('type', $config)
-				->where('module', $module)
-				->orderBy('name')
-				->first();
+				?? \App\ModulePreConfigs::query()
+					->where('type', $config)
+					->where('module', $module)
+					->when(filled($entity->currency), function ($query) use ($entity) {
+						$query->where('id', $entity->currency);
+					})
+					->first()
+				?? \App\ModulePreConfigs::query()
+					->where('type', $config)
+					->where('module', $module)
+					->orderBy('name')
+					->first();
 
-		if ($defaultCurrency === null) {
-			if ($internal) {
-				throw new \RuntimeException('No Inventory-Management currency is configured. Add KES/USD/EUR under Inventory currencies.');
+			if ($defaultCurrency === null) {
+				if ($internal) {
+					throw new \RuntimeException('No Inventory-Management currency is configured. Add KES/USD/EUR under Inventory currencies.');
+				}
+
+				return redirect()->back()->with('error', 'No Inventory-Management currency is configured. Add a currency first.');
 			}
 
-			return redirect()->back()->with('error', 'No Inventory-Management currency is configured. Add a currency first.');
+			$rfq = $entity->replicate();
+			$rfq->parent_request = $entity->request_type;
+			$rfq->currency = $defaultCurrency->id;
+			$rfq->request_code = getNamingConventionCode("Request for Quotation", false, "RFQ");
+			$rfq->parent_request_id = $entity->id;
+			$rfq->request_type = "Request for Quotation";
+			$rfq->status = "In Preparation";
+			$rfq->approval_status = "";
+			$rfq->created_by = \Auth::user()->id;
+			$rfq->net_value = 0;
+			$rfq->parent_material_requisition = $entity->id;
+			$rfq->save();
 		}
 
-		$rfq = $entity->replicate();
-		$rfq->parent_request = $entity->request_type;
-		$rfq->currency = $defaultCurrency->id;
-		$rfq->request_code = getNamingConventionCode("Request for Quotation", false, "RFQ");
-		$rfq->parent_request_id = $entity->id;
-		$rfq->request_type = "Request for Quotation";
-		$rfq->status = "In Preparation";
-		$rfq->approval_status = "";
-		$rfq->created_by = \Auth::user()->id;
-		$rfq->net_value = 0;
-		$rfq->parent_material_requisition = $entity->id;
-		$rfq->save();
+		if (! RequestEntityItem::where('request_id', $rfq->id)->exists()) {
+			$entityItems = RequestEntityItem::where('request_id', $entity->id)
+				->where('ammendment', $entity->ammendment)
+				->get();
+
+			if ($entityItems->isEmpty()) {
+				$entityItems = RequestEntityItem::where('request_id', $entity->id)->get();
+			}
+
+			foreach ($entityItems as $i) {
+				$iO = $i->replicate();
+				$iO->request_id = $rfq->id;
+				$iO->ammendment = $rfq->ammendment;
+				$iO->save();
+
+				$rfq->net_value += floatval($iO->net_value);
+				$rfq->save();
+			}
+		}
 
 		$approvals = getStageApprovals('Requisition', 'Request for Quotation');
+		$locationId = getCurrentUserLocation()?->id ?? $entity->inventory_location_id;
 
 		$previousApprovers = [];
 		$firstApprover = false;
@@ -1191,42 +1245,33 @@ class RequisitionController extends Controller
 			$entity_approval = \App\EntityApproval::where('model_id', $rfq->id)->where('approval_id', $app->id)
 				->where('model', 'Request for Quotation')->first() ?? new \App\EntityApproval;
 
-			if (!$firstApprover) {
-				$firstApprover = \App\User::find($approverID);
-				$entity_approval->is_current = 1;
-				$entity_approval->save();
-			}
-
 			$entity_approval->approval_id = $app->id;
 			$entity_approval->model = 'Request for Quotation';
 			$entity_approval->model_id = $rfq->id;
-			$entity_approval->inventory_location_id = getCurrentUserLocation()->id;
+			$entity_approval->inventory_location_id = $locationId;
 			$entity_approval->user_id = $approverID;
+
+			if (! $firstApprover) {
+				$firstApprover = $approver;
+				$entity_approval->is_current = 1;
+			}
+
 			$entity_approval->save();
 
 			$previousApprovers[] = $approverID;
 		}
 
-		$entityItems = RequestEntityItem::where('request_id', $entity->id)->where('ammendment', $entity->ammendment)->get();
+		if (! EntityAttachment::where('model', $rfq->request_type)->where('model_id', $rfq->id)->exists()) {
+			$hasSupplierForwardable = EntityAttachment::where('type', 'Supplier Item Specification File')
+				->where('model', $entity->request_type)->where('model_id', $entity->id)->get();
 
-		foreach ($entityItems as $i) {
-			$iO = $i->replicate();
-			$iO->request_id = $rfq->id;
-			$iO->save();
-
-			$rfq->net_value += floatval($iO->net_value);
-			$rfq->save();
-		}
-
-		$hasSupplierForwardable = EntityAttachment::where('type', 'Supplier Item Specification File')
-			->where('model', $entity->request_type)->where('model_id', $entity->id)->get();
-
-		foreach ($hasSupplierForwardable as $forwardable) {
-			$newFile = $forwardable->replicate();
-			$newFile->model = $rfq->request_type;
-			$newFile->model_id = $rfq->id;
-			$newFile->created_by = \Auth::user()->id;
-			$newFile->save();
+			foreach ($hasSupplierForwardable as $forwardable) {
+				$newFile = $forwardable->replicate();
+				$newFile->model = $rfq->request_type;
+				$newFile->model_id = $rfq->id;
+				$newFile->created_by = \Auth::user()->id;
+				$newFile->save();
+			}
 		}
 
 		if (isKECU()) {
@@ -2125,15 +2170,21 @@ class RequisitionController extends Controller
 
 		// return $APPR_USER;
 
-		$mailData = array(
-			'contacts' => [$user->email],
-			'body' => $body,
-			'subject' => '[Approval Request] Approval Request for ' . $req->request_type . ' - ' . $req->request_code
-		);
+		try {
+			$mailData = array(
+				'contacts' => [$user->email],
+				'body' => $body,
+				'subject' => '[Approval Request] Approval Request for ' . $req->request_type . ' - ' . $req->request_code
+			);
 
-		$mailer = new Mailer;
+			$mailer = new Mailer;
 
-		$sendMail = $mailer->html_email($mailData, 'default');
+			$mailer->html_email($mailData, 'default');
+		} catch (\Throwable $e) {
+			\Log::warning('Change approver notification failed for '.$req->request_code.': '.$e->getMessage());
+
+			return redirect()->back()->with('success', 'Approver has been changed. Notification email could not be sent.');
+		}
 
 		return  redirect()->back()->with('success', 'Approver has been changed.');
 	}
@@ -2194,11 +2245,23 @@ class RequisitionController extends Controller
 
 			$entity_approval = \App\EntityApproval::where('model_id', $purchaseOrder->id)->where('approval_id', $app->id)
 				->where('model', 'Purchase Orders')->first() ?? new \App\EntityApproval;
+
+			$entity_approval->approval_id = $app->id;
+			$entity_approval->model = 'Purchase Orders';
+			$entity_approval->model_id = $purchaseOrder->id;
+			$entity_approval->inventory_location_id = getCurrentUserLocation()->id;
+			$entity_approval->user_id = $approverID;
+
+			$shouldNotifyFirstApprover = false;
 			if (!$firstApprover) {
 				$firstApprover = $approver;
-
 				$entity_approval->is_current = 1;
-				$entity_approval->save();
+				$shouldNotifyFirstApprover = true;
+			}
+
+			$entity_approval->save();
+
+			if ($shouldNotifyFirstApprover) {
 				$companyDetails = getCompanyDetails();
 
 				$body = '
@@ -2220,13 +2283,6 @@ class RequisitionController extends Controller
 
 				$sendMail = $mailer->html_email($mailData, 'default');
 			}
-
-			$entity_approval->approval_id = $app->id;
-			$entity_approval->model = 'Purchase Orders';
-			$entity_approval->model_id = $purchaseOrder->id;
-			$entity_approval->inventory_location_id = getCurrentUserLocation()->id;
-			$entity_approval->user_id = $approverID;
-			$entity_approval->save();
 
 			$previousApprovers[] = $approverID;
 		}
@@ -2522,25 +2578,38 @@ class RequisitionController extends Controller
 		}
 
 		if ($request->has('get_approval')) {
-			if(trim($req->zoho_status) == "" && $stage == "Purchase Orders"){
-				$req->zoho_status = "draft";
+			$currentLocation = getCurrentUserLocation();
+			if ($currentLocation === null) {
+				return redirect()->back()->with(
+					'error',
+					'No inventory location is set for your account. Set a location before sending for approval.'
+				);
 			}
-			$req->status = "Awaiting Approval";
-			$req->save();
 
 			$approvals = getStageApprovals('Requisition', $stage);
-			$notifyFirstApprover = true;
-			foreach ($approvals as $app) {
-				$requestInitiator = \App\User::find(isset($req->request_initiator) ? $req->request_initiator : $req->created_by);
+			if ($approvals->isEmpty()) {
+				return redirect()->back()->with(
+					'error',
+					'No approval steps are configured for '.$stage.' at your location. Configure approvals first.'
+				);
+			}
 
+			$requestInitiator = \App\User::find($req->request_initiator ?? $req->created_by);
+			$resolvedApprovers = [];
+
+			foreach ($approvals as $app) {
 				$hasDepartmentalApprovals = $this->findDepartmentalApprover(
 					$app->role_id,
 					$requestInitiator?->department_id
 				);
 
-				if (!isset($hasDepartmentalApprovals->user_id)) {
+				if (! isset($hasDepartmentalApprovals->user_id)) {
 					$departmentId = $app->role_group_name === 'Lab Manager' ? $requestInitiator?->department_id : null;
 					$APPR_USER = $this->getFirstUserForRoleGroup($app->role_group_name, [], $departmentId);
+					// Lab Manager dept filter can exclude all users; fall back to any active user in the role.
+					if ($APPR_USER === null && $departmentId !== null) {
+						$APPR_USER = $this->getFirstUserForRoleGroup($app->role_group_name, [], null);
+					}
 				} else {
 					$APPR_USER = \App\User::find($hasDepartmentalApprovals->user_id);
 				}
@@ -2552,59 +2621,71 @@ class RequisitionController extends Controller
 					);
 				}
 
+				$resolvedApprovers[] = [$app, $APPR_USER];
+			}
+
+			$notifyFirstApprover = true;
+			$sendMail = null;
+			$firstApprovalTitle = null;
+
+			foreach ($resolvedApprovers as [$app, $APPR_USER]) {
 				$entity_approval = \App\EntityApproval::where('model_id', $req->id)->where('approval_id', $app->id)
 					->where('model', $stage)->first() ?? new \App\EntityApproval;
 
 				$entity_approval->approval_id = $app->id;
 				$entity_approval->model = $stage;
 				$entity_approval->user_id = $APPR_USER->id;
-				$entity_approval->status = "Pending";
+				$entity_approval->status = 'Pending';
 				$entity_approval->approved_at = null;
-				$entity_approval->description = "";
-
+				$entity_approval->description = '';
 				$entity_approval->model_id = $req->id;
-				$entity_approval->inventory_location_id = getCurrentUserLocation()->id;
+				$entity_approval->inventory_location_id = $currentLocation->id;
+				$entity_approval->is_current = 0;
 				$entity_approval->save();
 
 				if ($notifyFirstApprover) {
 					$notifyFirstApprover = false;
-					$approvalMoreInfo = $this->approvalMoreInfo($req, $entity_approval);
-
-					$body = '
-						Hi,<br><br>
-						There is a ' . $stage . ' Approval Request. Please find the details below<br>
-						' . $approvalMoreInfo . '<br>
-						Click this link
-						<a href="' . route("view-request-details", ["stage" => $stage, "id" => $req->id]) . '">' . route("view-request-details", ["stage" => $stage, "id" => $req->id]) . '</a> to view the request.
-						<br>Regards,<br>
-						' . $companyDetails['name'] . '
-					';
-
-					$req->approval_status = "Pending: " . $app->title;
-
+					$firstApprovalTitle = $app->title;
 					$entity_approval->is_current = 1;
 					$entity_approval->save();
-					$notifiableUser = \App\User::where('id', $entity_approval->user_id)->select('email')->first();
-					$mailData = array(
-						'contacts' => [$notifiableUser->email],
-						'body' => $body,
-						'subject' => '[Approval Request] Approval Request for ' . $req->request_type . ' - ' . $req->request_code
-					);
 
-					$mailer = new Mailer;
+					try {
+						$approvalMoreInfo = $this->approvalMoreInfo($req, $entity_approval);
+						$body = '
+							Hi,<br><br>
+							There is a '.$stage.' Approval Request. Please find the details below<br>
+							'.$approvalMoreInfo.'<br>
+							Click this link
+							<a href="'.route('view-request-details', ['stage' => $stage, 'id' => $req->id]).'">'.route('view-request-details', ['stage' => $stage, 'id' => $req->id]).'</a> to view the request.
+							<br>Regards,<br>
+							'.$companyDetails['name'].'
+						';
 
-					$sendMail = $mailer->html_email($mailData, 'default');
+						$notifiableUser = \App\User::where('id', $entity_approval->user_id)->select('email')->first();
+						if ($notifiableUser?->email) {
+							$mailData = [
+								'contacts' => [$notifiableUser->email],
+								'body' => $body,
+								'subject' => '[Approval Request] Approval Request for '.$req->request_type.' - '.$req->request_code,
+							];
+							$mailer = new Mailer;
+							$sendMail = $mailer->html_email($mailData, 'default');
+						}
+					} catch (\Throwable $e) {
+						\Log::warning('Approval notification email failed for '.$req->request_code.': '.$e->getMessage());
+					}
 				}
-				// return $APPR_USER;
 			}
+
+			$req->status = 'Awaiting Approval';
+			$req->approval_status = $firstApprovalTitle ? 'Pending: '.$firstApprovalTitle : null;
+			$req->save();
 
 			if ($isInternal) {
 				return $sendMail;
 			}
 
-			// return json_encode($emailList);
-
-			return \redirect()->back()->with('success', $stage . ' Awaiting Approval.');
+			return \redirect()->back()->with('success', $stage.' Awaiting Approval.');
 		}
 
 		if ($request->has('is_rfq_quote')) {
@@ -3865,11 +3946,20 @@ class RequisitionController extends Controller
 	}
 
 	public function resend_to_zoho($id){
+		// Zoho Books integration disabled — not in use.
+		return redirect()->back()->with('info', 'Zoho integration is disabled.');
+
+		/*
 		$request = RequestEntity::find($id);
-		$request->zoho_id = null;
-		$request->errors = null;
+		if (\Illuminate\Support\Facades\Schema::hasColumn('request_entities', 'zoho_id')) {
+			$request->zoho_id = null;
+		}
+		if (\Illuminate\Support\Facades\Schema::hasColumn('request_entities', 'errors')) {
+			$request->errors = null;
+		}
 		$request->save();
 
 		return redirect()->back()->with('success', 'Retrying Zoho PO creation.');
+		*/
 	}
 }

@@ -435,10 +435,116 @@
 		min-width: 0;
 	}
 
+	.trf-ls-theme .trf-ww-collection-row3 {
+		display: grid;
+		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 3fr);
+		column-gap: clamp(1rem, 4vw, 2rem);
+		align-items: start;
+		margin-bottom: 1.25rem;
+	}
+
+	.trf-ls-theme .trf-ww-collection-row3 > * {
+		min-width: 0;
+	}
+
+	.trf-ls-theme .trf-ww-collection-row4 {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		column-gap: clamp(1rem, 4vw, 2rem);
+		align-items: start;
+		margin-bottom: 1.25rem;
+	}
+
+	.trf-ls-theme .trf-ww-collection-row4 > * {
+		min-width: 0;
+	}
+
+	.trf-ls-theme .trf-option-grid--ww-reason {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.trf-ls-theme .trf-option-grid--ww-technique,
+	.trf-ls-theme .trf-option-grid--ww-test-category,
+	.trf-ls-theme .trf-option-grid--ww-transport {
+		grid-template-columns: 1fr;
+	}
+
+	.trf-ls-theme .trf-option-grid--ww-source {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.trf-ls-theme .trf-ww-field-data-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.75rem 1rem;
+	}
+
+	.trf-ls-theme .trf-ww-field-data-grid__cell {
+		min-width: 0;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-block {
+		border: 1px solid var(--ls-blue-soft-border, #dbeafe);
+		border-radius: var(--ls-radius-md, 0.5rem);
+		padding: 0.75rem;
+		background: color-mix(in srgb, var(--ls-blue-soft, #eff6ff) 35%, #fff);
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.65rem 0.75rem;
+		align-items: start;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-grid__cell {
+		min-width: 0;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-grid__cell--instrument {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-chip {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.trf-ls-theme .trf-ww-instrument-row__check {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		color: #475569;
+	}
+
+	.trf-ls-theme .trf-ww-extra-equipment-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+		gap: 0.4rem;
+		margin-bottom: 0.45rem;
+		align-items: center;
+	}
+
+	.trf-ls-theme .trf-ww-description-cell .ls-rich-text {
+		width: 100%;
+	}
+
 	@media (max-width: 767.98px) {
 		.trf-ls-theme .trf-collection-trio {
 			grid-template-columns: 1fr;
 			row-gap: 0.85rem;
+		}
+
+		.trf-ls-theme .trf-ww-collection-row3,
+		.trf-ls-theme .trf-ww-collection-row4,
+		.trf-ls-theme .trf-ww-apparatus-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.trf-ls-theme .trf-ww-field-data-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 
 		.trf-ls-theme .trf-option-grid--method,
@@ -550,6 +656,35 @@
 
 	.trf-ls-theme .rv-trf-select-shell .select2-container {
 		width: 100% !important;
+	}
+
+	/* Catalog row: Sample type — stable Select2 (no shell jump on open) */
+	.trf-ls-theme .rv-trf-catalog-row .rv-trf-select-shell {
+		padding: 0;
+		border: none;
+		border-radius: 0;
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.trf-ls-theme .rv-trf-catalog-row .rv-trf-select-shell .select2-container,
+	.trf-ls-theme .rv-trf-catalog-row .rv-trf-select-shell .select2-container .selection {
+		height: auto !important;
+		min-height: 0 !important;
+		max-height: none !important;
+	}
+
+	.trf-ls-theme .rv-trf-catalog-row .rv-trf-select-shell .select2-container--default .select2-selection--single {
+		min-height: 38px !important;
+		height: auto !important;
+		border: 1px solid #e2e8f0 !important;
+		border-radius: 8px !important;
+		background: #eff6ff !important;
+		box-shadow: none !important;
+	}
+
+	.trf-ls-theme .rv-trf-catalog-row .rv-trf-select-shell .select2-container--default.select2-container--open .select2-selection--single {
+		border-color: #94a3b8 !important;
 	}
 
 	.trf-ls-theme .rft-sample-grid-row.row,

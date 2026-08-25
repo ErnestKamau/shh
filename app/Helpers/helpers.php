@@ -321,10 +321,13 @@ function getNoteTypes()
 
 function getStageApprovals($type, $entity)
 {
-	// $configID = getConfigByName('ammendment_approval_id')[0];
+	$location = getCurrentUserLocation();
+	if ($location === null) {
+		return collect();
+	}
+
 	return App\Approvals::where('for', $type)->where('stage', $entity)
-		->where('inventory_location_id', getCurrentUserLocation()->id)
-		// ->where('id', '!=', $configID->id)
+		->where('inventory_location_id', $location->id)
 		->orderBy('level', 'asc')->get();
 }
 

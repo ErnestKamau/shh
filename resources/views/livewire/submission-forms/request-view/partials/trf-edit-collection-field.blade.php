@@ -105,7 +105,7 @@
             @if(($trfEditCompanyUnitId ?? '') === '')
                 <p class="ls-field__hint mt-1 mb-0">Select a company unit on the Customer step first.</p>
             @endif
-        @elseif($fieldName === 'thermometer_id')
+        @elseif($fieldName === 'thermometer_id' || $fieldName === 'ph_meter_id' || $fieldName === 'chlorine_meter_id')
             <div class="ls-field__control">
                 <input id="trf-edit-{{ $fieldName }}"
                     type="text"
@@ -113,7 +113,16 @@
                     wire:model.defer="trfEditCollectionFields.{{ $fieldName }}"
                     placeholder="Optional">
             </div>
-        @elseif($fieldType === 'checkbox' || in_array($fieldName, ['sampling_apparatus', 'method_of_sampling'], true))
+        @elseif($fieldType === 'rich_text')
+            @include('livewire.partials.submission-rich-text-editor', [
+                'fieldId' => 'trf-edit-'.$fieldName,
+                'wirePrefix' => 'trfEditCollectionFields.'.$fieldName,
+                'value' => (string) ($trfEditCollectionFields[$fieldName] ?? ''),
+            ])
+        @elseif($fieldType === 'checkbox' || in_array($fieldName, [
+            'sampling_apparatus', 'method_of_sampling', 'reason_of_collection', 'transport_condition',
+            'sampling_technique', 'sampling_source', 'sample_types_ww', 'field_data_requirements',
+        ], true))
             <div class="{{ $optionGridClass }}">
                 @foreach($checkboxOptions as $optionKey => $optionText)
                     <label class="rv-trf-option-chip">
@@ -124,7 +133,7 @@
                     </label>
                 @endforeach
             </div>
-        @elseif($fieldType === 'radio' || $fieldName === 'reason_of_collection' || $fieldName === 'transport_condition')
+        @elseif($fieldType === 'radio')
             <div class="{{ $optionGridClass ?? 'rv-trf-option-grid rv-trf-option-grid--compact' }}">
                 @foreach($checkboxOptions as $optionKey => $optionText)
                     <label class="rv-trf-option-chip">

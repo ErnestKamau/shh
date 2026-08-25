@@ -55,11 +55,15 @@
         }
     }
 
-    $isCheckbox = $fieldType === 'checkbox' || in_array($fieldName, ['sampling_apparatus', 'method_of_sampling'], true);
-    $isRadio = $fieldType === 'radio' || in_array($fieldName, ['reason_of_collection', 'transport_condition'], true);
+    $isCheckbox = $fieldType === 'checkbox' || in_array($fieldName, [
+        'sampling_apparatus', 'method_of_sampling', 'reason_of_collection', 'transport_condition',
+        'sampling_technique', 'sampling_source', 'sample_types_ww', 'field_data_requirements',
+    ], true);
+    $isRadio = $fieldType === 'radio';
     $isLocation = $fieldName === 'sampling_location' || in_array($fieldType, ['customer_sample_point_select', 'sample_point_select'], true);
     $isDate = in_array($fieldName, ['sampling_date', 'date_received'], true) || $fieldType === 'date';
     $isTime = $fieldName === 'sampling_time' || $fieldType === 'time';
+    $isRichText = $fieldType === 'rich_text';
 
     $selectedForChips = [];
     if ($isCheckbox) {
@@ -85,7 +89,10 @@
         if ($textDisplay === '') {
             $textDisplay = '—';
         }
-    } elseif ($isDate || $isTime || $fieldName === 'thermometer_id' || (! $isCheckbox && ! $isRadio)) {
+    } elseif ($isRichText) {
+        $html = trim(strip_tags((string) ($value ?? ''), '<p><br><ul><ol><li><strong><em>'));
+        $textDisplay = $html !== '' ? $html : '—';
+    } elseif ($isDate || $isTime || in_array($fieldName, ['thermometer_id', 'ph_meter_id', 'chlorine_meter_id'], true) || (! $isCheckbox && ! $isRadio)) {
         if (is_array($value)) {
             $textDisplay = '—';
         } else {
@@ -113,7 +120,14 @@
                 'columns' => $chipColumns,
                 'disabled' => true,
             ])
-        @elseif($isDate || $isTime || $fieldName === 'thermometer_id')
+        @elseif($isRichText)
+            <div class="ls-field">
+                <label class="ls-field__label">{{ $fieldLabel }}</label>
+                <div class="ls-field__control">
+                    <div class="small text-body">{!! $textDisplay !!}</div>
+                </div>
+            </div>
+        @elseif($isDate || $isTime || in_array($fieldName, ['thermometer_id', 'ph_meter_id', 'chlorine_meter_id'], true))
             @include('layouts.lab.partials.ls-ui.fields.ls-field-affix', [
                 'label' => $fieldLabel,
                 'id' => 'trf-view-'.$fieldName,

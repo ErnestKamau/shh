@@ -207,17 +207,27 @@ class TestRequestFormReportDataBuilderTest extends TestCase
                 'sampling_date' => '2026-06-03',
                 'sampling_time' => '10:30',
                 'sampling_location' => 'Site A',
-                'sample_description' => 'Effluent discharge point',
-                'sampling_apparatus' => ['STERILE BOTTLE'],
-                'method_of_sampling' => ['APHA'],
-                'reason_of_collection' => ['CONTRACT'],
-                'sampling_technique' => ['GRAB'],
-                'sampling_source' => ['STP'],
-                'sample_types_ww' => ['LIQUID'],
-                'transport_condition' => ['AMBIENT'],
-                'field_data_quantity' => '2',
-                'field_data_ph' => '7.1',
-                'field_data_requirements' => ['MICROBIOLOGY + CHEMISTRY'],
+                'sample_sampling_point_description' => '<p>1. Sewage Manhole</p>',
+                'sampling_apparatus' => ['sterile_bottle'],
+                'method_of_sampling' => ['apha'],
+                'reason_of_collection' => ['contract'],
+                'sampling_technique' => ['grab'],
+                'sampling_source' => ['stp'],
+                'sample_types_ww' => ['semi_solid'],
+                'transport_condition' => ['ambient'],
+                'ph_meter_id' => 'AMS/C/INS/134',
+                'chlorine_meter_id' => 'AMS/C/INS/079',
+                'field_data_quantity' => '3 Glass Bottle + 1 glass bottle',
+                'field_data_appearance' => 'Grayish',
+                'field_data_color' => 'Light Gray',
+                'field_data_odor' => 'Characteristic sewage odor',
+                'field_data_ph' => '7.3',
+                'field_data_temperature' => '30°C',
+                'field_data_free_chlorine' => '',
+                'field_data_requirements' => ['microbiology', 'chemistry'],
+                'extra_sampling_equipment' => [
+                    ['label' => 'Sampler', 'id' => 'AMS/C/INS/200'],
+                ],
             ],
             $wasteWater,
             null,
@@ -227,9 +237,37 @@ class TestRequestFormReportDataBuilderTest extends TestCase
         $this->assertSame('waste_water', $data['variant']);
         $this->assertStringContainsString('LWS/036', $data['documentRef']);
         $this->assertSame('WW-456', $data['wasteWaterFields']['sample_number']);
+        $this->assertSame('1. Sewage Manhole', $data['wasteWaterFields']['sample_description']);
+        $this->assertSame('AMS/C/INS/134', $data['wasteWaterFields']['ph_meter_id']);
+        $this->assertStringContainsString('Sampler: AMS/C/INS/200', $data['wasteWaterFields']['sampling_apparatus_others']);
         $this->assertTrue($data['wasteWaterFields']['field_data_requirement_checks']['MICROBIOLOGY']);
         $this->assertTrue($data['wasteWaterFields']['field_data_requirement_checks']['CHEMISTRY']);
+        $this->assertSame('Grayish', $data['wasteWaterFields']['field_data_appearance']);
         $this->assertSame(['GRAB', 'COMPOSITE', 'OTHER'], $data['collectionGrid']['technique_ordered_keys']);
+    }
+
+    public function test_waste_water_field_data_falls_back_to_legacy_row_values(): void
+    {
+        $wasteWater = SampleType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Waste Water',
+            'code' => 'SMP-WWTR',
+            'active' => true,
+        ]);
+
+        $data = app(TestRequestFormReportDataBuilder::class)->buildFromDraft(
+            [
+                'customer_name' => 'Legacy Co',
+                'field_color' => ['Light Gray'],
+                'field_ph' => ['7.1'],
+            ],
+            $wasteWater,
+            null,
+            false
+        );
+
+        $this->assertSame('Light Gray', $data['wasteWaterFields']['field_data_color']);
+        $this->assertSame('7.1', $data['wasteWaterFields']['field_data_ph']);
     }
 
     public function test_field_data_requirement_checks_maps_combined_option(): void

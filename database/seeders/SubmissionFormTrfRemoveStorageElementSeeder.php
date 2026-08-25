@@ -12,7 +12,7 @@ class SubmissionFormTrfRemoveStorageElementSeeder extends Seeder
 
     public function run(): void
     {
-        foreach (['TRF-FOOD-019', 'TRF-FOOD-FEED-021', 'TRF-WATER-020', 'TRF-WASTE-036'] as $documentCode) {
+        foreach (['TRF-FOOD-019', 'TRF-FOOD-FEED-021', 'TRF-WATER-020', 'TRF-WASTEWATER-036', 'TRF-WASTE-036'] as $documentCode) {
             $form = SubmissionForm::query()->where('document_code', $documentCode)->first();
             if ($form === null) {
                 continue;

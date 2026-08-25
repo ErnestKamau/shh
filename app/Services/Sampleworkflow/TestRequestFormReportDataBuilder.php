@@ -1091,14 +1091,29 @@ class TestRequestFormReportDataBuilder
      */
     private function resolveWasteWaterFields(array $formData): array
     {
+        $legacyRow = $this->firstWasteWaterSampleRow($formData);
+
         $fieldDataRequirements = self::normalizeCheckboxGroup(
             $formData['field_data_requirements'] ?? [],
             self::WASTE_WATER_OPTIONS['field_data_requirements']
         );
 
+        $description = trim(strip_tags((string) ($formData['sample_sampling_point_description'] ?? '')));
+        if ($description === '') {
+            $description = trim(strip_tags((string) ($formData['sample_description'] ?? '')));
+        }
+
+        $apparatusOthers = trim((string) ($formData['sampling_apparatus_others'] ?? ''));
+        $extraEquipmentText = $this->formatExtraSamplingEquipmentForPdf($formData['extra_sampling_equipment'] ?? null);
+        if ($extraEquipmentText !== '') {
+            $apparatusOthers = $apparatusOthers !== ''
+                ? $apparatusOthers.'; '.$extraEquipmentText
+                : $extraEquipmentText;
+        }
+
         return [
             'sample_number' => (string) ($formData['sample_number'] ?? ''),
-            'sample_description' => (string) ($formData['sample_description'] ?? ''),
+            'sample_description' => $description,
             'sampling_apparatus' => self::normalizeCheckboxGroup(
                 $formData['sampling_apparatus'] ?? [],
                 self::WASTE_WATER_OPTIONS['sampling_apparatus']
@@ -1106,7 +1121,7 @@ class TestRequestFormReportDataBuilder
             'thermometer_id' => (string) ($formData['thermometer_id'] ?? ''),
             'ph_meter_id' => (string) ($formData['ph_meter_id'] ?? ''),
             'chlorine_meter_id' => (string) ($formData['chlorine_meter_id'] ?? ''),
-            'sampling_apparatus_others' => (string) ($formData['sampling_apparatus_others'] ?? ''),
+            'sampling_apparatus_others' => $apparatusOthers,
             'method_of_sampling' => self::normalizeCheckboxGroup(
                 $formData['method_of_sampling'] ?? [],
                 self::WASTE_WATER_OPTIONS['method_of_sampling']
@@ -1131,16 +1146,104 @@ class TestRequestFormReportDataBuilder
                 $formData['transport_condition'] ?? [],
                 self::WASTE_WATER_OPTIONS['transport_condition']
             ),
-            'field_data_quantity' => (string) ($formData['field_data_quantity'] ?? ''),
-            'field_data_appearance' => (string) ($formData['field_data_appearance'] ?? ''),
-            'field_data_color' => (string) ($formData['field_data_color'] ?? ''),
-            'field_data_odor' => (string) ($formData['field_data_odor'] ?? ''),
-            'field_data_ph' => (string) ($formData['field_data_ph'] ?? ''),
-            'field_data_temperature' => (string) ($formData['field_data_temperature'] ?? ''),
-            'field_data_free_chlorine' => (string) ($formData['field_data_free_chlorine'] ?? ''),
+            'field_data_quantity' => $this->wasteWaterFieldDataValue($formData, 'field_data_quantity', null, $legacyRow),
+            'field_data_appearance' => $this->wasteWaterFieldDataValue($formData, 'field_data_appearance', 'field_appearance', $legacyRow),
+            'field_data_color' => $this->wasteWaterFieldDataValue($formData, 'field_data_color', 'field_color', $legacyRow),
+            'field_data_odor' => $this->wasteWaterFieldDataValue($formData, 'field_data_odor', 'field_odor', $legacyRow),
+            'field_data_ph' => $this->wasteWaterFieldDataValue($formData, 'field_data_ph', 'field_ph', $legacyRow),
+            'field_data_temperature' => $this->wasteWaterFieldDataValue($formData, 'field_data_temperature', 'field_sample_temp', $legacyRow),
+            'field_data_free_chlorine' => $this->wasteWaterFieldDataValue($formData, 'field_data_free_chlorine', 'field_free_chlorine', $legacyRow),
             'field_data_requirements' => $fieldDataRequirements,
             'field_data_requirement_checks' => self::fieldDataRequirementChecks($fieldDataRequirements),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     * @return array<string, mixed>
+     */
+    private function firstWasteWaterSampleRow(array $formData): array
+    {
+        $rows = $formData['sample_rows'] ?? [];
+        if (is_array($rows) && isset($rows[0]) && is_array($rows[0])) {
+            return $rows[0];
+        }
+
+        $legacy = [];
+        foreach (['field_appearance', 'field_color', 'field_odor', 'field_ph', 'field_sample_temp', 'field_free_chlorine'] as $name) {
+            $values = $formData[$name] ?? null;
+            if (is_array($values) && isset($values[0])) {
+                $legacy[$name] = $values[0];
+            }
+        }
+
+        return $legacy;
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     * @param  array<string, mixed>  $legacyRow
+     */
+    private function wasteWaterFieldDataValue(array $formData, string $formKey, ?string $legacyRowKey, array $legacyRow): string
+    {
+        $value = trim((string) ($formData[$formKey] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+
+        if ($legacyRowKey !== null) {
+            $legacy = trim((string) ($legacyRow[$legacyRowKey] ?? ''));
+            if ($legacy !== '') {
+                return $legacy;
+            }
+        }
+
+        if ($formKey === 'field_data_quantity') {
+            $qty = $formData['sample_quantity'] ?? null;
+            if (is_array($qty) && isset($qty[0])) {
+                $unit = is_array($formData['sample_quantity_unit'] ?? null)
+                    ? (string) ($formData['sample_quantity_unit'][0] ?? '')
+                    : (string) ($formData['sample_quantity_unit'] ?? '');
+                $quantity = trim((string) $qty[0]);
+
+                return $quantity !== '' && $unit !== ''
+                    ? trim($quantity.' '.$unit)
+                    : $quantity;
+            }
+        }
+
+        return '';
+    }
+
+    private function formatExtraSamplingEquipmentForPdf(mixed $value): string
+    {
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($value)) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($value as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $label = trim((string) ($row['label'] ?? ''));
+            $id = trim((string) ($row['id'] ?? ''));
+            if ($label === '' && $id === '') {
+                continue;
+            }
+
+            $parts[] = $label !== '' && $id !== ''
+                ? $label.': '.$id
+                : ($label !== '' ? $label : $id);
+        }
+
+        return implode('; ', $parts);
     }
 
     /**

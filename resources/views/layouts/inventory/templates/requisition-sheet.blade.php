@@ -101,7 +101,9 @@
 					$itemQuotes[] = $quote;
 				}
 
-				$isKitRow = !is_numeric($item->catalog_number); //Catalog number should be alphanumeric.
+				$isKitRow = filled($item->catalog_number)
+					&& ! is_numeric($item->catalog_number)
+					&& ! \Illuminate\Support\Str::isUuid((string) $item->catalog_number);
 
 				// echo "<pre>".json_encode($getRFQ->quotes($item['inventory_sub_category_id']), JSON_PRETTY_PRINT)."</pre>";
 			?>
@@ -269,7 +271,9 @@
 							$itemQuotes[] = $quote;
 						}
 
-						$isKitRow = !is_numeric($item->catalog_number); //Catalog number should be alphanumeric.
+						$isKitRow = filled($item->catalog_number)
+							&& ! is_numeric($item->catalog_number)
+							&& ! \Illuminate\Support\Str::isUuid((string) $item->catalog_number);
 
 						// echo "<pre>".json_encode($getRFQ->quotes($item['inventory_sub_category_id']), JSON_PRETTY_PRINT)."</pre>";
 					?>

@@ -139,6 +139,15 @@
         'label' => $field['label'] ?? 'Analysis Type',
         'required' => (bool) ($field['required'] ?? false),
     ])
+@elseif(($field['type'] ?? '') === 'rich_text' && $fieldName === 'sample_sampling_point_description')
+    @include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+        'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Sample & sampling point description'),
+        'value' => data_get($this->formData ?? [], str_replace('formData.', '', $wirePrefix), ''),
+        'wireModel' => $wirePrefix,
+        'editorId' => 'field-'.$fieldId,
+        'rowLabel' => 'Sample collection',
+        'compact' => true,
+    ])
 @elseif(($field['type'] ?? '') === 'rich_text')
     @include('livewire.partials.submission-rich-text-editor', [
         'fieldId' => $fieldId,

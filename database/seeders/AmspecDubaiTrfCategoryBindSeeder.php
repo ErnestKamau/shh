@@ -12,13 +12,13 @@ use Illuminate\Database\Seeder;
  * Visible:
  * - TRF-FOOD-019 → Food, Swab, Ice/Water, Air, Food Contact Material, Consumer Products, Other
  * - TRF-WATER-020 → Water (+ Leachate when present in taxonomy)
- * - TRF-WASTE-036 → waste water sample types
+ * - TRF-WASTEWATER-036 → Waste Water
  *
  * Hidden from RFT:
  * - TRF-SWAB-022 (standalone swab TRF; swab stays on Food category bindings)
  * - TRF-AMSPEC-001 (legacy unified form, if present)
  *
- * Requires: AmspecDubaiSampleTaxonomySeeder (categories exist).
+ * Requires: AmspecDubaiSampleTaxonomySeeder or AmspecDubaiWasteWaterCategorySeeder (categories exist).
  */
 class AmspecDubaiTrfCategoryBindSeeder extends Seeder
 {
@@ -28,7 +28,9 @@ class AmspecDubaiTrfCategoryBindSeeder extends Seeder
 
     private const WATER_DOCUMENT_CODE = 'TRF-WATER-020';
 
-    private const WASTE_WATER_DOCUMENT_CODE = 'TRF-WASTE-036';
+    private const WASTE_WATER_DOCUMENT_CODE = 'TRF-WASTEWATER-036';
+
+    private const WASTE_WATER_LEGACY_DOCUMENT_CODE = 'TRF-WASTE-036';
 
     private const SWAB_DOCUMENT_CODE = 'TRF-SWAB-022';
 
@@ -53,6 +55,13 @@ class AmspecDubaiTrfCategoryBindSeeder extends Seeder
     private const WATER_CATEGORIES = [
         'Water',
         'Leachate',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    private const WASTE_WATER_CATEGORIES = [
+        'Waste Water',
     ];
 
     public function run(): void
@@ -112,30 +121,30 @@ class AmspecDubaiTrfCategoryBindSeeder extends Seeder
 
     private function configureWasteWaterTrf(): void
     {
-        $form = SubmissionForm::query()->where('document_code', self::WASTE_WATER_DOCUMENT_CODE)->first();
+        $form = SubmissionForm::query()
+            ->where(function ($query): void {
+                $query->where('document_code', self::WASTE_WATER_DOCUMENT_CODE)
+                    ->orWhere('document_code', self::WASTE_WATER_LEGACY_DOCUMENT_CODE);
+            })
+            ->first();
+
         if ($form === null) {
             $this->command?->warn('Waste Water TRF '.self::WASTE_WATER_DOCUMENT_CODE.' not found — run SubmissionFormTrfWasteWaterSeeder first.');
 
             return;
         }
 
+        if ($form->document_code === self::WASTE_WATER_LEGACY_DOCUMENT_CODE) {
+            $form->document_code = self::WASTE_WATER_DOCUMENT_CODE;
+        }
+
         $form->is_hidden_from_rft = false;
         $form->save();
 
-        $this->syncSampleTypesByCodes($form, ['SMP WWTR', 'Waste Water']);
-        $this->patchCustomerDetailsSection($form);
-        $this->patchCollectionDataSection($form, true, [], [
-            ['textarea', 'Sample & sampling point description', 'sample_sampling_point_description', 30],
-            ['select', 'Sampling technique', 'sampling_technique', 31, [
-                ['value' => 'grab', 'label' => 'Grab'],
-                ['value' => 'composite', 'label' => 'Composite'],
-                ['value' => 'other', 'label' => 'Other'],
-            ]],
-        ]);
-        $this->patchSampleRowsSection($form, $this->wasteWaterTrfRowFields());
-        $this->patchMiscellaneousSection($form);
+        $this->syncSampleTypeCategoriesByNames($form, self::WASTE_WATER_CATEGORIES);
+        $this->patchWasteWaterTrfSections($form);
 
-        $this->command?->info('Visible TRF '.self::WASTE_WATER_DOCUMENT_CODE.' (waste water sample types).');
+        $this->command?->info('Visible TRF '.self::WASTE_WATER_DOCUMENT_CODE.' → '.implode(', ', self::WASTE_WATER_CATEGORIES).'.');
     }
 
     private function hideStandaloneSwabTrf(): void

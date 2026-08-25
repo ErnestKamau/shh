@@ -268,11 +268,13 @@
 			? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
 			<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
 			@if ($stage == "Purchase Orders" )
+			{{-- Zoho Books integration disabled — not in use.
 			@if (trim($request->zoho_status) != "")
 			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
 				ZOHO Status: {{ $request->zoho_status }}
 			</small>
 			@endif
+			--}}
 			@else
 			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
 				{{ in_array($request->status, ["Goods Accepted",
@@ -502,7 +504,17 @@
 			@endif
 			@endif
 			@if(($approvals->count() ?? 0) > 0 && (count($normalItems) > 0))
-			@if ($request->status == "In Preparation" && in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend"]))
+			@php
+				$pendingEntityApprovalsCount = isset($request->id)
+					? \App\EntityApproval::where('model', $stage)->where('model_id', $request->id)->where('status', 'Pending')->count()
+					: 0;
+				$canSendForApproval = in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend"])
+					&& (
+						$request->status == "In Preparation"
+						|| (in_array($request->status, ["Awaiting Approval", "Partially Approved"]) && $pendingEntityApprovalsCount === 0)
+					);
+			@endphp
+			@if ($canSendForApproval)
 			@if($request->is_lab_kit == 0)
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
 				<i class="mdi mdi-account-check"></i> Get Approval
@@ -515,21 +527,37 @@
 			@endif
 			@endif
 
-			@if ($stage == "Request for Quotation" && isETCU() && $isInventoryProcurement)
-			@if(in_array($request->status, ["Awarded", "RFQs sent out", "In Preparation"]))
+			@if ($stage == "Request for Quotation")
+			@php
+				$rfqHasAwardedQuotes = \App\SupplierQuote::where('request_id', $request->id)->where('is_awarded', 1)->exists();
+				$rfqHasSuppliers = $request->supplier_rfqs()->count() > 0;
+				$rfqHasEmailBody = trim($request->email_body ?? '') !== '';
+			@endphp
+
+			@if ($request->status == "Approval Complete" && $isInventoryProcurement && $rfqHasAwardedQuotes)
+			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
+				data-alert="Are you sure you want to proceed?">
+				<i class="mdi mdi-content-save"></i> Mark as Complete
+			</button>
+			<button class="btn btn-default text-dark float-right btn-sm" data-target="#create-po-confirmation-modal"
+				data-toggle="modal">
+				<i class="mdi mdi-file-move"></i> Create Purchase Order
+			</button>
+			@endif
+
+			@if ($request->status == "Awarded" && $rfqHasAwardedQuotes && $isInventoryProcurement)
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
 				<i class="mdi mdi-account-check"></i> Get Approval
 			</button>
 			@endif
-			@if (in_array($request->status, ["Approval Complete"]) && trim($request->email_body) != "")
+
+			@if ($rfqHasSuppliers && $rfqHasEmailBody && $isInventoryProcurement && !in_array($request->status, ["Awarded", "Approval Complete", "Rejected"]))
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
 				<i class="mdi mdi-email-send"></i> Send Out RFQS
 			</button>
 			@endif
-			@endif
 
-			@if ($stage == "Request for Quotation")
-			@if(trim($request->email_body) != "")
+			@if($rfqHasEmailBody)
 			<span class="btn btn-default text-primary float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
 				<i class="fas fa-eye"></i> Preview Email Body
 			</span>
@@ -537,33 +565,6 @@
 			<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
 				<i class="fas fa-plus"></i> Add Email Body
 			</span>
-			@endif
-			@endif
-
-			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
-			@if (!in_array($request->status, ["Approval Complete", "Rejected"]) &&
-			$isInventoryProcurement && trim($request->email_body) != "")
-			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
-				<i class="mdi mdi-email-send"></i> Send Out RFQS
-			</button>
-			@endif
-			@if (in_array($request->status, ["Awarded", "RFQs sent out"]))
-			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
-				<i class="mdi mdi-account-check"></i> Get Approval
-			</button>
-			@endif
-			@if ($request->status == "Approval Complete" && $isInventoryProcurement)
-			<?php $approvalStatus = $request->approvals(); ?>
-			<button class="btn btn-default text-dark float-right btn-sm" data-target="#create-po-confirmation-modal"
-				data-toggle="modal">
-				<i class="mdi mdi-file-move"></i> Create Purchase Order
-			</button>
-			@if (isset($request->status) && $isInventoryProcurement)
-			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
-				data-alert="Are you sure you want to proceed?">
-				<i class="mdi mdi-content-save"></i> Mark as Complete
-			</button>
-			@endif
 			@endif
 			@endif
 			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to
@@ -582,8 +583,10 @@
 				<?php
 						$hasAnRFQ = \App\RequestEntity::where('request_type', 'Request for Quotation')->where('parent_material_requisition', $request->id)->first();
 						$hasAnPO = \App\RequestEntity::where('request_type', 'Purchase Orders')->where('parent_material_requisition', $request->id)->first();
+						$rfqIsIncomplete = isset($hasAnRFQ->id)
+							&& ! \App\RequestEntityItem::where('request_id', $hasAnRFQ->id)->exists();
 					?>
-				@if(!isset($hasAnRFQ->id) && !isset($hasAnPO->id))
+				@if((!isset($hasAnRFQ->id) || $rfqIsIncomplete) && !isset($hasAnPO->id))
 				<button class="btn btn-default text-success float-right save-details-form btn-sm"
 					data-type="create-rfq-from-material-requisition">
 					<i class="mdi mdi-text-box-plus-outline"></i> {{ isETCU() ? 'Create RFQ' : 'Send to Procurement' }}
@@ -603,6 +606,7 @@
 		quantity. Please adjust the requested quantities or create a new Purchase Request.
 	</div>
 	@endif
+	{{-- Zoho Books integration disabled — not in use.
 	@php($zerrors = json_decode(trim($request->errors ?? "") == "" ? '[]' : $request->errors, true))
 	@if(count(empty($request->errors ?? null) ? [] : $zerrors) > 0)
 	<div class="alert alert-danger" style="font-size: 12px;">
@@ -619,7 +623,9 @@
 		</div>
 	</div>
 	@endif
-	<form id="details-form" class="bg-light" method="POST" enctype="multipart/form-data" action=""
+	--}}
+	<form id="details-form" class="bg-light" method="POST" enctype="multipart/form-data"
+		action="{{ route('save-request-details', ['stage'=>$stage, 'id'=>$request->id ?? 0]) }}"
 		style="clear: both !important">
 		@csrf
 		<div class="card tab-card">
@@ -2865,7 +2871,9 @@
 							@foreach ($normalItemsGrouped ?? array() as $req_item)
 							<?php
 								$pendingQ = $req_item->quantity - $req_item->pending();
-								$isKitItem = !is_numeric($req_item->catalog_number);
+								$isKitItem = filled($req_item->catalog_number)
+									&& ! is_numeric($req_item->catalog_number)
+									&& ! \Illuminate\Support\Str::isUuid((string) $req_item->catalog_number);
 
 								if(in_array($stage, ["Loan", "Lend"])){
 									$moreRemvs = [];
@@ -3459,11 +3467,12 @@
 	</div>
 </div>
 <div id="create-po-confirmation-modal" class="modal fade" role="dialog">
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->
 		<form class="modal-content" method="POST"
 			action="{{ route('save-request-details', ['stage'=>$stage,'id'=>$request->id ?? 0]) }}">
 			@csrf
+			<input type="hidden" name="generate_purchase_order" value="1" />
 			<div class="modal-header">
 				<h5 class="modal-title"><i class="mdi mdi-file-account"></i> Create Purchase Order Confirmation</h5>
 			</div>
@@ -3473,22 +3482,27 @@
 						that you want to split between 2 or more suppliers?</label>
 				</div>
 				<div class="d-none" id="po-split-fields">
-					<div class="form-group">
-						<label class="control-label">Select Items</label>
-						<select class="form-control" name="supplier_items[]" data-placeholder="Select Items..." multiple>
-							@foreach ($normalItems as $req_item)
-							<option value="{{ $req_item->id }}">{{ $req_item->item_name }}</option>
-							@endforeach
-						</select>
-					</div>
-					<div class="form-group">
-						<input type="hidden" name="generate_purchase_order" value="1" />
-						<label class="control-label">Select Suppliers</label>
-						<select class="form-control" name="supplier_ids[]" data-placeholder="Select Supplier..." multiple>
-							@foreach ($normalItemsSuppliers as $sup)
-							<option value="{{ $sup->id }}">{{ $sup->name }}</option>
-							@endforeach
-						</select>
+					<div class="row">
+						<div class="col-md-6">
+							<div class="form-group">
+								<label class="control-label">Select Items</label>
+								<select class="form-control po-split-select" name="supplier_items[]" data-placeholder="Select Items..." multiple>
+									@foreach ($normalItems as $req_item)
+									<option value="{{ $req_item->id }}">{{ $req_item->item_name }}</option>
+									@endforeach
+								</select>
+							</div>
+						</div>
+						<div class="col-md-6">
+							<div class="form-group">
+								<label class="control-label">Select Suppliers</label>
+								<select class="form-control po-split-select" name="supplier_ids[]" data-placeholder="Select Suppliers..." multiple>
+									@foreach ($normalItemsSuppliers as $sup)
+									<option value="{{ $sup->id }}">{{ $sup->name }}</option>
+									@endforeach
+								</select>
+							</div>
+						</div>
 					</div>
 				</div>
 				<div class="form-group">
@@ -4275,13 +4289,44 @@
 				}
 			});
 
+			var initPoSplitSelect2 = function(){
+				var $modal = $('#create-po-confirmation-modal');
+				$modal.find('.po-split-select').each(function(){
+					var $select = $(this);
+					if ($select.hasClass('select2-hidden-accessible')) {
+						$select.select2('destroy');
+					}
+					$select.select2({
+						width: '100%',
+						placeholder: $select.data('placeholder') || 'Select...',
+						allowClear: true,
+						dropdownParent: $modal
+					});
+				});
+			};
+
 			$('#toggle-split-checker').on('change', function(){
 				if($(this).is(":checked")){
 					$('#po-split-fields').removeClass('d-none');
+					initPoSplitSelect2();
 				}
 				else{
 					$('#po-split-fields').addClass('d-none');
 				}
+			});
+
+			$('#create-po-confirmation-modal').on('shown.bs.modal', function(){
+				if ($('#toggle-split-checker').is(':checked')) {
+					initPoSplitSelect2();
+				}
+			});
+
+			$('#create-po-confirmation-modal').on('hidden.bs.modal', function(){
+				$(this).find('.po-split-select').each(function(){
+					if ($(this).hasClass('select2-hidden-accessible')) {
+						$(this).select2('destroy');
+					}
+				});
 			});
 
 			$("#undo-supplier-award").on('show.bs.modal', function(e){
@@ -4550,11 +4595,11 @@
 			})
 
 			$('#enter-reject-modal').on('show.bs.modal', function(e) {
-				approvalID = $(e.relatedTarget).data('approval');
+				approvalID = $(e.relatedTarget).attr('data-approval') || $(e.relatedTarget).data('approval');
 			});
 
 			$('#enter-recheck-modal').on('show.bs.modal', function(e) {
-				approvalID = $(e.relatedTarget).data('approval');
+				approvalID = $(e.relatedTarget).attr('data-approval') || $(e.relatedTarget).data('approval');
 			});
 
 			$('#award-rfq-to-user').on('show.bs.modal', function(e) {
@@ -4581,13 +4626,23 @@
 			});
 
 			$('#confirm-accept-modal').on('show.bs.modal', function(e) {
-				approvalID = $(e.relatedTarget).data('approval');
+				approvalID = $(e.relatedTarget).attr('data-approval') || $(e.relatedTarget).data('approval');
 			});
 
 			$('.save-details-form').on('click', function(){
 				var type = $(this).data('type');
 				var thisBTN = $(this);
 				var inform = $(this).data('alert') || false;
+				var skipRequiredValidation = [
+					'confirm-approval-reason',
+					'reject-with-reason',
+					'recheck-with-reason',
+					'award-with-reason',
+					'get-approval-details',
+					'mark-as-completed',
+					'accept-goods-receipt',
+					'issue-items'
+				].indexOf(type) !== -1;
 
 				if(inform){
 					var proceed = true;
@@ -4662,14 +4717,34 @@
 				}
 
 				if(type == 'accept-goods-receipt'){
-					var otp_value = $('#accept-goods-otp-modal').find('[name="requester_otp"]').val();
+					var $acceptModal = thisBTN.closest('.modal');
+					if($acceptModal.length === 0){
+						$acceptModal = $('#accept-goods-otp-modal').filter(':visible').first();
+					}
+					if($acceptModal.length === 0){
+						$acceptModal = $('#accept-goods-otp-modal').first();
+					}
+
+					var otp_value = $.trim($acceptModal.find('[name="requester_otp"]').val() || '');
 					if(otp_value.length != 6){
 						alert("Please provide the OTP Code(6 characters).");
 						return false;
 					}
 
+					var missingReasons = [];
+					$acceptModal.find('.rating-delivery').each(function(){
+						var reason = $.trim($(this).find('.rating-delivery-reason').val() || '');
+						if($(this).find('.rating-delivery-reason').length && reason === ''){
+							missingReasons.push($.trim($(this).find('h6').clone().children().remove().end().text()) || 'rating');
+						}
+					});
+					if(missingReasons.length > 0){
+						alert('Please provide a reason for: '+missingReasons.join(', '));
+						return false;
+					}
+
 					var delivery_rating = [];
-					$('#accept-goods-otp-modal').find('.rating-delivery').each(function(){
+					$acceptModal.find('.rating-delivery').each(function(){
 						let gSID = $(this).data('rid');
 						let criteria = $(this).find('.rating-delivery-criteria').val();
 						let reason = $(this).find('.rating-delivery-reason').val();
@@ -4811,7 +4886,10 @@
 				}
 
 				if(type == 'confirm-approval-reason'){
-					var approval = $(this).data('approval');
+					if(!approvalID){
+						alert('Approval step was not selected. Close this dialog and click Approve again.');
+						return false;
+					}
 
 					approvalDiv.val(approvalID);
 					$('#details-form').append(approveThis);
@@ -4832,6 +4910,7 @@
 				var allInvalidHolder = [];
 				var theFieldsInval = [];
 
+				if(!skipRequiredValidation){
 				$('#details-form input:required, #details-form textarea:required').map(function() {
 					isValidIn &= this.validity['valid'] ;
 
@@ -4885,6 +4964,7 @@
 						var $val = $.trim($(s[0]).attr('placeholder')) != '' ? $(s[0]).attr('placeholder') : $(s[0]).data('placeholder');
 						theFieldsInval.push(clean_placeholder($val));
 					});
+				}
 				}
 
 				if(subMit){

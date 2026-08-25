@@ -269,6 +269,12 @@ class ReceiveSampleRequest extends Component
             }
         }
 
+        if (isset($this->formData['extra_sampling_equipment'])) {
+            $this->formData['extra_sampling_equipment'] = $this->decodeExtraSamplingEquipmentRows(
+                $this->formData['extra_sampling_equipment']
+            );
+        }
+
         if ($instance->crmCustomer) {
             $this->applyCustomerPrefillFromCrm($instance->crmCustomer, onlyEmpty: true);
         }
@@ -335,6 +341,7 @@ class ReceiveSampleRequest extends Component
         }
 
         $this->ensureWaterTrfSyntheticFormFields($submissionForm);
+        $this->ensureWasteWaterTrfSyntheticFormFields($submissionForm);
     }
 
     public function getWalkInSectionsProperty(): Collection
@@ -1382,8 +1389,14 @@ class ReceiveSampleRequest extends Component
             return [];
         }
 
+        if ($name === 'extra_sampling_equipment') {
+            return [];
+        }
+
         if ($name === 'test_requirements') {
-            return $this->defaultWaterTestRequirementsRow();
+            return $this->usesWasteWaterSampleCardLayout()
+                ? $this->defaultWasteWaterTestRequirementsRow()
+                : $this->defaultWaterTestRequirementsRow();
         }
 
         if ($element->element_type === 'checkbox') {
@@ -1668,6 +1681,19 @@ class ReceiveSampleRequest extends Component
             );
         }
 
+        if ($this->usesWasteWaterSampleCardLayout()) {
+            return $this->buildWasteWaterSampleCardLayout(
+                $take,
+                $findQty,
+                $findByNames,
+                $sampleTypeColumn,
+                $tableColumns,
+                $hiddenFields,
+                $columnName,
+                $usedNames,
+            );
+        }
+
         $gridRows = [
             [
                 $take($findQty()),
@@ -1753,6 +1779,11 @@ class ReceiveSampleRequest extends Component
             TrfDocumentCodeForSampleType::FOOD,
             TrfDocumentCodeForSampleType::FOOD_AND_FEED,
         ], true);
+    }
+
+    private function usesWasteWaterSampleCardLayout(): bool
+    {
+        return $this->usesWasteWaterCollectionLayout();
     }
 
     /**
@@ -1879,6 +1910,78 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
+     * Whether the active walk-in TRF uses the Waste Water LWS-036 collection layout.
+     * Detect by sample type and/or TRF document code (form may load before sample type is set).
+     */
+    public function usesWasteWaterCollectionLayout(): bool
+    {
+        if ((bool) $this->isWasteWater) {
+            return true;
+        }
+
+        $documentCode = strtoupper(trim((string) ($this->submissionForm?->document_code ?? '')));
+
+        return $documentCode === TrfDocumentCodeForSampleType::WASTE_WATER
+            || $documentCode === TrfDocumentCodeForSampleType::WASTE_WATER_LEGACY
+            || str_contains($documentCode, 'WASTEWATER')
+            || str_contains($documentCode, 'WASTE-WATER')
+            || (str_contains($documentCode, 'WASTE') && str_contains($documentCode, '036'));
+    }
+
+    public function addExtraSamplingEquipmentRow(): void
+    {
+        $rows = $this->formData['extra_sampling_equipment'] ?? [];
+        if (! is_array($rows)) {
+            $rows = $this->decodeExtraSamplingEquipmentRows($rows);
+        }
+
+        $rows[] = ['label' => '', 'id' => ''];
+        $this->formData['extra_sampling_equipment'] = $rows;
+    }
+
+    public function removeExtraSamplingEquipmentRow(int $index): void
+    {
+        $rows = $this->formData['extra_sampling_equipment'] ?? [];
+        if (! is_array($rows)) {
+            $rows = $this->decodeExtraSamplingEquipmentRows($rows);
+        }
+
+        if (! isset($rows[$index])) {
+            return;
+        }
+
+        unset($rows[$index]);
+        $this->formData['extra_sampling_equipment'] = array_values($rows);
+    }
+
+    /**
+     * @return list<array{label: string, id: string}>
+     */
+    private function decodeExtraSamplingEquipmentRows(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_map(static function ($row): array {
+                if (! is_array($row)) {
+                    return ['label' => '', 'id' => ''];
+                }
+
+                return [
+                    'label' => (string) ($row['label'] ?? ''),
+                    'id' => (string) ($row['id'] ?? ''),
+                ];
+            }, $value));
+        }
+
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $this->decodeExtraSamplingEquipmentRows($decoded) : [];
+        }
+
+        return [];
+    }
+
+    /**
      * @param  \Illuminate\Support\Collection<int, SubmissionFormElement>|\Illuminate\Database\Eloquent\Collection<int, SubmissionFormElement>  $elements
      */
     public function walkInCollectionElementByName($elements, string $name): ?SubmissionFormElement
@@ -1992,6 +2095,96 @@ class ReceiveSampleRequest extends Component
             'parameters_column' => null,
             'description_column' => null,
             'extra_columns' => [],
+        ];
+    }
+
+    /**
+     * Waste Water TRF sample card: qty/point/state, condition/requirements/description, type + tests.
+     *
+     * @param  callable(?array): ?array  $take
+     * @param  callable(): ?array  $findQty
+     * @param  callable(list<string>): ?array  $findByNames
+     * @param  list<array<string, mixed>>  $tableColumns
+     * @param  list<string>  $hiddenFields
+     * @param  array<string, bool>  $usedNames
+     * @return array{
+     *     layout_variant: string,
+     *     grid_rows: list<array<string, mixed>>,
+     *     catalog_row: array{sample_type?: array<string, mixed>|null, parameters?: array<string, mixed>|null},
+     *     parameters_column: array<string, mixed>|null,
+     *     description_column: array<string, mixed>|null,
+     *     extra_columns: list<array<string, mixed>>
+     * }
+     */
+    private function buildWasteWaterSampleCardLayout(
+        callable $take,
+        callable $findQty,
+        callable $findByNames,
+        ?array $sampleTypeColumn,
+        array $tableColumns,
+        array $hiddenFields,
+        callable $columnName,
+        array &$usedNames,
+    ): array {
+        $qtyColumn = $take($findQty());
+        if ($qtyColumn !== null) {
+            $qtyColumn['label'] = 'Qty / Unit';
+        }
+
+        $samplingPointColumn = $take($findByNames(['sampling_point_manual', 'manual_sampling_point']));
+        if ($samplingPointColumn !== null) {
+            $samplingPointColumn['label'] = 'Sampling Point';
+        }
+
+        $stateColumn = $take($findByNames(['state_of_sample']));
+
+        $conditionColumn = $take($findByNames(['sample_condition']));
+
+        $testRequirementsColumn = $take($findByNames(['test_requirements', 'test_category']));
+        if ($testRequirementsColumn === null) {
+            $testRequirementsColumn = $take($this->wasteWaterTestRequirementsFallbackColumn());
+        }
+        if ($testRequirementsColumn !== null) {
+            $testRequirementsColumn['label'] = 'Test requirements';
+        }
+
+        $descriptionColumn = $take($findByNames(['sample_description']));
+
+        $parametersColumn = $take($findByNames(['parameters', 'parameter']));
+        if ($parametersColumn !== null) {
+            $parametersColumn['label'] = 'Tests';
+        }
+
+        $extraColumns = [];
+        foreach ($tableColumns as $column) {
+            $name = $columnName($column);
+            if (isset($usedNames[$name]) || in_array($name, $hiddenFields, true)) {
+                continue;
+            }
+            $extraColumns[] = $column;
+        }
+
+        return [
+            'layout_variant' => 'waste_water',
+            'grid_rows' => [
+                [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'columns' => [$qtyColumn, $samplingPointColumn, $stateColumn],
+                ],
+                [
+                    'type' => 'fields',
+                    'cols' => 3,
+                    'columns' => [$conditionColumn, $testRequirementsColumn, $descriptionColumn],
+                ],
+            ],
+            'catalog_row' => [
+                'sample_type' => $sampleTypeColumn,
+                'parameters' => $parametersColumn,
+            ],
+            'parameters_column' => null,
+            'description_column' => null,
+            'extra_columns' => $extraColumns,
         ];
     }
 
@@ -2272,6 +2465,7 @@ class ReceiveSampleRequest extends Component
         $this->ensureWalkInCanonicalQtyFields($this->schemaRowCount());
         $this->ensureWalkInSampleTypeField($this->schemaRowCount());
         $this->appendWaterTrfSyntheticRowDefaults();
+        $this->appendWasteWaterTrfSyntheticRowDefaults();
 
         $this->dispatch('trf-reinit-parameter-selects');
     }
@@ -2324,6 +2518,56 @@ class ReceiveSampleRequest extends Component
         $this->formData['test_requirements'][] = $this->defaultWaterTestRequirementsRow();
     }
 
+    private function ensureWasteWaterTrfSyntheticFormFields(SubmissionForm $submissionForm): void
+    {
+        $documentCode = strtoupper(trim((string) ($submissionForm->document_code ?? '')));
+        $isWasteWaterDocument = $documentCode === TrfDocumentCodeForSampleType::WASTE_WATER
+            || $documentCode === TrfDocumentCodeForSampleType::WASTE_WATER_LEGACY
+            || str_contains($documentCode, 'WASTEWATER')
+            || (str_contains($documentCode, 'WASTE') && str_contains($documentCode, '036'));
+
+        if (! $isWasteWaterDocument) {
+            return;
+        }
+
+        if (isset($this->formData['test_requirements'])) {
+            return;
+        }
+
+        $rowCount = 1;
+        foreach ($this->formData as $values) {
+            if (is_array($values)) {
+                $rowCount = max($rowCount, count($values));
+            }
+        }
+
+        $this->formData['test_requirements'] = array_fill(0, $rowCount, $this->defaultWasteWaterTestRequirementsRow());
+    }
+
+    /**
+     * @return array{microbiology: bool, chemistry: bool}
+     */
+    private function defaultWasteWaterTestRequirementsRow(): array
+    {
+        return [
+            'microbiology' => false,
+            'chemistry' => false,
+        ];
+    }
+
+    private function appendWasteWaterTrfSyntheticRowDefaults(): void
+    {
+        if (! $this->usesWasteWaterSampleCardLayout()) {
+            return;
+        }
+
+        if (! isset($this->formData['test_requirements']) || ! is_array($this->formData['test_requirements'])) {
+            $this->formData['test_requirements'] = [];
+        }
+
+        $this->formData['test_requirements'][] = $this->defaultWasteWaterTestRequirementsRow();
+    }
+
     /**
      * @return array{type: string, label: string, class: string, element: SubmissionFormElement, field: array<string, mixed>}
      */
@@ -2372,43 +2616,117 @@ class ReceiveSampleRequest extends Component
         ];
     }
 
+    private function wasteWaterTestRequirementsFallbackColumn(): array
+    {
+        $element = new SubmissionFormElement([
+            'name' => 'test_requirements',
+            'label' => 'Test requirements',
+            'element_type' => 'checkbox',
+            'options' => [
+                ['value' => 'microbiology', 'label' => 'Microbiology'],
+                ['value' => 'chemistry', 'label' => 'Chemistry'],
+            ],
+        ]);
+
+        return [
+            'type' => 'field',
+            'label' => 'Test requirements',
+            'class' => 'walk-in-trf-col-radio',
+            'element' => $element,
+            'field' => app(\App\Services\Sampleworkflow\WalkInTrfFieldMapper::class)->toField($element),
+        ];
+    }
+
     public function getSelectedSampleTypeProperty()
     {
-        if (!$this->selectedSampleTypeId) {
+        if (! $this->selectedSampleTypeId) {
             return null;
         }
-        return \App\SampleType::find($this->selectedSampleTypeId);
+
+        return \App\SampleType::query()
+            ->with('sampleTypeCategory')
+            ->find($this->selectedSampleTypeId);
     }
 
     public function getIsFoodProperty()
     {
         $st = $this->selectedSampleType;
-        if (!$st) {
+        if (! $st) {
             return false;
         }
 
-        $resolver = app(\App\Services\SubmissionForm\TrfDocumentCodeForSampleType::class);
+        $resolver = app(TrfDocumentCodeForSampleType::class);
 
         return $resolver->isFood($st) || $resolver->isFoodAndFeed($st);
     }
 
     public function getIsWaterProperty()
     {
-        $st = $this->selectedSampleType;
-        if (!$st) {
+        if ($this->isWasteWater) {
             return false;
         }
-        $isWasteWater = stripos($st->name, 'Waste Water') !== false || stripos($st->code, 'WWTR') !== false;
-        return !$isWasteWater && (stripos($st->name, 'Water') !== false || stripos($st->code, 'WTR') !== false);
+
+        $st = $this->selectedSampleType;
+        if (! $st) {
+            return false;
+        }
+
+        return app(TrfDocumentCodeForSampleType::class)->isWater($st);
     }
 
     public function getIsWasteWaterProperty()
     {
+        // Category is the source of truth for Waste Water RFT routing.
+        if ($this->selectedSampleTypeCategoryIsWasteWater()) {
+            return true;
+        }
+
+        $documentCode = strtoupper(trim((string) ($this->submissionForm?->document_code ?? '')));
+        if (
+            $documentCode === TrfDocumentCodeForSampleType::WASTE_WATER
+            || $documentCode === TrfDocumentCodeForSampleType::WASTE_WATER_LEGACY
+            || str_contains($documentCode, 'WASTEWATER')
+            || (str_contains($documentCode, 'WASTE') && str_contains($documentCode, '036'))
+        ) {
+            return true;
+        }
+
         $st = $this->selectedSampleType;
-        if (!$st) {
+        if ($st === null) {
             return false;
         }
-        return stripos($st->name, 'Waste Water') !== false || stripos($st->code, 'WWTR') !== false;
+
+        return app(TrfDocumentCodeForSampleType::class)->isWasteWater($st);
+    }
+
+    private function selectedSampleTypeCategoryIsWasteWater(): bool
+    {
+        $categoryId = trim((string) ($this->selectedSampleTypeCategoryId ?? ''));
+        if ($categoryId !== '') {
+            $categoryName = (string) (\App\SampleTypeCategory::query()
+                ->whereKey($categoryId)
+                ->value('sample_type_category') ?? '');
+
+            if ($this->isWasteWaterCategoryName($categoryName)) {
+                return true;
+            }
+        }
+
+        $st = $this->selectedSampleType;
+        if ($st === null) {
+            return false;
+        }
+
+        return $this->isWasteWaterCategoryName((string) $st->category());
+    }
+
+    private function isWasteWaterCategoryName(string $categoryName): bool
+    {
+        $normalized = mb_strtolower(trim($categoryName));
+
+        return $normalized === 'waste water'
+            || $normalized === 'wastewater'
+            || str_contains($normalized, 'waste water');
     }
 
     public function removeSchemaRow(string $sectionId, int $rowIndex): void
@@ -3947,6 +4265,20 @@ class ReceiveSampleRequest extends Component
             $payload[$name] = $this->formData[$name];
         }
 
+        if (isset($payload['extra_sampling_equipment']) && is_array($payload['extra_sampling_equipment'])) {
+            $payload['extra_sampling_equipment'] = json_encode(array_values(array_filter(
+                $payload['extra_sampling_equipment'],
+                static function ($row): bool {
+                    if (! is_array($row)) {
+                        return false;
+                    }
+
+                    return trim((string) ($row['label'] ?? '')) !== ''
+                        || trim((string) ($row['id'] ?? '')) !== '';
+                }
+            )));
+        }
+
         return $payload;
     }
 
@@ -3979,6 +4311,10 @@ class ReceiveSampleRequest extends Component
         );
 
         if ($this->usesWaterSampleCardLayout()) {
+            $names[] = 'test_requirements';
+        }
+
+        if ($this->usesWasteWaterSampleCardLayout()) {
             $names[] = 'test_requirements';
         }
 
@@ -4207,6 +4543,10 @@ class ReceiveSampleRequest extends Component
 
             if ($this->usesWaterSampleCardLayout() && ! $this->rowHasMultiOptionSelection($index, 'test_requirements')) {
                 $this->addError('formData.test_requirements.'.$index, 'Test requirement is required for row '.($index + 1).'.');
+            }
+
+            if ($this->usesWasteWaterSampleCardLayout() && ! $this->rowHasMultiOptionSelection($index, 'test_requirements')) {
+                $this->addError('formData.test_requirements.'.$index, 'Test requirements are required for row '.($index + 1).'.');
             }
         }
 

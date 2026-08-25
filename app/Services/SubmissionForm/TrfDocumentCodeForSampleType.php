@@ -15,7 +15,10 @@ final class TrfDocumentCodeForSampleType
 
     public const WATER = 'TRF-WATER-020';
 
-    public const WASTE_WATER = 'TRF-WASTE-036';
+    public const WASTE_WATER = 'TRF-WASTEWATER-036';
+
+    /** @deprecated Use WASTE_WATER (TRF-WASTEWATER-036). */
+    public const WASTE_WATER_LEGACY = 'TRF-WASTE-036';
 
     public function resolve(?SampleType $sampleType): ?string
     {
@@ -73,8 +76,26 @@ final class TrfDocumentCodeForSampleType
 
     public function isWasteWater(SampleType $sampleType): bool
     {
+        // Prefer sample type category (Amspec Dubai: category "Waste Water").
+        $categoryName = '';
+        if ($sampleType->relationLoaded('sampleTypeCategory')) {
+            $categoryName = (string) ($sampleType->sampleTypeCategory?->sample_type_category ?? '');
+        } else {
+            $categoryName = (string) $sampleType->category();
+        }
+
+        $normalizedCategory = mb_strtolower(trim($categoryName));
+        if (
+            $normalizedCategory === 'waste water'
+            || $normalizedCategory === 'wastewater'
+            || str_contains($normalizedCategory, 'waste water')
+        ) {
+            return true;
+        }
+
         return stripos((string) ($sampleType->name ?? ''), 'Waste Water') !== false
-            || stripos((string) ($sampleType->code ?? ''), 'WWTR') !== false;
+            || stripos((string) ($sampleType->code ?? ''), 'WWTR') !== false
+            || strcasecmp(trim((string) ($sampleType->code ?? '')), 'Waste Water') === 0;
     }
 
     /**
