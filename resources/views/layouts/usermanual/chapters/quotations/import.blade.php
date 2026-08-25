@@ -1,31 +1,107 @@
-<h2>Bring lines in from an AmSpec template</h2>
+<h2>Two imports, one AmSpec template family</h2>
 <p>
-	When you already have pricing laid out in the AmSpec quotation template (Excel or PDF),
-	you can import it into a quotation that is still in preparation instead of retyping every line.
+	AmSpec import uses the same quotation-preparation template style in two places.
+	They look similar but land in different destinations.
 </p>
 
+<div class="um-compare">
+	<div class="um-compare__card">
+		<h4>Quotation import</h4>
+		<ul>
+			<li>Fills <strong>one preparing quote</strong> with sample packages / lines.</li>
+			<li>Open from quotation prep → <strong>Import</strong>.</li>
+			<li>After: review lines on that quote; then approval / send.</li>
+			<li>Does <strong>not</strong> update the lasting price book.</li>
+		</ul>
+	</div>
+	<div class="um-compare__card">
+		<h4>Pricelist import</h4>
+		<ul>
+			<li>Fills the <strong>price book catalogue</strong> for future quotes.</li>
+			<li>Open from Billing → Pricelist → <strong>Import</strong>.</li>
+			<li>After: review items, then <strong>Apply Price Changes</strong>.</li>
+			<li>Does <strong>not</strong> create or complete a quotation by itself.</li>
+		</ul>
+	</div>
+</div>
+
+<div class="um-tip">
+	<span class="um-tip__icon"><i class="mdi mdi-database-import-outline"></i></span>
+	<p>System Bulk Import can also load many pricelists from a spreadsheet for admins — that is separate from the AmSpec Import button on a single list or quote.</p>
+</div>
+
+<h2>Shared AmSpec quotation-preparation template</h2>
+<p>
+	Both modals point at the <strong>Amspec quotation-preparation template</strong> (Excel and PDF downloads).
+	Layout columns: Sample / Test / Method / Quantity Required / TAT / No. of Samples / Unit Price / Total.
+</p>
+<ul>
+	<li><strong>Package math (default):</strong> Package total = <strong>No. of samples × Unit price (once)</strong> — not × number of tests.</li>
+	<li><strong>Naming:</strong> Sample type and parameter names must match LIMS. Skipped rows appear as warnings.</li>
+	<li>Download the Excel or PDF template from the import modal before you fill and upload.</li>
+</ul>
+
 @include('layouts.usermanual.partials.figure', [
-	'src' => '/images/usermanual/quotations/import-lines.png',
-	'caption' => 'Import into a preparing quotation — choose format and pricing mode.',
+	'src' => '/images/usermanual/quotations/import-quote-modal.png',
+	'caption' => 'Import quotation lines — template guide, Excel/PDF, Per package (default) vs Per test, file upload.',
+])
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/quotations/pricelist-import-modal.png',
+	'caption' => 'Import into pricelist — same template family; Excel columns include sample_type, parameters, unit_price, optional tax.',
 ])
 
-<h3>Typical steps</h3>
+<h2>Quotation import — step by step</h2>
 <ol>
-	<li>Open the quotation in preparation (or start import from Quotation Overview where offered).</li>
-	<li>Choose <strong>Excel</strong> or <strong>PDF</strong> to match your file.</li>
-	<li>Choose <strong>per test</strong> or <strong>per package</strong> so the importer knows how to map rows.</li>
-	<li>Upload the AmSpec template file and confirm.</li>
-	<li>Review the lines on screen — fix anything that did not map cleanly — then save.</li>
+	<li>Open a quotation that is <strong>In Preparation</strong>.</li>
+	<li>Press <strong>Import</strong> to open <strong>Import quotation lines</strong>.</li>
+	<li>Choose <strong>File type</strong>: Excel or PDF.
+		<ul>
+			<li>Excel columns: <code>sample_type</code>, <code>parameters</code>, <code>quantity_required</code>, <code>quantity</code>, <code>unit_price</code>.</li>
+			<li>PDF: upload the filled Amspec quotation-preparation PDF; packages and prices are read from the layout.</li>
+		</ul>
+	</li>
+	<li>Choose <strong>Pricing mode</strong> (default <strong>Per package</strong>):
+		<ul>
+			<li><strong>Per package</strong> — one unit price covers the whole sample package; total = samples × unit price once.</li>
+			<li><strong>Per test</strong> — each analysis billed at its own unit price.</li>
+		</ul>
+	</li>
+	<li>Upload the file and press <strong>Import</strong>.</li>
+	<li>Review created lines. Fix warnings (unknown sample type, no matching parameters) by aligning names in LIMS or the file, then re-import or edit lines.</li>
+	<li>Check customer, currency, quantities, and VAT; then continue preparation or <strong>Move To workflow</strong>.</li>
 </ol>
 
 <div class="um-tip">
 	<span class="um-tip__icon"><i class="mdi mdi-file-upload-outline"></i></span>
-	<p>Import is a head start, not a substitute for review. Always check customer, currency, quantities, and VAT after import.</p>
+	<p>Wrong pricing mode mis-maps package vs test rows. Import is a head start — always review before approval.</p>
 </div>
 
-<h2>Pricelist import (related)</h2>
-<p>
-	Separately, on a <strong>pricelist</strong> you can import catalogue prices (including AmSpec-oriented files)
-	so the price book itself stays current. That feeds future quotes; it does not replace importing into one preparing quote.
-	See the Pricelist chapter.
-</p>
+<h2>Pricelist import — step by step</h2>
+<ol>
+	<li>Open <strong>Billing → Pricelists</strong>, then open a list (or start Import from the list when offered).</li>
+	<li>Press <strong>Import</strong> to open <strong>Import into pricelist</strong>.</li>
+	<li>Choose <strong>File type</strong>: Excel or PDF.
+		<ul>
+			<li>Excel columns: <code>sample_type</code>, <code>parameters</code>, <code>unit_price</code>, and optional <code>tax</code>.</li>
+			<li>PDF: package rows are imported from the Amspec quotation-preparation PDF.</li>
+		</ul>
+	</li>
+	<li>Choose <strong>Pricing mode</strong> (default <strong>Per package</strong>) to match how the file was priced.</li>
+	<li>Upload and press <strong>Import</strong>. Note created / updated counts and any warnings.</li>
+	<li>Open the <strong>Pricelist Items</strong> tab, review pending vs applied rows, then press <strong>Apply Price Changes</strong> so quotations and Process enquiry see live selling prices.</li>
+	<li>Assign customers so the list becomes eligible on their quotes.</li>
+</ol>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/quotations/pricelist-items.png',
+	'caption' => 'After pricelist import — review items, then Apply Price Changes so prices become live.',
+])
+
+<h2>Quick checklist</h2>
+<ul>
+	<li>Same template family; different destination (quote lines vs price book).</li>
+	<li>Both default to <strong>per package</strong>.</li>
+	<li>Both require LIMS-matching sample types and parameters.</li>
+	<li>Only pricelist import needs <strong>Apply Price Changes</strong> afterward.</li>
+	<li>Only quotation import puts money on <strong>this</strong> customer offer immediately.</li>
+</ul>

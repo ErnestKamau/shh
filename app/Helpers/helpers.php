@@ -113,6 +113,15 @@ function getCompanyById($id)
 {
 	return App\Company::find($id);
 }
+
+function getCompanyByCode(?string $code)
+{
+	if ($code === null || trim($code) === '') {
+		return null;
+	}
+
+	return App\Company::findByCode($code);
+}
 function sigFig($value, $digits = 3)
 {
 	if ($value == 0) {

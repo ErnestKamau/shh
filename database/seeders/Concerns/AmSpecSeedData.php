@@ -10,6 +10,11 @@ class AmSpecSeedData
 
     public const BRAZIL_COMPANY_ID = '019dde3f-07d3-73d0-a0f2-a01ac58346b5';
 
+    /** Stable business codes (companies.code) for AmSpec tenants. */
+    public const DUBAI_COMPANY_CODE = 'AMSPEC-DXB';
+
+    public const BRAZIL_COMPANY_CODE = 'AMSPEC-RIO';
+
     public const DUBAI_HQ_LOCATION_ID = '019dde3f-07d9-73bf-86f3-d4fd6df2eece';
 
     public const REFERENCE_PREFIX = 'AMSPEC';

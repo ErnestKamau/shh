@@ -17,6 +17,7 @@ class Company extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [
+        'code',
         'name',
         'logo',
         'favicon',
@@ -56,21 +57,54 @@ class Company extends Model implements Auditable
         'fax' => SafeEncrypted::class,
     ];
 
-  public function labs(){
-    return $this->hasMany('App\Lab');
-  }
+    /**
+     * Normalize a business code: trim, uppercase, collapse separators.
+     */
+    public static function normalizeCode(?string $code): ?string
+    {
+        if ($code === null) {
+            return null;
+        }
 
-  public function reportLogos()
-  {
-      return $this->hasMany(CompanyReportLogo::class);
-  }
+        $normalized = strtoupper(trim($code));
+        $normalized = preg_replace('/[^A-Z0-9_-]+/', '-', $normalized) ?? '';
+        $normalized = trim($normalized, '-_');
 
-  public function getReportLogoPath(string $name): ?string
-  {
-      $logo = $this->reportLogos()->where('name', $name)->first();
-      if ($logo) {
-          return $logo->logo_path;
-      }
-      return $this->report_logo; // fallback
-  }
+        return $normalized === '' ? null : $normalized;
+    }
+
+    public static function findByCode(string $code): ?self
+    {
+        $normalized = self::normalizeCode($code);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return self::query()->where('code', $normalized)->first();
+    }
+
+    public function setCodeAttribute(?string $value): void
+    {
+        $this->attributes['code'] = self::normalizeCode($value);
+    }
+
+    public function labs()
+    {
+        return $this->hasMany('App\Lab');
+    }
+
+    public function reportLogos()
+    {
+        return $this->hasMany(CompanyReportLogo::class);
+    }
+
+    public function getReportLogoPath(string $name): ?string
+    {
+        $logo = $this->reportLogos()->where('name', $name)->first();
+        if ($logo) {
+            return $logo->logo_path;
+        }
+
+        return $this->report_logo; // fallback
+    }
 }

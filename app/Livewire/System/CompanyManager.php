@@ -4,6 +4,7 @@ namespace App\Livewire\System;
 
 use App\Company;
 use App\Country;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -22,6 +23,7 @@ class CompanyManager extends Component
     public ?string $editingCompanyId = null;
 
     public string $name = '';
+    public string $code = '';
     public ?string $location = null;
     public ?string $address = null;
     public ?string $country_id = null;
@@ -101,6 +103,7 @@ class CompanyManager extends Component
 
         $this->editingCompanyId = $company->id;
         $this->name = (string) $company->name;
+        $this->code = (string) ($company->code ?? '');
         $this->location = $company->location;
         $this->address = $company->address;
         $this->country_id = $company->country_id;
@@ -155,8 +158,17 @@ class CompanyManager extends Component
 
         $this->authorizeAction($permission);
 
+        $this->code = Company::normalizeCode($this->code) ?? '';
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
+            'code' => [
+                'required',
+                'string',
+                'max:64',
+                'regex:/^[A-Za-z0-9][A-Za-z0-9_-]*$/',
+                Rule::unique('companies', 'code')->ignore($this->editingCompanyId),
+            ],
             'location' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
             'country_id' => ['nullable', 'string', 'exists:countries,id'],
@@ -175,6 +187,8 @@ class CompanyManager extends Component
             'maintenanceStartMonth' => ['nullable', 'integer', 'min:1', 'max:12'],
             'maintenanceEndYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'maintenanceEndMonth' => ['nullable', 'integer', 'min:1', 'max:12'],
+        ], [
+            'code.regex' => 'Code may only contain letters, numbers, hyphens, and underscores.',
         ]);
 
         $company = $this->editingCompanyId === null
@@ -182,6 +196,7 @@ class CompanyManager extends Component
             : Company::query()->findOrFail($this->editingCompanyId);
 
         $company->name = $validated['name'];
+        $company->code = $validated['code'];
         $company->location = $validated['location'];
         $company->address = $validated['address'];
         $company->country_id = $validated['country_id'];
@@ -341,6 +356,7 @@ class CompanyManager extends Component
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($subQuery): void {
                     $subQuery->where('companies.id', 'like', '%' . $this->search . '%')
+                        ->orWhere('companies.code', 'like', '%' . $this->search . '%')
                         ->orWhere('c.name', 'like', '%' . $this->search . '%');
                 });
             })
@@ -360,6 +376,7 @@ class CompanyManager extends Component
     private function resetCompanyForm(): void
     {
         $this->name = '';
+        $this->code = '';
         $this->location = null;
         $this->address = null;
         $this->country_id = null;

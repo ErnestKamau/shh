@@ -195,12 +195,20 @@ class InventorySubCategoriesController extends Controller
 		$page = max(1, (int) ($request->page ?: 1));
 		$gate_pass_category = getConfigByName('gate_pass_category_id');
 		$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : null;
+		$locationId = getCurrentUserLocation()?->id;
 
 		$items = InventorySubCategories::query()
-			->where('active', 1);
+			->where('inventory_sub_categories.active', 1);
+
+		// Match Categories: only catalog items for the current inventory location.
+		if ($locationId) {
+			$items = $items->whereHas('category', function ($query) use ($locationId) {
+				$query->where('inventory_location_id', $locationId);
+			});
+		}
 
 		if ($gate_pass_category_id && \Illuminate\Support\Str::isUuid((string) $gate_pass_category_id)) {
-			$items = $items->where('inventory_category_id', '!=', $gate_pass_category_id);
+			$items = $items->where('inventory_sub_categories.inventory_category_id', '!=', $gate_pass_category_id);
 		}
 
 		if ($cat_id) {
@@ -210,20 +218,20 @@ class InventorySubCategoriesController extends Controller
 			}
 
 			if ($cat_id) {
-				$items = $items->where('inventory_category_id', $cat_id);
+				$items = $items->where('inventory_sub_categories.inventory_category_id', $cat_id);
 			}
 		}
 
 		if ($term !== '') {
 			$items = $items->where(function ($query) use ($term) {
-				$query->where('name', 'like', '%'.$term.'%')
-					->orWhere('code', 'like', '%'.$term.'%');
+				$query->where('inventory_sub_categories.name', 'like', '%'.$term.'%')
+					->orWhere('inventory_sub_categories.code', 'like', '%'.$term.'%');
 			});
 		}
 
 		$items = $items
-			->selectRaw("id, CONCAT(code, '-', name) as text")
-			->orderBy('name', 'asc')
+			->selectRaw("inventory_sub_categories.id, CONCAT(COALESCE(inventory_sub_categories.code, ''), '-', inventory_sub_categories.name) as text")
+			->orderBy('inventory_sub_categories.name', 'asc')
 			->paginate($limit, ['*'], 'page', $page);
 
 		return response()->json([
