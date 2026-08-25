@@ -35,10 +35,26 @@
         )
 			);
 
-			$inventoryAssistantSupervisorRoles = filterExistingSpatieRoleNames(['Inventory Assistant Supervisor Group', 'Assistant Supervisor', 'Supervisor', 'Admin']);
-			$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin']);
+			$inventoryAssistantSupervisorRoles = filterExistingSpatieRoleNames([
+				'Inventory Assistant Supervisor Group',
+				'Assistant Supervisor',
+				'Supervisor',
+				'Admin',
+				'admin',
+				'Super Admin',
+				'super admin',
+				'super-admin',
+				'System Admin',
+				'system admin',
+				'system-admin',
+			]);
+			$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin', 'admin']);
 			$isInventoryAssistantSupervisor = $inventoryAssistantSupervisorRoles !== [] && $user->hasAnyRole($inventoryAssistantSupervisorRoles);
 			$isInventoryProcurement = $inventoryProcurementRoles !== [] && $user->hasAnyRole($inventoryProcurementRoles);
+			$canCreateRequest = $isInventoryAssistantSupervisor
+				|| $isInventoryProcurement
+				|| isUserSomebody($user)
+				|| in_array($stage, ['Purchase Request', 'Request to Store'], true);
 
 			$lab_department_id = getConfigByName('lab_department_id');
 			$lab_department_id = count($lab_department_id) > 0 ? $lab_department_id[0]->value : 0;
@@ -48,9 +64,9 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h3 class="p-4" id="has-procurement" data-procurement="{{ $isInventoryProcurement ? 'Yes' : 'No' }}">
 			<i class="mdi mdi-format-list-checks"></i> {{ $stage }}
-			@if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend")) && $isInventoryAssistantSupervisor)
+			@if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend"), true) && $canCreateRequest)
 				<a class="btn btn-primary btn-sm float-right" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>'new']) }}">
-					<i class="mdi mdi-plus"></i> Create Request
+					<i class="mdi mdi-plus"></i> Add
 				</a>
 			@endif
 			@if(in_array($stage,["Purchase Request"]) && $isLabDepartmentUser)
