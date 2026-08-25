@@ -7,13 +7,14 @@
         'food' => 'Customer Representative Contact Number:',
         default => 'Customer Representative Number:',
     };
+    $isWasteWaterFooter = ($variant ?? '') === 'waste_water';
     $totalCols = (int) ($footerColspan ?? 18);
     $defaultLeftColspan = (int) round($totalCols * 0.65);
     $defaultRightColspan = $totalCols - $defaultLeftColspan;
     $footerSplits = match ($variant ?? '') {
         'waste_water' => [
-            'left' => 7,
-            'right' => 5,
+            'left' => 8,
+            'right' => 4,
         ],
         default => null,
     };
@@ -27,20 +28,44 @@
 @endphp
 <tr class="trf-footer-sign-row">
     <td colspan="{{ $leftColspan }}" class="trf-footer-cell trf-footer-conformity-cell">
-        <table class="trf-footer-inline-table" width="100%" cellpadding="0" cellspacing="0">
-            <tr>
-                <td class="trf-footer-inline-label">
+        @if($isWasteWaterFooter)
+            <div class="trf-ww-conformity-block">
+                <div class="trf-ww-conformity-label">
                     <span class="trf-field-label">Statement of Conformity Required in Reports:</span>
-                </td>
-                @foreach($statementOptions as $option)
-                    <td class="trf-footer-inline-option">
-                        <span class="trf-footer-check-item">
-                            <span class="{{ strcasecmp($selectedStatement, $option) === 0 ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>{{ $option }}
-                        </span>
+                </div>
+                <table class="trf-footer-inline-table trf-ww-conformity-options" width="100%" cellpadding="0" cellspacing="0">
+                    @foreach(array_chunk($statementOptions, 2) as $optionRow)
+                        <tr>
+                            @foreach($optionRow as $option)
+                                <td class="trf-footer-inline-option">
+                                    <span class="trf-footer-check-item">
+                                        <span class="{{ strcasecmp($selectedStatement, $option) === 0 ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>{{ $option }}
+                                    </span>
+                                </td>
+                            @endforeach
+                            @if(count($optionRow) === 1)
+                                <td class="trf-footer-inline-option">&nbsp;</td>
+                            @endif
+                        </tr>
+                    @endforeach
+                </table>
+            </div>
+        @else
+            <table class="trf-footer-inline-table" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="trf-footer-inline-label">
+                        <span class="trf-field-label">Statement of Conformity Required in Reports:</span>
                     </td>
-                @endforeach
-            </tr>
-        </table>
+                    @foreach($statementOptions as $option)
+                        <td class="trf-footer-inline-option">
+                            <span class="trf-footer-check-item">
+                                <span class="{{ strcasecmp($selectedStatement, $option) === 0 ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>{{ $option }}
+                            </span>
+                        </td>
+                    @endforeach
+                </tr>
+            </table>
+        @endif
     </td>
     <td colspan="{{ $rightColspan }}" class="trf-footer-cell trf-footer-lab-head">
         <span class="trf-lab-title">FOR LAB USE ONLY</span>

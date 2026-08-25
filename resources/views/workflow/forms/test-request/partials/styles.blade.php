@@ -4,9 +4,13 @@
         ? $orientation
         : 'landscape';
     $isPortrait = $orientation === 'portrait';
+    $isWasteWater = ($variant ?? '') === 'waste_water';
+    $pageMargin = $isWasteWater
+        ? ($isPortrait ? '4mm 4mm' : '3mm 3mm')
+        : ($isPortrait ? '6mm 7mm' : '3mm 4mm');
 @endphp
 <style>
-    @page { size: A4 {{ $orientation }}; margin: {{ $isPortrait ? '6mm 7mm' : '3mm 4mm' }}; }
+    @page { size: A4 {{ $orientation }}; margin: {{ $pageMargin }}; }
     * { font-family: DejaVu Sans, sans-serif; box-sizing: border-box; }
     body { font-size: 8pt; color: #000; margin: 0; padding: 0; line-height: 1.2; }
     body.trf-layout-centered { margin: 0; padding: 0; }
@@ -588,6 +592,13 @@
     body.trf-waste-water .trf-page {
         page-break-inside: avoid;
         width: 100%;
+        max-width: 100%;
+    }
+    body.trf-waste-water .trf-header-table,
+    body.trf-waste-water .trf-waste-water-table,
+    body.trf-waste-water .trf-footer-table {
+        width: 100% !important;
+        max-width: 100%;
     }
     body.trf-waste-water .trf-ww-customer-tbody {
         page-break-inside: avoid;
@@ -884,17 +895,43 @@
     body.trf-waste-water .trf-footer-conformity-cell,
     body.trf-waste-water .trf-footer-condition-cell {
         font-size: 6.5pt;
-        padding: 2px 2px;
+        padding: 2px 2px !important;
+        overflow: hidden;
+        vertical-align: top;
     }
     body.trf-waste-water .trf-footer-conformity-cell .trf-field-label,
     body.trf-waste-water .trf-footer-condition-cell .trf-field-label {
         font-size: 6.5pt;
     }
+    body.trf-waste-water .trf-ww-conformity-block {
+        width: 100%;
+        overflow: hidden;
+    }
+    body.trf-waste-water .trf-ww-conformity-label {
+        margin-bottom: 2px;
+        white-space: normal;
+    }
+    body.trf-waste-water .trf-ww-conformity-options {
+        table-layout: fixed !important;
+        width: 100% !important;
+    }
+    body.trf-waste-water .trf-ww-conformity-options td {
+        width: 50%;
+        white-space: nowrap;
+        padding: 1px 2px 1px 0 !important;
+        overflow: hidden;
+    }
     body.trf-waste-water .trf-footer-check-item {
-        margin-left: 3px;
+        margin-left: 0;
+        margin-right: 4px;
         font-size: 6.5pt;
     }
     body.trf-waste-water .trf-footer-check-item .trf-check { font-size: 6.5pt; }
+    body.trf-waste-water .trf-footer-lab-head {
+        vertical-align: middle;
+        text-align: center;
+        overflow: hidden;
+    }
     body.trf-waste-water .trf-footer-cell .trf-field-value { font-size: 7pt; }
     body.trf-waste-water .trf-lab-title { font-size: 7pt; }
     body.trf-waste-water .trf-footer-table { margin-top: 2px; border-top: none; }
@@ -903,26 +940,26 @@
         min-height: 20px;
     }
 
-    /* Portrait override: give sections breathing room (including waste-water) */
+    /* Portrait: keep waste-water dense so content uses the page */
     body.trf-orientation-portrait.trf-waste-water .trf-header-table {
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
     body.trf-orientation-portrait.trf-waste-water .trf-table,
     body.trf-orientation-portrait.trf-waste-water .trf-waste-water-table {
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
     body.trf-orientation-portrait.trf-waste-water .trf-footer-cell {
-        padding: 5px 6px !important;
-        min-height: 20px !important;
-        line-height: 1.3 !important;
-        font-size: 7.5pt !important;
+        padding: 2px 3px !important;
+        min-height: 16px !important;
+        line-height: 1.2 !important;
+        font-size: 7pt !important;
     }
     body.trf-orientation-portrait.trf-waste-water .trf-footer-table {
-        margin-top: 8px;
+        margin-top: 4px;
     }
     body.trf-orientation-portrait.trf-waste-water .trf-section-title {
-        margin-top: 6px;
-        margin-bottom: 4px;
-        padding: 6px 8px;
+        margin-top: 4px;
+        margin-bottom: 2px;
+        padding: 4px 6px;
     }
 </style>
