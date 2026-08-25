@@ -18,6 +18,7 @@
         'transport_condition', 'sample_types_ww', 'field_data_requirements',
         'field_data_quantity', 'field_data_appearance', 'field_data_color', 'field_data_odor',
         'field_data_ph', 'field_data_temperature', 'field_data_free_chlorine', 'date_received',
+        'sampling_apparatus_others',
     ];
 @endphp
 
@@ -54,15 +55,27 @@
         <div class="trf-ww-apparatus-block">
             <div class="trf-ww-apparatus-block__title ls-type-label mb-2">Sampling apparatus</div>
             @if($collectionByName->has('sampling_apparatus'))
+                @php
+                    $apparatusField = $collectionByName->get('sampling_apparatus');
+                    $apparatusOptions = collect($apparatusField['options'] ?? [])
+                        ->filter(function ($opt) {
+                            $value = is_array($opt) ? (string) ($opt['value'] ?? '') : (string) $opt;
+
+                            return ! in_array(strtolower($value), ['others', 'other'], true);
+                        })
+                        ->values()
+                        ->all();
+                    $apparatusField['options'] = $apparatusOptions;
+                @endphp
                 @include($fieldPartial, [
-                    'field' => $collectionByName->get('sampling_apparatus'),
+                    'field' => $apparatusField,
                     'colClass' => '',
                     'hideOuterCol' => true,
                     'optionGridClass' => 'rv-trf-option-grid rv-trf-option-grid--apparatus trf-option-grid--ww-apparatus-3',
                 ])
             @endif
             <div class="trf-ww-apparatus-grid mt-2">
-                @foreach(['thermometer_id', 'ph_meter_id', 'chlorine_meter_id', 'sampling_apparatus_others'] as $name)
+                @foreach(['thermometer_id', 'ph_meter_id', 'chlorine_meter_id'] as $name)
                     @if($collectionByName->has($name))
                         <div class="trf-ww-apparatus-grid__cell">
                             @include($fieldPartial, [
@@ -77,12 +90,11 @@
             @if(! $readOnly)
                 <div class="trf-ww-extra-equipment mt-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="small font-weight-bold text-muted text-uppercase">Additional equipment IDs</span>
                         <button type="button" class="btn btn-sm btn-outline-primary" wire:click="addTrfEditExtraSamplingEquipmentRow">
-                            <i class="mdi mdi-plus" aria-hidden="true"></i> Add
+                            <i class="mdi mdi-plus" aria-hidden="true"></i> Others
                         </button>
                     </div>
-                    @forelse($extraRows as $rowIndex => $row)
+                    @foreach($extraRows as $rowIndex => $row)
                         <div class="trf-ww-extra-equipment-row" wire:key="rv-ww-extra-{{ $rowIndex }}">
                             <input type="text" class="form-control form-control-sm"
                                 wire:model.defer="trfEditCollectionFields.extra_sampling_equipment.{{ $rowIndex }}.label"
@@ -95,9 +107,7 @@
                                 <i class="mdi mdi-close" aria-hidden="true"></i>
                             </button>
                         </div>
-                    @empty
-                        <p class="small text-muted mb-0">Use + to record another equipment ID.</p>
-                    @endforelse
+                    @endforeach
                 </div>
             @elseif(count($extraRows) > 0)
                 <ul class="small mb-0 pl-3 mt-2">
@@ -168,11 +178,34 @@
             ] as $name)
                 @if($collectionByName->has($name))
                     <div class="trf-ww-field-data-grid__cell">
-                        @include($fieldPartial, [
-                            'field' => $collectionByName->get($name),
-                            'colClass' => '',
-                            'hideOuterCol' => true,
-                        ])
+                        @if($name === 'field_data_temperature' && ! $readOnly)
+                            @php
+                                $tempField = $collectionByName->get($name);
+                                $tempLabel = (string) ($tempField['label'] ?? 'Field data — Temperature (°C)');
+                                $tempValue = $trfEditCollectionFields['field_data_temperature'] ?? '';
+                            @endphp
+                            <div class="ls-field {{ filled($tempValue) ? 'is-success' : '' }}">
+                                <label class="ls-field__label" for="trf-edit-field_data_temperature">{{ $tempLabel }}</label>
+                                <div class="ls-field__control">
+                                    <span class="ls-field__affix ls-field__affix--prefix"><i class="mdi mdi-thermometer"></i></span>
+                                    <input
+                                        id="trf-edit-field_data_temperature"
+                                        type="number"
+                                        step="any"
+                                        class="ls-field__input"
+                                        wire:model.defer="trfEditCollectionFields.field_data_temperature"
+                                        placeholder="Temp"
+                                    >
+                                    <span class="ls-field__affix ls-field__affix--suffix">°C</span>
+                                </div>
+                            </div>
+                        @else
+                            @include($fieldPartial, [
+                                'field' => $collectionByName->get($name),
+                                'colClass' => '',
+                                'hideOuterCol' => true,
+                            ])
+                        @endif
                     </div>
                 @endif
             @endforeach
@@ -180,7 +213,7 @@
     </div>
 
     <div class="d-none">
-        @foreach(['date_received', 'field_data_requirements'] as $name)
+        @foreach(['date_received', 'field_data_requirements', 'sampling_apparatus_others'] as $name)
             @if($collectionByName->has($name))
                 @include($fieldPartial, ['field' => $collectionByName->get($name), 'colClass' => '', 'hideOuterCol' => true])
             @endif

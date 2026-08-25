@@ -117,22 +117,33 @@
             'field_data_color' => 'Color',
             'field_data_odor' => 'Odor',
             'field_data_ph' => 'pH',
-            'field_data_temperature' => 'Temperature',
+            'field_data_temperature' => 'Temperature (°C)',
             'field_data_free_chlorine' => 'Free chlorine',
         ] as $fieldName => $fallbackLabel)
             @php $el = $collectionField($fieldName); @endphp
             @if($el)
                 <div class="trf-ww-field-data-grid__cell" wire:key="ww-field-data-{{ $fieldName }}">
-                    <div class="ls-field">
-                        <label class="ls-field__label" for="ww-{{ $fieldName }}">{{ $el->label ?? $fallbackLabel }}</label>
-                        <div class="ls-field__control">
-                            <input id="ww-{{ $fieldName }}"
-                                type="text"
-                                class="ls-field__input form-control form-control-sm"
-                                wire:model.defer="formData.{{ $fieldName }}"
-                                placeholder="{{ $fallbackLabel }}">
+                    @if($fieldName === 'field_data_temperature')
+                        @include('livewire.sampleworkflow.test-request-field-render', [
+                            'field' => array_merge($fieldMapper->toField($el), [
+                                'label' => $el->label ?? 'Field data — Temperature (°C)',
+                            ]),
+                            'wirePrefix' => 'formData.field_data_temperature',
+                            'fieldId' => 'ww_field_data_temperature',
+                            'hideLabel' => false,
+                        ])
+                    @else
+                        <div class="ls-field">
+                            <label class="ls-field__label" for="ww-{{ $fieldName }}">{{ $el->label ?? $fallbackLabel }}</label>
+                            <div class="ls-field__control">
+                                <input id="ww-{{ $fieldName }}"
+                                    type="text"
+                                    class="ls-field__input form-control form-control-sm"
+                                    wire:model.defer="formData.{{ $fieldName }}"
+                                    placeholder="{{ $fallbackLabel }}">
+                            </div>
                         </div>
-                    </div>
+                    @endif
                 </div>
             @endif
         @endforeach
@@ -144,5 +155,7 @@
     @php $el = $collectionField('date_received'); @endphp
     @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
     @php $el = $collectionField('field_data_requirements'); @endphp
+    @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
+    @php $el = $collectionField('sampling_apparatus_others'); @endphp
     @if($el) @include('livewire.sampleworkflow.test-request-field-render', ['field' => $fieldMapper->toField($el)]) @endif
 </div>

@@ -184,14 +184,14 @@
         'required' => (bool) ($field['required'] ?? false),
         'error' => $fieldError,
     ])
-@elseif(in_array($fieldName, ['sample_temp', 'field_sample_temp', 'sample_temperature'], true))
+@elseif(in_array($fieldName, ['sample_temp', 'field_sample_temp', 'sample_temperature', 'field_data_temperature'], true))
     @php
         $tempValue = data_get($this, $wirePrefix);
     @endphp
     <div class="ls-field {{ filled($tempValue) ? 'is-success' : '' }}">
         @if(! ($hideLabel ?? false))
             <label class="ls-field__label" for="field_{{ $fieldId }}">
-                {{ $field['label'] ?? 'Sample Temp (°C)' }}
+                {{ $field['label'] ?? ($fieldName === 'field_data_temperature' ? 'Field data — Temperature (°C)' : 'Sample Temp (°C)') }}
                 @if($field['required'] ?? false)
                     <span class="ls-req">*</span>
                 @endif
