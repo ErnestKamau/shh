@@ -1789,6 +1789,58 @@ function getActiveCompany()
 	}
 }
 
+function currentCompanyForFeatures(): ?App\Company
+{
+	static $resolved = false;
+	static $company = null;
+
+	if ($resolved) {
+		return $company;
+	}
+
+	$resolved = true;
+
+	try {
+		$companyId = session('company_id');
+		if (! $companyId && auth()->check()) {
+			$companyId = auth()->user()->company_id ?? null;
+		}
+
+		if ($companyId) {
+			$found = App\Company::query()->find($companyId);
+			if ($found) {
+				$company = $found;
+
+				return $company;
+			}
+		}
+
+		$company = getActiveCompany();
+
+		return $company;
+	} catch (\Throwable) {
+		$company = getActiveCompany();
+
+		return $company;
+	}
+}
+
+function currentCompanyCode(): ?string
+{
+	return currentCompanyForFeatures()?->normalizedCode();
+}
+
+/**
+ * True when the current company uses one of the given feature codes.
+ * Use this to attach features to Brazil (`brl`), Dubai (`uae`), or any other company code.
+ *
+ * @param  string|\App\Enums\CompanyCode  ...$codes
+ */
+function companyHasCode(string|\App\Enums\CompanyCode ...$codes): bool
+{
+	return currentCompanyForFeatures()?->hasCode(...$codes) ?? false;
+}
+
 function getClients($location = false)
 {
 	return App\Models\CRM\CRMCustomer::orderBy('name')->where('active', 1)->get();

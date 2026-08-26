@@ -19,6 +19,7 @@ use App\Observers\SampleSubmissionRequestObserver;
 use App\Observers\SubmissionFormInstanceObserver;
 use App\Observers\TicketObserver;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
@@ -78,9 +79,21 @@ class AppServiceProvider extends ServiceProvider
             }
         } catch (\Throwable $e) {}
 
+        try {
+            if (Schema::hasTable('companies') && ! Schema::hasColumn('companies', 'code')) {
+                Schema::table('companies', function ($table) {
+                    $table->string('code', 32)->nullable()->unique();
+                });
+            }
+        } catch (\Throwable $e) {}
+
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }
+
+        Blade::if('companyCode', function (string|\App\Enums\CompanyCode ...$codes): bool {
+            return companyHasCode(...$codes);
+        });
         
         $mainPath = database_path('migrations');
         $directories = glob($mainPath . '/*' , GLOB_ONLYDIR);

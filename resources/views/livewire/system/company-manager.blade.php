@@ -96,6 +96,7 @@
                                         <th>{{ __('system.actions') }}</th>
                                         <th>{{ __('system.logo') }}</th>
                                         <th>{{ __('system.name') }}</th>
+                                        <th>{{ __('system.company_code') }}</th>
                                         <th>{{ __('system.email') }}</th>
                                         <th>{{ __('system.telephone') }}</th>
                                         <th>{{ __('system.country') }}</th>
@@ -129,6 +130,13 @@
                                                 <strong>{{ $company->name }}</strong>
                                                 @if($company->show_on_reports)
                                                     <br><small><span class="badge badge-info">{{ __('system.report_logo_enabled') }}</span></small>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($company->code)
+                                                    <span class="badge badge-light">{{ $company->code }}</span>
+                                                @else
+                                                    <span class="text-muted">-</span>
                                                 @endif
                                             </td>
                                             <td>{{ $company->email ?: '-' }}</td>
@@ -183,6 +191,17 @@
                                         @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">{{ __('system.company_code') }} <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model="code" class="form-control @error('code') is-invalid @enderror" placeholder="{{ __('system.company_code_placeholder') }}" maxlength="32" style="text-transform: lowercase;">
+                                        @error('code') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <small class="text-muted d-block mt-1">{{ __('system.company_code_hint') }}</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">{{ __('system.company_country') }}</label>

@@ -33,6 +33,7 @@ class CompanyController extends Controller
   {
     $company = new Company;
     $company->name = $request->name;
+    $company->code = $request->code;
     $company->location = $request->location;
     $company->address = $request->address;
     $company->country_id = $request->country_id;
@@ -71,6 +72,7 @@ class CompanyController extends Controller
   {
     $company = Company::find($id);
     $company->name = $request->name;
+    $company->code = $request->code;
     $company->location = $request->location;
     $company->address = $request->address;
     $company->country_id = $request->country_id;
