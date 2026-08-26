@@ -18,6 +18,7 @@ use App\Models\TrackSampleResult;
 use App\Observers\SampleSubmissionRequestObserver;
 use App\Observers\SubmissionFormInstanceObserver;
 use App\Observers\TicketObserver;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Schema;
@@ -83,6 +84,22 @@ class AppServiceProvider extends ServiceProvider
             if (Schema::hasTable('companies') && ! Schema::hasColumn('companies', 'code')) {
                 Schema::table('companies', function ($table) {
                     $table->string('code', 32)->nullable()->unique();
+                });
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (! Schema::hasTable('quotation_header_lab_sections')) {
+                Schema::create('quotation_header_lab_sections', function (Blueprint $table): void {
+                    $table->uuid('quotation_header_id');
+                    $table->uuid('lab_section_id');
+                    $table->timestamps();
+                    $table->primary(
+                        ['quotation_header_id', 'lab_section_id'],
+                        'quotation_header_lab_sections_primary',
+                    );
+                    $table->index('quotation_header_id');
+                    $table->index('lab_section_id');
                 });
             }
         } catch (\Throwable $e) {}
