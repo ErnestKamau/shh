@@ -83,3 +83,6 @@ fivet_dump.sql
 *.dump
 *.log
 AGENTS.md
+
+# Local scratch / email export dumps (never commit)
+/tmp/
