@@ -2773,6 +2773,63 @@ class SampleWorkFlowController extends Controller
     }
 
     /**
+     * Auto-create Lab Manager verification approver when missing (order 2).
+     */
+    protected function ensureLabManagerVerificationApprover(SampleHeader $batch): void
+    {
+        $existing = BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Verification')
+            ->where('can_send_back_to_lab', true)
+            ->first();
+
+        if ($existing) {
+            return;
+        }
+
+        $labManager = User::query()
+            ->where('active', 1)
+            ->whereHas('roles', function ($query): void {
+                $query->where('name', 'like', '%Lab Manager%');
+            })
+            ->first();
+
+        if (! $labManager && $batch->lab_section_ids) {
+            $section = SampleAnalysisStage::whereIn('id', explode(',', $batch->lab_section_ids))->first();
+            if ($section && $section->section_head_id) {
+                $labManager = User::find($section->section_head_id);
+            }
+        }
+
+        if (! $labManager) {
+            $technicalReviewer = BatchLabSectionApprover::where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->where('is_technical_reviewer', true)
+                ->first();
+            if ($technicalReviewer) {
+                $labManager = User::find($technicalReviewer->user_id);
+            }
+        }
+
+        if (! $labManager) {
+            return;
+        }
+
+        $lmApprover = new BatchLabSectionApprover();
+        $lmApprover->user_id = $labManager->id;
+        $lmApprover->title = 'Lab Manager';
+        $lmApprover->lab_section_ids = (string) ($batch->lab_section_ids ?: 0);
+        $lmApprover->batch_id = $batch->id;
+        $lmApprover->batch_status = 'Sample Verification';
+        $lmApprover->status = 0;
+        $lmApprover->approver_order = 2;
+        $lmApprover->is_technical_reviewer = false;
+        $lmApprover->can_send_back_to_lab = true;
+        $lmApprover->show_report = 1;
+        $lmApprover->approver_type = 'Lab Manager';
+        $lmApprover->save();
+    }
+
+    /**
      * Check if current user can approve at verification stage,
      * respecting the approval order sequence.
      */
@@ -2843,6 +2900,8 @@ class SampleWorkFlowController extends Controller
         }
 
         if ($batch->status == 'Sample Verification' && $status == 'Sample Approval') {
+            $this->ensureLabManagerVerificationApprover($batch);
+
             // Validate verification approval order first
             try {
                 $this->validateVerificationApprovalOrder($batch_id);
@@ -6159,6 +6218,9 @@ class SampleWorkFlowController extends Controller
             'language' => ['required', 'in:en,ar,pt'],
             'notes'    => ['nullable', 'string', 'max:1000'],
             'include_reference_method' => ['nullable', 'boolean'],
+            'show_specification' => ['nullable', 'boolean'],
+            'show_specification_standard' => ['nullable', 'boolean'],
+            'show_mu_percent' => ['nullable', 'boolean'],
         ]);
 
         $batch = SampleHeader::find($request->batch_id);
@@ -6202,6 +6264,9 @@ class SampleWorkFlowController extends Controller
             'lang'     => $request->language,
             'mode'     => 'pdf',
             'include_reference_method' => $request->boolean('include_reference_method') ? 1 : 0,
+            'show_specification' => $request->boolean('show_specification') ? 1 : 0,
+            'show_specification_standard' => $request->boolean('show_specification_standard') ? 1 : 0,
+            'show_mu_percent' => $request->boolean('show_mu_percent') ? 1 : 0,
         ]);
     }
 
@@ -6805,6 +6870,17 @@ class SampleWorkFlowController extends Controller
         $isRTL = ($language === 'ar');
         $labels = $pdfService->labelsFor($language);
         $includeReferenceMethod = $request->boolean('include_reference_method');
+        $isBrazilExportationReport = (bool) ($reportData['isBrazilExportationReport'] ?? false);
+        // Brazil Exportation defaults these off (Carlos: usually unused); others keep current always-on behaviour.
+        $showSpecification = $request->has('show_specification')
+            ? $request->boolean('show_specification')
+            : ! $isBrazilExportationReport;
+        $showSpecificationStandard = $request->has('show_specification_standard')
+            ? $request->boolean('show_specification_standard')
+            : ! $isBrazilExportationReport;
+        $showMuPercent = $request->has('show_mu_percent')
+            ? $request->boolean('show_mu_percent')
+            : ! $isBrazilExportationReport;
 
         $verificationUrl = route('generateTestRequestReport', [
             'batch_id' => $batch->id,
@@ -6812,6 +6888,9 @@ class SampleWorkFlowController extends Controller
             'lang' => $language,
             'mode' => 'pdf',
             'include_reference_method' => $includeReferenceMethod ? 1 : 0,
+            'show_specification' => $showSpecification ? 1 : 0,
+            'show_specification_standard' => $showSpecificationStandard ? 1 : 0,
+            'show_mu_percent' => $showMuPercent ? 1 : 0,
         ]);
 
         $footerQrCode = '';
@@ -6863,6 +6942,9 @@ class SampleWorkFlowController extends Controller
                 'isRTL',
                 'isPdfMode',
                 'includeReferenceMethod',
+                'showSpecification',
+                'showSpecificationStandard',
+                'showMuPercent',
                 'footerQrCode',
                 'verificationUrl',
                 'batchBackUrl',
@@ -6942,6 +7024,9 @@ class SampleWorkFlowController extends Controller
             'isPdfMode',
             'isPreviewMode',
             'includeReferenceMethod',
+            'showSpecification',
+            'showSpecificationStandard',
+            'showMuPercent',
             'footerQrCode',
             'verificationUrl',
             'batchBackUrl',
@@ -6957,6 +7042,9 @@ class SampleWorkFlowController extends Controller
                 'batchBackUrl' => $batchBackUrl,
                 'language' => $language,
                 'includeReferenceMethod' => $includeReferenceMethod,
+                'showSpecification' => $showSpecification,
+                'showSpecificationStandard' => $showSpecificationStandard,
+                'showMuPercent' => $showMuPercent,
             ]);
         }
 
@@ -7067,14 +7155,12 @@ class SampleWorkFlowController extends Controller
 
             // Get Lab Manager (typically from configuration or system role)
             // Find user with Lab Manager or section head role
-            $labManagerRole = \App\Role::where('name', 'like', '%Lab Manager%')->first();
-            $labManager = null;
-
-            if ($labManagerRole) {
-                $labManager = User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-                    ->where('ur.role_id', $labManagerRole->id)
-                    ->first();
-            }
+            $labManager = User::query()
+                ->where('active', 1)
+                ->whereHas('roles', function ($query): void {
+                    $query->where('name', 'like', '%Lab Manager%');
+                })
+                ->first();
 
             // Fallback: Use section head if available
             if (!$labManager && $batch->lab_section_ids) {

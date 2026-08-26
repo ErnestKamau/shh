@@ -1,0 +1,282 @@
+Date: 2026-08-26T11:37:56Z
+Subject: RES: [EXTERNAL] Quotation Amspec Brazil
+From: Carlos.Pedroso@amspecgroup.com
+MsgId: 1a03ddcead6d6200
+
+Good day, Nancy
+
+Thank you very much.
+
+Best Regards,
+
+[cid:AmSpecGroupSignatureLogo_8d6280bf-5bb3-4317-825d-305261c45d9c.png]
+
+Carlos Pedroso
+[cid:Bar_871af34b-b68b-4769-9319-ac8dd836ecd0.png]
+Laboratory Manager, Research and Development
+
+AmSpec Group
+Av. Marechal Floriano Peixoto, 7556 - Boqueirão
+Curitiba, PR 81.670-000
+Brazil
+
+Tel: +55 .41 3425-8841
+Mob: +5541991896141
+Email: Carlos.Pedroso@AmSpecGroup.com<mailto:Carlos.Pedroso@AmSpecGroup.com>
+
+[cid:Facebook_b336a966-65a4-4622-a962-efbdfdafec20.png]<https://www.facebook.com/amspecgroup/> [cid:Youtube_ca462011-0f8d-4d55-b78b-cf916d7d2eb5.png] <https://www.youtube.com/channel/UChs5rdQ4vhZp8zI4zlMaygA> [cid:Insta_2eae7fc3-75a6-4769-81d1-244795401ccf.png] <https://www.instagram.com/amspecgroup/> [cid:LinkedIn_f09f5fc7-1dbb-4493-ae29-6977f0eba921.png] <https://www.linkedin.com/company/amspec-group/posts/> [cid:www_8b43cb71-4a0d-4083-8f9b-b90b9e2fb7a3.png] <https://www.amspecgroup.com/>
+
+Acesse a nossa Politica da Qualidade através do link: https://www.amspecgroup.com/terms-conditions/politica-da-qualidade/
+
+[cid:AmSpecCuritibaLaboratoryPromoBanner_3cd04d25-9e31-4c43-af0f-98de5ce17a5e.png]
+De: Karoki Nancy <karokin35@gmail.com>
+Enviada em: quarta-feira, 26 de agosto de 2026 02:29
+Para: Carlos Pedroso <Carlos.Pedroso@AmSpecGroup.com>
+Assunto: Re: [EXTERNAL] Quotation Amspec Brazil
+
+Hi Carlos, sorry for the late reply,
+
+About – Standard / Create Standard Analyte
+
+Please note that Range (Low 0 / High 40) is not the same as “Less than 40 (< 40)”.
+
+  * Range means the result must be between 0 and 40, inclusive. On the report, it will display as 0 - 40.
+  * < 40 means the result must be strictly less than 40, and it should display as < 40.
+
+Therefore, if your specification is actually < 40, please do not use Range.
+
+How to Set < 40 Correctly
+
+Use Value is not a free-text field, so you cannot type < 40 directly into it. This is why you received the “standard value id is required” error. You need to select a Specification Value from the list.
+
+Please use the following steps:
+
+  1. Value Type → Use Value
+  2. Specification Value → Select IsValue (search for it in the dropdown)
+  3. Matrix Operator → < (Less Than)
+  4. Actual Value → 40
+  5. Click Save
+
+This will display the specification as < 40 and evaluate the result correctly as PASS/FAIL.
+
+If the limit is actually “maximum 40” / “up to 40”, meaning that 40 is also acceptable, then Range 0–40 is appropriate. Alternatively, you can use:
+
+Use Value → IsValue → Max → 40
+
+However, this will not display as < 40 on the report.
+
+About the Quotation
+
+Thank you for the attachment and for flagging the package-related issues.
+
+I will check the quotation, including:
+
+  * Packages
+  * LOQ per analyte
+  * Method WI-CWB-038 instead of “Radioactivity”
+  * Logo
+  * Customer phone number and removal of fax
+  * Removal of the introductory paragraph
+  * Table columns
+  * Terms of Sale, as marked in the attachment
+
+I will confirm once the remaining items have been completed before end of day today.
+
+Best regards,
+Nancy Karoki.
+
+On Tue, Aug 25, 2026 at 11:20 PM Carlos Pedroso <Carlos.Pedroso@amspecgroup.com<mailto:Carlos.Pedroso@amspecgroup.com>> wrote:
+HI Nancy
+
+About Quotation:
+
+Attached how is the Quotation at this moment. Some changes were made, but others no. Email below
+
+But we have some issues with package.
+
+Coud you check? After done, could you tell me?
+
+Thank you.
+
+Best Regards,
+
+[cid:image001.png@01DD3536.2AE72380]
+
+Carlos Pedroso
+[cid:image002.png@01DD3536.2AE72380]
+Laboratory Manager, Research and Development
+
+AmSpec Group
+Av. Marechal Floriano Peixoto, 7556 - Boqueirão
+Curitiba, PR 81.670-000
+Brazil
+
+Tel: +55 .41 3425-8841
+Mob: +5541991896141
+Email: Carlos.Pedroso@AmSpecGroup.com<mailto:Carlos.Pedroso@AmSpecGroup.com>
+
+[cid:image003.png@01DD3536.2AE72380]<https://urldefense.proofpoint.com/v2/url?u=https-3A__www.facebook.com_amspecgroup_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=2FQIH5xS_E1sQFXpKkBOZp9IDAmFFceSfzjECnYU68vtVeqDUOfYOaWU-Vrt4rMM&s=P5MmaoAArnx23XgEhXljmKLvsiAd-IyVx63aX40f8RQ&e=> [cid:image004.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.youtube.com_channel_UChs5rdQ4vhZp8zI4zlMaygA&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=2FQIH5xS_E1sQFXpKkBOZp9IDAmFFceSfzjECnYU68vtVeqDUOfYOaWU-Vrt4rMM&s=ICa1Z_-hP8ieywxDMgeLbtifW4bYnBzM-HygqKb56jI&e=> [cid:image005.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.instagram.com_amspecgroup_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=2FQIH5xS_E1sQFXpKkBOZp9IDAmFFceSfzjECnYU68vtVeqDUOfYOaWU-Vrt4rMM&s=debeEpuBMsKhO9urJCRU64CjUtC6FF2Z8f8RMbv330M&e=> [cid:image006.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.linkedin.com_company_amspec-2Dgroup_posts_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=2FQIH5xS_E1sQFXpKkBOZp9IDAmFFceSfzjECnYU68vtVeqDUOfYOaWU-Vrt4rMM&s=o6bVll9nx8mari8noTExA3FDxZKdt3vd1eBuX8Y-MzQ&e=> [cid:image007.png@01DD3536.2AE72380] <https://www.amspecgroup.com/>
+
+Acesse a nossa Politica da Qualidade através do link: https://www.amspecgroup.com/terms-conditions/politica-da-qualidade/
+
+[cid:image008.png@01DD3536.2AE72380]
+De: Carlos Pedroso
+Enviada em: terça-feira, 18 de agosto de 2026 11:13
+Para: 'Karoki Nancy' <karokin35@gmail.com<mailto:karokin35@gmail.com>>
+Assunto: RES: [EXTERNAL] Quotation Amspec Brazil
+
+Hi Nancy
+
+Quotation changes:
+
+Amspec Logo – Attached
+
+Customer information – just one telephone and do not need Fax
+
+Delete:
+[cid:image009.png@01DD3536.2AE72380]
+
+Table in red only (LoQ, TAT, Qt)
+
+LoQ – of each Analyte (for package)
+
+Terms and Conditions -
+Using the informationof Terms of Sale
+
+[cid:image010.png@01DD3536.2AE72380]
+
+Plus Add:
+
+[cid:image011.png@01DD3536.2AE72380]
+[cid:image012.png@01DD3536.2AE72380]
+
+Attached Quotation
+
+If you have any question, let me know.
+
+Kind regards
+
+De: Karoki Nancy <karokin35@gmail.com<mailto:karokin35@gmail.com>>
+Enviada em: segunda-feira, 17 de agosto de 2026 12:10
+Para: Carlos Pedroso <Carlos.Pedroso@AmSpecGroup.com<mailto:Carlos.Pedroso@AmSpecGroup.com>>
+Assunto: Re: [EXTERNAL] Quotation Amspec Brazil
+
+Hi Carlos,
+
+The aflatoxin price did not appear because it was still Pending on the pricelist. After you enter or update prices, they need Apply Price Changes on the pricelist items tab before quotations can use them. Until that step, the quotation shows unit price 0. I have already applied the prices for you. Please open quotation AMS0200817-005 again (or click the $ button on the line) — AFLATOXIN should now show 600. For next time: save the prices, then click Apply Price Changes, then prepare the quotation.
+
+On the quotation layout from your previous email: Test Method will show the method number, not a name such as “Mycotoxin” VAT is hidden for BRL quotes
+
+Please regenerate / view the quotation PDF so you can confirm those two as well.
+Thank you.
+
+Best regards,
+
+Nancy Karoki
+
+On Mon, Aug 17, 2026 at 4:49 PM Carlos Pedroso <Carlos.Pedroso@amspecgroup.com<mailto:Carlos.Pedroso@amspecgroup.com>> wrote:
+Hi Nancy
+
+I have some questions:
+
+I created one master price list: “Tabela de Preço” – only price list active
+[cid:image013.png@01DD3536.2AE72380]
+
+I linked the client – Amspec Paranguá in this table:
+[cid:image014.png@01DD3536.2AE72380]
+
+I linked the price with tests aflatoxin : Total Amount 600
+[cid:image015.png@01DD3536.2AE72380]
+
+But when I prepare the Quotation, the price does not appear. Why?
+
+[cid:image016.png@01DD3536.2AE72380]
+
+And we need the changes at Quotation, which was flagged in the previous email.
+
+Thank you.
+
+Best Regards,
+
+[cid:image001.png@01DD3536.2AE72380]
+
+Carlos Pedroso
+[cid:image002.png@01DD3536.2AE72380]
+Laboratory Manager, Research and Development
+
+AmSpec Group
+Av. Marechal Floriano Peixoto, 7556 - Boqueirão
+Curitiba, PR 81.670-000
+Brazil
+
+Tel: +55 .41 3425-8841
+Mob: +5541991896141
+Email: Carlos.Pedroso@AmSpecGroup.com<mailto:Carlos.Pedroso@AmSpecGroup.com>
+
+[cid:image003.png@01DD3536.2AE72380]<https://urldefense.proofpoint.com/v2/url?u=https-3A__www.facebook.com_amspecgroup_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=t04ufxMWlM7qtsMb8-HHGN1E-XvsNSLZ3yWcBHHGgq-oejHaKpxT5lhkBzMaakxm&s=LeCSxMUDnFRe-OLnTUkmBDW_HyJNOKEbTdSdxX7M3U4&e=> [cid:image004.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.youtube.com_channel_UChs5rdQ4vhZp8zI4zlMaygA&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=t04ufxMWlM7qtsMb8-HHGN1E-XvsNSLZ3yWcBHHGgq-oejHaKpxT5lhkBzMaakxm&s=9v84FdktQf7Ul7i0wF62Cb6vrRI-y1rEyPdRSE7_Tjg&e=> [cid:image005.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.instagram.com_amspecgroup_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=t04ufxMWlM7qtsMb8-HHGN1E-XvsNSLZ3yWcBHHGgq-oejHaKpxT5lhkBzMaakxm&s=8n9lkM6o5xrmzm_-CfHHYmbHRKSN74VknlQKRnAgSEE&e=> [cid:image006.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.linkedin.com_company_amspec-2Dgroup_posts_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=t04ufxMWlM7qtsMb8-HHGN1E-XvsNSLZ3yWcBHHGgq-oejHaKpxT5lhkBzMaakxm&s=MRwZITUKxAtphZQCjsYfIJl7EU4ipkCGq6xUtjlqzGs&e=> [cid:image007.png@01DD3536.2AE72380] <https://www.amspecgroup.com/>
+
+Acesse a nossa Politica da Qualidade através do link: https://www.amspecgroup.com/terms-conditions/politica-da-qualidade/
+
+[cid:image008.png@01DD3536.2AE72380]
+De: Karoki Nancy <karokin35@gmail.com<mailto:karokin35@gmail.com>>
+Enviada em: segunda-feira, 17 de agosto de 2026 02:03
+Para: Carlos Pedroso <Carlos.Pedroso@AmSpecGroup.com<mailto:Carlos.Pedroso@AmSpecGroup.com>>
+Assunto: Re: [EXTERNAL] Quotation Amspec Brazil
+
+Hi Carlos
+
+The green color is there only for UI purposes but if you want it changed to match the system color that can also be arranged. The method number is what is now being used instead of the name and the VAT will not be appearing when BRL is being used. Please let me know if these changes are correct and do not hesitate to reach out to me in case of anything.
+
+Kind regards,
+Nancy Karoki
+
+On Thu, Aug 13, 2026 at 2:25 PM Carlos Pedroso <Carlos.Pedroso@amspecgroup.com<mailto:Carlos.Pedroso@amspecgroup.com>> wrote:
+Hi Ernest and team
+
+We have some corrections to make to the Quotation from Brazil.
+
+Attached one template with details.
+
+If you have questions, let me know.
+
+Best Regards,
+
+[cid:image001.png@01DD3536.2AE72380]
+
+Carlos Pedroso
+[cid:image002.png@01DD3536.2AE72380]
+Laboratory Manager, Research and Development
+
+AmSpec Group
+Av. Marechal Floriano Peixoto, 7556 - Boqueirão
+Curitiba, PR 81.670-000
+Brazil
+
+Tel: +55 .41 3425-8841
+Mob: +5541991896141
+Email: Carlos.Pedroso@AmSpecGroup.com<mailto:Carlos.Pedroso@AmSpecGroup.com>
+
+[cid:image003.png@01DD3536.2AE72380]<https://urldefense.proofpoint.com/v2/url?u=https-3A__www.facebook.com_amspecgroup_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=btJ695WUezyhp6G7LfgST3X6TPlvy9bWE7HA3Dw7jHMvY5ieujduVCV1ojW5eyfl&s=7r0yrfPU1vWuRbmm3cUAg0QueemhD08c23UqoTwRs6Q&e=> [cid:image004.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.youtube.com_channel_UChs5rdQ4vhZp8zI4zlMaygA&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=btJ695WUezyhp6G7LfgST3X6TPlvy9bWE7HA3Dw7jHMvY5ieujduVCV1ojW5eyfl&s=7rCnbB7EZz8ETY83YcCtFFaNs9fN5bIFcwH8riDCFzA&e=> [cid:image005.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.instagram.com_amspecgroup_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=btJ695WUezyhp6G7LfgST3X6TPlvy9bWE7HA3Dw7jHMvY5ieujduVCV1ojW5eyfl&s=n3p3SSKXaAw_eXgr0GFXwWhGpa2CHytP-u15uWj38vw&e=> [cid:image006.png@01DD3536.2AE72380] <https://urldefense.proofpoint.com/v2/url?u=https-3A__www.linkedin.com_company_amspec-2Dgroup_posts_&d=DwMFaQ&c=euGZstcaTDllvimEN8b7jXrwqOf-v5A_CdpgnVfiiMM&r=iGVxfS8srAPbusGv1Xv4iUZPeTgiFHQ1NX8BDSARuQc&m=btJ695WUezyhp6G7LfgST3X6TPlvy9bWE7HA3Dw7jHMvY5ieujduVCV1ojW5eyfl&s=_bBpDIh85AKrabQWI538RXo3CHw-ltg_2rzwtx6rBTc&e=> [cid:image007.png@01DD3536.2AE72380] <https://www.amspecgroup.com/>
+
+Acesse a nossa Politica da Qualidade através do link: https://www.amspecgroup.com/terms-conditions/politica-da-qualidade/
+
+[cid:image008.png@01DD3536.2AE72380]
+
+DISCLAIMER:
+This e-mail may contain confidential or privileged information. If you are not the intended recipient or have received this message in error, you are not authorized to use, copy or distribute this message or its attachments. Please notify the sender immediately by return e-mail, and permanently delete this message. AmSpec Group makes no warranty that this e-mail is error or virus-free.
+
+All services provided by the AmSpec Group are governed by: Terms and conditions<https://www.amspecgroup.com/terms-conditions/>
+
+If you wish to confidentially report a compliance or ethics issue, please contact us at compliance@amspecgroup.com<mailto:compliance@amspecgroup.com>
+
+Please visit our website at: HTTPS://www.amspecgroup.com<https://www.amspecgroup.com/>
+
+________________________________
+
+This email has been scanned for spam and viruses by Proofpoint Essentials. Click here<https://us1.proofpointessentials.com/app/report_spam.php?mod_id=11&mod_option=logitem&report=1&type=easyspam&k=k1&payload=53616c7465645f5f4282b8ee217722576c8704121a15e39409104f3138f26a672771fa736c5206bbb21b49de10ab3937d170930c740f207c17d67a7680228b2e6e50ab71c85eaae8c276ba56b60e8d8d6c7d5188c1577b4b2d144006b79896915888ae0de191a362043dea7b09ffd6a3ee03c575dded5fac0b41f009f8f4b6951d34b361051f70f62ab4466a123fe33d70ec5e82f25a03ce185e402aa25a7fda> to report this email as spam.
+
+________________________________
+
+________________________________
+
+This email has been scanned for spam and viruses by Proofpoint Essentials. Click here<https://us1.proofpointessentials.com/app/report_spam.php?mod_id=11&mod_option=logitem&report=1&type=easyspam&k=k1&payload=53616c7465645f5f1f24e854356c3a09ab082d987443941ba9975c3f2afffd1be6251287710415b00bfb0d5c66b85cd2942570760662d60be8f150c684c6156ed14e870a1865b3c776effe2acb439a347cc0498f876aefba7f22c3e87caa299cece48f8f09008f159e690c62109b96b1c6b356eb28e9092534aca1c68e38b7eec59f49e6b9bafbaefc67cd095ac903bc29fb4ac932af5f171b6aced2d3622930> to report this email as spam.

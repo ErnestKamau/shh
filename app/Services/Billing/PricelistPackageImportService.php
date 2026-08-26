@@ -3,11 +3,13 @@
 namespace App\Services\Billing;
 
 use App\AnalysisElements;
+use App\Analyte;
 use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistItem;
 use App\Models\Billing\PricelistItemElement;
 use App\SampleType;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use RuntimeException;
@@ -27,9 +29,16 @@ use RuntimeException;
  */
 class PricelistPackageImportService
 {
+    /** @var Collection<int, SampleType>|null */
+    private ?Collection $sampleTypeCatalog = null;
+
+    /** @var Collection<int, Analyte>|null */
+    private ?Collection $analyteCatalog = null;
+
     public function __construct(
         private readonly PdfTextExtractor $pdfTextExtractor,
         private readonly AmspecPackagePdfParser $amspecPackagePdfParser,
+        private readonly AmspecImportLabelMatcher $labelMatcher,
     ) {}
 
     /**
@@ -124,9 +133,10 @@ class PricelistPackageImportService
             : 'per_package';
 
         foreach ($rows as $index => $row) {
-            $sampleType = $this->resolveSampleType((string) ($row['sample_type'] ?? ''));
+            $sampleTypeLabel = trim((string) ($row['sample_type'] ?? ''));
+            $sampleType = $this->resolveSampleType($sampleTypeLabel);
             if ($sampleType === null) {
-                $warnings[] = 'Row '.($index + 1).': unknown sample type';
+                $warnings[] = 'Row '.($index + 1).': unknown sample type «'.($sampleTypeLabel !== '' ? $sampleTypeLabel : '(blank)').'» — add it under Sample Types (or rename to match LIMS).';
 
                 continue;
             }
@@ -134,7 +144,14 @@ class PricelistPackageImportService
             $paramTokens = $this->splitParameters((string) ($row['parameters'] ?? ''));
             $elements = $this->resolveElements($paramTokens);
             if ($elements === []) {
-                $warnings[] = 'Row '.($index + 1).': no matching parameters';
+                $paramHint = $paramTokens === []
+                    ? 'no parameters were parsed from the file for this package'
+                    : count($paramTokens).' parameter name(s) from the file did not resolve to analysis elements (analyte may exist without an analysis element)';
+                $warnings[] = 'Row '.($index + 1).': no matching parameters for «'.$sampleTypeLabel.'»'
+                    .(strcasecmp($sampleTypeLabel, (string) $sampleType->name) !== 0
+                        ? ' (matched LIMS sample type «'.$sampleType->name.'»)'
+                        : '')
+                    .' — '.$paramHint.'.';
 
                 continue;
             }
@@ -147,6 +164,9 @@ class PricelistPackageImportService
                 ? $this->truthy($row['tax'])
                 : true;
             $unitPrice = (float) ($row['unit_price'] ?? 0);
+            $costPrice = array_key_exists('cost_price', $row) && $row['cost_price'] !== null && $row['cost_price'] !== ''
+                ? $this->cleanNumber($row['cost_price'])
+                : $unitPrice;
 
             if ($isPackage) {
                 $analysisTypeId = (string) ($elements[0]->analysis_type_id ?? '');
@@ -164,12 +184,16 @@ class PricelistPackageImportService
                     $item->analysis_id = $analysisTypeId !== '' ? $analysisTypeId : null;
                     $item->is_package = true;
                     $item->active = true;
+                    $item->internal_use = false;
+                    $item->external_view = true;
                     $created++;
                 } else {
                     $updated++;
                 }
 
+                $item->cost_price = $costPrice;
                 $item->selling_price = $unitPrice;
+                $item->changed_price = $unitPrice;
                 $item->vat = $vat;
                 $item->save();
 
@@ -209,12 +233,16 @@ class PricelistPackageImportService
                     $item->analysis_element_id = $element->id;
                     $item->is_package = false;
                     $item->active = true;
+                    $item->internal_use = false;
+                    $item->external_view = true;
                     $created++;
                 } else {
                     $updated++;
                 }
 
+                $item->cost_price = $costPrice;
                 $item->selling_price = $unitPrice;
+                $item->changed_price = $unitPrice;
                 $item->vat = $vat;
                 $item->save();
 
@@ -230,9 +258,41 @@ class PricelistPackageImportService
         return [
             'created' => $created,
             'updated' => $updated,
+            'skipped' => count($warnings),
+            'total_rows' => count($rows),
             'warnings' => $warnings,
             'items' => $itemsOut,
         ];
+    }
+
+    /**
+     * Human-readable import summary for toasts / flash messages.
+     *
+     * @param  array{created?: int, updated?: int, skipped?: int, total_rows?: int, warnings?: list<string>}  $result
+     */
+    public function formatImportSummary(array $result): string
+    {
+        $created = (int) ($result['created'] ?? 0);
+        $updated = (int) ($result['updated'] ?? 0);
+        $skipped = (int) ($result['skipped'] ?? count($result['warnings'] ?? []));
+        $totalRows = (int) ($result['total_rows'] ?? ($created + $updated + $skipped));
+        $warnings = array_values(array_filter(array_map('strval', $result['warnings'] ?? [])));
+
+        $lines = [
+            "Imported {$created} new / {$updated} updated pricelist item(s) from {$totalRows} package row(s) in the file.",
+        ];
+
+        if ($skipped > 0) {
+            $lines[] = "Skipped {$skipped} row(s):";
+            foreach (array_slice($warnings, 0, 6) as $warning) {
+                $lines[] = '• '.$warning;
+            }
+            if (count($warnings) > 6) {
+                $lines[] = '• (+'.(count($warnings) - 6).' more)';
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     private function normalizeHeader(string $header): string
@@ -280,12 +340,14 @@ class PricelistPackageImportService
             return null;
         }
 
-        return SampleType::query()
-            ->where(function ($q) use ($name) {
-                $q->whereRaw('LOWER(name) = ?', [strtolower($name)])
-                    ->orWhereRaw('LOWER(code) = ?', [strtolower($name)]);
-            })
-            ->first();
+        foreach ($this->sampleTypeCatalog() as $sampleType) {
+            if ($this->labelMatcher->matches($name, (string) ($sampleType->name ?? ''))
+                || $this->labelMatcher->matches($name, (string) ($sampleType->code ?? ''))) {
+                return $sampleType;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -306,13 +368,14 @@ class PricelistPackageImportService
     {
         $elements = [];
         foreach ($tokens as $token) {
+            $analyte = $this->resolveAnalyte($token);
+            if ($analyte === null) {
+                continue;
+            }
+
             $element = AnalysisElements::query()
-                ->where(function ($q) use ($token) {
-                    $q->whereRaw('LOWER(parametername) = ?', [strtolower($token)])
-                        ->orWhereHas('analyte', function ($aq) use ($token) {
-                            $aq->whereRaw('LOWER(name) = ?', [strtolower($token)]);
-                        });
-                })
+                ->where('analyte_id', $analyte->id)
+                ->orderBy('id')
                 ->first();
             if ($element !== null) {
                 $elements[] = $element;
@@ -320,6 +383,41 @@ class PricelistPackageImportService
         }
 
         return $elements;
+    }
+
+    private function resolveAnalyte(string $token): ?Analyte
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+
+        foreach ($this->analyteCatalog() as $analyte) {
+            if ($this->labelMatcher->matches($token, (string) ($analyte->name ?? ''))
+                || $this->labelMatcher->matches($token, (string) ($analyte->code ?? ''))) {
+                return $analyte;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return Collection<int, SampleType>
+     */
+    private function sampleTypeCatalog(): Collection
+    {
+        return $this->sampleTypeCatalog ??= SampleType::query()
+            ->get(['id', 'name', 'code']);
+    }
+
+    /**
+     * @return Collection<int, Analyte>
+     */
+    private function analyteCatalog(): Collection
+    {
+        return $this->analyteCatalog ??= Analyte::query()
+            ->get(['id', 'name', 'code']);
     }
 
     private function truthy(mixed $value): bool

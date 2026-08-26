@@ -19,6 +19,7 @@ class Company extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [
+        'code',
         'name',
         'code',
         'logo',
@@ -110,12 +111,13 @@ class Company extends Model implements Auditable
         return $this->hasMany(CompanyReportLogo::class);
     }
 
-  public function getReportLogoPath(string $name): ?string
-  {
-      $logo = $this->reportLogos()->where('name', $name)->first();
-      if ($logo) {
-          return $logo->logo_path;
-      }
-      return $this->report_logo; // fallback
-  }
+    public function getReportLogoPath(string $name): ?string
+    {
+        $logo = $this->reportLogos()->where('name', $name)->first();
+        if ($logo) {
+            return $logo->logo_path;
+        }
+
+        return $this->report_logo; // fallback
+    }
 }

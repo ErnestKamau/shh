@@ -9,6 +9,20 @@ trait ResolvesAmSpecCompany
 {
     protected function resolveAmSpecCompany(): ?Company
     {
+        $preferredCodes = [
+            AmSpecSeedData::DUBAI_COMPANY_CODE,
+            AmSpecSeedData::BRAZIL_COMPANY_CODE,
+        ];
+
+        $byCode = Company::query()
+            ->whereIn('code', $preferredCodes)
+            ->orderByRaw('CASE WHEN code = ? THEN 0 WHEN code = ? THEN 1 ELSE 2 END', $preferredCodes)
+            ->first();
+
+        if ($byCode !== null) {
+            return $byCode;
+        }
+
         $preferredIds = [
             AmSpecSeedData::DUBAI_COMPANY_ID,
             AmSpecSeedData::BRAZIL_COMPANY_ID,

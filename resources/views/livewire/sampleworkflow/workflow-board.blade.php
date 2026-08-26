@@ -1227,6 +1227,17 @@
 									class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span
 									class="badge badge-danger badge-pill pt-1" id="approval-counter"></span></span>
 						@endif
+						@if($status === 'Sample Verification' && auth()->user()?->checkVerifyLabSampleRole())
+							<button type="button"
+								class="btn btn-sm btn-primary btn-action-sm js-bulk-verify-selected"
+								id="bulk-verify-selected-btn"
+								title="Mark Technical Reviewer verification complete for selected batches"
+								:class="{ 'disabled': selectedLabBatchCount === 0 }"
+								:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+								<i class="mdi mdi-check-decagram"></i> Bulk Verify Selected
+								<span class="badge badge-light badge-pill pt-1" x-show="selectedLabBatchCount > 0" x-text="selectedLabBatchCount"></span>
+							</button>
+						@endif
 						@if($tatTodayCount > 0)
 							<span class="btn btn-sm btn-danger btn-action-sm" data-toggle="modal"
 								data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
@@ -1306,6 +1317,17 @@
 												class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip"
 												title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</button>
 
+									</li>
+								@endif
+								@if($status === 'Sample Verification' && auth()->user()?->checkVerifyLabSampleRole())
+									<li>
+										<button type="button"
+											class="dropdown-item js-bulk-verify-selected"
+											title="Mark Technical Reviewer verification complete for selected batches"
+											:class="{ 'disabled': selectedLabBatchCount === 0 }"
+											:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
+											<i class="mdi mdi-check-decagram mr-2"></i> Bulk Verify Selected
+										</button>
 									</li>
 								@endif
 								{{-- Samples Receiving: tab-specific Actions menu --}}
@@ -6420,6 +6442,32 @@
 
 			rebuildLabBatchPrintLabels();
 			rebuildEmailReportsSelection();
+
+			$(document)
+				.off('click.bulkVerifySelected', '.js-bulk-verify-selected')
+				.on('click.bulkVerifySelected', '.js-bulk-verify-selected', function (e) {
+					e.preventDefault();
+					if (this.classList.contains('disabled') || this.getAttribute('aria-disabled') === 'true') {
+						return;
+					}
+					const ids = $('input[data-lab-batch-select]:checked').map(function () {
+						return $(this).val();
+					}).get().filter(Boolean);
+
+					if (ids.length === 0) {
+						alert('Select at least one batch to verify.');
+						return;
+					}
+
+					if (!confirm('Mark Technical Reviewer verification complete for ' + ids.length + ' selected batch(es)?')) {
+						return;
+					}
+
+					const root = document.querySelector('[wire\\:id]');
+					if (window.Livewire && root) {
+						window.Livewire.find(root.getAttribute('wire:id')).call('bulkVerifySelected', ids);
+					}
+				});
 
 			// Bind directly on the modal elements — delegated $(document).on() with a custom namespace
 			// suffix (e.g. show.bs.modal.workflowSelection) never fires because Bootstrap triggers

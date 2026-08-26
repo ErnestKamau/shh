@@ -6,6 +6,7 @@ use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\AnalysisType;
 use App\Analyte;
+use App\Enums\CompanyCode;
 use App\Models\CRM\SamplePoint;
 use App\Models\SampleSubmissionRequest;
 use App\Models\System\SystemConfiguration;
@@ -44,6 +45,30 @@ class QuotationReportService
         'The laboratory shall not be liable for delays caused by circumstances beyond its reasonable control.',
         'Acceptance of this quotation constitutes acceptance of terms and condition on webpage: NONDISCLOSURE AGREEMENT',
     ];
+
+    /**
+     * @var list<string>
+     */
+    private const BRAZIL_DEFAULT_TERMS_AND_CONDITIONS = [
+        'This quotation is valid for 30 days from the date of issue.',
+        'Samples must be submitted/collected in suitable condition and quantity for the requested analysis.',
+        'Report turnaround time commences upon receipt and acceptance of the sample.',
+        'Test results apply only to the samples submitted and tested.',
+        'All client information and test results will be treated as confidential.',
+        'Reports shall not be reproduced except in full without written approval from the laboratory.',
+        'The laboratory reserves the right to subcontract specific tests to competent laboratories when required.',
+        'Complaints and appeals will be handled in accordance with the laboratory\'s documented procedures.',
+        'Samples will be retained and disposed of as per the laboratory\'s retention policy.',
+        'Orders cancelled after confirmation may be subject to applicable charges for work already performed, materials procured, or commitments made by the laboratory.',
+        'Payment shall be made within the credit terms stated in the quotation.',
+        'This quotation is valid for a minimum order value of BRL _____________.',
+        'The laboratory shall not be liable for delays caused by circumstances beyond its reasonable control.',
+        'Acceptance of this quotation constitutes acceptance of terms and conditions on webpage: NONDISCLOSURE AGREEMENT',
+    ];
+
+    private const BRAZIL_DEFAULT_CONFIDENTIALITY = 'All customer information obtained is treated by Amspec Lab as confidential and is not shared.';
+
+    private const BRAZIL_DEFAULT_DELIVERY_OF_RESULTS = 'Results are made available by e-mail/portal to the contact provided by the applicant in the registration form.';
 
     /**
      * @var array<string, string>
@@ -90,20 +115,29 @@ class QuotationReportService
     {
         $header->loadMissing(['customer', 'contact', 'currency', 'samplePoint']);
 
+        $currency = $header->currency;
+        $currencyCode = (string) ($currency?->code ?? $currency?->name ?? 'AED');
+        $isBrazilQuotation = $this->isBrazilQuotation($currencyCode);
+
         $enrichedHeader = $this->buildEnrichedHeader($header);
-        $realGroups = $this->buildGroupedLineItems($header);
+        $realGroups = $this->buildGroupedLineItems($header, $isBrazilQuotation);
         $hasLineItems = $realGroups !== [];
         $groups = $realGroups;
-        $branding = $this->resolveCompanyBranding($forPdf);
-        $terms = $this->resolveTerms($header);
+        $branding = $this->resolveCompanyBranding($forPdf, $isBrazilQuotation);
+        $terms = $this->resolveTerms($header, $isBrazilQuotation);
         $copy = $this->resolveCopySettings();
-        $currency = $header->currency;
-        $termsOfSale = $this->resolveTermsOfSale($header);
+        $termsOfSale = $this->resolveTermsOfSale($header, $isBrazilQuotation);
         $structuredTerms = $this->resolveStructuredTerms($header);
         $bankDetails = $this->resolveBankDetails();
         $totals = $this->resolveTotals($header, $groups, ! $hasLineItems);
         $reportViewUrl = $this->resolveReportViewUrl($header);
         $company = getActiveCompany();
+
+        if ($isBrazilQuotation) {
+            $branding['accent'] = $branding['primary'] ?? '#6D0A0E';
+            $branding['categoryBg'] = $branding['primary'] ?? '#6D0A0E';
+            $branding['categoryText'] = '#ffffff';
+        }
 
         return [
             'reportHeader' => $enrichedHeader,
@@ -117,13 +151,15 @@ class QuotationReportService
             'bankDetails' => $bankDetails,
             'copy' => $copy,
             'currency' => $currency,
-            'currencyCode' => $currency?->code ?? $currency?->name ?? 'AED',
+            'currencyCode' => $currencyCode,
             'totals' => $totals,
             'company' => $company,
             'forPdf' => $forPdf,
+            'isBrazilQuotation' => $isBrazilQuotation,
+            'hideVatAmount' => $isBrazilQuotation || strtoupper($currencyCode) === 'BRL',
             'showMethodColumn' => true,
             'showLoqColumn' => (bool) ($header->show_loq_column ?? true),
-            'showMuColumn' => (bool) ($header->show_mu_column ?? true),
+            'showMuColumn' => $isBrazilQuotation ? false : (bool) ($header->show_mu_column ?? true),
             'showTatColumn' => true,
             'showQuantityColumn' => true,
             'showUnitPriceColumn' => (bool) ($header->show_unit_price_column ?? true),
@@ -136,6 +172,15 @@ class QuotationReportService
                 $forPdf ? 56 : 90
             ),
         ];
+    }
+
+    public function isBrazilQuotation(?string $currencyCode = null): bool
+    {
+        if (companyHasCode(CompanyCode::Brl)) {
+            return true;
+        }
+
+        return strtoupper(trim((string) $currencyCode)) === 'BRL';
     }
 
     public function renderHtml(QuotationHeader $header, bool $forPdf = false): string
@@ -466,14 +511,19 @@ class QuotationReportService
     }
 
     /**
-     * @return array{service_delivery: string, payments: string, quote_specification: string, additional_info: string, payment_info: string, prices: string}
+     * @return array{service_delivery: string, payments: string, quote_specification: string, additional_info: string, payment_info: string, prices: string, confidentiality: string, delivery_of_results: string, show_prices: bool}
      */
-    public function resolveTermsOfSale(QuotationHeader $header): array
+    public function resolveTermsOfSale(QuotationHeader $header, bool $isBrazilQuotation = false): array
     {
         $config = $this->resolveTermsOfSaleConfig();
 
+        $serviceDelivery = $this->resolveTermField($header->service_delivery, $config['service_delivery'] ?? '');
+        if ($isBrazilQuotation && $serviceDelivery === '') {
+            $serviceDelivery = self::BRAZIL_DEFAULT_DELIVERY_OF_RESULTS;
+        }
+
         return [
-            'service_delivery' => $this->resolveTermField($header->service_delivery, $config['service_delivery'] ?? ''),
+            'service_delivery' => $serviceDelivery,
             'payments' => $this->resolveTermField($header->payments, $config['payments'] ?? ''),
             'quote_specification' => $this->resolveTermField($header->quote_specification, $config['quote_specification'] ?? ''),
             'additional_info' => $this->resolveTermField($header->additional_info, $config['additional_info'] ?? ''),
@@ -482,6 +532,9 @@ class QuotationReportService
                 (string) ($config['payment_info'] ?? '')
             ),
             'prices' => (string) ($config['prices'] ?? ''),
+            'confidentiality' => (string) ($config['confidentiality'] ?? ($isBrazilQuotation ? self::BRAZIL_DEFAULT_CONFIDENTIALITY : '')),
+            'delivery_of_results' => (string) ($config['delivery_of_results'] ?? ($isBrazilQuotation ? self::BRAZIL_DEFAULT_DELIVERY_OF_RESULTS : '')),
+            'show_prices' => ! $isBrazilQuotation,
         ];
     }
 
@@ -514,7 +567,7 @@ class QuotationReportService
     /**
      * @return list<array{sample_type_name: string, rows: list<array<string, mixed>>}>
      */
-    private function buildGroupedLineItems(QuotationHeader $header): array
+    private function buildGroupedLineItems(QuotationHeader $header, bool $isBrazilQuotation = false): array
     {
         $details = QuotationDetails::where('quotation_header_id', $header->id)->get();
         $grouped = [];
@@ -568,10 +621,10 @@ class QuotationReportService
             $elementIds = $this->pricingResolver->collectElementIdsFromDetail($detail);
 
             if ((bool) ($detail->is_package ?? false)) {
-                // AmSpec layout: one row per parameter with that parameter's method.
-                // Qty + unit price appear only on the first row (package billed once).
                 $packageTat = $this->resolveRowTat($detail);
-                $isFirstParameter = true;
+                $packageParameterNames = [];
+                $childRows = [];
+                $firstMethod = '';
 
                 foreach ($elementIds as $elementId) {
                     $element = $elementsById->get($elementId);
@@ -584,26 +637,88 @@ class QuotationReportService
                         $element,
                         $budgets,
                         $siblingsByAnalyte,
+                        $isBrazilQuotation,
                     );
                     $loq = $this->resolveDisplayedMetric($detail, 'show_loq_analytes', (string) $element->id, $metrics['loq']);
                     $mu = $this->resolveDisplayedMetric($detail, 'show_mu_analytes', (string) $element->id, $metrics['mu_percent']);
+                    $analyteName = (string) ($analyte?->name ?? $element->parametername ?? 'Parameter');
+                    $packageParameterNames[] = $analyteName;
+                    if ($firstMethod === '') {
+                        $firstMethod = (string) ($metrics['test_method'] ?? '');
+                    }
 
                     $packageMember = $this->makeLineRow(
-                        (string) ($analyte?->name ?? $element->parametername ?? 'Parameter'),
+                        $analyteName,
                         (string) ($metrics['test_method'] ?? ''),
                         $loq,
                         $mu,
-                        $isFirstParameter ? (float) $detail->unit_price : 0.0,
-                        $isFirstParameter ? (int) $detail->quantity : 0,
+                        0.0,
+                        0,
                         false,
                         false,
-                        $isFirstParameter ? $packageTat : null,
+                        null,
                     );
                     $packageMember['is_package_member'] = true;
-                    $packageMember['is_package_price_row'] = $isFirstParameter;
-                    $packageMember['show_commercial_cells'] = $isFirstParameter;
-                    $grouped[$sampleTypeName][] = $packageMember;
-                    $isFirstParameter = false;
+                    $packageMember['is_package_price_row'] = false;
+                    $packageMember['show_commercial_cells'] = false;
+                    $childRows[] = $packageMember;
+                }
+
+                if ($childRows === []) {
+                    continue;
+                }
+
+                if ($isBrazilQuotation) {
+                    $packageLabel = trim((string) ($detail->item_name ?: $detail->description ?: ''));
+                    if ($packageLabel === '') {
+                        $analysisTypeIds = array_values(array_filter(explode(',', (string) $detail->part_no)));
+                        $firstTypeId = $analysisTypeIds[0] ?? null;
+                        $packageLabel = $firstTypeId
+                            ? (string) (AnalysisType::find($firstTypeId)?->name ?? 'Package')
+                            : 'Package';
+                    }
+                    $parameterCount = count($packageParameterNames);
+                    if ($parameterCount > 0 && ! str_contains(strtolower($packageLabel), 'parameter')) {
+                        $packageLabel .= ' ('.$parameterCount.' parameter'.($parameterCount === 1 ? '' : 's').')';
+                    }
+
+                    $packageHeader = $this->makeLineRow(
+                        $packageLabel,
+                        $firstMethod,
+                        '',
+                        '',
+                        (float) $detail->unit_price,
+                        (int) $detail->quantity,
+                        false,
+                        false,
+                        $packageTat,
+                    );
+                    $packageHeader['is_package'] = true;
+                    $packageHeader['package_parameters'] = $packageParameterNames;
+                    $packageHeader['is_package_member'] = false;
+                    $packageHeader['is_package_price_row'] = true;
+                    $packageHeader['show_commercial_cells'] = true;
+                    $grouped[$sampleTypeName][] = $packageHeader;
+
+                    foreach ($childRows as $childRow) {
+                        $grouped[$sampleTypeName][] = $childRow;
+                    }
+
+                    continue;
+                }
+
+                $isFirstParameter = true;
+                foreach ($childRows as $childRow) {
+                    if ($isFirstParameter) {
+                        $childRow['unit_price'] = (float) $detail->unit_price;
+                        $childRow['quantity'] = max(1, (int) $detail->quantity);
+                        $childRow['total_price'] = round($childRow['unit_price'] * $childRow['quantity'], 2);
+                        $childRow['tat'] = $packageTat;
+                        $childRow['is_package_price_row'] = true;
+                        $childRow['show_commercial_cells'] = true;
+                        $isFirstParameter = false;
+                    }
+                    $grouped[$sampleTypeName][] = $childRow;
                 }
 
                 continue;
@@ -646,6 +761,7 @@ class QuotationReportService
                     (float) $detail->unit_price,
                     $budgets,
                     $siblingsByAnalyte,
+                    $isBrazilQuotation,
                 );
             }
         }
@@ -744,13 +860,15 @@ class QuotationReportService
      *     hexClusterDataUri: string
      * }
      */
-    public function resolveCompanyBranding(bool $forPdf = false): array
+    public function resolveCompanyBranding(bool $forPdf = false, bool $isBrazilQuotation = false): array
     {
         $primary = $this->configValue('sys_quotation_primary_color')
             ?: $this->configValue('sys_theme_primary_color', \App\Services\System\ThemeService::PRIMARY);
-        $accent = $this->configValue('sys_quotation_accent_color', '#4CAF50');
-        $logoDataUri = $this->resolveCompanyLogoDataUri();
-        $logoUrl = $this->resolveCompanyLogoUrl();
+        $accent = $isBrazilQuotation
+            ? $primary
+            : $this->configValue('sys_quotation_accent_color', '#4CAF50');
+        $logoDataUri = $this->resolveCompanyLogoDataUri($isBrazilQuotation);
+        $logoUrl = $this->resolveCompanyLogoUrl($isBrazilQuotation);
         $logoSrc = $forPdf ? $logoDataUri : ($logoUrl !== '' ? $logoUrl : $logoDataUri);
         $watermarkSrc = app(\App\Services\Reports\ReportWatermarkService::class)->src(null, $forPdf);
         if ($watermarkSrc === '') {
@@ -760,6 +878,8 @@ class QuotationReportService
         return [
             'primary' => $primary,
             'accent' => $accent,
+            'categoryBg' => $isBrazilQuotation ? $primary : '#E0E0E0',
+            'categoryText' => $isBrazilQuotation ? '#ffffff' : '#111111',
             'logoSrc' => $logoSrc,
             'logoUrl' => $logoUrl,
             'logoDataUri' => $logoDataUri,
@@ -772,7 +892,7 @@ class QuotationReportService
     /**
      * @return array{items: list<array{number: int, text: string}>, override: ?string}
      */
-    public function resolveTerms(QuotationHeader $header): array
+    public function resolveTerms(QuotationHeader $header, bool $isBrazilQuotation = false): array
     {
         if (! empty($header->terms_override)) {
             $lines = preg_split('/\r\n|\r|\n/', trim($header->terms_override)) ?: [];
@@ -803,6 +923,9 @@ class QuotationReportService
             if ($number > 0 && filled($config->value)) {
                 $text = $this->configTextToPlain((string) $config->value);
                 if ($text !== '') {
+                    if ($isBrazilQuotation) {
+                        $text = str_replace('AED', 'BRL', $text);
+                    }
                     $items[$number] = ['number' => $number, 'text' => $text];
                 }
             }
@@ -811,7 +934,7 @@ class QuotationReportService
         ksort($items);
 
         if ($items === []) {
-            $items = $this->defaultTermsAndConditionsItems();
+            $items = $this->defaultTermsAndConditionsItems($isBrazilQuotation);
         }
 
         return [
@@ -823,11 +946,14 @@ class QuotationReportService
     /**
      * @return array<int, array{number: int, text: string}>
      */
-    private function defaultTermsAndConditionsItems(): array
+    private function defaultTermsAndConditionsItems(bool $isBrazilQuotation = false): array
     {
         $items = [];
+        $source = $isBrazilQuotation
+            ? self::BRAZIL_DEFAULT_TERMS_AND_CONDITIONS
+            : self::DEFAULT_TERMS_AND_CONDITIONS;
 
-        foreach (self::DEFAULT_TERMS_AND_CONDITIONS as $index => $text) {
+        foreach ($source as $index => $text) {
             $items[$index + 1] = ['number' => $index + 1, 'text' => $text];
         }
 
@@ -1237,6 +1363,7 @@ class QuotationReportService
         float $storedUnitPrice,
         Collection $budgets,
         ?Collection $siblingsByAnalyte = null,
+        bool $preferMethodCode = false,
     ): array {
         $analyte = Analyte::find($element->analyte_id);
         $resolved = $this->pricingResolver->resolveLineUnitPrice(
@@ -1248,7 +1375,12 @@ class QuotationReportService
             true,
         );
         $sourceFlags = $this->elementSourceFlags($detail, (string) $element->id);
-        $metrics = $this->uncertaintyBudgetResolver->resolveLabMetricsForElement($element, $budgets, $siblingsByAnalyte);
+        $metrics = $this->uncertaintyBudgetResolver->resolveLabMetricsForElement(
+            $element,
+            $budgets,
+            $siblingsByAnalyte,
+            $preferMethodCode,
+        );
 
         return $this->makeLineRow(
             $analyte?->name ?? $element->parametername,
@@ -1421,14 +1553,16 @@ class QuotationReportService
         return $plain !== '' ? $plain : $default;
     }
 
-    private function resolveCompanyLogoDataUri(): string
+    private function resolveCompanyLogoDataUri(bool $isBrazilQuotation = false): string
     {
         $company = getActiveCompany();
         if (! $company) {
-            return '';
+            return $isBrazilQuotation
+                ? $this->imagePathToDataUri(public_path('images/amspec/agri-food-lab-logo.png'))
+                : '';
         }
 
-        foreach ($this->companyLogoCandidates($company) as $path) {
+        foreach ($this->companyLogoCandidates($company, $isBrazilQuotation) as $path) {
             $absolutePath = $this->resolveAbsoluteLogoPath((string) $path);
             if ($absolutePath !== '') {
                 return $this->imagePathToDataUri($absolutePath);
@@ -1438,14 +1572,14 @@ class QuotationReportService
         return '';
     }
 
-    private function resolveCompanyLogoUrl(): string
+    private function resolveCompanyLogoUrl(bool $isBrazilQuotation = false): string
     {
         $company = getActiveCompany();
         if (! $company) {
-            return '';
+            return $isBrazilQuotation ? '/images/amspec/agri-food-lab-logo.png' : '';
         }
 
-        foreach ($this->companyLogoCandidates($company) as $path) {
+        foreach ($this->companyLogoCandidates($company, $isBrazilQuotation) as $path) {
             $url = $this->normalizeLogoUrl((string) $path);
             if ($url !== '') {
                 return $url;
@@ -1460,13 +1594,19 @@ class QuotationReportService
      *
      * @return list<string>
      */
-    private function companyLogoCandidates(\App\Company $company): array
+    private function companyLogoCandidates(\App\Company $company, bool $isBrazilQuotation = false): array
     {
-        return array_values(array_filter([
+        $candidates = [
             $company->logo,
             $company->report_logo,
             $company->getReportLogoPath('quotation'),
-        ]));
+        ];
+
+        if ($isBrazilQuotation) {
+            array_unshift($candidates, 'images/amspec/agri-food-lab-logo.png', '/images/amspec/agri-food-lab-logo.png');
+        }
+
+        return array_values(array_filter($candidates));
     }
 
     private function normalizeLogoUrl(string $path): string

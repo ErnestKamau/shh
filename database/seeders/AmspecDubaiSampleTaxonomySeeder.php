@@ -31,8 +31,10 @@ class AmspecDubaiSampleTaxonomySeeder extends Seeder
                 ['code' => 'Feeed', 'name' => 'Feed'],
             ],
             'Water' => [
-                ['code' => 'Waste Water', 'name' => 'Waste Water'],
                 ['code' => 'Drinking Water', 'name' => 'Drinking Water'],
+            ],
+            'Waste Water' => [
+                ['code' => 'Waste Water', 'name' => 'Waste Water'],
             ],
             'Swab' => [
                 ['code' => 'Hand Swab', 'name' => 'Hand Swab'],

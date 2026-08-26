@@ -4,6 +4,11 @@
     $rows = is_array($context['rows'] ?? null) ? $context['rows'] : [];
 @endphp
 @if($rows !== [])
+@if(!empty($isBrazilExportationReport))
+<div style="font-weight:bold;text-transform:uppercase;font-size:11px;margin:8px 0 4px;border-bottom:1px solid #000;display:inline-block;padding-bottom:2px;">
+    {{ $labels['sample_information'] ?? 'Sample Information' }}
+</div>
+@endif
 <table class="detail-grid sample-detail-grid">
     @include('layouts.lab.sample-workflow.report-formats.partials.trr-detail-grid-cols')
     @foreach($rows as $pair)

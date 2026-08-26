@@ -52,7 +52,7 @@ trait SeedsTrfWorkflowSamples
             ],
             [
                 'seed_key' => 'SEED-TRF-003',
-                'document_code' => 'TRF-WASTE-036',
+                'document_code' => 'TRF-WASTEWATER-036',
                 'description' => 'Waste water compliance check',
                 'category_flag' => 'chemistry',
                 'pipeline_stage' => 'accepted',
@@ -574,7 +574,7 @@ trait SeedsTrfWorkflowSamples
             'TRF-WATER-020' => ['water', 'WTR', 'potable'],
             'TRF-FOOD-019' => ['food', 'FOOD'],
             'TRF-FOOD-FEED-021' => ['food & feed', 'food and feed', 'FOOD AND FEED'],
-            'TRF-WASTE-036' => ['waste', 'WWTR'],
+            'TRF-WASTEWATER-036', 'TRF-WASTE-036' => ['waste', 'WWTR'],
             default => [],
         };
 

@@ -193,6 +193,21 @@
 	$myCCs = explode(',', $request->cost_center ?? $theUser->department()->name);
 
 	$allStores = getUserStores();
+	$allStoreIds = collect($allStores)->pluck('id')->unique()->filter()->values();
+	$allStores = \App\InventoryStore::with('slots')
+		->whereIn('id', $allStoreIds)
+		->orderBy('name')
+		->get();
+	if ($allStores->isEmpty()) {
+		$locationId = getCurrentUserLocation()->id ?? null;
+		$allStores = \App\InventoryStore::with('slots')
+			->when($locationId, fn ($q) => $q->where('inventory_location_id', $locationId))
+			->where(function ($q) {
+				$q->where('is_frozen', false)->orWhere('is_frozen', '0')->orWhereNull('is_frozen');
+			})
+			->orderBy('name')
+			->get();
+	}
 ?>
 <?php
 	$gate_pass_category = getConfigByName('gate_pass_category_id');
@@ -268,11 +283,13 @@
 			? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
 			<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
 			@if ($stage == "Purchase Orders" )
+			{{-- Zoho Books integration disabled — not in use.
 			@if (trim($request->zoho_status) != "")
 			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
 				ZOHO Status: {{ $request->zoho_status }}
 			</small>
 			@endif
+			--}}
 			@else
 			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
 				{{ in_array($request->status, ["Goods Accepted",
@@ -507,7 +524,17 @@
 			@endif
 			@endif
 			@if(($approvals->count() ?? 0) > 0 && (count($normalItems) > 0))
-			@if ($request->status == "In Preparation" && in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend"]))
+			@php
+				$pendingEntityApprovalsCount = isset($request->id)
+					? \App\EntityApproval::where('model', $stage)->where('model_id', $request->id)->where('status', 'Pending')->count()
+					: 0;
+				$canSendForApproval = in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend"])
+					&& (
+						$request->status == "In Preparation"
+						|| (in_array($request->status, ["Awaiting Approval", "Partially Approved"]) && $pendingEntityApprovalsCount === 0)
+					);
+			@endphp
+			@if ($canSendForApproval)
 			@if($request->is_lab_kit == 0)
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
 				<i class="mdi mdi-account-check"></i> Get Approval
@@ -520,21 +547,37 @@
 			@endif
 			@endif
 
-			@if ($stage == "Request for Quotation" && isETCU() && $isInventoryProcurement)
-			@if(in_array($request->status, ["Awarded", "RFQs sent out", "In Preparation"]))
+			@if ($stage == "Request for Quotation")
+			@php
+				$rfqHasAwardedQuotes = \App\SupplierQuote::where('request_id', $request->id)->where('is_awarded', 1)->exists();
+				$rfqHasSuppliers = $request->supplier_rfqs()->count() > 0;
+				$rfqHasEmailBody = trim($request->email_body ?? '') !== '';
+			@endphp
+
+			@if ($request->status == "Approval Complete" && $isInventoryProcurement && $rfqHasAwardedQuotes)
+			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
+				data-alert="Are you sure you want to proceed?">
+				<i class="mdi mdi-content-save"></i> Mark as Complete
+			</button>
+			<button class="btn btn-default text-dark float-right btn-sm" data-target="#create-po-confirmation-modal"
+				data-toggle="modal">
+				<i class="mdi mdi-file-move"></i> Create Purchase Order
+			</button>
+			@endif
+
+			@if ($request->status == "Awarded" && $rfqHasAwardedQuotes && $isInventoryProcurement)
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
 				<i class="mdi mdi-account-check"></i> Get Approval
 			</button>
 			@endif
-			@if (in_array($request->status, ["Approval Complete"]) && trim($request->email_body) != "")
+
+			@if ($rfqHasSuppliers && $rfqHasEmailBody && $isInventoryProcurement && !in_array($request->status, ["Awarded", "Approval Complete", "Rejected"]))
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
 				<i class="mdi mdi-email-send"></i> Send Out RFQS
 			</button>
 			@endif
-			@endif
 
-			@if ($stage == "Request for Quotation")
-			@if(trim($request->email_body) != "")
+			@if($rfqHasEmailBody)
 			<span class="btn btn-default text-primary float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
 				<i class="fas fa-eye"></i> Preview Email Body
 			</span>
@@ -587,8 +630,10 @@
 				<?php
 						$hasAnRFQ = \App\RequestEntity::where('request_type', 'Request for Quotation')->where('parent_material_requisition', $request->id)->first();
 						$hasAnPO = \App\RequestEntity::where('request_type', 'Purchase Orders')->where('parent_material_requisition', $request->id)->first();
+						$rfqIsIncomplete = isset($hasAnRFQ->id)
+							&& ! \App\RequestEntityItem::where('request_id', $hasAnRFQ->id)->exists();
 					?>
-				@if(!isset($hasAnRFQ->id) && !isset($hasAnPO->id))
+				@if((!isset($hasAnRFQ->id) || $rfqIsIncomplete) && !isset($hasAnPO->id))
 				<button class="btn btn-default text-success float-right save-details-form btn-sm"
 					data-type="create-rfq-from-material-requisition">
 					<i class="mdi mdi-text-box-plus-outline"></i> {{ isETCU() ? 'Create RFQ' : 'Send to Procurement' }}
@@ -608,6 +653,7 @@
 		quantity. Please adjust the requested quantities or create a new Purchase Request.
 	</div>
 	@endif
+	{{-- Zoho Books integration disabled — not in use.
 	@php($zerrors = json_decode(trim($request->errors ?? "") == "" ? '[]' : $request->errors, true))
 	@if(count(empty($request->errors ?? null) ? [] : $zerrors) > 0)
 	<div class="alert alert-danger" style="font-size: 12px;">
@@ -624,7 +670,9 @@
 		</div>
 	</div>
 	@endif
-	<form id="details-form" class="bg-light" method="POST" enctype="multipart/form-data" action=""
+	--}}
+	<form id="details-form" class="bg-light" method="POST" enctype="multipart/form-data"
+		action="{{ route('save-request-details', ['stage'=>$stage, 'id'=>$request->id ?? 0]) }}"
 		style="clear: both !important">
 		@csrf
 		<div class="card tab-card">
@@ -1328,7 +1376,21 @@
 									@if(!in_array($stage,["Purchase Request", "Gate Pass", "Loan", "Lend", "Request to Store"]))
 									<td>
 										<div class="form-group">
-											<select name="items[store_id][]" data-selected="{{ $req_item->store_id }}" style="min-width: 180px"
+											<?php
+												$storeEditable = !isset($request->status)
+													|| in_array($request->status, [
+														"In Preparation",
+														"Approval Complete",
+														"Partially Approved",
+														"Partially Fulfilled",
+														"Awaiting User Reception",
+													]);
+												$selectedStoreId = $req_item->store_id ?: ($allStores->first()->id ?? null);
+												$storeForSlots = $allStores->firstWhere('id', $selectedStoreId) ?? $allStores->first();
+												$selectedSlotId = $req_item->slot_id
+													?: ($storeForSlots?->slots->first()->id ?? null);
+											?>
+											<select name="items[store_id][]" data-selected="{{ $selectedStoreId }}" style="min-width: 180px"
 												class="form-control selected-store {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
 												data-placeholder="Select Store..." {!! (isset($request->status) && in_array($request->status,
 												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
@@ -1343,7 +1405,7 @@
 									</td>
 									<td>
 										<div class="form-group">
-											<select name="items[slot_id][]" data-slot="{{ $req_item->slot_id }}" style="min-width: 160px"
+											<select name="items[slot_id][]" data-slot="{{ $selectedSlotId }}" style="min-width: 160px"
 												class="form-control store-slots {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
 												data-placeholder="Select Slot..." {!! (isset($request->status) && in_array($request->status,
 												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
@@ -2451,8 +2513,7 @@
 					<div class="form-group reason-textarea mt-1">
 						<label class="control-label"><em>Reason for your rating</em></label>
 						<textarea class="form-control form-control-sm rating-delivery-reason" data-type="reason"
-							name="delivery_rating[{{ $gSRC->id }}]reason" placeholder="Reason..."
-							required>{{ $score_reason }}</textarea>
+							name="delivery_rating[{{ $gSRC->id }}]reason" placeholder="Reason...">{{ $score_reason }}</textarea>
 					</div>
 				</div>
 				@endforeach
@@ -2867,7 +2928,9 @@
 							@foreach ($normalItemsGrouped ?? array() as $req_item)
 							<?php
 								$pendingQ = $req_item->quantity - $req_item->pending();
-								$isKitItem = !is_numeric($req_item->catalog_number);
+								$isKitItem = filled($req_item->catalog_number)
+									&& ! is_numeric($req_item->catalog_number)
+									&& ! \Illuminate\Support\Str::isUuid((string) $req_item->catalog_number);
 
 								if(in_array($stage, ["Loan", "Lend"])){
 									$moreRemvs = [];
@@ -3213,32 +3276,7 @@
 		</form>
 	</div>
 </div>
-@if(isOTPOptional())
-<div id="accept-goods-otp-modal" class="modal fade" role="dialog">
-	<div class="modal-dialog">
-		<!-- Modal content-->
-		<div class="modal-content">
-			@csrf
-			<div class="modal-header">
-				<h5 class="modal-title"><i class="mdi mdi-numeric"></i> Confirm Goods Receipt</h5>
-			</div>
-			<div class="modal-body">
-				<div class="alert alert-callout alert-info text-lg">
-					<i class="mdi mdi-information fa-1x"></i> Are you sure that you want to accept these items into the inventory?
-				</div>
-				<div class="form-group">
-					<input type="hidden" name="requester_otp" class="form-control" value="123456" />
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-success save-details-form" id="accept-goods-otp-modal-save-btn"
-					data-type="accept-goods-receipt">Yes, Proceed</button>
-				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-			</div>
-		</div>
-	</div>
-</div>
-@else
+{{-- Send RFQ email body modal (independent of OTP optional setting) --}}
 <div id="Send-RFQ-modal" class="modal fade" role="dialog">
 	<form class="modal-dialog" action="{{ route('add-email-body-rfq', $request->id ?? 0) }}" method="POST">
 		<!-- Modal content-->
@@ -3317,7 +3355,6 @@
 		</div>
 	</form>
 </div>
-@endif
 <div id="send-to-finance-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -3461,11 +3498,12 @@
 	</div>
 </div>
 <div id="create-po-confirmation-modal" class="modal fade" role="dialog">
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->
 		<form class="modal-content" method="POST"
 			action="{{ route('save-request-details', ['stage'=>$stage,'id'=>$request->id ?? 0]) }}">
 			@csrf
+			<input type="hidden" name="generate_purchase_order" value="1" />
 			<div class="modal-header">
 				<h5 class="modal-title"><i class="mdi mdi-file-account"></i> Create Purchase Order Confirmation</h5>
 			</div>
@@ -3475,22 +3513,27 @@
 						that you want to split between 2 or more suppliers?</label>
 				</div>
 				<div class="d-none" id="po-split-fields">
-					<div class="form-group">
-						<label class="control-label">Select Items</label>
-						<select class="form-control" name="supplier_items[]" data-placeholder="Select Items..." multiple>
-							@foreach ($normalItems as $req_item)
-							<option value="{{ $req_item->id }}">{{ $req_item->item_name }}</option>
-							@endforeach
-						</select>
-					</div>
-					<div class="form-group">
-						<input type="hidden" name="generate_purchase_order" value="1" />
-						<label class="control-label">Select Suppliers</label>
-						<select class="form-control" name="supplier_ids[]" data-placeholder="Select Supplier..." multiple>
-							@foreach ($normalItemsSuppliers as $sup)
-							<option value="{{ $sup->id }}">{{ $sup->name }}</option>
-							@endforeach
-						</select>
+					<div class="row">
+						<div class="col-md-6">
+							<div class="form-group">
+								<label class="control-label">Select Items</label>
+								<select class="form-control po-split-select" name="supplier_items[]" data-placeholder="Select Items..." multiple>
+									@foreach ($normalItems as $req_item)
+									<option value="{{ $req_item->id }}">{{ $req_item->item_name }}</option>
+									@endforeach
+								</select>
+							</div>
+						</div>
+						<div class="col-md-6">
+							<div class="form-group">
+								<label class="control-label">Select Suppliers</label>
+								<select class="form-control po-split-select" name="supplier_ids[]" data-placeholder="Select Suppliers..." multiple>
+									@foreach ($normalItemsSuppliers as $sup)
+									<option value="{{ $sup->id }}">{{ $sup->name }}</option>
+									@endforeach
+								</select>
+							</div>
+						</div>
 					</div>
 				</div>
 				<div class="form-group">
@@ -4277,13 +4320,44 @@
 				}
 			});
 
+			var initPoSplitSelect2 = function(){
+				var $modal = $('#create-po-confirmation-modal');
+				$modal.find('.po-split-select').each(function(){
+					var $select = $(this);
+					if ($select.hasClass('select2-hidden-accessible')) {
+						$select.select2('destroy');
+					}
+					$select.select2({
+						width: '100%',
+						placeholder: $select.data('placeholder') || 'Select...',
+						allowClear: true,
+						dropdownParent: $modal
+					});
+				});
+			};
+
 			$('#toggle-split-checker').on('change', function(){
 				if($(this).is(":checked")){
 					$('#po-split-fields').removeClass('d-none');
+					initPoSplitSelect2();
 				}
 				else{
 					$('#po-split-fields').addClass('d-none');
 				}
+			});
+
+			$('#create-po-confirmation-modal').on('shown.bs.modal', function(){
+				if ($('#toggle-split-checker').is(':checked')) {
+					initPoSplitSelect2();
+				}
+			});
+
+			$('#create-po-confirmation-modal').on('hidden.bs.modal', function(){
+				$(this).find('.po-split-select').each(function(){
+					if ($(this).hasClass('select2-hidden-accessible')) {
+						$(this).select2('destroy');
+					}
+				});
 			});
 
 			$("#undo-supplier-award").on('show.bs.modal', function(e){
@@ -4552,11 +4626,11 @@
 			})
 
 			$('#enter-reject-modal').on('show.bs.modal', function(e) {
-				approvalID = $(e.relatedTarget).data('approval');
+				approvalID = $(e.relatedTarget).attr('data-approval') || $(e.relatedTarget).data('approval');
 			});
 
 			$('#enter-recheck-modal').on('show.bs.modal', function(e) {
-				approvalID = $(e.relatedTarget).data('approval');
+				approvalID = $(e.relatedTarget).attr('data-approval') || $(e.relatedTarget).data('approval');
 			});
 
 			$('#award-rfq-to-user').on('show.bs.modal', function(e) {
@@ -4583,13 +4657,23 @@
 			});
 
 			$('#confirm-accept-modal').on('show.bs.modal', function(e) {
-				approvalID = $(e.relatedTarget).data('approval');
+				approvalID = $(e.relatedTarget).attr('data-approval') || $(e.relatedTarget).data('approval');
 			});
 
 			$('.save-details-form').on('click', function(){
 				var type = $(this).data('type');
 				var thisBTN = $(this);
 				var inform = $(this).data('alert') || false;
+				var skipRequiredValidation = [
+					'confirm-approval-reason',
+					'reject-with-reason',
+					'recheck-with-reason',
+					'award-with-reason',
+					'get-approval-details',
+					'mark-as-completed',
+					'accept-goods-receipt',
+					'issue-items'
+				].indexOf(type) !== -1;
 
 				if(inform){
 					var proceed = true;
@@ -4664,17 +4748,58 @@
 				}
 
 				if(type == 'accept-goods-receipt'){
-					var otp_value = $('#accept-goods-otp-modal').find('[name="requester_otp"]').val();
+					var $acceptModal = thisBTN.closest('.modal');
+					if($acceptModal.length === 0){
+						$acceptModal = $('.update-supplier-criteria-rating-modal:visible').first();
+					}
+					if($acceptModal.length === 0){
+						$acceptModal = $('#accept-goods-otp-modal').first();
+					}
+
+					var otp_value = $.trim($acceptModal.find('[name="requester_otp"]').val() || '');
 					if(otp_value.length != 6){
 						alert("Please provide the OTP Code(6 characters).");
 						return false;
 					}
 
+					var missingStoreSlot = false;
+					$('#req-items tr.item-row').each(function(){
+						var $tr = $(this);
+						var $store = $tr.find('[name="items[store_id][]"]');
+						var $slot = $tr.find('[name="items[slot_id][]"]');
+
+						$store.prop('disabled', false).removeAttr('disabled');
+						$slot.prop('disabled', false).removeAttr('disabled');
+
+						if(!$store.val()){
+							var firstStore = $store.find('option[value!=""]').first().val();
+							if(firstStore){
+								$store.val(firstStore).trigger('change');
+							}
+						}
+
+						if(!$slot.val()){
+							var firstSlot = $slot.find('option[value!=""]').first().val();
+							if(firstSlot){
+								$slot.val(firstSlot).trigger('change');
+							}
+						}
+
+						if(!$store.val() || !$slot.val()){
+							missingStoreSlot = true;
+						}
+					});
+
+					if(missingStoreSlot){
+						alert('Please open the Items tab and select Store and Slot for each line before confirming receipt.');
+						return false;
+					}
+
 					var delivery_rating = [];
-					$('#accept-goods-otp-modal').find('.rating-delivery').each(function(){
+					$acceptModal.find('.rating-delivery').each(function(){
 						let gSID = $(this).data('rid');
 						let criteria = $(this).find('.rating-delivery-criteria').val();
-						let reason = $(this).find('.rating-delivery-reason').val();
+						let reason = $(this).find('.rating-delivery-reason').val() || '';
 
 						delivery_rating.push({
 							"id": gSID,
@@ -4683,9 +4808,22 @@
 						});
 					});
 
-					$('#details-form').append(`<input type="hidden" name="supplier_rating_criteria" value='${JSON.stringify(delivery_rating)}' />`);
-					$('#details-form').append(`<input type="hidden" name="accept_goods_receipt" value="1" />`);
-					$('#details-form').append(`<input type="hidden" name="otp_value" value="${otp_value}" />`);
+					$('#details-form').find('input[name="supplier_rating_criteria"], input[name="accept_goods_receipt"], input[name="otp_value"]').remove();
+					$('<input>', {
+						type: 'hidden',
+						name: 'supplier_rating_criteria',
+						value: JSON.stringify(delivery_rating)
+					}).appendTo('#details-form');
+					$('<input>', {
+						type: 'hidden',
+						name: 'accept_goods_receipt',
+						value: '1'
+					}).appendTo('#details-form');
+					$('<input>', {
+						type: 'hidden',
+						name: 'otp_value',
+						value: otp_value
+					}).appendTo('#details-form');
 				}
 
 				if(type == 'issue-items'){
@@ -4813,7 +4951,10 @@
 				}
 
 				if(type == 'confirm-approval-reason'){
-					var approval = $(this).data('approval');
+					if(!approvalID){
+						alert('Approval step was not selected. Close this dialog and click Approve again.');
+						return false;
+					}
 
 					approvalDiv.val(approvalID);
 					$('#details-form').append(approveThis);
@@ -4839,6 +4980,7 @@
 				var allInvalidHolder = [];
 				var theFieldsInval = [];
 
+				if(!skipRequiredValidation){
 				$('#details-form input:required, #details-form textarea:required').map(function() {
 					isValidIn &= this.validity['valid'] ;
 
@@ -4893,15 +5035,24 @@
 						theFieldsInval.push(clean_placeholder($val));
 					});
 				}
+				}
 
 				if(subMit){
-					$('#details-form').submit();
-					thisBTN.off('click');
+					thisBTN.prop('disabled', true);
+					// Native submit() skips HTML5 constraint validation on hidden-tab required fields.
+					// jQuery .submit() can cancel silently then leave the button dead if we unbind click.
+					var detailsForm = document.getElementById('details-form');
+					if(detailsForm){
+						detailsForm.submit();
+					}
 				}
 				else{
 					alert("Confirm that you have provided all the values for ("+theFieldsInval.join(',')+")");
 					$('#details-form').find('input[name="accept_goods_receipt"]').remove();
 					$('#details-form').find('input[name="issue_out_items"]').remove();
+					$('#details-form').find('input[name="supplier_rating_criteria"]').remove();
+					$('#details-form').find('input[name="otp_value"]').remove();
+					thisBTN.prop('disabled', false);
 				}
 			});
 
@@ -4951,8 +5102,11 @@
 			$('#req-items').on('change', 'tr .selected-store', function(){
 				var selected = $(this).children('option:selected');
 				var slots = selected.data('slots') || [];
+				var slots = selected.data('slots') || [];
 
-				console.log(slots);
+				if(typeof slots === 'string'){
+					try { slots = JSON.parse(slots); } catch (e) { slots = []; }
+				}
 
 				var slotDiv = $(this).parents('tr').find('[name="items[slot_id][]"]');
 				var selectedVal = slotDiv.data('slot');
@@ -4968,6 +5122,7 @@
 						return;
 					}
 					var newOption = new Option(s.name, s.id, false, false);
+					slotDiv.append(newOption);
 					slotDiv.append(newOption);
 				});
 
@@ -5007,9 +5162,9 @@
 				});
 			}
 
-			var defaultStores = $(`<option></option>
+			var defaultStores = $(`<option value=""></option>
 				@foreach ($allStores as $store)
-					<option value="{{ $store->id }}" data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
+					<option value="{{ $store->id }}" data-slots='@json($store->slots->map->only(["id", "name"]))'>{{ $store->name }}</option>
 				@endforeach`);
 
 			$('#req-items').on('change', 'tr select.selected-item-brand', function(){

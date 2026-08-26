@@ -29,31 +29,41 @@ class PurchaseOrderObserver
      */
     public function updated(RequestEntity $requestEntity)
     {
-        if($requestEntity->request_type == "Purchase Orders" && trim($requestEntity->status) != "In Preparation"){
-            if(trim($requestEntity->zoho_id) == ""){
-                $errors = [];
-                try{
-                    $zoho = new ZohoController();
-                    $msg = $zoho->createPurchaseOrder($requestEntity);
-                    if(isset($msg['error'])){
-                        $errors[] = $msg['error'];
-                    }
+        // Zoho Books integration disabled — not in use.
+        /*
+        if ($requestEntity->request_type == "Purchase Orders" && trim($requestEntity->status) != "In Preparation") {
+            if (
+                ! \Illuminate\Support\Facades\Schema::hasColumn('request_entities', 'zoho_id')
+                || trim((string) ($requestEntity->zoho_id ?? '')) !== ''
+            ) {
+                return;
+            }
+
+            $errors = [];
+            try {
+                $zoho = new ZohoController();
+                $msg = $zoho->createPurchaseOrder($requestEntity);
+                if (isset($msg['error'])) {
+                    $errors[] = $msg['error'];
                 }
-                catch(Exception $e){
-                    $errors[] = $e->getMessage();
-                }
-                
-                if(count($errors) > 0){
+            } catch (Exception $e) {
+                $errors[] = $e->getMessage();
+            }
+
+            if (count($errors) > 0) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('request_entities', 'errors')) {
                     $requestEntity->errors = json_encode($errors);
                     $requestEntity->save();
                 }
-                else{
-                    $zoho->attachQuote($requestEntity);
+            } else {
+                $zoho->attachQuote($requestEntity);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('request_entities', 'errors')) {
                     $requestEntity->errors = null;
                     $requestEntity->save();
                 }
             }
         }
+        */
     }
 
     /**

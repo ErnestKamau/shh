@@ -12,6 +12,9 @@
         'customer_rep_name',
         'customer_rep_contact',
     ];
+    if ($this->usesWasteWaterCollectionLayout()) {
+        $hiddenWalkInTrfFields[] = 'picture_of_samples';
+    }
     $miscellaneousOnlyTrfFieldNames = [
         'packaging',
         'sample_weight',
@@ -303,8 +306,19 @@
                     ? $regularElements->first(fn ($el) => (string) ($el->name ?? '') === 'thermometer_id')
                     : null;
                 $usesFoodCollectionLayout = $isCollectionSection && $this->usesFoodCollectionLayout();
+                $usesWasteWaterCollectionLayout = $isCollectionSection && $this->usesWasteWaterCollectionLayout();
             @endphp
-            @if($usesFoodCollectionLayout)
+            @if($usesWasteWaterCollectionLayout)
+                @php
+                    $collectionField = function (string $name) use ($regularElements) {
+                        return $this->walkInCollectionElementByName($regularElements, $name);
+                    };
+                @endphp
+                @include('livewire.partials.walk-in-trf-waste-water-collection', [
+                    'collectionField' => $collectionField,
+                    'fieldMapper' => $fieldMapper,
+                ])
+            @elseif($usesFoodCollectionLayout)
                 @php
                     $collectionField = function (string $name) use ($regularElements) {
                         return $this->walkInCollectionElementByName($regularElements, $name);

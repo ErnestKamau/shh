@@ -2010,9 +2010,8 @@ class FormInstanceController extends Controller
             (string) ($formData['sample_collection_for'] ?? '')
         );
 
-        $sampleId = $this->resolveSampleIdForLabel($instance, $sampleLines, $formData);
-        $testRequirement = $this->resolveTestRequirementForLabel($instance, $sampleLines, $formData);
-        $testCategory = $this->resolveTestCategoryForLabel($instance, $sampleLines, $formData);
+        $sampleIds = $this->resolveSampleIdsForLabel($instance);
+        $sampleId = $sampleIds !== [] ? implode(', ', $sampleIds) : 'N/A';
 
         $sampleRows = $formData['sample_rows'] ?? [];
 
@@ -2024,15 +2023,21 @@ class FormInstanceController extends Controller
                 'siteLocation',
                 'samplingPoint',
                 'sampleId',
-                'testRequirement',
-                'testCategory',
                 'customerName',
             ] as $field) {
                 if (filled($configLabelOverrides[$field] ?? null)) {
                     $$field = (string) $configLabelOverrides[$field];
                 }
             }
+
+            // A config-scoped print should never re-expand into every sample on the request.
+            $overrideSampleId = trim((string) ($sampleId ?? ''));
+            if ($overrideSampleId !== '' && strcasecmp($overrideSampleId, 'N/A') !== 0) {
+                $sampleIds = [$overrideSampleId];
+            }
         }
+
+        $registrationLabels = $this->buildRegistrationLabels($sampleIds);
 
         return view('submission-forms.instances.sample-collection-label', compact(
             'instance',
@@ -2060,8 +2065,7 @@ class FormInstanceController extends Controller
             'containerType',
             'sampleCollectionFor',
             'sampleId',
-            'testRequirement',
-            'testCategory'
+            'registrationLabels'
         ));
     }
 
@@ -2181,146 +2185,42 @@ class FormInstanceController extends Controller
      * @param  list<array<string, mixed>>  $sampleLines
      * @param  array<string, mixed>  $formData
      */
-    private function resolveSampleIdForLabel(
-        SubmissionFormInstance $instance,
-        array $sampleLines,
-        array $formData
-    ): string {
-        $sampleCodes = collect()
+    /**
+     * Lab sample codes for registration labels (one label per code).
+     *
+     * @return list<string>
+     */
+    private function resolveSampleIdsForLabel(SubmissionFormInstance $instance): array
+    {
+        return collect()
             ->merge($instance->batches)
             ->merge($instance->sampleSubmissionRequest?->batch ? [$instance->sampleSubmissionRequest->batch] : [])
             ->flatMap(fn ($batch) => $batch->samples ?? [])
             ->map(fn ($sample): string => $this->plainLabelText((string) ($sample->sample_code ?? '')))
             ->reject(fn (string $value): bool => $this->isBlankLabelValue($value) || $this->isUuidLike($value))
             ->unique()
-            ->values();
-
-        if ($sampleCodes->isNotEmpty()) {
-            return $sampleCodes->implode(', ');
-        }
-
-        return 'N/A';
+            ->values()
+            ->all();
     }
 
     /**
-     * Selected PDF/TRF test categories only (e.g. Microbiology, Chemistry) — not analyte names.
-     *
-     * @param  list<array<string, mixed>>  $sampleLines
-     * @param  array<string, mixed>  $formData
+     * @param  list<string>  $sampleIds
+     * @return list<array{sampleId: string}>
      */
-    private function resolveTestCategoryForLabel(
-        SubmissionFormInstance $instance,
-        array $sampleLines,
-        array $formData
-    ): string {
-        $allowed = ['chemistry', 'microbiology', 'legionella'];
-        $tokens = [];
+    private function buildRegistrationLabels(array $sampleIds): array
+    {
+        $ids = array_values(array_filter(
+            array_map(static fn ($id): string => trim((string) $id), $sampleIds),
+            static fn (string $id): bool => $id !== '',
+        ));
 
-        foreach ($sampleLines as $line) {
-            $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
-            $candidates = [
-                $line['test_category'] ?? null,
-                $line['parameter_category'] ?? null,
-                $attributes['test_category'] ?? null,
-                $attributes['parameter_category'] ?? null,
-            ];
-
-            foreach ($candidates as $candidate) {
-                foreach (SubmissionFormSchemaHelper::testCategoryTokens($candidate) as $token) {
-                    if (in_array($token, $allowed, true) && ! in_array($token, $tokens, true)) {
-                        $tokens[] = $token;
-                    }
-                }
-            }
+        if ($ids === []) {
+            $ids = ['N/A'];
         }
 
-        if ($tokens === []) {
-            foreach (['test_category', 'parameter_category'] as $fieldName) {
-                $fromForm = $formData[$fieldName] ?? null;
-                if ($fromForm === null || $fromForm === '') {
-                    $fromForm = $instance->resolveDisplayValueByName($fieldName);
-                }
-
-                foreach (SubmissionFormSchemaHelper::testCategoryTokens($fromForm) as $token) {
-                    if (in_array($token, $allowed, true) && ! in_array($token, $tokens, true)) {
-                        $tokens[] = $token;
-                    }
-                }
-            }
-        }
-
-        $label = SubmissionFormSchemaHelper::testCategoryLabel(implode(',', $tokens));
-
-        return $label !== '' ? $label : 'N/A';
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $sampleLines
-     * @param  array<string, mixed>  $formData
-     */
-    private function resolveTestRequirementForLabel(
-        SubmissionFormInstance $instance,
-        array $sampleLines,
-        array $formData
-    ): string {
-        $resolver = new \App\Services\Lab\AnalysisReferenceLabelResolver();
-
-        $fromLines = collect($sampleLines)
-            ->flatMap(function (array $line) use ($resolver): array {
-                $candidates = [
-                    $line['parameter_label'] ?? null,
-                    $line['analysis_element_id'] ?? null,
-                    $line['analysis_type_name'] ?? null,
-                    is_array($line['attributes'] ?? null) ? ($line['attributes']['analysis_element_ids'] ?? null) : null,
-                    is_array($line['attributes'] ?? null) ? ($line['attributes']['parameters'] ?? null) : null,
-                    is_array($line['attributes'] ?? null) ? ($line['attributes']['test_requirements'] ?? null) : null,
-                ];
-
-                $labels = [];
-                foreach ($candidates as $candidate) {
-                    $resolved = $this->plainLabelText($resolver->resolveMixed($candidate));
-                    if ($this->isBlankLabelValue($resolved)) {
-                        continue;
-                    }
-                    foreach (preg_split('/\s*,\s*/', $resolved) ?: [] as $token) {
-                        $token = trim((string) $token);
-                        if ($token !== '' && ! $this->isUuidLike($token)) {
-                            $labels[] = $token;
-                        }
-                    }
-                }
-
-                return $labels;
-            })
-            ->unique()
-            ->values();
-
-        if ($fromLines->isNotEmpty()) {
-            return $fromLines->implode(', ');
-        }
-
-        foreach (['parameters', 'test_requirements', 'analysis_elements_select', 'parameter_requested', 'test_requirement', 'tests_required'] as $fieldName) {
-            $resolved = $this->plainLabelText($resolver->resolveMixed($formData[$fieldName] ?? null));
-            if ($this->isBlankLabelValue($resolved)) {
-                $display = $instance->resolveDisplayValueByName($fieldName);
-                $resolved = $this->plainLabelText($resolver->resolveMixed($display));
-            }
-
-            $tokens = collect(preg_split('/\s*,\s*/', $resolved) ?: [])
-                ->map(fn (string $token): string => trim($token))
-                ->reject(fn (string $token): bool => $token === '' || $this->isUuidLike($token))
-                ->unique()
-                ->values();
-
-            if ($tokens->isNotEmpty()) {
-                return $tokens->implode(', ');
-            }
-        }
-
-        return $this->firstResolvedLabelValue(
-            $instance,
-            ['parameters', 'parameter_requested', 'test_requirement', 'test_requirements', 'tests_required', 'analysis_elements_select'],
-            (string) ($formData['parameter_requested'] ?? $formData['test_requirement'] ?? '')
+        return array_map(
+            static fn (string $sampleId): array => ['sampleId' => $sampleId],
+            $ids,
         );
     }
 
@@ -2489,8 +2389,6 @@ class FormInstanceController extends Controller
             } elseif (in_array($label, ['sampling point', 'sampling point / location', 'site - location'], true)) {
                 $overrides['siteLocation'] = $value;
                 $overrides['samplingPoint'] = $value;
-            } elseif ($label === 'tests') {
-                $overrides['testRequirement'] = $value;
             }
         }
 

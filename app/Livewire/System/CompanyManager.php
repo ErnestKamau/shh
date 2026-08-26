@@ -204,6 +204,7 @@ class CompanyManager extends Component
 
         $company->name = $validated['name'];
         $company->code = $validated['code'];
+        $company->code = $validated['code'];
         $company->location = $validated['location'];
         $company->address = $validated['address'];
         $company->country_id = $validated['country_id'];
@@ -363,6 +364,7 @@ class CompanyManager extends Component
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($subQuery): void {
                     $subQuery->where('companies.id', 'like', '%' . $this->search . '%')
+                        ->orWhere('companies.code', 'like', '%' . $this->search . '%')
                         ->orWhere('companies.code', 'like', '%' . $this->search . '%')
                         ->orWhere('c.name', 'like', '%' . $this->search . '%');
                 });

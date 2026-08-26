@@ -64,10 +64,22 @@
         </td>
         <td class="amspec-header-customer" width="42%" valign="top" align="right" style="width: 42%; vertical-align: top; text-align: right; padding: 0; border: none; word-wrap: break-word;">
             <div class="amspec-contact-line amspec-header-customer-contact">
-                <div>Tel: {{ $customerTel }}</div>
-                <div>Fax: {{ $customerFax }}</div>
-                <div>Mobile: {{ $customerMobile }}</div>
-                <div>Email: {{ $customerEmail }}</div>
+                @if(($isBrazilQuotation ?? false))
+                    @php
+                        $brazilPhone = $customerTel !== '' ? $customerTel : $customerMobile;
+                    @endphp
+                    @if($brazilPhone !== '')
+                        <div>Tel: {{ $brazilPhone }}</div>
+                    @endif
+                    @if($customerEmail !== '')
+                        <div>Email: {{ $customerEmail }}</div>
+                    @endif
+                @else
+                    <div>Tel: {{ $customerTel }}</div>
+                    <div>Fax: {{ $customerFax }}</div>
+                    <div>Mobile: {{ $customerMobile }}</div>
+                    <div>Email: {{ $customerEmail }}</div>
+                @endif
             </div>
         </td>
     </tr>

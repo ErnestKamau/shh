@@ -59,59 +59,7 @@
     })"
     @keydown.escape.window="if (open) cancelPanel()"
     @walk-in-parameters-loading.window="setAnalysisLoading($event.detail)"
-    @walk-in-params-row-reset.window="
-        const raw = $event.detail;
-        const payload = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
-        if (!flat && payload.rowIndex !== undefined && Number(payload.rowIndex) !== Number(rowIndex)) {
-            return;
-        }
-        if (payload.deferCatalog) {
-            groups = [];
-            options = [];
-            setSelected([]);
-            persistedSelected = [];
-            persistedParamNames = [];
-            dirty = false;
-        } else {
-            if (Array.isArray(payload.options)) {
-                options = payload.options.map((value) => {
-                    if (value && typeof value === 'object') {
-                        return { ...value, id: String(value.id ?? ''), name: String(value.name ?? value.id ?? '') };
-                    }
-                    const token = String(value ?? '');
-                    return { id: token, name: token };
-                }).filter((item) => item.id !== '');
-            }
-            if (Array.isArray(payload.groups)) {
-                groups = payload.groups.map((group) => ({
-                    ...group,
-                    tests: Array.isArray(group?.tests)
-                        ? group.tests.map((test) => ({
-                            ...test,
-                            id: String(test?.id ?? ''),
-                            name: String(test?.name ?? test?.id ?? ''),
-                        })).filter((test) => test.id !== '')
-                        : [],
-                }));
-                invalidateFilterCaches();
-            }
-            if ('selected' in payload && Array.isArray(payload.selected)) {
-                const ids = payload.selected.map((value) => String(value));
-                setSelected(ids);
-                persistedSelected = ids;
-            }
-            if ('paramNames' in payload && Array.isArray(payload.paramNames)) {
-                persistedParamNames = payload.paramNames.map((value) => String(value));
-            }
-        }
-        if (!payload.deferCatalog) {
-            dirty = false;
-            syncTestsSelect2Display();
-            if (open) {
-                scheduleAnalyteTableRender();
-            }
-        }
-    "
+    @walk-in-params-row-reset.window="applyParamsRowReset($event.detail)"
 >
     <div class="rft-tests-picker__shell">
         <div
@@ -163,8 +111,15 @@
         ></select>
     </div>
 
-    <template x-if="open">
-        <div class="rft-trf-params-modal" @click.self="cancelPanel()">
+    <template x-teleport="body">
+        <div
+            class="rft-trf-params-modal"
+            x-show="open"
+            x-cloak
+            :data-rft-params-row="rowIndex"
+            @click.self="cancelPanel()"
+            @keydown.escape.window="if (open) cancelPanel()"
+        >
             <div class="rft-trf-params-modal__dialog" @click.stop role="dialog" aria-modal="true" aria-label="Choose tests">
                 <div class="rft-trf-params-modal__header">
                     <h5 class="rft-trf-params-modal__title">
@@ -227,7 +182,17 @@
                         </div>
 
                         <div class="ls-quote-params-stage">
-                            <template x-if="!isLoading && !groups.length">
+                            <template x-if="!groups.length && isLoading">
+                                <div class="ls-quote-params-empty ls-quote-params-empty--muted">
+                                    <div class="ls-quote-params-empty__art" aria-hidden="true">
+                                        <span class="spinner-border text-primary" role="status"></span>
+                                    </div>
+                                    <h4 class="ls-quote-params-empty__title">Loading tests…</h4>
+                                    <p class="ls-quote-params-empty__text mb-0">Fetching the catalog for this sample type.</p>
+                                </div>
+                            </template>
+
+                            <template x-if="!groups.length && !isLoading">
                                 <div class="ls-quote-params-empty">
                                     <div class="ls-quote-params-empty__art" aria-hidden="true">
                                         <svg viewBox="0 0 160 160" width="108" height="108" xmlns="http://www.w3.org/2000/svg">
@@ -250,7 +215,7 @@
                                 </div>
                             </template>
 
-                            <template x-if="!isLoading && groups.length && flatTableRows.length === 0">
+                            <template x-if="groups.length && flatTableRows.length === 0 && !isLoading">
                                 <div class="ls-quote-params-empty ls-quote-params-empty--muted">
                                     <div class="ls-quote-params-empty__art" aria-hidden="true">
                                         <i class="mdi mdi-filter-off-outline rft-trf-params-empty-icon"></i>
@@ -260,7 +225,18 @@
                                 </div>
                             </template>
 
-                            <div class="ls-quote-analyte-table" x-show="!isLoading && groups.length > 0">
+                            <div class="ls-quote-analyte-table rft-trf-params-table-wrap" x-show="groups.length > 0" x-cloak>
+                                <div
+                                    class="rft-trf-params-stage-loading"
+                                    x-show="isLoading"
+                                    x-cloak
+                                    role="status"
+                                    aria-live="polite"
+                                    aria-label="Loading tests"
+                                >
+                                    <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+                                    <span class="rft-trf-params-stage-loading__label">Updating tests…</span>
+                                </div>
                                 <table class="ls-quote-analyte-grid rft-trf-analyte-grid">
                                     <colgroup>
                                         <col class="ls-quote-analyte-col--select">
@@ -282,7 +258,9 @@
                                             <th scope="col" class="text-center" title="Turnaround time (days)">TAT</th>
                                         </tr>
                                     </thead>
-                                    <tbody x-ref="analyteTableBody" class="rft-trf-analyte-tbody"></tbody>
+                                    <tbody class="rft-trf-analyte-tbody">
+                                        @include('livewire.partials.walk-in-trf-parameters-modal-table-body')
+                                    </tbody>
                                 </table>
                             </div>
                         </div>

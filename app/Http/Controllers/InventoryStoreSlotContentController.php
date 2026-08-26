@@ -54,10 +54,15 @@ class InventoryStoreSlotContentController extends Controller
 	{
 		$item = InventoryItem::where('batch_code', $request->item)->first();
 
-		$sloted = intval($slot);
+		if (!$item) {
+			abort(404, 'Inventory item not found for batch code.');
+		}
+
+		// Slot ids are UUIDs; intval() coerces them to PHP_INT_MAX and breaks the insert.
+		$slotId = is_numeric($slot) ? (int) $slot : (string) $slot;
 
 		$content = new InventoryStoreSlotContent;
-		$content->inventory_store_slot_id = $sloted;
+		$content->inventory_store_slot_id = $slotId;
 		$content->inventory_item_id = $item->id;
 		$content->inventory_sub_category_id = $item->inventory_sub_category_id;
 		$content->save();

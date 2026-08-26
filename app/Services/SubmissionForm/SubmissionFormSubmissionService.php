@@ -772,6 +772,18 @@ class SubmissionFormSubmissionService
             $path = $file->storeAs('submission-forms/'.$instance->id, $filename, 'public');
 
             $this->saveFieldValue($instance, $element, null, $path);
+        } elseif ($element->name === 'extra_sampling_equipment' && is_array($value)) {
+            $this->saveFieldValue($instance, $element, json_encode(array_values(array_filter(
+                $value,
+                static function ($row): bool {
+                    if (! is_array($row)) {
+                        return false;
+                    }
+
+                    return trim((string) ($row['label'] ?? '')) !== ''
+                        || trim((string) ($row['id'] ?? '')) !== '';
+                }
+            ))));
         } else {
             $this->saveFieldValue($instance, $element, $value);
         }

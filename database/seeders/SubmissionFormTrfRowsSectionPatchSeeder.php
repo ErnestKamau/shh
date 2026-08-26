@@ -35,7 +35,13 @@ class SubmissionFormTrfRowsSectionPatchSeeder extends Seeder
                 $this->patchSampleRowsSection($form, $this->swabTrfRowFields());
                 $this->removeRowElementsByName($form, ['sampling_point']);
             },
-            'TRF-WASTE-036' => fn (SubmissionForm $form) => $this->patchSampleRowsSection($form, $this->wasteWaterTrfRowFields()),
+            'TRF-WASTEWATER-036' => function (SubmissionForm $form): void {
+                $this->patchWasteWaterTrfSections($form);
+            },
+            // Legacy code still patched if rename has not run yet.
+            'TRF-WASTE-036' => function (SubmissionForm $form): void {
+                $this->patchWasteWaterTrfSections($form);
+            },
         ];
 
         foreach ($patches as $documentCode => $patch) {

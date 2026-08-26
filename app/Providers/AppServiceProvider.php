@@ -120,7 +120,8 @@ class AppServiceProvider extends ServiceProvider
         TrackSampleResult::observe(TrackSampleResultObserver::class);
         Supplier::observe(SupplierObserver::class);
         InventorySubCategories::observe(ItemObserver::class);
-        RequestEntity::observe(PurchaseOrderObserver::class);
+        // Zoho Books PO sync disabled — not in use.
+        // RequestEntity::observe(PurchaseOrderObserver::class);
         Complaint::observe(TicketObserver::class);
         SampleSubmissionRequest::observe(SampleSubmissionRequestObserver::class);
         SubmissionFormInstance::observe(SubmissionFormInstanceObserver::class);

@@ -4,7 +4,23 @@
 	const $ = window.jQuery;
 
 	const walkInDropdownParent = ($el) => {
-		return $el.closest('.modal-content, .walk-in-trf-wizard-shell, .workflow-board-panel, .rft-sample-row-card, body').first();
+		const $modal = $el.closest('.modal');
+		if ($modal.length) {
+			const $content = $modal.find('.modal-content').first();
+			return $content.length ? $content : $modal;
+		}
+
+		const $rvModal = $el.closest('.rv-modal');
+		if ($rvModal.length) {
+			return $rvModal;
+		}
+
+		const $shell = $el.closest('.walk-in-trf-wizard-shell, .workflow-board-panel');
+		if ($shell.length) {
+			return $shell;
+		}
+
+		return $(document.body);
 	};
 
 	const clampLsSelect2Search = ($el) => {
@@ -12,11 +28,17 @@
 		if (! $container.length) {
 			return;
 		}
-		$container.find('.select2-search--inline .select2-search__field').attr(
-			'style',
-			'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;position:absolute!important;left:-9999px!important;'
-		);
-		$container.css({ maxWidth: '100%', overflow: 'hidden' });
+
+		if ($el.prop('multiple')) {
+			$container.find('.select2-search--inline .select2-search__field').attr(
+				'style',
+				'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;position:absolute!important;left:-9999px!important;'
+			);
+			$container.css({ maxWidth: '100%', overflow: 'hidden' });
+			return;
+		}
+
+		$container.css({ maxWidth: '100%' });
 	};
 
 	const wireLsMultiDropdownSearch = ($el) => {

@@ -16,7 +16,7 @@ class TestRequestReportPdfService
     ) {}
 
     /**
-     * @param  array{include_reference_method?: bool}  $options
+     * @param  array{include_reference_method?: bool, show_specification?: bool, show_specification_standard?: bool, show_mu_percent?: bool}  $options
      * @return array{relative_path: string, online_url: string, filename: string, language: string}
      */
     public function generateAndStore(SampleHeader $batch, int $sequence, string $language, array $options = []): array
@@ -24,6 +24,9 @@ class TestRequestReportPdfService
         $batch->loadMissing(['customer', 'sample_type', 'samples']);
         $language = $this->normalizeLanguage($language);
         $includeReferenceMethod = (bool) ($options['include_reference_method'] ?? false);
+        $showSpecification = (bool) ($options['show_specification'] ?? true);
+        $showSpecificationStandard = (bool) ($options['show_specification_standard'] ?? true);
+        $showMuPercent = (bool) ($options['show_mu_percent'] ?? true);
 
         $jobNumber = (string) $batch->batch_code;
         $reportNumber = $this->amendmentReportConfig->formatReportNumber($jobNumber, max(1, $sequence));
@@ -38,6 +41,9 @@ class TestRequestReportPdfService
             'lang' => $language,
             'mode' => 'pdf',
             'include_reference_method' => $includeReferenceMethod ? 1 : 0,
+            'show_specification' => $showSpecification ? 1 : 0,
+            'show_specification_standard' => $showSpecificationStandard ? 1 : 0,
+            'show_mu_percent' => $showMuPercent ? 1 : 0,
         ]);
 
         $footerQrCode = '';
@@ -77,6 +83,9 @@ class TestRequestReportPdfService
             'isRTL' => $isRTL,
             'isPdfMode' => true,
             'includeReferenceMethod' => $includeReferenceMethod,
+            'showSpecification' => $showSpecification,
+            'showSpecificationStandard' => $showSpecificationStandard,
+            'showMuPercent' => $showMuPercent,
             'footerQrCode' => $footerQrCode,
             'verificationUrl' => $verificationUrl,
         ]);
@@ -233,6 +242,7 @@ class TestRequestReportPdfService
                 'no_signature' => 'لا يوجد توقيع',
                 'results_relate' => 'تتعلق نتائج الاختبار بالعينات التي تم اختبارها فقط.',
                 'no_reproduce' => 'لا يجوز إعادة إنتاج هذا التقرير إلا كاملاً بإذن كتابي من المختبر.',
+                'lab_address_closing' => 'أُجريت التحاليل في عنوان المختبر الموضح في الترويسة.',
                 'end_of_text' => 'نهاية النص',
                 'issued_on' => 'صدر في',
                 'disclaimer' => 'إخلاء المسؤولية: تمت اختبار جميع العينات في مختبر طرف ثالث',
@@ -305,6 +315,7 @@ class TestRequestReportPdfService
                 'no_signature' => 'Sem assinatura registada',
                 'results_relate' => 'Os resultados dos ensaios referem-se apenas às amostras ensaiadas.',
                 'no_reproduce' => 'Este relatório não pode ser reproduzido, exceto na íntegra, sem aprovação escrita do Laboratório.',
+                'lab_address_closing' => 'As análises foram realizadas no endereço do laboratório identificado no cabeçalho.',
                 'end_of_text' => 'Fim do texto',
                 'issued_on' => 'Emitido em',
                 'disclaimer' => 'AVISO: TODAS AS AMOSTRAS FORAM ENSAIADAS NUM LABORATÓRIO EXTERNO',
@@ -377,6 +388,7 @@ class TestRequestReportPdfService
                 'no_signature' => 'No signature on file',
                 'results_relate' => 'Test results relate only to the samples tested.',
                 'no_reproduce' => 'This report shall not be reproduced except in full, without the written approval of the Laboratory.',
+                'lab_address_closing' => 'The analyses were performed at the laboratory address identified in the header.',
                 'end_of_text' => 'End of text',
                 'issued_on' => 'Issued on',
                 'disclaimer' => 'DISCLAIMER: ALL THE SAMPLES WERE TESTED AT A THIRD-PARTY LABORATORY',

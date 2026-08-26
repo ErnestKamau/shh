@@ -34,7 +34,7 @@
     $outerLabelShown = ! $hideLabel
         && ! $compact
         && ! in_array($field['type'] ?? '', ['client_select', 'client_unit_select', 'client_contact_select', 'customer_sample_point_select', 'signature'], true)
-        && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'company_unit_id', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id', 'state_of_sample', 'sample_type_id', 'sample_type', 'analysis_type_id', 'analysis_type', 'analysis_types', 'parameters', 'parameter', 'sample_temp', 'field_sample_temp', 'sample_temperature'], true);
+        && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'company_unit_id', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id', 'state_of_sample', 'sample_type_id', 'sample_type', 'analysis_type_id', 'analysis_type', 'analysis_types', 'parameters', 'parameter', 'sample_temp', 'field_sample_temp', 'sample_temperature', 'field_data_temperature'], true);
     // When parent already printed a label (hideLabel) or this partial printed one, LS includes must not repeat it.
     $lsFieldLabel = ($hideLabel || $compact || $outerLabelShown)
         ? null
@@ -139,6 +139,15 @@
         'label' => $field['label'] ?? 'Analysis Type',
         'required' => (bool) ($field['required'] ?? false),
     ])
+@elseif(($field['type'] ?? '') === 'rich_text' && $fieldName === 'sample_sampling_point_description')
+    @include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+        'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Sample & sampling point description'),
+        'value' => data_get($this->formData ?? [], str_replace('formData.', '', $wirePrefix), ''),
+        'wireModel' => $wirePrefix,
+        'editorId' => 'field-'.$fieldId,
+        'rowLabel' => 'Sample collection',
+        'compact' => true,
+    ])
 @elseif(($field['type'] ?? '') === 'rich_text')
     @include('livewire.partials.submission-rich-text-editor', [
         'fieldId' => $fieldId,
@@ -175,14 +184,14 @@
         'required' => (bool) ($field['required'] ?? false),
         'error' => $fieldError,
     ])
-@elseif(in_array($fieldName, ['sample_temp', 'field_sample_temp', 'sample_temperature'], true))
+@elseif(in_array($fieldName, ['sample_temp', 'field_sample_temp', 'sample_temperature', 'field_data_temperature'], true))
     @php
         $tempValue = data_get($this, $wirePrefix);
     @endphp
     <div class="ls-field {{ filled($tempValue) ? 'is-success' : '' }}">
         @if(! ($hideLabel ?? false))
             <label class="ls-field__label" for="field_{{ $fieldId }}">
-                {{ $field['label'] ?? 'Sample Temp (°C)' }}
+                {{ $field['label'] ?? ($fieldName === 'field_data_temperature' ? 'Field data — Temperature (°C)' : 'Sample Temp (°C)') }}
                 @if($field['required'] ?? false)
                     <span class="ls-req">*</span>
                 @endif

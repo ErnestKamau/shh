@@ -906,15 +906,66 @@
                     <tr>
                         @php
                             $includeReferenceMethod = !empty($includeReferenceMethod);
-                            $resultsColspan = $includeReferenceMethod ? 9 : 8;
+                            $isBrazilExportationReport = !empty($isBrazilExportationReport);
+                            $optShowSpecification = isset($showSpecification)
+                                ? !empty($showSpecification)
+                                : ! $isBrazilExportationReport;
+                            $optShowSpecificationStandard = isset($showSpecificationStandard)
+                                ? !empty($showSpecificationStandard)
+                                : ! $isBrazilExportationReport;
+                            $optShowMuPercent = isset($showMuPercent)
+                                ? !empty($showMuPercent)
+                                : ! $isBrazilExportationReport;
+
+                            $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
+                            $sampleResultRows = [];
+                            foreach ($sample->getSampleByAnalysisType() as $atLevel) {
+                                foreach ($atLevel->getCapturedResults() as $cr) {
+                                    $analysisMethod = $cr->method() ?: $cr->ltmethod;
+                                    $sampleResultRows[] = [
+                                        'cr' => $cr,
+                                        'spec' => $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
+                                        'spec_standard' => $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
+                                        'mu' => $measureUncertaintyByCapturedResultId[$cr->id] ?? '-',
+                                        'reference_method' => $analysisMethod?->referencemethod?->name ?? null,
+                                    ];
+                                }
+                            }
+
+                            $hasSpecValues = collect($sampleResultRows)->contains(
+                                fn ($row) => filled(trim((string) ($row['spec'] ?? ''))) && trim((string) $row['spec']) !== '-'
+                            );
+                            $hasSpecStandardValues = collect($sampleResultRows)->contains(
+                                fn ($row) => filled(trim((string) ($row['spec_standard'] ?? ''))) && trim((string) $row['spec_standard']) !== '-'
+                            );
+                            $hasMuValues = collect($sampleResultRows)->contains(
+                                fn ($row) => filled(trim((string) ($row['mu'] ?? ''))) && trim((string) $row['mu']) !== '-'
+                            );
+
+                            // Brazil Exportation: omit empty optional columns. Other companies keep prior always-visible behaviour when enabled.
+                            $includeSpecCol = $optShowSpecification && (! $isBrazilExportationReport || $hasSpecValues);
+                            $includeSpecStandardCol = $optShowSpecificationStandard && (! $isBrazilExportationReport || $hasSpecStandardValues);
+                            $includeMuCol = $optShowMuPercent && (! $isBrazilExportationReport || $hasMuValues);
+
+                            $resultsColspan = 5
+                                + ($includeSpecCol ? 1 : 0)
+                                + ($includeSpecStandardCol ? 1 : 0)
+                                + ($includeMuCol ? 1 : 0)
+                                + ($includeReferenceMethod ? 1 : 0);
                         @endphp
                         <th style="width:{{ $includeReferenceMethod ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
                         <th style="width:10%">{{ $labels['results'] }}</th>
                         <th style="width:7%">{{ $labels['unit'] }}</th>
                         <th style="width:7%">{{ $labels['loq'] ?? 'LOQ' }}</th>
+                        @if($includeSpecCol)
                         <th style="width:12%">{{ $labels['specification'] }}</th>
+                        @endif
+                        @if($includeSpecStandardCol)
                         <th style="width:12%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
+                        @endif
+                        @if($includeMuCol)
                         <th style="width:6%">{{ $labels['mu_percent'] }}</th>
+                        @endif
                         <th style="width:{{ $includeReferenceMethod ? '17%' : '19%' }}">{{ $labels['method'] }}</th>
                         @if($includeReferenceMethod)
                         <th style="width:14%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
@@ -922,18 +973,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php
-                        $hasRows = false;
-                        $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
-                    @endphp
-                    @foreach ($sample->getSampleByAnalysisType() as $atLevel)
-                        @php $captured_results = $atLevel->getCapturedResults(); @endphp
-                        @foreach ($captured_results as $cr)
-                            @php
-                                $hasRows = true;
-                                $analysisMethod = $cr->method() ?: $cr->ltmethod;
-                                $referenceMethodName = $analysisMethod?->referencemethod?->name ?? null;
-                            @endphp
+                    @php $hasRows = $sampleResultRows !== []; @endphp
+                    @foreach ($sampleResultRows as $row)
+                        @php $cr = $row['cr']; @endphp
                             <tr>
                                 <td>
                                     {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
@@ -943,19 +985,20 @@
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
                                 <td>{{ $loqByCapturedResultId[$cr->id] ?? '-' }}</td>
-                                <td>
-                                    {{ $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
-                                </td>
-                                <td>
-                                    {{ $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
-                                </td>
-                                <td>{{ $measureUncertaintyByCapturedResultId[$cr->id] ?? '-' }}</td>
+                                @if($includeSpecCol)
+                                <td>{{ $row['spec'] }}</td>
+                                @endif
+                                @if($includeSpecStandardCol)
+                                <td>{{ $row['spec_standard'] }}</td>
+                                @endif
+                                @if($includeMuCol)
+                                <td>{{ $row['mu'] }}</td>
+                                @endif
                                 <td>{{ strtoupper($cr->method()?->name ?? $cr->ltmethod?->name ?? '-') }}</td>
                                 @if($includeReferenceMethod)
-                                <td>{{ $referenceMethodName ? strtoupper($referenceMethodName) : '-' }}</td>
+                                <td>{{ !empty($row['reference_method']) ? strtoupper($row['reference_method']) : '-' }}</td>
                                 @endif
                             </tr>
-                        @endforeach
                     @endforeach
                     @if(!$hasRows)
                     <tr>

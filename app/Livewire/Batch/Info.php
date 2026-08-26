@@ -150,6 +150,11 @@ class Info extends Component
 
     public function render(): \Illuminate\View\View
     {
-        return view('livewire.batch.info');
+        $exportationSampleInfo = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
+            ->exportationSampleInfoForBatch($this->batch);
+
+        return view('livewire.batch.info', [
+            'exportationSampleInfo' => $exportationSampleInfo,
+        ]);
     }
 }

@@ -2,7 +2,15 @@
     @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
     @include('layouts.lab.invoice.partials.quotation-show-styles')
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
+        @php
+            $alertClass = match ($messageType) {
+                'success' => 'success',
+                'warning' => 'warning',
+                'info' => 'info',
+                default => 'danger',
+            };
+        @endphp
+        <div class="alert alert-{{ $alertClass }} alert-dismissible fade show shadow-sm" role="alert" style="white-space: pre-line;">
             {{ $message }}
             <button type="button" class="btn-close" wire:click="dismissMessage"></button>
         </div>

@@ -21,7 +21,15 @@
     </div>
 
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        @php
+            $alertClass = match ($messageType) {
+                'success' => 'success',
+                'warning' => 'warning',
+                'info' => 'info',
+                default => 'danger',
+            };
+        @endphp
+        <div class="alert alert-{{ $alertClass }} alert-dismissible fade show" role="alert" style="white-space: pre-line;">
             {{ $message }}
             <button type="button" class="btn-close" wire:click="dismissMessage"></button>
         </div>

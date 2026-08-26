@@ -1466,7 +1466,7 @@ class RequestViewPage extends Component
                 if ($name === '') {
                     continue;
                 }
-                if ($type === 'checkbox' || in_array($name, ['sampling_apparatus', 'method_of_sampling'], true)) {
+                if ($type === 'checkbox' || in_array($name, $this->trfCollectionCheckboxFieldNames(), true)) {
                     $this->trfEditCollectionFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
                         $this->trfEditCollectionFields[$name] ?? null,
                     );
@@ -1595,7 +1595,7 @@ class RequestViewPage extends Component
                 if ($name === '') {
                     continue;
                 }
-                if ($type === 'checkbox' || in_array($name, ['sampling_apparatus', 'method_of_sampling'], true)) {
+                if ($type === 'checkbox' || in_array($name, $this->trfCollectionCheckboxFieldNames(), true)) {
                     $this->trfEditCollectionFields[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
                         $this->trfEditCollectionFields[$name] ?? null,
                     );
@@ -2000,11 +2000,59 @@ class RequestViewPage extends Component
         TrfToast::dispatch($this, 'success', 'Sample row updated successfully.', 'Sample saved', 'celebrate');
     }
 
+    /**
+     * @return list<string>
+     */
+    private function trfCollectionCheckboxFieldNames(): array
+    {
+        return [
+            'sampling_apparatus',
+            'method_of_sampling',
+            'reason_of_collection',
+            'transport_condition',
+            'sampling_technique',
+            'sampling_source',
+            'sample_types_ww',
+            'field_data_requirements',
+        ];
+    }
+
     public function isWaterTrf(): bool
     {
         $documentCode = trim((string) ($this->submissionForm->document_code ?? ''));
 
         return $documentCode === TrfDocumentCodeForSampleType::WATER;
+    }
+
+    public function isWasteWaterTrf(): bool
+    {
+        $documentCode = trim((string) ($this->submissionForm->document_code ?? ''));
+
+        return str_contains(strtoupper($documentCode), 'WASTE')
+            || $documentCode === TrfDocumentCodeForSampleType::WASTE_WATER;
+    }
+
+    public function addTrfEditExtraSamplingEquipmentRow(): void
+    {
+        $rows = $this->trfEditCollectionFields['extra_sampling_equipment'] ?? [];
+        if (! is_array($rows)) {
+            $decoded = is_string($rows) && trim($rows) !== '' ? json_decode($rows, true) : null;
+            $rows = is_array($decoded) ? $decoded : [];
+        }
+
+        $rows[] = ['label' => '', 'id' => ''];
+        $this->trfEditCollectionFields['extra_sampling_equipment'] = $rows;
+    }
+
+    public function removeTrfEditExtraSamplingEquipmentRow(int $index): void
+    {
+        $rows = $this->trfEditCollectionFields['extra_sampling_equipment'] ?? [];
+        if (! is_array($rows) || ! isset($rows[$index])) {
+            return;
+        }
+
+        unset($rows[$index]);
+        $this->trfEditCollectionFields['extra_sampling_equipment'] = array_values($rows);
     }
 
     /**

@@ -31,6 +31,11 @@ class CompanyController extends Controller
    */
   public function add(Request $request)
   {
+    $request->validate([
+      'name' => ['required', 'string', 'max:255'],
+      'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9_-]*$/', 'unique:companies,code'],
+    ]);
+
     $company = new Company;
     $company->name = $request->name;
     $company->code = $request->code;
@@ -70,6 +75,11 @@ class CompanyController extends Controller
 
   public function edit(Request $request, $id)
   {
+    $request->validate([
+      'name' => ['required', 'string', 'max:255'],
+      'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9_-]*$/', 'unique:companies,code,'.$id.',id'],
+    ]);
+
     $company = Company::find($id);
     $company->name = $request->name;
     $company->code = $request->code;

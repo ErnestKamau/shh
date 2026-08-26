@@ -2513,6 +2513,7 @@
 	}
 
 	.rft-trf-params-modal .ls-quote-analyte-table {
+		position: relative;
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow: auto;
@@ -2521,6 +2522,26 @@
 		background:
 			linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(248 250 252 / 0.98)),
 			radial-gradient(120% 80% at 0% 0%, rgb(14 165 233 / 0.06), transparent 55%);
+	}
+
+	.rft-trf-params-modal .rft-trf-params-stage-loading {
+		position: absolute;
+		inset: 0;
+		z-index: 4;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		border-radius: inherit;
+		background: rgb(248 250 252 / 0.82);
+		backdrop-filter: blur(2px);
+		pointer-events: none;
+	}
+
+	.rft-trf-params-modal .rft-trf-params-stage-loading__label {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: #475569;
 	}
 
 	.rft-trf-params-modal .ls-quote-params-empty {

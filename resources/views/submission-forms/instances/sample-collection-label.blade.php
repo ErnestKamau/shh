@@ -304,50 +304,49 @@
                 @endif
             </section>
         @else
-            <section class="label-card" aria-label="Lab sample label">
-                <header class="label-head">
-                    <div class="label-head-logo">
-                        @if ($logoSrc)
-                            <img src="{{ $logoSrc }}" alt="Company logo">
-                        @endif
-                    </div>
-                    <div class="label-head-title">Lab sample label with barcode</div>
-                </header>
+            @php
+                $labelsToPrint = is_array($registrationLabels ?? null) && $registrationLabels !== []
+                    ? $registrationLabels
+                    : [['sampleId' => $sampleId ?? 'N/A']];
+            @endphp
+            @foreach ($labelsToPrint as $registrationLabel)
+                <section class="label-card" aria-label="Lab sample label">
+                    <header class="label-head">
+                        <div class="label-head-logo">
+                            @if ($logoSrc)
+                                <img src="{{ $logoSrc }}" alt="Company logo">
+                            @endif
+                        </div>
+                        <div class="label-head-title">Lab sample label with barcode</div>
+                    </header>
 
-                <table class="label-table" role="presentation">
-                    <tr>
-                        <td>Lab No.</td>
-                        <td class="wide-cell">{{ $jobNumber !== '' ? $jobNumber : 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <td>Sample No.</td>
-                        <td class="wide-cell">{{ $sampleId }}</td>
-                    </tr>
-                    <tr>
-                        <td>Sample Description</td>
-                        <td class="wide-cell">{{ $sampleDescription }}</td>
-                    </tr>
-                    <tr>
-                        <td>Date &amp; Time of Collection:</td>
-                        <td class="wide-cell">{{ $normalizedDateTime }}</td>
-                    </tr>
-                    <tr>
-                        <td>Test Category</td>
-                        <td class="wide-cell">{{ ($testCategory ?? '') !== '' ? $testCategory : 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <td>Tests</td>
-                        <td class="wide-cell">{{ $testRequirement }}</td>
-                    </tr>
-                </table>
+                    <table class="label-table" role="presentation">
+                        <tr>
+                            <td>Lab No.</td>
+                            <td class="wide-cell">{{ ($jobNumber ?? '') !== '' ? $jobNumber : 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td>Sample No.</td>
+                            <td class="wide-cell">{{ ($registrationLabel['sampleId'] ?? '') !== '' ? $registrationLabel['sampleId'] : 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td>Sample Description</td>
+                            <td class="wide-cell">{{ $sampleDescription }}</td>
+                        </tr>
+                        <tr>
+                            <td>Date &amp; Time of Collection:</td>
+                            <td class="wide-cell">{{ $normalizedDateTime }}</td>
+                        </tr>
+                    </table>
 
-                @if ($barcodeValue !== '')
-                    <div class="barcode-wrap">
-                        {!! DNS1D::getBarcodeSVG($barcodeValue, 'C128') !!}
-                        <div class="barcode-text">{{ $barcodeValue }}</div>
-                    </div>
-                @endif
-            </section>
+                    @if ($barcodeValue !== '')
+                        <div class="barcode-wrap">
+                            {!! DNS1D::getBarcodeSVG($barcodeValue, 'C128') !!}
+                            <div class="barcode-text">{{ $barcodeValue }}</div>
+                        </div>
+                    @endif
+                </section>
+            @endforeach
         @endif
     </main>
 </body>

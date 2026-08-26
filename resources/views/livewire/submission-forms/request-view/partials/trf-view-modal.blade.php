@@ -127,6 +127,12 @@
                                 Sample Collection Data
                             </h5>
                             <div class="row rv-trf-collection-grid">
+                                @if($this->isWasteWaterTrf())
+                                    @include('livewire.submission-forms.request-view.partials.rv-trf-waste-water-collection-section', [
+                                        'readOnly' => true,
+                                        'fieldPartial' => 'livewire.submission-forms.request-view.partials.trf-view-collection-field',
+                                    ])
+                                @else
                                 @php
                                     $collectionByName = collect($trfEditCollectionDefinitions)
                                         ->keyBy(fn (array $field): string => (string) ($field['name'] ?? ''));
@@ -235,6 +241,7 @@
                                         <p class="ls-type-caption mb-0">No sample collection fields on this form.</p>
                                     </div>
                                 @endif
+                                @endif
                             </div>
                         </div>
                     @else
@@ -261,6 +268,9 @@
                                             'field_sample_temp',
                                             'test_category',
                                         ];
+                                        if ($this->isWasteWaterTrf()) {
+                                            $skipInLoop[] = 'picture_of_samples';
+                                        }
                                         $sampleTypeField = $fieldsByName->get('sample_type_id');
                                         $analysisTypeField = $fieldsByName->get('analysis_type_id');
                                         $parametersField = $fieldsByName->get('parameters');

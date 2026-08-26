@@ -114,20 +114,48 @@
                     </script>
 
                     {{-- Report column options --}}
+                    @php
+                        $isBrazilExportationReport = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
+                            ->isBrazilExportationBatch($batch);
+                    @endphp
                     <div class="form-group mb-4">
                         <label class="font-weight-bold d-block mb-2" style="font-size:14px;">
                             <i class="mdi mdi-table-column mr-1"></i> Result Table Options
                         </label>
                         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;background:#fafafa;">
-                            <div class="custom-control custom-checkbox">
+                            <div class="custom-control custom-checkbox mb-2">
                                 <input type="checkbox" class="custom-control-input" id="ptrr-include-reference-method"
                                        name="include_reference_method" value="1">
                                 <label class="custom-control-label" for="ptrr-include-reference-method" style="font-size:13px;">
                                     Include <strong>Reference Method</strong> column
                                 </label>
                             </div>
-                            <small class="text-muted d-block mt-1" style="font-size:11px;">
-                                Adds the linked reference method next to Method of Analysis for each result row.
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" id="ptrr-show-specification"
+                                       name="show_specification" value="1"
+                                       {{ $isBrazilExportationReport ? '' : 'checked' }}>
+                                <label class="custom-control-label" for="ptrr-show-specification" style="font-size:13px;">
+                                    Include <strong>Specification limit</strong> column
+                                </label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" id="ptrr-show-specification-standard"
+                                       name="show_specification_standard" value="1"
+                                       {{ $isBrazilExportationReport ? '' : 'checked' }}>
+                                <label class="custom-control-label" for="ptrr-show-specification-standard" style="font-size:13px;">
+                                    Include <strong>Specification Standard</strong> column
+                                </label>
+                            </div>
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="ptrr-show-mu-percent"
+                                       name="show_mu_percent" value="1"
+                                       {{ $isBrazilExportationReport ? '' : 'checked' }}>
+                                <label class="custom-control-label" for="ptrr-show-mu-percent" style="font-size:13px;">
+                                    Include <strong>M.U%</strong> column
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-2" style="font-size:11px;">
+                                Empty optional columns are omitted automatically. Brazil Exportation defaults Spec / Spec Standard / M.U% off.
                             </small>
                         </div>
                     </div>

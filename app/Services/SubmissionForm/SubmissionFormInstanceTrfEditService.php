@@ -253,8 +253,15 @@ final class SubmissionFormInstanceTrfEditService
             $type = (string) ($definition['element_type'] ?? 'text');
             $raw = $map[$name] ?? '';
 
-            if ($type === 'checkbox' || in_array($name, ['sampling_apparatus', 'method_of_sampling'], true)) {
+            if ($type === 'checkbox' || in_array($name, $this->collectionCheckboxFieldNames(), true)) {
                 $draft[$name] = SubmissionFormSchemaHelper::checkboxGroupValueMap($raw);
+
+                continue;
+            }
+
+            if ($name === 'extra_sampling_equipment') {
+                $decoded = json_decode($raw, true);
+                $draft[$name] = is_array($decoded) ? $decoded : [];
 
                 continue;
             }
@@ -358,7 +365,7 @@ final class SubmissionFormInstanceTrfEditService
 
             /** @var SubmissionFormElement $element */
             $element = $byName->get($name);
-            $stored = $this->encodeValueForStorage($value, (string) $element->element_type);
+            $stored = $this->encodeValueForStorage($value, (string) $element->element_type, (string) $element->name);
 
             SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element, $stored): void {
                 SubmissionFormInstanceValue::query()->updateOrCreate(
@@ -399,10 +406,23 @@ final class SubmissionFormInstanceTrfEditService
         return $map;
     }
 
-    private function encodeValueForStorage(mixed $value, string $elementType): ?string
+    private function encodeValueForStorage(mixed $value, string $elementType, string $fieldName = ''): ?string
     {
         if ($value === null || $value === '') {
             return null;
+        }
+
+        if ($fieldName === 'extra_sampling_equipment' && is_array($value)) {
+            $rows = array_values(array_filter($value, static function ($row): bool {
+                if (! is_array($row)) {
+                    return false;
+                }
+
+                return trim((string) ($row['label'] ?? '')) !== ''
+                    || trim((string) ($row['id'] ?? '')) !== '';
+            }));
+
+            return $rows === [] ? null : json_encode($rows);
         }
 
         if (is_array($value)) {
@@ -452,6 +472,23 @@ final class SubmissionFormInstanceTrfEditService
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function collectionCheckboxFieldNames(): array
+    {
+        return [
+            'sampling_apparatus',
+            'method_of_sampling',
+            'reason_of_collection',
+            'transport_condition',
+            'sampling_technique',
+            'sampling_source',
+            'sample_types_ww',
+            'field_data_requirements',
+        ];
     }
 
     private function looksLikeUuid(string $value): bool

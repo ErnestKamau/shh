@@ -3902,4 +3902,136 @@ SQL);
             'tatTodayCount' => $tatTodayBatches->count(),
         ]);
     }
+
+    /**
+     * Bulk-complete Technical Reviewer verification for selected Sample Verification batches.
+     *
+     * @param  list<string|int>  $batchIds
+     */
+    public function bulkVerifySelected(array $batchIds = []): void
+    {
+        $user = Auth::user();
+        if (! $user || ! method_exists($user, 'checkVerifyLabSampleRole') || ! $user->checkVerifyLabSampleRole()) {
+            session()->flash('error', 'You need the Verify Samples role to bulk verify batches.');
+
+            return;
+        }
+
+        $ids = collect($batchIds)
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            session()->flash('error', 'Select at least one batch to verify.');
+
+            return;
+        }
+
+        $verified = 0;
+        $skipped = [];
+
+        foreach ($ids as $batchId) {
+            $batch = SampleHeader::query()->find($batchId);
+            if (! $batch) {
+                $skipped[] = $batchId.' (not found)';
+                continue;
+            }
+
+            if ((string) $batch->status !== 'Sample Verification') {
+                $skipped[] = $batch->batch_code.' (not in Sample Verification)';
+                continue;
+            }
+
+            $pendingTr = \App\BatchLabSectionApprover::query()
+                ->where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->where(function ($query) {
+                    $query->where('is_technical_reviewer', true)
+                        ->orWhere('approver_order', 1);
+                })
+                ->where(function ($query) {
+                    $query->whereNull('status')->orWhere('status', 0);
+                })
+                ->orderBy('approver_order')
+                ->first();
+
+            if (! $pendingTr) {
+                $existingApproved = \App\BatchLabSectionApprover::query()
+                    ->where('batch_id', $batch->id)
+                    ->where('batch_status', 'Sample Verification')
+                    ->where('is_technical_reviewer', true)
+                    ->where('status', 1)
+                    ->exists();
+
+                if ($existingApproved) {
+                    $skipped[] = $batch->batch_code.' (already verified)';
+                    continue;
+                }
+
+                $pendingTr = new \App\BatchLabSectionApprover();
+                $pendingTr->batch_id = $batch->id;
+                $pendingTr->batch_status = 'Sample Verification';
+                $pendingTr->lab_section_ids = (string) ($batch->lab_section_ids ?: 0);
+                $pendingTr->title = 'Technical Reviewer';
+                $pendingTr->approver_order = 1;
+                $pendingTr->is_technical_reviewer = true;
+                $pendingTr->can_send_back_to_lab = false;
+                $pendingTr->show_report = 1;
+                $pendingTr->approver_type = 'Technical Signatory';
+            }
+
+            $pendingTr->user_id = $user->id;
+            $pendingTr->status = 1;
+            $pendingTr->approval_date = now();
+            $pendingTr->save();
+
+            // Keep Lab Manager assignment present for send-for-approval validation.
+            $hasLabManager = \App\BatchLabSectionApprover::query()
+                ->where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->where('can_send_back_to_lab', true)
+                ->exists();
+
+            if (! $hasLabManager) {
+                $labManager = User::query()
+                    ->where('active', 1)
+                    ->whereHas('roles', function ($query): void {
+                        $query->where('name', 'like', '%Lab Manager%');
+                    })
+                    ->first();
+                if (! $labManager) {
+                    $labManager = $user;
+                }
+
+                $lm = new \App\BatchLabSectionApprover();
+                $lm->user_id = $labManager->id;
+                $lm->title = 'Lab Manager';
+                $lm->lab_section_ids = (string) ($batch->lab_section_ids ?: 0);
+                $lm->batch_id = $batch->id;
+                $lm->batch_status = 'Sample Verification';
+                $lm->status = 0;
+                $lm->approver_order = 2;
+                $lm->is_technical_reviewer = false;
+                $lm->can_send_back_to_lab = true;
+                $lm->show_report = 1;
+                $lm->approver_type = 'Lab Manager';
+                $lm->save();
+            }
+
+            $verified++;
+        }
+
+        if ($verified > 0) {
+            $message = "Verified {$verified} batch".($verified === 1 ? '' : 'es').'.';
+            if ($skipped !== []) {
+                $message .= ' Skipped: '.implode('; ', $skipped);
+            }
+            session()->flash('success', $message);
+        } else {
+            session()->flash('error', 'No batches were verified. '.($skipped !== [] ? implode('; ', $skipped) : ''));
+        }
+    }
 }

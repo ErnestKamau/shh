@@ -6,6 +6,14 @@ use Database\Seeders\Concerns\AmSpecSeedData;
 
 class AmSpecCompanyCleanupTargets
 {
+    public static function companyCodes(): array
+    {
+        return [
+            AmSpecSeedData::DUBAI_COMPANY_CODE,
+            AmSpecSeedData::BRAZIL_COMPANY_CODE,
+        ];
+    }
+
     /**
      * Legacy inactive companies to remove.
      *

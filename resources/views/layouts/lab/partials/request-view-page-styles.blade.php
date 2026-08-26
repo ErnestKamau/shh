@@ -3077,6 +3077,81 @@
 			padding-left: 0;
 			padding-right: 0;
 		}
+
+		.request-view-page .rv-trf-edit-modal .trf-ww-collection-row3,
+		.request-view-page .rv-trf-edit-modal .trf-ww-collection-row4,
+		.request-view-page .rv-trf-edit-modal .trf-ww-apparatus-grid,
+		.request-view-page .rv-trf-view-modal .trf-ww-collection-row3,
+		.request-view-page .rv-trf-view-modal .trf-ww-collection-row4,
+		.request-view-page .rv-trf-view-modal .trf-ww-apparatus-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.request-view-page .rv-trf-edit-modal .trf-ww-field-data-grid,
+		.request-view-page .rv-trf-view-modal .trf-ww-field-data-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	/* Waste Water LWS-036 collection layout (edit + view modals) */
+	.request-view-page .rv-trf-edit-modal .trf-ww-collection-row3,
+	.request-view-page .rv-trf-view-modal .trf-ww-collection-row3 {
+		display: grid;
+		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 3fr);
+		column-gap: clamp(1rem, 4vw, 2rem);
+		align-items: start;
+		margin-bottom: 1.25rem;
+	}
+
+	.request-view-page .rv-trf-edit-modal .trf-ww-collection-row4,
+	.request-view-page .rv-trf-view-modal .trf-ww-collection-row4 {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		column-gap: clamp(1rem, 4vw, 2rem);
+		align-items: start;
+		margin-bottom: 1.25rem;
+	}
+
+	.request-view-page .rv-trf-edit-modal .trf-ww-apparatus-grid,
+	.request-view-page .rv-trf-view-modal .trf-ww-apparatus-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.65rem 0.75rem;
+	}
+
+	.request-view-page .rv-trf-edit-modal .trf-ww-field-data-grid,
+	.request-view-page .rv-trf-view-modal .trf-ww-field-data-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.75rem 1rem;
+	}
+
+	.request-view-page .rv-trf-edit-modal .trf-ww-extra-equipment-row,
+	.request-view-page .rv-trf-view-modal .trf-ww-extra-equipment-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+		gap: 0.4rem;
+		margin-bottom: 0.45rem;
+		align-items: center;
+	}
+
+	.request-view-page .rv-trf-edit-modal .trf-option-grid--ww-reason,
+	.request-view-page .rv-trf-view-modal .trf-option-grid--ww-reason {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.request-view-page .rv-trf-edit-modal .trf-option-grid--ww-technique,
+	.request-view-page .rv-trf-edit-modal .trf-option-grid--ww-test-category,
+	.request-view-page .rv-trf-edit-modal .trf-option-grid--ww-transport,
+	.request-view-page .rv-trf-view-modal .trf-option-grid--ww-technique,
+	.request-view-page .rv-trf-view-modal .trf-option-grid--ww-test-category,
+	.request-view-page .rv-trf-view-modal .trf-option-grid--ww-transport {
+		grid-template-columns: 1fr;
+	}
+
+	.request-view-page .rv-trf-edit-modal .trf-option-grid--ww-source,
+	.request-view-page .rv-trf-view-modal .trf-option-grid--ww-source {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 
 	.request-view-page .rv-trf-edit-modal .rv-trf-collection-grid .form-control,

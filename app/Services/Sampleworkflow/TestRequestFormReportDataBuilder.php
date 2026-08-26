@@ -1026,15 +1026,16 @@ class TestRequestFormReportDataBuilder
             return [
                 'meta_rows' => $metaRows,
                 'sample_description' => (string) ($wasteWaterFields['sample_description'] ?? ''),
-                'apparatus' => $wasteWaterFields['sampling_apparatus'] ?? $apparatus,
+                'apparatus' => $wasteWaterFields['sampling_apparatus'] ?? [],
                 'apparatus_ordered_keys' => self::WASTE_WATER_OPTIONS['sampling_apparatus'],
-                'thermometer_id' => (string) ($wasteWaterFields['thermometer_id'] ?? $thermometerId),
+                'thermometer_id' => (string) ($wasteWaterFields['thermometer_id'] ?? ''),
                 'ph_meter_id' => (string) ($wasteWaterFields['ph_meter_id'] ?? ''),
                 'chlorine_meter_id' => (string) ($wasteWaterFields['chlorine_meter_id'] ?? ''),
                 'sampling_apparatus_others' => (string) ($wasteWaterFields['sampling_apparatus_others'] ?? ''),
-                'method' => $wasteWaterFields['method_of_sampling'] ?? $method,
+                'extra_sampling_equipment' => (string) ($wasteWaterFields['extra_sampling_equipment'] ?? ''),
+                'method' => $wasteWaterFields['method_of_sampling'] ?? [],
                 'method_ordered_keys' => ['APHA', 'US FDA', 'EPA', 'CCFRA', 'DM', 'SOP', 'OTHERS'],
-                'reason' => $wasteWaterFields['reason_of_collection'] ?? $reason,
+                'reason' => $wasteWaterFields['reason_of_collection'] ?? [],
                 'reason_ordered_keys' => self::WASTE_WATER_OPTIONS['reason_of_collection'],
                 'technique' => $wasteWaterFields['sampling_technique'] ?? [],
                 'technique_ordered_keys' => self::WASTE_WATER_OPTIONS['sampling_technique'],
@@ -1097,16 +1098,18 @@ class TestRequestFormReportDataBuilder
         );
 
         return [
-            'sample_number' => (string) ($formData['sample_number'] ?? ''),
-            'sample_description' => (string) ($formData['sample_description'] ?? ''),
+            'sample_number' => $this->plainTextField($formData['sample_number'] ?? ''),
+            // Collection "Sample & sampling point description" only — never row sample_description.
+            'sample_description' => $this->plainTextField($formData['sample_sampling_point_description'] ?? ''),
             'sampling_apparatus' => self::normalizeCheckboxGroup(
                 $formData['sampling_apparatus'] ?? [],
                 self::WASTE_WATER_OPTIONS['sampling_apparatus']
             ),
-            'thermometer_id' => (string) ($formData['thermometer_id'] ?? ''),
-            'ph_meter_id' => (string) ($formData['ph_meter_id'] ?? ''),
-            'chlorine_meter_id' => (string) ($formData['chlorine_meter_id'] ?? ''),
-            'sampling_apparatus_others' => (string) ($formData['sampling_apparatus_others'] ?? ''),
+            'thermometer_id' => $this->plainTextField($formData['thermometer_id'] ?? ''),
+            'ph_meter_id' => $this->plainTextField($formData['ph_meter_id'] ?? ''),
+            'chlorine_meter_id' => $this->plainTextField($formData['chlorine_meter_id'] ?? ''),
+            'sampling_apparatus_others' => $this->plainTextField($formData['sampling_apparatus_others'] ?? ''),
+            'extra_sampling_equipment' => $this->formatExtraSamplingEquipmentForPdf($formData['extra_sampling_equipment'] ?? null),
             'method_of_sampling' => self::normalizeCheckboxGroup(
                 $formData['method_of_sampling'] ?? [],
                 self::WASTE_WATER_OPTIONS['method_of_sampling']
@@ -1131,16 +1134,67 @@ class TestRequestFormReportDataBuilder
                 $formData['transport_condition'] ?? [],
                 self::WASTE_WATER_OPTIONS['transport_condition']
             ),
-            'field_data_quantity' => (string) ($formData['field_data_quantity'] ?? ''),
-            'field_data_appearance' => (string) ($formData['field_data_appearance'] ?? ''),
-            'field_data_color' => (string) ($formData['field_data_color'] ?? ''),
-            'field_data_odor' => (string) ($formData['field_data_odor'] ?? ''),
-            'field_data_ph' => (string) ($formData['field_data_ph'] ?? ''),
-            'field_data_temperature' => (string) ($formData['field_data_temperature'] ?? ''),
-            'field_data_free_chlorine' => (string) ($formData['field_data_free_chlorine'] ?? ''),
+            'field_data_quantity' => $this->plainTextField($this->firstScalarFromPossiblyRowValue($formData['field_data_quantity'] ?? '')),
+            'field_data_appearance' => $this->plainTextField($this->firstScalarFromPossiblyRowValue($formData['field_data_appearance'] ?? '')),
+            'field_data_color' => $this->plainTextField($this->firstScalarFromPossiblyRowValue($formData['field_data_color'] ?? '')),
+            'field_data_odor' => $this->plainTextField($this->firstScalarFromPossiblyRowValue($formData['field_data_odor'] ?? '')),
+            'field_data_ph' => $this->plainTextField($this->firstScalarFromPossiblyRowValue($formData['field_data_ph'] ?? '')),
+            'field_data_temperature' => $this->plainTextField($this->firstScalarFromPossiblyRowValue($formData['field_data_temperature'] ?? '')),
+            'field_data_free_chlorine' => $this->plainTextField($this->firstScalarFromPossiblyRowValue($formData['field_data_free_chlorine'] ?? '')),
             'field_data_requirements' => $fieldDataRequirements,
             'field_data_requirement_checks' => self::fieldDataRequirementChecks($fieldDataRequirements),
         ];
+    }
+
+    /**
+     * Row fields from instances are often list-shaped (index 0 = first sample).
+     */
+    private function firstScalarFromPossiblyRowValue(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if ($value === []) {
+            return '';
+        }
+
+        if (array_is_list($value)) {
+            return $value[0] ?? '';
+        }
+
+        return $value;
+    }
+
+    private function formatExtraSamplingEquipmentForPdf(mixed $value): string
+    {
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($value)) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($value as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $label = trim((string) ($row['label'] ?? ''));
+            $id = trim((string) ($row['id'] ?? ''));
+            if ($label === '' && $id === '') {
+                continue;
+            }
+
+            $parts[] = $label !== '' && $id !== ''
+                ? $label.': '.$id
+                : ($label !== '' ? $label : $id);
+        }
+
+        return implode('; ', $parts);
     }
 
     /**
@@ -1299,6 +1353,17 @@ class TestRequestFormReportDataBuilder
 
     private function plainTextField(mixed $value): string
     {
+        if (is_array($value)) {
+            $value = $this->firstScalarFromPossiblyRowValue($value);
+            if (is_array($value)) {
+                return '';
+            }
+        }
+
+        if ($value === null || is_bool($value)) {
+            return '';
+        }
+
         $string = trim((string) $value);
         if ($string === '') {
             return '';

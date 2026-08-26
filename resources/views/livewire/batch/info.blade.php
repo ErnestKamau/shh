@@ -227,6 +227,45 @@
 					<textarea class="form-control" name="batch_instructions" placeholder="Safety Precautions...">{{ $batch->batch_instructions ?? '' }}</textarea>
 				</div>
 
+				@if(!empty($exportationSampleInfo))
+					@php
+						$expFields = $exportationSampleInfo['fields'] ?? [];
+						$expLabels = [
+							'date_received' => 'Date received',
+							'packaging' => 'Packaging',
+							'sample_weight' => 'Sample weight',
+							'sample_information' => 'Sample information',
+							'ship_name' => 'Ship / vessel',
+							'port_of_loading' => 'Port of loading',
+							'port_of_discharge' => 'Port of discharge',
+							'seal_number' => 'Seal',
+						];
+					@endphp
+					<div class="col-md-12 mt-2 mb-3">
+						<div class="border rounded p-3" style="background:#fafafa;border-color:#e5e7eb !important;">
+							<div class="d-flex align-items-center mb-2" style="gap:8px;">
+								<strong style="font-size:13px;color:#8B1A1A;">
+									<i class="mdi mdi-ferry mr-1"></i>
+									Exportation sample information
+								</strong>
+								<span class="text-muted" style="font-size:11px;">
+									({{ $exportationSampleInfo['form_name'] ?? 'TRF Exportation' }} — check before approval)
+								</span>
+							</div>
+							<div class="row">
+								@foreach($expLabels as $key => $label)
+									<div class="form-group col-md-3 mb-2">
+										<label class="control-label text-muted mb-0" style="font-size:11px;">{{ $label }}</label>
+										<div class="form-control-plaintext py-1" style="font-size:13px;min-height:1.5rem;border-bottom:1px solid #e5e7eb;">
+											{{ filled(trim((string) ($expFields[$key] ?? ''))) ? $expFields[$key] : '—' }}
+										</div>
+									</div>
+								@endforeach
+							</div>
+						</div>
+					</div>
+				@endif
+
 				<div class="row p-2 mt-1 qc-params w-100 mx-0 {{ $batch && $batch->is_qc_batch == 1 ? '' : 'hidden' }}">
 					<div class="form-group col-md-4">
 						<label for="" class="control-label">QC Scheme</label>

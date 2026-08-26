@@ -81,23 +81,59 @@
                 };
             }
 
-            this.$watch('search', () => {
+            this.$watch('groups', () => {
+                nestCache.value = null;
+                flatCache.value = null;
+            });
+        },
+        applyParamsRowReset(rawPayload) {
+            const payload = Array.isArray(rawPayload) ? (rawPayload[0] || {}) : (rawPayload || {});
+            if (!this.flat && payload.rowIndex !== undefined && Number(payload.rowIndex) !== Number(this.rowIndex)) {
+                return;
+            }
+
+            const preserveDraft = this.open && this.dirty;
+            const freezeCatalog = this.open && this.dirty && (this.groups.length > 0 || this.options.length > 0);
+
+            // While Choose tests is open with a draft, keep the in-memory catalog stable.
+            if (payload.deferCatalog) {
                 if (this.open) {
-                    this.scheduleAnalyteTableRender();
+                    if (!freezeCatalog) {
+                        void this.hydrateCatalogFromWire(true);
+                    }
+                    return;
                 }
-            });
+                this.groups = [];
+                this.options = [];
+                this.setSelected([]);
+                this.setPersistedSelected([]);
+                this.dirty = false;
+                return;
+            }
 
-            this.$watch('open', (isOpen) => {
-                if (isOpen) {
-                    this.scheduleAnalyteTableRender();
-                }
-            });
+            if (!freezeCatalog && Array.isArray(payload.options)) {
+                this.options = normalizeOptions(payload.options);
+            }
+            if (!freezeCatalog && Array.isArray(payload.groups)) {
+                this.groups = normalizeGroups(payload.groups);
+                nestCache.value = null;
+                flatCache.value = null;
+            }
+            if (!preserveDraft && 'selected' in payload && Array.isArray(payload.selected)) {
+                const ids = payload.selected.map((value) => String(value));
+                this.setSelected(ids);
+                this.setPersistedSelected(ids, Array.isArray(payload.paramNames) ? payload.paramNames : null);
+            } else if (!preserveDraft && 'paramNames' in payload && Array.isArray(payload.paramNames)) {
+                this.persistedParamNames = payload.paramNames.map((value) => String(value));
+            }
 
-            this.$watch('isLoading', (loading) => {
-                if (!loading && this.open) {
-                    this.scheduleAnalyteTableRender();
-                }
-            });
+            if (!preserveDraft) {
+                this.dirty = false;
+            }
+            this.syncTestsSelect2Display();
+            if (this.open && !freezeCatalog && (!this.groups.length || !this.options.length)) {
+                void this.hydrateCatalogFromWire(true);
+            }
         },
         setPersistedSelected(next, names = null) {
             this.persistedSelected = Array.isArray(next) ? next.map(String) : [];
@@ -116,7 +152,6 @@
         invalidateFilterCaches() {
             nestCache.value = null;
             flatCache.value = null;
-            this.scheduleAnalyteTableRender();
         },
         toggleFilters() {
             this.filtersOpen = !this.filtersOpen;
@@ -460,7 +495,6 @@
                 this.setSelected(Object.keys(merge));
             }
             this.markDirty();
-            this.scheduleAnalyteTableRender();
         },
         toggleSelectAllSwitch() {
             if (this.allSelected) {
@@ -593,7 +627,7 @@
 
             this.analysisLoading = detail.loading === true && this.open;
             if (!detail.loading && this.open) {
-                this.$nextTick(() => this.hydrateCatalogFromWire());
+                this.$nextTick(() => this.hydrateCatalogFromWire(true));
             }
         },
         toggleOpen() {
@@ -607,11 +641,8 @@
             this.selected = this.persistedSelected.slice();
             this.dirty = false;
             this.open = true;
-            void this.hydrateCatalogFromWire();
-            this.$nextTick(() => {
-                this.decideDirection();
-                this.scheduleAnalyteTableRender();
-            });
+            void this.hydrateCatalogFromWire(true);
+            this.$nextTick(() => this.decideDirection());
         },
         cancelPanel() {
             this.selected = this.persistedSelected.slice();
@@ -619,6 +650,8 @@
             this.open = false;
             this.search = '';
             this.filtersOpen = false;
+            this.analysisLoading = false;
+            this.hydrating = false;
         },
         async savePanel() {
             if (this.dirty) {
@@ -641,7 +674,6 @@
                 this.setSelected(this.selected.concat([value]));
             }
             this.markDirty();
-            this.scheduleAnalyteTableRender();
         },
         removeChip(id) {
             const value = String(id);
@@ -651,13 +683,11 @@
         selectAll() {
             this.setSelected(this.options.map((option) => String(option.id)));
             this.markDirty();
-            this.scheduleAnalyteTableRender();
         },
         clearAll() {
             this.setSelected([]);
             this.search = '';
             this.markDirty();
-            this.scheduleAnalyteTableRender();
         },
         syncTestsSelect2Display() {
             this.dispatchTestsSavedEvent(null);
@@ -732,14 +762,19 @@
 
             return out;
         },
-        async hydrateCatalogFromWire() {
+        async hydrateCatalogFromWire(force = false) {
             if (this.hydrating || this.syncing) {
                 return;
             }
 
-            if (this.groups.length > 0 && this.options.length > 0) {
-                this.scheduleAnalyteTableRender();
+            const hasCatalog = this.groups.length > 0 && this.options.length > 0;
 
+            // Freeze catalog while the user is editing selections in an open modal.
+            if (this.open && this.dirty && hasCatalog) {
+                return;
+            }
+
+            if (!force && hasCatalog) {
                 return;
             }
 
@@ -756,13 +791,16 @@
                     }),
                 ]);
 
-                if (state && Array.isArray(state.options)) {
-                    this.options = normalizeOptions(state.options);
-                }
-                if (state && Array.isArray(state.groups)) {
-                    this.groups = normalizeGroups(state.groups);
-                    nestCache.value = null;
-                    flatCache.value = null;
+                const stillFreeze = this.open && this.dirty && this.groups.length > 0 && this.options.length > 0;
+                if (!stillFreeze) {
+                    if (state && Array.isArray(state.options)) {
+                        this.options = normalizeOptions(state.options);
+                    }
+                    if (state && Array.isArray(state.groups)) {
+                        this.groups = normalizeGroups(state.groups);
+                        nestCache.value = null;
+                        flatCache.value = null;
+                    }
                 }
 
                 if (!this.open && !this.dirty && state && Array.isArray(state.selected)) {
@@ -774,192 +812,7 @@
                 console.error('Failed to hydrate walk-in parameter catalog', error);
             } finally {
                 this.hydrating = false;
-                this.scheduleAnalyteTableRender();
             }
-        },
-        scheduleAnalyteTableRender(attempt = 0) {
-            this.$nextTick(() => {
-                this.$nextTick(() => {
-                    const rendered = this.renderAnalyteTable();
-                    if (!rendered && this.open && attempt < 10) {
-                        window.requestAnimationFrame(() => this.scheduleAnalyteTableRender(attempt + 1));
-                    }
-                });
-            });
-        },
-        resolveAnalyteTableBody() {
-            if (this.$refs.analyteTableBody) {
-                return this.$refs.analyteTableBody;
-            }
-
-            const root = this.$el?.querySelector?.('.rft-trf-params-modal__dialog[aria-label="Choose tests"]')
-                ?? document.querySelector('.rft-trf-params-modal__dialog[aria-label="Choose tests"]');
-
-            return root?.querySelector('tbody.rft-trf-analyte-tbody') ?? null;
-        },
-        renderAnalyteTable() {
-            const tbody = this.resolveAnalyteTableBody();
-            if (!tbody || !this.open) {
-                return false;
-            }
-
-            if (this.isLoading && !this.groups.length) {
-                return false;
-            }
-
-            const rows = this.flatTableRows;
-            const fragment = document.createDocumentFragment();
-
-            rows.forEach((row) => {
-                if (row.type === 'sample') {
-                    const tr = document.createElement('tr');
-                    tr.className = 'rft-trf-analyte-sample';
-                    const td = document.createElement('td');
-                    td.colSpan = 7;
-                    td.textContent = row.label || 'Sample type';
-                    tr.appendChild(td);
-                    fragment.appendChild(tr);
-                    return;
-                }
-
-                if (row.type === 'group') {
-                    const tr = document.createElement('tr');
-                    tr.className = 'ls-quote-analyte-group';
-                    const td = document.createElement('td');
-                    td.colSpan = 7;
-
-                    const inner = document.createElement('div');
-                    inner.className = 'rft-trf-analyte-group__inner';
-
-                    const label = document.createElement('span');
-                    label.className = 'rft-trf-analyte-group__label';
-                    label.textContent = row.label || 'Analysis type';
-
-                    const count = document.createElement('span');
-                    count.className = 'rft-trf-analyte-group__count';
-                    const selectedInGroup = this.groupSelectedCount(row.group);
-                    const totalInGroup = this.groupTests(row.group).length;
-                    count.textContent = `(${selectedInGroup}/${totalInGroup})`;
-
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.className = 'rft-trf-analyte-group__toggle';
-                    button.textContent = this.groupSelectionState(row.group) === 'all' ? 'Clear group' : 'Select group';
-                    button.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        this.toggleGroupCheckbox(row.group);
-                    });
-
-                    inner.append(label, count, button);
-                    td.appendChild(inner);
-                    tr.appendChild(td);
-                    fragment.appendChild(tr);
-                    return;
-                }
-
-                if (row.type !== 'test' || !row.test) {
-                    return;
-                }
-
-                const test = row.test;
-                const tr = document.createElement('tr');
-                tr.className = 'ls-quote-analyte-row';
-                if (this.isSelected(test.id)) {
-                    tr.classList.add('is-selected');
-                }
-
-                tr.addEventListener('click', () => {
-                    this.toggle(test.id);
-                });
-
-                const tdSelect = document.createElement('td');
-                tdSelect.className = 'ls-quote-analyte-row__select';
-                tdSelect.addEventListener('click', (event) => event.stopPropagation());
-
-                const label = document.createElement('label');
-                label.className = 'ls-quote-check';
-                label.addEventListener('click', (event) => event.stopPropagation());
-
-                const input = document.createElement('input');
-                input.type = 'checkbox';
-                input.className = 'rft-trf-analyte-check';
-                input.checked = this.isSelected(test.id);
-                input.addEventListener('change', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    this.toggle(test.id);
-                });
-
-                const box = document.createElement('span');
-                box.className = 'ls-quote-check__box';
-                box.setAttribute('aria-hidden', 'true');
-
-                label.append(input, box);
-                tdSelect.appendChild(label);
-
-                const tdName = document.createElement('td');
-                tdName.className = 'ls-quote-analyte-row__name';
-                const nameInner = document.createElement('div');
-                nameInner.className = 'ls-quote-analyte-row__name-inner';
-
-                const nameLabel = document.createElement('span');
-                nameLabel.className = 'ls-quote-analyte-row__label';
-                nameLabel.textContent = test.name || test.id || '';
-                nameLabel.title = test.name || test.id || '';
-
-                const meta = document.createElement('span');
-                meta.className = 'ls-quote-analyte-row__meta';
-
-                if (test.lab_section_code) {
-                    const labPill = document.createElement('span');
-                    labPill.className = 'ls-quote-meta-pill ls-quote-meta-pill--lab';
-                    labPill.textContent = test.lab_section_code;
-                    labPill.title = `Lab section: ${test.lab_section_code}`;
-                    meta.appendChild(labPill);
-                }
-
-                if (test.method) {
-                    const methodPill = document.createElement('span');
-                    methodPill.className = 'ls-quote-meta-pill ls-quote-meta-pill--method';
-                    methodPill.textContent = test.method;
-                    methodPill.title = `Method: ${test.method}`;
-                    meta.appendChild(methodPill);
-                }
-
-                nameInner.append(nameLabel, meta);
-                tdName.appendChild(nameInner);
-
-                const metricCells = [
-                    { className: 'ls-quote-analyte-row__metric text-center', value: this.formatMetric(test.reporting_unit), metricClass: 'ls-quote-metric' },
-                    { className: 'ls-quote-analyte-row__metric text-center', value: this.formatMetric(test.lod), metricClass: 'ls-quote-metric' },
-                    { className: 'ls-quote-analyte-row__metric text-center', value: this.formatMetric(test.loq), metricClass: 'ls-quote-metric' },
-                    { className: 'ls-quote-analyte-row__mu text-center', value: this.formatMetric(test.mu), metricClass: 'ls-quote-metric' },
-                    { className: 'ls-quote-analyte-row__tat text-center', value: this.formatTat(test.tat), metricClass: 'ls-quote-tat', title: 'Turnaround time (days)' },
-                ];
-
-                tr.appendChild(tdSelect);
-                tr.appendChild(tdName);
-
-                metricCells.forEach((cell) => {
-                    const td = document.createElement('td');
-                    td.className = cell.className;
-                    if (cell.title) {
-                        td.title = cell.title;
-                    }
-                    const span = document.createElement('span');
-                    span.className = cell.metricClass;
-                    span.textContent = cell.value;
-                    td.appendChild(span);
-                    tr.appendChild(td);
-                });
-
-                fragment.appendChild(tr);
-            });
-
-            tbody.replaceChildren(fragment);
-
-            return rows.length > 0;
         },
         formatMetric(value) {
             const text = String(value ?? '').trim();

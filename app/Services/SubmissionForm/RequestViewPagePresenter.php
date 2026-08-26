@@ -1768,13 +1768,52 @@ class RequestViewPagePresenter
             return '';
         }
 
+        $name = strtolower(trim((string) ($element['name'] ?? '')));
         $display = $saved['display_value'] ?? $saved['value'] ?? '';
 
+        if ($name === 'extra_sampling_equipment') {
+            return $this->formatExtraSamplingEquipmentDisplay($display);
+        }
+
         if (is_array($display)) {
-            return implode(', ', array_filter(array_map('strval', $display)));
+            return implode(', ', array_filter(array_map(
+                static fn ($item): string => is_scalar($item) ? trim((string) $item) : '',
+                $display
+            )));
         }
 
         return trim((string) $display);
+    }
+
+    private function formatExtraSamplingEquipmentDisplay(mixed $value): string
+    {
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($value)) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($value as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $label = trim((string) ($row['label'] ?? ''));
+            $id = trim((string) ($row['id'] ?? ''));
+            if ($label === '' && $id === '') {
+                continue;
+            }
+
+            $parts[] = $label !== '' && $id !== ''
+                ? $label.': '.$id
+                : ($label !== '' ? $label : $id);
+        }
+
+        return implode('; ', $parts);
     }
 
     private function isEmptyDisplayValue(mixed $value): bool
@@ -1783,9 +1822,17 @@ class RequestViewPagePresenter
             return true;
         }
 
+        if (is_array($value)) {
+            return $value === [];
+        }
+
         $trimmed = trim((string) $value);
 
-        return $trimmed === '' || strcasecmp($trimmed, 'N/A') === 0;
+        return $trimmed === ''
+            || strcasecmp($trimmed, 'N/A') === 0
+            || $trimmed === '[]'
+            || $trimmed === '{}'
+            || strcasecmp($trimmed, 'null') === 0;
     }
 
     /**

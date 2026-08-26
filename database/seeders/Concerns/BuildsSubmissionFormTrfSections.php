@@ -36,8 +36,12 @@ trait BuildsSubmissionFormTrfSections
         $form->save();
 
         try {
-            $stages = \App\SampleAnalysisStage::pluck('id')->toArray();
-            $form->sampleAnalysisStages()->sync($stages);
+            // Pivot requires an explicit id (PostgreSQL has no default on some DBs).
+            $syncData = [];
+            foreach (\App\SampleAnalysisStage::query()->pluck('id') as $stageId) {
+                $syncData[(string) $stageId] = ['id' => (string) Str::uuid7()];
+            }
+            $form->sampleAnalysisStages()->sync($syncData);
         } catch (\Exception $e) {
             $this->command?->warn('Could not sync stages: '.$e->getMessage());
         }
@@ -142,25 +146,232 @@ trait BuildsSubmissionFormTrfSections
             ['sample_type_select', 'Sample type', 'sample_type_id', 5, null, true],
             ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 6, null, true],
             ['analysis_elements_select', 'Tests', 'parameters', 7],
-            ['text', 'Field data - Appearance', 'field_appearance', 8],
-            ['text', 'Field data - Color', 'field_color', 9],
-            ['text', 'Field data - Odor', 'field_odor', 10],
-            ['text', 'Field data - pH', 'field_ph', 11],
-            ['text', 'Field data - Temperature (°C)', 'field_sample_temp', 12],
-            ['text', 'Field data - Free chlorine', 'field_free_chlorine', 13],
-            ['select', 'Sample condition', 'sample_condition', 14, [
+            ['select', 'Sample condition', 'sample_condition', 8, [
                 ['value' => 'acceptable', 'label' => 'Acceptable'],
                 ['value' => 'chilled', 'label' => 'Chilled'],
                 ['value' => 'frozen', 'label' => 'Frozen'],
                 ['value' => 'ambient', 'label' => 'Ambient'],
             ]],
-            ['select', 'State of sample', 'state_of_sample', 15, [
+            ['select', 'State of sample', 'state_of_sample', 9, [
                 ['value' => 'L', 'label' => 'L - Liquid'],
                 ['value' => 'SS', 'label' => 'SS - Semi solid'],
                 ['value' => 'S', 'label' => 'S - Solid'],
             ]],
-            ['camera_photo', 'Picture of sample(s)', 'picture_of_samples', 16],
+            ['checkbox', 'Test requirements', 'test_requirements', 10, [
+                ['value' => 'microbiology', 'label' => 'Microbiology'],
+                ['value' => 'chemistry', 'label' => 'Chemistry'],
+            ]],
         ];
+    }
+
+    /**
+     * AmSpec LWS-036 collection fields (section 2).
+     *
+     * @return list<array{0: string, 1: string, 2: string, 3: int, 4?: list<array{value: string, label: string}>}>
+     */
+    protected function wasteWaterCollectionDataFields(): array
+    {
+        return [
+            ['date', 'Sampling date', 'sampling_date', 1],
+            ['time', 'Sampling time', 'sampling_time', 2],
+            ['customer_sample_point_select', 'Sampling location', 'sampling_location', 3],
+            ['rich_text', 'Sample & sampling point description', 'sample_sampling_point_description', 4],
+            ['checkbox', 'Sampling apparatus', 'sampling_apparatus', 5, [
+                ['value' => 'sterile_bottle', 'label' => 'Sterile bottle'],
+                ['value' => 'bottle_catcher', 'label' => 'Bottle catcher'],
+                ['value' => 'others', 'label' => 'Others'],
+            ]],
+            ['text', 'Thermometer ID', 'thermometer_id', 6],
+            ['text', 'pH meter ID', 'ph_meter_id', 7],
+            ['text', 'Chlorine meter ID', 'chlorine_meter_id', 8],
+            ['text', 'Sampling apparatus — others', 'sampling_apparatus_others', 9],
+            ['textarea', 'Extra sampling equipment', 'extra_sampling_equipment', 10],
+            ['checkbox', 'Method of sampling', 'method_of_sampling', 11, [
+                ['value' => 'apha', 'label' => 'APHA'],
+                ['value' => 'us_fda', 'label' => 'US FDA'],
+                ['value' => 'epa', 'label' => 'EPA'],
+                ['value' => 'ccfra', 'label' => 'CCFRA'],
+                ['value' => 'dm', 'label' => 'DM'],
+                ['value' => 'sop', 'label' => 'SOP'],
+                ['value' => 'others', 'label' => 'Others'],
+            ]],
+            ['checkbox', 'Reason of collection', 'reason_of_collection', 12, [
+                ['value' => 'contract', 'label' => 'Contract'],
+                ['value' => 'non_contract', 'label' => 'Non-contract'],
+                ['value' => 'dm_requirement', 'label' => 'DM requirement'],
+                ['value' => 'disputed', 'label' => 'Disputed/Audit'],
+            ]],
+            ['checkbox', 'Sampling technique', 'sampling_technique', 13, [
+                ['value' => 'grab', 'label' => 'Grab'],
+                ['value' => 'composite', 'label' => 'Composite'],
+                ['value' => 'other', 'label' => 'Other'],
+            ]],
+            ['checkbox', 'Sampling source', 'sampling_source', 14, [
+                ['value' => 'tank', 'label' => 'Tank'],
+                ['value' => 'holding_tank', 'label' => 'Holding tank'],
+                ['value' => 'ind_domestic_effluent', 'label' => 'Ind./Domestic effluent'],
+                ['value' => 'pool_water', 'label' => 'Pool water'],
+                ['value' => 'discharge_to_marine', 'label' => 'Discharge to marine'],
+                ['value' => 'ground_water', 'label' => 'Ground water'],
+                ['value' => 'stp', 'label' => 'STP'],
+                ['value' => 'municipal_tap_water', 'label' => 'Municipal tap water'],
+            ]],
+            ['checkbox', 'Transport condition', 'transport_condition', 15, [
+                ['value' => 'chiller', 'label' => 'Chiller vehicle'],
+                ['value' => 'frozen', 'label' => 'Frozen'],
+                ['value' => 'ambient', 'label' => 'Ambient'],
+            ]],
+            ['checkbox', 'Sample types', 'sample_types_ww', 16, [
+                ['value' => 'liquid', 'label' => 'Liquid'],
+                ['value' => 'semi_solid', 'label' => 'Semi solid'],
+                ['value' => 'sludge', 'label' => 'Sludge'],
+                ['value' => 'marine_sediment', 'label' => 'Marine sediment'],
+            ]],
+            ['checkbox', 'Test category', 'field_data_requirements', 17, [
+                ['value' => 'microbiology', 'label' => 'Microbiology'],
+                ['value' => 'chemistry', 'label' => 'Chemistry'],
+            ]],
+            ['text', 'Field data — Quantity', 'field_data_quantity', 18],
+            ['text', 'Field data — Appearance', 'field_data_appearance', 19],
+            ['text', 'Field data — Color', 'field_data_color', 20],
+            ['text', 'Field data — Odor', 'field_data_odor', 21],
+            ['text', 'Field data — pH', 'field_data_ph', 22],
+            ['text', 'Field data — Temperature (°C)', 'field_data_temperature', 23],
+            ['text', 'Field data — Free chlorine', 'field_data_free_chlorine', 24],
+            ['date', 'Date received', 'date_received', 25],
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function obsoleteWasteWaterCollectionFieldNames(): array
+    {
+        return [
+            'sample_physical_state',
+        ];
+    }
+
+    protected function createWasteWaterCollectionDataSection(SubmissionForm $form, int $sortOrder, bool $alwaysVisible = true): void
+    {
+        if ($form->sections()->where('title', 'Sample collection data')->exists()) {
+            return;
+        }
+
+        $section = $form->sections()->create([
+            'title' => 'Sample collection data',
+            'description' => 'Sampling details, apparatus, method, transport, and field data.',
+            'section_type' => 'regular',
+            'sort_order' => $sortOrder,
+        ]);
+
+        $holder = $section->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 40,
+            'sort_order' => 1,
+        ]);
+
+        $conditional = $alwaysVisible ? null : [
+            ['field' => 'request_for_sampling', 'operator' => 'equals', 'value' => '1'],
+        ];
+
+        foreach ($this->wasteWaterCollectionDataFields() as $field) {
+            $this->upsertScalarElement($holder, $field, $conditional);
+        }
+    }
+
+    protected function patchWasteWaterCollectionDataSection(SubmissionForm $form, bool $alwaysVisible = true): void
+    {
+        $sections = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Sample collection data')
+            ->get();
+
+        if ($sections->isEmpty()) {
+            $this->createWasteWaterCollectionDataSection($form, 2, $alwaysVisible);
+            $this->removeMiscellaneousFieldsFromCollectionSection($form);
+
+            return;
+        }
+
+        $conditional = $alwaysVisible ? null : [
+            ['field' => 'request_for_sampling', 'operator' => 'equals', 'value' => '1'],
+        ];
+
+        foreach ($sections as $section) {
+            $holder = $section->elementHolders()->where('holder_type', 'field')->first();
+            if ($holder === null) {
+                $holder = $section->elementHolders()->create([
+                    'id' => (string) Str::uuid7(),
+                    'holder_type' => 'field',
+                    'max_elements' => 40,
+                    'sort_order' => 1,
+                ]);
+            }
+
+            $holder->update(['max_elements' => max((int) $holder->max_elements, 40)]);
+
+            foreach ($this->wasteWaterCollectionDataFields() as $field) {
+                $this->upsertScalarElement($holder, $field, $conditional);
+            }
+
+            $this->removeCollectionElementsByName($form, $this->obsoleteWasteWaterCollectionFieldNames());
+            $this->removeMiscellaneousFieldsFromCollectionSection($form);
+        }
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    protected function removeCollectionElementsByName(SubmissionForm $form, array $names): void
+    {
+        if ($names === []) {
+            return;
+        }
+
+        $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Sample collection data')
+            ->each(function (SubmissionFormSection $section) use ($names): void {
+                foreach ($section->elementHolders as $holder) {
+                    $holder->elements()
+                        ->whereIn('name', $names)
+                        ->each(function (SubmissionFormElement $element): void {
+                            $hasValues = \App\Models\SubmissionFormInstanceValue::query()
+                                ->where('submission_form_element_id', $element->id)
+                                ->exists();
+
+                            if (! $hasValues) {
+                                $element->delete();
+
+                                return;
+                            }
+
+                            $element->update([
+                                'is_hidden' => true,
+                                'is_required' => false,
+                            ]);
+                        });
+                }
+            });
+    }
+
+    protected function patchWasteWaterTrfSections(SubmissionForm $form): void
+    {
+        $this->patchCustomerDetailsSection($form);
+        $this->patchWasteWaterCollectionDataSection($form, true);
+        $this->patchSampleRowsSection($form, $this->wasteWaterTrfRowFields());
+        $this->removeRowElementsByName($form, [
+            'field_appearance',
+            'field_color',
+            'field_odor',
+            'field_ph',
+            'field_sample_temp',
+            'field_free_chlorine',
+            'field_residual_chlorine',
+            'picture_of_samples',
+        ]);
+        $this->patchMiscellaneousSection($form);
     }
 
     /**
@@ -360,7 +571,17 @@ trait BuildsSubmissionFormTrfSections
                 $update['options'] = $payload['options'];
             }
 
-            if ($field[2] === 'thermometer_id') {
+            if (in_array($field[2], [
+                'thermometer_id',
+                'reason_of_collection',
+                'sampling_technique',
+                'sampling_source',
+                'sample_types_ww',
+                'field_data_requirements',
+                'sample_sampling_point_description',
+                'sampling_apparatus',
+                'method_of_sampling',
+            ], true)) {
                 $update['element_type'] = $payload['element_type'];
             }
 
@@ -675,17 +896,21 @@ trait BuildsSubmissionFormTrfSections
     protected function syncSampleTypesByCodes(SubmissionForm $form, array $codes): void
     {
         try {
-            $normalizedCodes = collect($codes)
+            $normalized = collect($codes)
                 ->map(fn (string $code): string => mb_strtolower(trim($code)))
                 ->filter()
                 ->unique()
                 ->values()
                 ->all();
 
+            // Match sample type code or name (Amspec Dubai uses code "Waste Water",
+            // while parameter rows / docs often use "SMP WWTR").
             $categoryIds = SampleType::query()
-                ->where(function ($query) use ($normalizedCodes): void {
-                    foreach ($normalizedCodes as $code) {
-                        $query->orWhereRaw('LOWER(TRIM(code)) = ?', [$code]);
+                ->where(function ($query) use ($normalized): void {
+                    foreach ($normalized as $token) {
+                        $query->orWhereRaw('LOWER(TRIM(code)) = ?', [$token])
+                            ->orWhereRaw('LOWER(TRIM(name)) = ?', [$token])
+                            ->orWhereRaw('LOWER(TRIM(code)) LIKE ?', ['%'.$token.'%']);
                     }
                 })
                 ->whereNotNull('sample_type_category')
