@@ -918,12 +918,21 @@
                                 : ! $isBrazilExportationReport;
 
                             $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
+                            $isPresentReportValue = static function (mixed $value): bool {
+                                $trimmed = trim((string) ($value ?? ''));
+                                if ($trimmed === '') {
+                                    return false;
+                                }
+
+                                return ! in_array($trimmed, ['-', '—', '–', 'N/A', 'n/a', 'NA'], true);
+                            };
                             $sampleResultRows = [];
                             foreach ($sample->getSampleByAnalysisType() as $atLevel) {
                                 foreach ($atLevel->getCapturedResults() as $cr) {
                                     $analysisMethod = $cr->method() ?: $cr->ltmethod;
                                     $sampleResultRows[] = [
                                         'cr' => $cr,
+                                        'loq' => $loqByCapturedResultId[$cr->id] ?? '-',
                                         'spec' => $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
                                         'spec_standard' => $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
                                         'mu' => $measureUncertaintyByCapturedResultId[$cr->id] ?? '-',
@@ -932,31 +941,42 @@
                                 }
                             }
 
+                            $hasLoqValues = collect($sampleResultRows)->contains(
+                                fn ($row) => $isPresentReportValue($row['loq'] ?? null)
+                            );
                             $hasSpecValues = collect($sampleResultRows)->contains(
-                                fn ($row) => filled(trim((string) ($row['spec'] ?? ''))) && trim((string) $row['spec']) !== '-'
+                                fn ($row) => $isPresentReportValue($row['spec'] ?? null)
                             );
                             $hasSpecStandardValues = collect($sampleResultRows)->contains(
-                                fn ($row) => filled(trim((string) ($row['spec_standard'] ?? ''))) && trim((string) $row['spec_standard']) !== '-'
+                                fn ($row) => $isPresentReportValue($row['spec_standard'] ?? null)
                             );
                             $hasMuValues = collect($sampleResultRows)->contains(
-                                fn ($row) => filled(trim((string) ($row['mu'] ?? ''))) && trim((string) $row['mu']) !== '-'
+                                fn ($row) => $isPresentReportValue($row['mu'] ?? null)
+                            );
+                            $hasReferenceMethodValues = collect($sampleResultRows)->contains(
+                                fn ($row) => $isPresentReportValue($row['reference_method'] ?? null)
                             );
 
-                            // Brazil Exportation: omit empty optional columns. Other companies keep prior always-visible behaviour when enabled.
-                            $includeSpecCol = $optShowSpecification && (! $isBrazilExportationReport || $hasSpecValues);
-                            $includeSpecStandardCol = $optShowSpecificationStandard && (! $isBrazilExportationReport || $hasSpecStandardValues);
-                            $includeMuCol = $optShowMuPercent && (! $isBrazilExportationReport || $hasMuValues);
+                            // Omit columns when every cell would be blank / placeholder.
+                            $includeLoqCol = $hasLoqValues;
+                            $includeSpecCol = $optShowSpecification && $hasSpecValues;
+                            $includeSpecStandardCol = $optShowSpecificationStandard && $hasSpecStandardValues;
+                            $includeMuCol = $optShowMuPercent && $hasMuValues;
+                            $includeReferenceMethodCol = $includeReferenceMethod && $hasReferenceMethodValues;
 
-                            $resultsColspan = 5
+                            $resultsColspan = 4
+                                + ($includeLoqCol ? 1 : 0)
                                 + ($includeSpecCol ? 1 : 0)
                                 + ($includeSpecStandardCol ? 1 : 0)
                                 + ($includeMuCol ? 1 : 0)
-                                + ($includeReferenceMethod ? 1 : 0);
+                                + ($includeReferenceMethodCol ? 1 : 0);
                         @endphp
-                        <th style="width:{{ $includeReferenceMethod ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
+                        <th style="width:{{ $includeReferenceMethodCol ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
                         <th style="width:10%">{{ $labels['results'] }}</th>
                         <th style="width:7%">{{ $labels['unit'] }}</th>
+                        @if($includeLoqCol)
                         <th style="width:7%">{{ $labels['loq'] ?? 'LOQ' }}</th>
+                        @endif
                         @if($includeSpecCol)
                         <th style="width:12%">{{ $labels['specification'] }}</th>
                         @endif
@@ -966,8 +986,8 @@
                         @if($includeMuCol)
                         <th style="width:6%">{{ $labels['mu_percent'] }}</th>
                         @endif
-                        <th style="width:{{ $includeReferenceMethod ? '17%' : '19%' }}">{{ $labels['method'] }}</th>
-                        @if($includeReferenceMethod)
+                        <th style="width:{{ $includeReferenceMethodCol ? '17%' : '19%' }}">{{ $labels['method'] }}</th>
+                        @if($includeReferenceMethodCol)
                         <th style="width:14%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
                         @endif
                     </tr>
@@ -984,7 +1004,9 @@
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
-                                <td>{{ $loqByCapturedResultId[$cr->id] ?? '-' }}</td>
+                                @if($includeLoqCol)
+                                <td>{{ $row['loq'] }}</td>
+                                @endif
                                 @if($includeSpecCol)
                                 <td>{{ $row['spec'] }}</td>
                                 @endif
@@ -995,7 +1017,7 @@
                                 <td>{{ $row['mu'] }}</td>
                                 @endif
                                 <td>{{ strtoupper($cr->method()?->name ?? $cr->ltmethod?->name ?? '-') }}</td>
-                                @if($includeReferenceMethod)
+                                @if($includeReferenceMethodCol)
                                 <td>{{ !empty($row['reference_method']) ? strtoupper($row['reference_method']) : '-' }}</td>
                                 @endif
                             </tr>

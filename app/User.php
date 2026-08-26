@@ -497,7 +497,24 @@ class User extends Authenticatable implements Auditable
 	}
 
 	public function checkApproveLabSampleRole(){
-		return $this->hasRole('Can Approve Samples');
+		try {
+			if ($this->isSystemAdmin()) {
+				return true;
+			}
+
+			$roleName = SpatieRole::query()
+				->where('guard_name', $this->guard_name)
+				->whereRaw('LOWER(name) = ?', ['can approve samples'])
+				->value('name');
+
+			if (! is_string($roleName) || $roleName === '') {
+				return (int) ($this->is_client ?? 0) === 0;
+			}
+
+			return $this->hasRole($roleName);
+		} catch (\Throwable $exception) {
+			return false;
+		}
 	}
 	public function checkVerifyLabSampleRole(){
 		try {

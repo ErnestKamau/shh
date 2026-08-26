@@ -22,6 +22,10 @@ use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\BulkMoveToSampleApprovalService;
+use App\Services\Sampleworkflow\BulkSampleApprovalService;
+use App\Services\Sampleworkflow\BulkTestRequestReportService;
+use App\Services\Sampleworkflow\BulkVerificationReviewService;
 use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
@@ -268,6 +272,35 @@ class WorkflowBoard extends Component
     public bool $showMyIntrayPanel = true;
 
     public bool $showDecontaminationModal = false;
+
+    public bool $showBulkVerifyModal = false;
+
+    /** review = Sample Verification; approve = Sample Approval (results + approve + TRR) */
+    public string $bulkVerifyMode = 'review';
+
+    /** @var list<string> */
+    public array $bulkVerifyBatchIds = [];
+
+    public string $bulkVerifyActiveBatchId = '';
+
+    /** @var list<string> */
+    public array $bulkVerifyCompletedIds = [];
+
+    /** @var list<string> jobs approved in the current Bulk Approve modal session */
+    public array $bulkApproveCompletedIds = [];
+
+    public string $bulkTestReportLanguage = 'en';
+
+    public bool $bulkTestReportIncludeReferenceMethod = false;
+
+    public bool $bulkTestReportShowSpecification = true;
+
+    public bool $bulkTestReportShowSpecificationStandard = true;
+
+    public bool $bulkTestReportShowMuPercent = true;
+
+    /** @var list<array{batch_id: string, batch_code: string, report_number: string, online_url: string, filename: string}> */
+    public array $bulkTestReportGenerated = [];
 
     public bool $openReceiveRequestPending = false;
 
@@ -1828,6 +1861,10 @@ SQL);
     protected function getStatusBatches()
     {
         $query = $this->baseBatchQuery()->orderBy('receipt_date', 'desc');
+
+        if (in_array($this->status, ['Sample Verification', 'Sample Approval'], true)) {
+            $query->with('approvers');
+        }
 
         if ($this->status === 'Schedule of Analysis') {
             $query->where('status', 'Samples In Lab')
@@ -3904,28 +3941,251 @@ SQL);
     }
 
     /**
+     * Open the bulk-verify / bulk-approve review modal (samples + results).
+     *
+     * @param  list<string|int>  $batchIds
+     */
+    public function openBulkVerifyModal(array $batchIds = [], string $mode = 'review'): void
+    {
+        $mode = in_array($mode, ['review', 'approve'], true) ? $mode : 'review';
+
+        if ($mode === 'review' && ! $this->canBulkVerifySamples()) {
+            session()->flash('error', 'You need the Verify Samples role to bulk verify batches.');
+
+            return;
+        }
+
+        if ($mode === 'approve' && ! $this->canBulkApproveSamples()) {
+            session()->flash('error', 'You do not have permission to bulk approve batches.');
+
+            return;
+        }
+
+        $ids = $this->normalizeBulkVerifyBatchIds($batchIds);
+        if ($ids === []) {
+            session()->flash('error', 'Select at least one batch.');
+
+            return;
+        }
+
+        $this->bulkVerifyMode = $mode;
+        $this->bulkVerifyBatchIds = $ids;
+        $this->bulkVerifyActiveBatchId = $ids[0];
+        $this->showBulkVerifyModal = true;
+        $this->bulkTestReportGenerated = [];
+
+        $review = app(BulkVerificationReviewService::class)->build($ids);
+        $this->bulkVerifyCompletedIds = collect($review)
+            ->filter(static fn (array $job): bool => ($job['verified'] ?? false) === true)
+            ->map(static fn (array $job): string => (string) $job['id'])
+            ->values()
+            ->all();
+        $this->bulkApproveCompletedIds = collect($review)
+            ->filter(static fn (array $job): bool => ($job['approved'] ?? false) === true)
+            ->map(static fn (array $job): string => (string) $job['id'])
+            ->values()
+            ->all();
+
+        $isBrazil = companyHasCode(\App\Enums\CompanyCode::Brl);
+        $this->bulkTestReportLanguage = 'en';
+        $this->bulkTestReportIncludeReferenceMethod = false;
+        $this->bulkTestReportShowSpecification = ! $isBrazil;
+        $this->bulkTestReportShowSpecificationStandard = ! $isBrazil;
+        $this->bulkTestReportShowMuPercent = ! $isBrazil;
+    }
+
+    /**
+     * Bulk Approve modal: results + verification + approve + same-customer Test Reports.
+     *
+     * @param  list<string|int>  $batchIds
+     */
+    public function openBulkApproveModal(array $batchIds = []): void
+    {
+        $this->openBulkVerifyModal($batchIds, 'approve');
+    }
+
+    public function closeBulkVerifyModal(): void
+    {
+        $this->showBulkVerifyModal = false;
+        $this->bulkVerifyMode = 'review';
+        $this->bulkVerifyBatchIds = [];
+        $this->bulkVerifyActiveBatchId = '';
+        $this->bulkVerifyCompletedIds = [];
+        $this->bulkApproveCompletedIds = [];
+        $this->bulkTestReportGenerated = [];
+    }
+
+    public function setBulkVerifyActiveBatch(string $batchId): void
+    {
+        $id = trim($batchId);
+        if ($id === '' || ! in_array($id, $this->bulkVerifyBatchIds, true)) {
+            return;
+        }
+
+        $this->bulkVerifyActiveBatchId = $id;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function getBulkVerifyReviewProperty(): array
+    {
+        if (! $this->showBulkVerifyModal || $this->bulkVerifyBatchIds === []) {
+            return [];
+        }
+
+        return app(BulkVerificationReviewService::class)->build($this->bulkVerifyBatchIds);
+    }
+
+    public function confirmBulkVerifyActive(): void
+    {
+        if ($this->bulkVerifyMode !== 'review') {
+            return;
+        }
+
+        $this->applyBulkVerification([$this->bulkVerifyActiveBatchId]);
+    }
+
+    public function confirmBulkVerify(): void
+    {
+        if ($this->bulkVerifyMode !== 'review') {
+            return;
+        }
+
+        $pending = array_values(array_filter(
+            $this->bulkVerifyBatchIds,
+            fn (string $id): bool => ! in_array($id, $this->bulkVerifyCompletedIds, true),
+        ));
+
+        $this->applyBulkVerification($pending);
+    }
+
+    public function confirmBulkApproveActive(): void
+    {
+        if ($this->bulkVerifyMode !== 'approve') {
+            return;
+        }
+
+        $this->applyBulkApproval([$this->bulkVerifyActiveBatchId]);
+    }
+
+    public function confirmBulkApprove(): void
+    {
+        if ($this->bulkVerifyMode !== 'approve') {
+            return;
+        }
+
+        $pending = array_values(array_filter(
+            $this->bulkVerifyBatchIds,
+            fn (string $id): bool => ! in_array($id, $this->bulkApproveCompletedIds, true),
+        ));
+
+        $this->applyBulkApproval($pending);
+    }
+
+    public function confirmBulkMoveToApproval(): void
+    {
+        if (! $this->canBulkVerifySamples()) {
+            session()->flash('error', 'You need the Verify Samples role to send these jobs for approval.');
+
+            return;
+        }
+
+        $verifiedIds = collect($this->bulkVerifyReview)
+            ->filter(fn (array $job): bool => ($job['verified'] ?? false) || in_array($job['id'], $this->bulkVerifyCompletedIds, true))
+            ->pluck('id')
+            ->all();
+
+        $pending = array_values(array_filter(
+            $this->bulkVerifyBatchIds,
+            fn (string $id): bool => ! in_array($id, $verifiedIds, true),
+        ));
+
+        if ($pending !== []) {
+            session()->flash('error', 'Verify all selected jobs before moving them to Sample Approval.');
+
+            return;
+        }
+
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            session()->flash('error', 'You need the Verify Samples role to send these jobs for approval.');
+
+            return;
+        }
+
+        $result = app(BulkMoveToSampleApprovalService::class)->move($this->bulkVerifyBatchIds, $user);
+        $moved = (int) ($result['moved'] ?? 0);
+        $skipped = $result['skipped'] ?? [];
+
+        if ($moved > 0) {
+            $message = 'Moved '.$moved.' job'.($moved === 1 ? '' : 's').' to Sample Approval.';
+            if ($skipped !== []) {
+                $message .= ' Skipped: '.implode('; ', $skipped);
+            }
+            session()->flash('success', $message);
+            $this->closeBulkVerifyModal();
+
+            return;
+        }
+
+        session()->flash('error', 'No jobs were moved to Sample Approval. '.($skipped !== [] ? implode('; ', $skipped) : ''));
+    }
+
+    /**
      * Bulk-complete Technical Reviewer verification for selected Sample Verification batches.
      *
      * @param  list<string|int>  $batchIds
      */
     public function bulkVerifySelected(array $batchIds = []): void
     {
+        $this->openBulkVerifyModal($batchIds);
+    }
+
+    /**
+     * @param  list<string|int>  $batchIds
+     * @return list<string>
+     */
+    protected function normalizeBulkVerifyBatchIds(array $batchIds): array
+    {
+        return collect($batchIds)
+            ->map(static fn ($id): string => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function canBulkVerifySamples(): bool
+    {
         $user = Auth::user();
-        if (! $user || ! method_exists($user, 'checkVerifyLabSampleRole') || ! $user->checkVerifyLabSampleRole()) {
+
+        return $user !== null
+            && method_exists($user, 'checkVerifyLabSampleRole')
+            && $user->checkVerifyLabSampleRole();
+    }
+
+    /**
+     * @param  list<string>  $batchIds
+     */
+    protected function applyBulkVerification(array $batchIds): void
+    {
+        if (! $this->canBulkVerifySamples()) {
             session()->flash('error', 'You need the Verify Samples role to bulk verify batches.');
 
             return;
         }
 
-        $ids = collect($batchIds)
-            ->map(fn ($id) => trim((string) $id))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
+        $ids = $this->normalizeBulkVerifyBatchIds($batchIds);
         if ($ids === []) {
             session()->flash('error', 'Select at least one batch to verify.');
+
+            return;
+        }
+
+        $user = Auth::user();
+        if ($user === null) {
+            session()->flash('error', 'You need the Verify Samples role to bulk verify batches.');
 
             return;
         }
@@ -3967,6 +4227,7 @@ SQL);
                     ->exists();
 
                 if ($existingApproved) {
+                    $this->markBulkVerifyCompleted((string) $batch->id);
                     $skipped[] = $batch->batch_code.' (already verified)';
                     continue;
                 }
@@ -3988,7 +4249,6 @@ SQL);
             $pendingTr->approval_date = now();
             $pendingTr->save();
 
-            // Keep Lab Manager assignment present for send-for-approval validation.
             $hasLabManager = \App\BatchLabSectionApprover::query()
                 ->where('batch_id', $batch->id)
                 ->where('batch_status', 'Sample Verification')
@@ -4021,6 +4281,7 @@ SQL);
                 $lm->save();
             }
 
+            $this->markBulkVerifyCompleted((string) $batch->id);
             $verified++;
         }
 
@@ -4033,5 +4294,196 @@ SQL);
         } else {
             session()->flash('error', 'No batches were verified. '.($skipped !== [] ? implode('; ', $skipped) : ''));
         }
+
+        $pending = array_values(array_filter(
+            $this->bulkVerifyBatchIds,
+            fn (string $id): bool => ! in_array($id, $this->bulkVerifyCompletedIds, true),
+        ));
+
+        if ($pending !== [] && ! in_array($this->bulkVerifyActiveBatchId, $pending, true)) {
+            $this->bulkVerifyActiveBatchId = $pending[0];
+        }
+    }
+
+    protected function markBulkVerifyCompleted(string $batchId): void
+    {
+        if (in_array($batchId, $this->bulkVerifyCompletedIds, true)) {
+            return;
+        }
+
+        $this->bulkVerifyCompletedIds[] = $batchId;
+    }
+
+    /**
+     * @param  list<string|int>  $batchIds
+     */
+    public function bulkApproveSelected(array $batchIds = []): void
+    {
+        $this->openBulkApproveModal($batchIds);
+    }
+
+    /**
+     * @param  list<string>  $batchIds
+     */
+    protected function applyBulkApproval(array $batchIds): void
+    {
+        if (! $this->canBulkApproveSamples()) {
+            session()->flash('error', 'You do not have permission to approve batches.');
+
+            return;
+        }
+
+        $ids = $this->normalizeBulkVerifyBatchIds($batchIds);
+        if ($ids === []) {
+            session()->flash('error', 'Select at least one batch to approve.');
+
+            return;
+        }
+
+        $user = Auth::user();
+        if ($user === null) {
+            session()->flash('error', 'You do not have permission to approve batches.');
+
+            return;
+        }
+
+        $result = app(BulkSampleApprovalService::class)->approve($ids, $user);
+        $approved = (int) ($result['approved'] ?? 0);
+        $skipped = $result['skipped'] ?? [];
+
+        foreach ($ids as $id) {
+            if (! in_array($id, $this->bulkApproveCompletedIds, true)) {
+                // Only mark completed when the service did not skip as "already approved" failures for other reasons —
+                // re-check from review payload after refresh is safer: mark all that are now approved.
+            }
+        }
+
+        foreach (app(BulkVerificationReviewService::class)->build($this->bulkVerifyBatchIds) as $job) {
+            if (($job['approved'] ?? false) === true) {
+                $this->markBulkApproveCompleted((string) $job['id']);
+            }
+        }
+
+        if ($approved > 0) {
+            $message = 'Approved '.$approved.' batch'.($approved === 1 ? '' : 'es').'.';
+            if ($skipped !== []) {
+                $message .= ' Skipped: '.implode('; ', $skipped);
+            }
+            session()->flash('success', $message);
+        } else {
+            session()->flash('error', 'No batches were approved. '.($skipped !== [] ? implode('; ', $skipped) : ''));
+        }
+
+        $pending = array_values(array_filter(
+            $this->bulkVerifyBatchIds,
+            fn (string $id): bool => ! in_array($id, $this->bulkApproveCompletedIds, true),
+        ));
+
+        if ($pending !== [] && ! in_array($this->bulkVerifyActiveBatchId, $pending, true)) {
+            $this->bulkVerifyActiveBatchId = $pending[0];
+        }
+    }
+
+    protected function markBulkApproveCompleted(string $batchId): void
+    {
+        if (in_array($batchId, $this->bulkApproveCompletedIds, true)) {
+            return;
+        }
+
+        $this->bulkApproveCompletedIds[] = $batchId;
+    }
+
+    public function generateBulkTestReports(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            session()->flash('error', 'Sign in to generate Test Reports.');
+
+            return;
+        }
+
+        if (! $user->can('laboratory.components.lab-reports.view')) {
+            session()->flash('error', 'You do not have permission to generate Test Reports.');
+
+            return;
+        }
+
+        if ($this->bulkVerifyMode !== 'approve' || $this->bulkVerifyBatchIds === []) {
+            session()->flash('error', 'Open Bulk Approve and select approved jobs first.');
+
+            return;
+        }
+
+        $review = $this->bulkVerifyReview;
+        $customerIds = collect($review)
+            ->map(static fn (array $job): string => trim((string) ($job['customer_id'] ?? '')))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($customerIds->count() > 1) {
+            session()->flash('error', 'Bulk Test Reports require the same customer. Deselect jobs from other customers.');
+
+            return;
+        }
+
+        $approvedIds = collect($review)
+            ->filter(fn (array $job): bool => ($job['approved'] ?? false) || in_array($job['id'], $this->bulkApproveCompletedIds, true))
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->values()
+            ->all();
+
+        if ($approvedIds === []) {
+            session()->flash('error', 'Approve the selected jobs before generating Test Reports.');
+
+            return;
+        }
+
+        $notApproved = collect($this->bulkVerifyBatchIds)
+            ->reject(static fn (string $id): bool => in_array($id, $approvedIds, true))
+            ->values()
+            ->all();
+
+        if ($notApproved !== []) {
+            session()->flash('error', 'Approve all selected jobs before bulk generating Test Reports.');
+
+            return;
+        }
+
+        $result = app(BulkTestRequestReportService::class)->generate(
+            $this->bulkVerifyBatchIds,
+            $user,
+            $this->bulkTestReportLanguage,
+            [
+                'include_reference_method' => $this->bulkTestReportIncludeReferenceMethod,
+                'show_specification' => $this->bulkTestReportShowSpecification,
+                'show_specification_standard' => $this->bulkTestReportShowSpecificationStandard,
+                'show_mu_percent' => $this->bulkTestReportShowMuPercent,
+            ],
+        );
+
+        $this->bulkTestReportGenerated = $result['generated'] ?? [];
+        $generatedCount = count($this->bulkTestReportGenerated);
+        $skipped = $result['skipped'] ?? [];
+
+        if ($generatedCount > 0) {
+            $message = 'Generated '.$generatedCount.' Test Report'.($generatedCount === 1 ? '' : 's').'.';
+            if ($skipped !== []) {
+                $message .= ' Skipped: '.implode('; ', $skipped);
+            }
+            session()->flash('success', $message);
+        } else {
+            session()->flash('error', 'No Test Reports were generated. '.($skipped !== [] ? implode('; ', $skipped) : ''));
+        }
+    }
+
+    protected function canBulkApproveSamples(): bool
+    {
+        $user = Auth::user();
+
+        return $user !== null
+            && method_exists($user, 'checkApproveLabSampleRole')
+            && $user->checkApproveLabSampleRole();
     }
 }

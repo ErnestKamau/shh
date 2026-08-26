@@ -590,7 +590,7 @@ class TestRequestReportDataService
             }
 
             $contexts[] = [
-                'rows' => $rows,
+                'rows' => $this->compactSampleDetailRows($rows),
                 'lab_section' => $labSectionNames,
                 'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
                 'sample_photo_data_uri' => $samplePhotoDataUri,
@@ -682,6 +682,59 @@ class TestRequestReportDataService
         }
 
         return $formattedCode;
+    }
+
+    /**
+     * Drop empty / placeholder detail cells and re-pair remaining fields into two columns.
+     *
+     * @param  list<array{left?: array{label: string, value: string, emphasize?: bool}|null, right?: array{label: string, value: string, emphasize?: bool}|null}>  $rows
+     * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}|null}>
+     */
+    private function compactSampleDetailRows(array $rows): array
+    {
+        $cells = [];
+
+        foreach ($rows as $pair) {
+            foreach (['left', 'right'] as $side) {
+                $cell = $pair[$side] ?? null;
+                if (! is_array($cell)) {
+                    continue;
+                }
+
+                if (! $this->isReportValuePresent($cell['value'] ?? null)) {
+                    continue;
+                }
+
+                $cells[] = [
+                    'label' => (string) ($cell['label'] ?? ''),
+                    'value' => trim((string) ($cell['value'] ?? '')),
+                    ...(! empty($cell['emphasize']) ? ['emphasize' => true] : []),
+                ];
+            }
+        }
+
+        $compacted = [];
+        $count = count($cells);
+
+        for ($i = 0; $i < $count; $i += 2) {
+            $compacted[] = [
+                'left' => $cells[$i],
+                'right' => $cells[$i + 1] ?? null,
+            ];
+        }
+
+        return $compacted;
+    }
+
+    private function isReportValuePresent(mixed $value): bool
+    {
+        $trimmed = trim((string) ($value ?? ''));
+
+        if ($trimmed === '') {
+            return false;
+        }
+
+        return ! in_array($trimmed, ['-', '—', '–', 'N/A', 'n/a', 'NA'], true);
     }
 
     /**

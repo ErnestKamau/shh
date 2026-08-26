@@ -180,6 +180,13 @@ class QuotationReportService
             return true;
         }
 
+        // Quotation branding already uses getActiveCompany(); keep the Brazil layout
+        // gate aligned when the session company is an uncoded Imara row but the
+        // database active company is AmSpec Brazil.
+        if (getActiveCompany()?->hasCode(CompanyCode::Brl)) {
+            return true;
+        }
+
         return strtoupper(trim((string) $currencyCode)) === 'BRL';
     }
 

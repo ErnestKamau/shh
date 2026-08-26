@@ -324,6 +324,30 @@ class SampleHeader extends Model implements Auditable
 		return $this->hasMany('App\BatchLabSectionApprover', 'batch_id')->orderBy('created_at', 'desc');
 	}
 
+	public function hasCompletedTechnicalReview(): bool
+	{
+		return $this->approvers->contains(function (BatchLabSectionApprover $approver): bool {
+			return (string) $approver->batch_status === 'Sample Verification'
+				&& (bool) $approver->is_technical_reviewer
+				&& (int) $approver->status === 1;
+		});
+	}
+
+	public function hasCompletedSampleApproval(): bool
+	{
+		$approvers = $this->approvers->filter(
+			static fn (BatchLabSectionApprover $approver): bool => (string) $approver->batch_status === 'Sample Approval'
+		);
+
+		if ($approvers->isEmpty()) {
+			return false;
+		}
+
+		return $approvers->every(
+			static fn (BatchLabSectionApprover $approver): bool => (int) $approver->status === 1
+		);
+	}
+
 	public function batch_attachments()
 	{
 		return $this->hasMany('App\BatchAttachment', 'batch_id')->orderBy('created_at', 'desc');

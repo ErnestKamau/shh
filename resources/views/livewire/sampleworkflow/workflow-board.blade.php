@@ -12,6 +12,16 @@
 		refreshLabBatchSelectionCount() {
 			this.selectedLabBatchCount = document.querySelectorAll('input[data-lab-batch-select]:checked').length;
 		},
+		openBulkVerifyReview() {
+			const ids = Array.from(document.querySelectorAll('input[data-lab-batch-select]:checked'))
+				.map((el) => el.value)
+				.filter(Boolean);
+			if (ids.length === 0) {
+				alert('Select at least one batch to verify.');
+				return;
+			}
+			this.$wire.openBulkVerifyModal(ids);
+		},
 		refreshSelectionCount() {
 			this.selectedCount = document.querySelectorAll('input[data-instance-select]:checked, input[data-enquiry-select]:checked').length;
 			this.refreshLabBatchSelectionCount();
@@ -1227,17 +1237,6 @@
 									class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span
 									class="badge badge-danger badge-pill pt-1" id="approval-counter"></span></span>
 						@endif
-						@if($status === 'Sample Verification' && auth()->user()?->checkVerifyLabSampleRole())
-							<button type="button"
-								class="btn btn-sm btn-primary btn-action-sm js-bulk-verify-selected"
-								id="bulk-verify-selected-btn"
-								title="Mark Technical Reviewer verification complete for selected batches"
-								:class="{ 'disabled': selectedLabBatchCount === 0 }"
-								:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
-								<i class="mdi mdi-check-decagram"></i> Bulk Verify Selected
-								<span class="badge badge-light badge-pill pt-1" x-show="selectedLabBatchCount > 0" x-text="selectedLabBatchCount"></span>
-							</button>
-						@endif
 						@if($tatTodayCount > 0)
 							<span class="btn btn-sm btn-danger btn-action-sm" data-toggle="modal"
 								data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
@@ -1322,11 +1321,37 @@
 								@if($status === 'Sample Verification' && auth()->user()?->checkVerifyLabSampleRole())
 									<li>
 										<button type="button"
-											class="dropdown-item js-bulk-verify-selected"
-											title="Mark Technical Reviewer verification complete for selected batches"
+											class="dropdown-item d-flex align-items-center"
+											title="Review samples and results, then verify selected jobs"
 											:class="{ 'disabled': selectedLabBatchCount === 0 }"
-											:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''">
-											<i class="mdi mdi-check-decagram mr-2"></i> Bulk Verify Selected
+											:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="
+												const ids = Array.from(document.querySelectorAll('input[data-lab-batch-select]:checked')).map((el) => el.value).filter(Boolean);
+												if (ids.length === 0) { alert('Select at least one batch to verify.'); return; }
+												$wire.openBulkVerifyModal(ids);
+											">
+											<i class="mdi mdi-check-decagram mr-2"></i>
+											Bulk Verify Selected
+											<span class="badge badge-primary badge-pill ml-2" x-show="selectedLabBatchCount > 0" x-text="selectedLabBatchCount"></span>
+										</button>
+									</li>
+								@endif
+								@if($status === 'Sample Approval' && auth()->user()?->checkApproveLabSampleRole())
+									<li>
+										<button type="button"
+											class="dropdown-item d-flex align-items-center"
+											title="Review results and verification, approve, then generate Test Reports for one customer"
+											:class="{ 'disabled': selectedLabBatchCount === 0 }"
+											:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="
+												const checked = Array.from(document.querySelectorAll('input[data-lab-batch-select]:checked'));
+												const ids = checked.map((el) => el.value).filter(Boolean);
+												if (ids.length === 0) { alert('Select at least one batch to approve.'); return; }
+												$wire.openBulkApproveModal(ids);
+											">
+											<i class="mdi mdi-thumb-up-outline mr-2"></i>
+											Bulk Approve Selected
+											<span class="badge badge-primary badge-pill ml-2" x-show="selectedLabBatchCount > 0" x-text="selectedLabBatchCount"></span>
 										</button>
 									</li>
 								@endif
@@ -1675,9 +1700,16 @@
 								@endif
 								@if($status == 'Sample Approval')
 									<li>
-										<button type="button" class="dropdown-item" disabled data-target="#move-batch-complete"
+										<button type="button"
+											class="dropdown-item"
+											data-target="#move-batch-complete"
 											data-sf-trigger="workflow-action-mark-complete"
-											data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i>Mark Complete</button>
+											data-toggle="modal"
+											:class="{ 'disabled': selectedLabBatchCount === 0 }"
+											:style="selectedLabBatchCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											:disabled="selectedLabBatchCount === 0">
+											<i class="mdi mdi-subdirectory-arrow-right mr-2"></i>Mark Complete
+										</button>
 									</li>
 								@endif
 								@if($status == 'Finished Sample')
@@ -3439,6 +3471,7 @@
 										'Finished Sample',
 									];
 									$isUniformLabWorkflowTable = in_array($status, $uniformLabWorkflowStatuses, true);
+									$showStageReviewStatus = in_array($status, ['Sample Verification', 'Sample Approval'], true);
 								@endphp
 								<div class="table-responsive">
 									<table class="table table-hover workflow-table">
@@ -3453,6 +3486,9 @@
 													<th style="min-width: 220px;">Samples</th>
 												@else
 													<th>Client</th>
+												@endif
+												@if($showStageReviewStatus)
+													<th>Status</th>
 												@endif
 												@if($status !== 'Samples En-Route')
 													<th>Client / LPO Ref</th>
@@ -3512,6 +3548,21 @@
 																</div>
 															@endif
 														</td>
+														@if($showStageReviewStatus)
+															<td nowrap>
+																@if($status === 'Sample Verification')
+																	@if($item->hasCompletedTechnicalReview())
+																		<span class="workflow-status-pill workflow-status-pill--complete">Verified</span>
+																	@else
+																		<span class="workflow-status-pill workflow-status-pill--pending">Not verified</span>
+																	@endif
+																@elseif($item->hasCompletedSampleApproval())
+																	<span class="workflow-status-pill workflow-status-pill--complete">Approved</span>
+																@else
+																	<span class="workflow-status-pill workflow-status-pill--pending">Not approved</span>
+																@endif
+															</td>
+														@endif
 													@else
 														<td>{{ $item->client->name ?? 'N/A' }}</td>
 													@endif
@@ -3579,9 +3630,19 @@
 														<td nowrap>{{ $item->sample_type->name ?? 'N/A' }}</td>
 													@endif
 													<td nowrap>
-														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}" class="btn btn-sm btn-outline-info">
-															<i class="mdi mdi-eye"></i>
-														</a>
+														<div class="btn-group">
+															<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}" class="btn btn-sm btn-outline-info" title="Open batch">
+																<i class="mdi mdi-eye"></i>
+															</a>
+															@if($status === 'Sample Approval' && auth()->user()?->checkApproveLabSampleRole())
+																<button type="button"
+																	class="btn btn-sm btn-outline-success"
+																	title="Bulk approve (results, verification, Test Report)"
+																	wire:click="openBulkApproveModal(['{{ $item->id }}'])">
+																	<i class="mdi mdi-thumb-up-outline"></i>
+																</button>
+															@endif
+														</div>
 													</td>
 												</tr>
 											@endforeach
@@ -6438,36 +6499,32 @@
 				.on('change.workflowLabBatch', 'input[data-lab-batch-select]', function () {
 					rebuildLabBatchPrintLabels();
 					rebuildEmailReportsSelection();
+					rebuildLabBatchCompleteSelection();
 				});
+
+			const rebuildLabBatchCompleteSelection = function () {
+				const $selected = $('input[data-lab-batch-select]:checked').filter(function () {
+					return !$(this).prop('disabled');
+				});
+				$('.selected-batches-review').empty();
+				$selected.each(function () {
+					const code = $(this).data('batch-code') || $(this).val();
+					$('.selected-batches-review').append(
+						`<span class="p-2 mr-2"><input type="checkbox" name="batch_code[]" value="${code}" checked> ${code}</span>`
+					);
+				});
+				if ($selected.length > 0) {
+					$('[data-target="#move-batch-complete"]').removeAttr('disabled');
+				}
+			};
 
 			rebuildLabBatchPrintLabels();
 			rebuildEmailReportsSelection();
+			rebuildLabBatchCompleteSelection();
 
-			$(document)
-				.off('click.bulkVerifySelected', '.js-bulk-verify-selected')
-				.on('click.bulkVerifySelected', '.js-bulk-verify-selected', function (e) {
-					e.preventDefault();
-					if (this.classList.contains('disabled') || this.getAttribute('aria-disabled') === 'true') {
-						return;
-					}
-					const ids = $('input[data-lab-batch-select]:checked').map(function () {
-						return $(this).val();
-					}).get().filter(Boolean);
-
-					if (ids.length === 0) {
-						alert('Select at least one batch to verify.');
-						return;
-					}
-
-					if (!confirm('Mark Technical Reviewer verification complete for ' + ids.length + ' selected batch(es)?')) {
-						return;
-					}
-
-					const root = document.querySelector('[wire\\:id]');
-					if (window.Livewire && root) {
-						window.Livewire.find(root.getAttribute('wire:id')).call('bulkVerifySelected', ids);
-					}
-				});
+			$('#move-batch-complete').off('show.bs.modal.workflowLabBatch').on('show.bs.modal', function () {
+				rebuildLabBatchCompleteSelection();
+			});
 
 			// Bind directly on the modal elements — delegated $(document).on() with a custom namespace
 			// suffix (e.g. show.bs.modal.workflowSelection) never fires because Bootstrap triggers
@@ -8060,6 +8117,7 @@
 	@livewire('sampleworkflow.process-enquiry-wizard')
 
 	@include('livewire.sampleworkflow.partials.subcontracted-view-modal')
+	@include('livewire.sampleworkflow.partials.bulk-verify-modal')
 
 	@if($showQuotationAcceptanceModal)
 		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45); overflow-y: auto;">
