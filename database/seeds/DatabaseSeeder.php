@@ -86,5 +86,9 @@ class DatabaseSeeder extends Seeder
         $this->call(UserRolesTableSeeder::class);
         $this->call(UsersTableSeeder::class);
         $this->call(\Database\Seeders\LaboratoryServiceRequestFormSeeder::class);
+
+        // Full demo site tree (Dubai Laboratory) + roles/approvals for 1.kamauernest@gmail.com.
+        // Prefer running alone: php artisan db:seed --class='\InventoryDemoBootstrapSeeder'
+        // $this->call(InventoryDemoBootstrapSeeder::class);
     }
 }
