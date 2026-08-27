@@ -218,6 +218,16 @@ class InventoryDemoBootstrapSeeder extends Seeder
         return in_array($type, ['uuid', 'guid', 'string', 'text'], true);
     }
 
+    /** Drop attributes whose columns are missing on this DB (schema differs by branch). */
+    private function onlyExistingColumns(string $table, array $attributes): array
+    {
+        return array_filter(
+            $attributes,
+            fn ($value, $column) => Schema::hasColumn($table, $column),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
+
     private function seedLocation(): void
     {
         $legacy = InventoryLocation::where('company_id', $this->companyId)
@@ -502,7 +512,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                     'company_id' => $this->companyId,
                     'inventory_location_id' => $this->location->id,
                 ],
-                [
+                $this->onlyExistingColumns('inventory_categories', [
                     'description' => $catData['description'],
                     'image' => '',
                     'category_type' => 'normal',
@@ -510,7 +520,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                     'default_store_id' => $mainStore->id,
                     'default_slot_id' => $defaultSlot->id,
                     'active' => 1,
-                ]
+                ])
             );
             $this->categories[$catName] = $category;
 
@@ -521,7 +531,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                         'company_id' => $this->companyId,
                         'location_id' => $this->location->id,
                     ],
-                    [
+                    $this->onlyExistingColumns('inventory_sub_categories', [
                         'name' => $itemData['name'],
                         'description' => $itemData['description'],
                         'image' => '',
@@ -544,7 +554,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                         'reaorder_level' => 0,
                         'requires_reorder' => 0,
                         'available_stock' => 0,
-                    ]
+                    ])
                 );
 
                 // Persist stock plan on the instance for seedStock().
@@ -698,7 +708,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                 [
                     'email' => $data['email'],
                 ],
-                [
+                $this->onlyExistingColumns('suppliers', [
                     'name' => $data['name'],
                     'logo' => '',
                     'phone' => $data['phone'],
@@ -715,7 +725,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                     'payment_terms' => $data['payment_terms'],
                     'payment_method' => $data['payment_method'],
                     'default_currency' => $data['default_currency'],
-                ]
+                ])
             );
             $this->suppliers[$data['supplier_code']] = $supplier;
 
@@ -779,7 +789,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                 $storeId = $slot->inventory_store_id;
                 $batch = $plan['batch'];
 
-                $stockAttrs = [
+                $stockAttrs = $this->onlyExistingColumns('inventory_items', [
                     'inventory_category_id' => $item->inventory_category_id,
                     'stock_in' => $plan['qty'],
                     'stock_out' => 0,
@@ -794,8 +804,9 @@ class InventoryDemoBootstrapSeeder extends Seeder
                     'unit_of_measure' => $item->unit_type,
                     'lot_no' => $batch,
                     'date_of_manufacture' => now()->subMonths(2)->toDateString(),
-                ];
+                ]);
 
+                // Only write edited_by when the column is UUID-safe (null); skip legacy integer default 0.
                 if ($this->columnAcceptsUuid('inventory_items', 'edited_by')) {
                     $stockAttrs['edited_by'] = null;
                 }
