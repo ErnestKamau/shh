@@ -9,18 +9,10 @@
                                 <i class="mdi mdi-flask-outline"></i>
                                 Create enquiry from quotation
                             </div>
-                            <h2 class="ceq-wizard-header__title">
-                                {{ $quoteNumber !== '' ? $quoteNumber : 'Quotation' }}
-                            </h2>
-                            <div class="ceq-wizard-header__meta">
-                                <span class="ceq-chip">
-                                    <i class="mdi mdi-domain"></i>
-                                    {{ $customerName !== '' ? $customerName : 'Customer' }}
-                                </span>
-                                <span class="ceq-chip ceq-chip--muted">
-                                    <i class="mdi mdi-counter"></i>
-                                    {{ $numberOfSamples }} physical sample{{ $numberOfSamples === 1 ? '' : 's' }}
-                                </span>
+                            <div class="ceq-wizard-header__title-row">
+                                <h2 class="ceq-wizard-header__title">
+                                    {{ $quoteNumber !== '' ? $quoteNumber : 'Quotation' }}
+                                </h2>
                                 @if(count($trfGroups) === 1)
                                     <span class="ceq-chip ceq-chip--muted">
                                         <i class="mdi mdi-file-document-outline"></i>
@@ -181,9 +173,16 @@
                                                 </div>
                                             </div>
 
-                                            <div class="ceq-field">
-                                                <label class="ceq-field__label" for="ceq-sample-description">Sample description</label>
-                                                <input id="ceq-sample-description" type="text" wire:model="sampleDescription" class="form-control ceq-input" placeholder="Optional short description">
+                                            <div class="ceq-field trf-ls-theme">
+                                                <label class="ceq-field__label">Sample description</label>
+                                                @include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+                                                    'label' => null,
+                                                    'value' => $sampleDescription,
+                                                    'wireModel' => 'sampleDescription',
+                                                    'editorId' => 'ceq-review-sample-description',
+                                                    'rowLabel' => 'Enquiry',
+                                                    'compact' => true,
+                                                ])
                                             </div>
                                             <div class="ceq-field mb-0">
                                                 <label class="ceq-field__label" for="ceq-enquiry-notes">Internal notes</label>
@@ -243,6 +242,7 @@
                                         $group = $this->currentTrfGroup;
                                         $typeId = $group['sample_type_id'];
                                     @endphp
+                                    @include('livewire.partials.walk-in-trf-ls-theme')
                                     <div class="ceq-step-intro">
                                         <h3 class="ceq-step-intro__title">Fill details — {{ $group['sample_type_name'] }}</h3>
                                         <p class="ceq-step-intro__text">
@@ -251,6 +251,7 @@
                                         </p>
                                     </div>
 
+                                    <div class="ls-ui-kit trf-ls-theme">
                                     @forelse($this->currentSelectedSections as $section)
                                         <div class="ceq-panel">
                                             <div class="ceq-panel__head">
@@ -272,109 +273,81 @@
                                                         'sectionRowFieldValuesByType' => $sectionRowFieldValuesByType,
                                                     ])
                                                 @else
-                                                    <div class="row">
-                                                    @forelse($section['fields'] as $field)
+                                                    <div class="trf-ls-theme">
                                                         @php
-                                                            $fieldName = (string) ($field['name'] ?? '');
-                                                            if (($field['render_paired'] ?? false) && $fieldName === 'sample_quantity_unit') {
-                                                                continue;
-                                                            }
-                                                            $type = $field['element_type'] ?? 'text';
-                                                            $isFullWidth = in_array($type, ['textarea', 'rich_text'], true)
-                                                                || in_array($fieldName, ['sample_description'], true);
-                                                            $colClass = $isFullWidth ? 'col-12' : 'col-md-6';
+                                                            $sectionGridRows = $this->wizardSampleCardGridRows($section['fields'] ?? []);
                                                         @endphp
-                                                        <div class="{{ $colClass }}">
-                                                            <div class="ceq-field">
-                                                                <label class="ceq-field__label">
-                                                                    @if($fieldName === 'sample_quantity')
-                                                                        Qty / Unit
-                                                                    @else
-                                                                        {{ $field['label'] }}
-                                                                    @endif
-                                                                    @if($field['is_required']) <span class="text-danger">*</span> @endif
-                                                                </label>
-                                                                @if($fieldName === 'sample_quantity')
-                                                                    <div class="d-flex ceq-wizard-qty-unit" style="gap: 8px;">
-                                                                        <input type="number"
-                                                                               step="0.01"
-                                                                               min="0"
-                                                                               placeholder="Amount"
-                                                                               wire:model="sectionFieldValuesByType.{{ $typeId }}.sample_quantity"
-                                                                               class="form-control ceq-input @error('sectionFieldValuesByType.'.$typeId.'.sample_quantity') is-invalid @enderror">
-                                                                        <select wire:model="sectionFieldValuesByType.{{ $typeId }}.sample_quantity_unit"
-                                                                                class="form-control ceq-input no-select2 @error('sectionFieldValuesByType.'.$typeId.'.sample_quantity_unit') is-invalid @enderror">
-                                                                            <option value="">Unit</option>
-                                                                            @foreach($field['unit_options'] ?? [] as $option)
-                                                                                <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
-                                                                            @endforeach
-                                                                        </select>
+                                                        @forelse($sectionGridRows as $gridRow)
+                                                            @php
+                                                                $gridColumns = $gridRow['columns'] ?? [];
+                                                                $gridCols = (int) ($gridRow['cols'] ?? 3);
+                                                                $gridRowClass = 'rft-sample-grid-row rft-sample-grid-row--cols-'.$gridCols;
+                                                            @endphp
+                                                            <div class="{{ $gridRowClass }}">
+                                                                @foreach($gridColumns as $column)
+                                                                    @php
+                                                                        $fieldColClass = match ($gridCols) {
+                                                                            1 => 'col-md-12',
+                                                                            2 => 'col-md-6',
+                                                                            default => 'col-md-4',
+                                                                        };
+                                                                    @endphp
+                                                                    <div class="{{ $fieldColClass }} rft-sample-field">
+                                                                        @if($column === null)
+                                                                            <div class="rft-sample-field--empty"></div>
+                                                                        @else
+                                                                            @php
+                                                                                $field = $column['field'];
+                                                                                $fieldName = (string) ($field['name'] ?? '');
+                                                                                $wireBase = 'sectionFieldValuesByType.'.$typeId;
+                                                                                $wirePrefix = $wireBase.'.'.$fieldName;
+                                                                            @endphp
+                                                                            <label>
+                                                                                {{ $column['label'] ?? ($field['label'] ?? $fieldName) }}
+                                                                                @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
+                                                                            </label>
+                                                                            @if(($column['type'] ?? '') === 'qty_unit')
+                                                                                @include('livewire.partials.walk-in-trf-qty-unit-cell', [
+                                                                                    'rowIndex' => 0,
+                                                                                    'hideLabel' => true,
+                                                                                    'nativeSelect' => false,
+                                                                                    'quantityWire' => $wireBase.'.sample_quantity',
+                                                                                    'unitWire' => $wireBase.'.sample_quantity_unit',
+                                                                                    'qtyValue' => $sectionFieldValuesByType[$typeId]['sample_quantity'] ?? '',
+                                                                                    'unitValue' => $sectionFieldValuesByType[$typeId]['sample_quantity_unit'] ?? '',
+                                                                                    'unitOptions' => $column['unit_options'] ?? [],
+                                                                                ])
+                                                                            @elseif($fieldName === 'sample_description' || ($field['type'] ?? '') === 'rich_text')
+                                                                                @include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+                                                                                    'label' => null,
+                                                                                    'value' => $sectionFieldValuesByType[$typeId][$fieldName] ?? '',
+                                                                                    'wireModel' => $wirePrefix,
+                                                                                    'editorId' => 'ceq-sec-desc-'.$typeId.'-'.$trfIndex.'-'.$fieldName,
+                                                                                    'rowLabel' => $group['sample_type_name'] ?? 'Sample',
+                                                                                    'compact' => true,
+                                                                                ])
+                                                                            @else
+                                                                                @include('livewire.sampleworkflow.test-request-field-render', [
+                                                                                    'field' => $field,
+                                                                                    'wirePrefix' => $wirePrefix,
+                                                                                    'fieldId' => 'ceq_sec_'.$typeId.'_'.$fieldName,
+                                                                                    'rowIndex' => null,
+                                                                                    'compact' => false,
+                                                                                    'hideLabel' => true,
+                                                                                    'useCrmSelectors' => true,
+                                                                                    'showCrmActions' => false,
+                                                                                ])
+                                                                            @endif
+                                                                            @error($wirePrefix)
+                                                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                                                            @enderror
+                                                                        @endif
                                                                     </div>
-                                                                    @error('sectionFieldValuesByType.'.$typeId.'.sample_quantity')
-                                                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                                                    @enderror
-                                                                    @error('sectionFieldValuesByType.'.$typeId.'.sample_quantity_unit')
-                                                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                                                    @enderror
-                                                                @elseif(in_array($type, ['select', 'radio'], true) && !empty($field['options']))
-                                                                    <select wire:model="sectionFieldValuesByType.{{ $typeId }}.{{ $field['name'] }}"
-                                                                            class="form-control ceq-input">
-                                                                        <option value="">Select...</option>
-                                                                        @foreach($field['options'] as $option)
-                                                                            <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                @elseif($type === 'checkbox' && !empty($field['options']))
-                                                                    <div class="d-flex flex-column" style="gap: 0.35rem;">
-                                                                        @foreach($field['options'] as $option)
-                                                                            <div class="custom-control custom-checkbox">
-                                                                                <input type="checkbox"
-                                                                                       class="custom-control-input"
-                                                                                       id="field-{{ $typeId }}-{{ $field['name'] }}-{{ $option['value'] }}"
-                                                                                       value="{{ $option['value'] }}"
-                                                                                       wire:model="sectionFieldValuesByType.{{ $typeId }}.{{ $field['name'] }}">
-                                                                                <label class="custom-control-label"
-                                                                                       for="field-{{ $typeId }}-{{ $field['name'] }}-{{ $option['value'] }}">
-                                                                                    {{ $option['label'] }}
-                                                                                </label>
-                                                                            </div>
-                                                                        @endforeach
-                                                                    </div>
-                                                                @elseif($type === 'checkbox')
-                                                                    <div class="custom-control custom-checkbox">
-                                                                        <input type="checkbox"
-                                                                               class="custom-control-input"
-                                                                               id="field-{{ $typeId }}-{{ $field['name'] }}"
-                                                                               wire:model="sectionFieldValuesByType.{{ $typeId }}.{{ $field['name'] }}">
-                                                                        <label class="custom-control-label" for="field-{{ $typeId }}-{{ $field['name'] }}">Yes</label>
-                                                                    </div>
-                                                                @elseif($type === 'rich_text' || $fieldName === 'sample_description')
-                                                                    @include('livewire.partials.livewire-tinymce-field', [
-                                                                        'wireKey' => 'sectionFieldValuesByType.'.$typeId.'.sample_description',
-                                                                        'editorId' => 'ceq-desc-'.$typeId.'-'.$trfIndex,
-                                                                        'value' => $sectionFieldValuesByType[$typeId]['sample_description'] ?? '',
-                                                                    ])
-                                                                @elseif($type === 'textarea')
-                                                                    <textarea rows="2" wire:model="sectionFieldValuesByType.{{ $typeId }}.{{ $field['name'] }}" class="form-control ceq-input"></textarea>
-                                                                @elseif($type === 'date')
-                                                                    <input type="date" wire:model="sectionFieldValuesByType.{{ $typeId }}.{{ $field['name'] }}" class="form-control ceq-input">
-                                                                @elseif($type === 'number')
-                                                                    <input type="number" step="0.01" min="0" wire:model="sectionFieldValuesByType.{{ $typeId }}.{{ $field['name'] }}" class="form-control ceq-input">
-                                                                @else
-                                                                    <input type="text" wire:model="sectionFieldValuesByType.{{ $typeId }}.{{ $field['name'] }}" class="form-control ceq-input">
-                                                                @endif
-                                                                @if($fieldName !== 'sample_quantity')
-                                                                    @error('sectionFieldValuesByType.'.$typeId.'.'.$field['name'])
-                                                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                                                    @enderror
-                                                                @endif
+                                                                @endforeach
                                                             </div>
-                                                        </div>
-                                                    @empty
-                                                        <div class="col-12">
+                                                        @empty
                                                             <p class="ceq-help mb-0">No wizard-editable fields in this section.</p>
-                                                        </div>
-                                                    @endforelse
+                                                        @endforelse
                                                     </div>
                                                 @endif
                                             </div>
@@ -385,6 +358,7 @@
                                             <div>No sections selected for this sample type. Continue to the next step.</div>
                                         </div>
                                     @endforelse
+                                    </div>
                                 @endif
 
                                 @if($phase === 'send')
@@ -582,19 +556,19 @@
                 margin-bottom: 0.35rem;
             }
 
+            .ceq-wizard-header__title-row {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.55rem 0.75rem;
+            }
+
             .ceq-wizard-header__title {
                 margin: 0;
                 font-size: 1.35rem;
                 font-weight: 750;
                 color: var(--ceq-ink);
                 line-height: 1.2;
-            }
-
-            .ceq-wizard-header__meta {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.4rem;
-                margin-top: 0.65rem;
             }
 
             .ceq-chip {
@@ -1288,6 +1262,49 @@
                 font-weight: 600;
             }
 
+            .ceq-wizard-modal .trf-ls-theme .rft-sample-grid-row {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                column-gap: clamp(1.35rem, 3.5vw, 2.35rem);
+                row-gap: 0.65rem;
+                margin-left: 0;
+                margin-right: 0;
+                align-items: start;
+                margin-bottom: 0.85rem;
+            }
+
+            .ceq-wizard-modal .trf-ls-theme .rft-sample-grid-row--cols-1 {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .ceq-wizard-modal .trf-ls-theme .rft-sample-grid-row--cols-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .ceq-wizard-modal .trf-ls-theme .rft-sample-grid-row > .rft-sample-field,
+            .ceq-wizard-modal .trf-ls-theme .rft-sample-grid-row > [class*='col-'] {
+                width: auto;
+                max-width: none;
+                padding-left: 0;
+                padding-right: 0;
+                min-width: 0;
+            }
+
+            .ceq-wizard-modal .trf-ls-theme .rft-sample-field > label {
+                display: block;
+                margin-bottom: 0.35rem;
+                font-size: 0.78rem;
+                font-weight: 650;
+                color: #475569;
+            }
+
+            @media (max-width: 991.98px) {
+                .ceq-wizard-modal .trf-ls-theme .rft-sample-grid-row,
+                .ceq-wizard-modal .trf-ls-theme .rft-sample-grid-row--cols-2 {
+                    grid-template-columns: 1fr;
+                }
+            }
+
             @media (max-width: 991.98px) {
                 .ceq-stat-row,
                 .ceq-summary-grid,
@@ -1311,5 +1328,100 @@
                 }
             }
         </style>
+        @script
+        <script>
+            const ceqRichTextEditorFactory = (config) => ({
+                editorId: config.editorId,
+                wireKey: config.wireKey,
+                rowIndex: config.rowIndex ?? 0,
+                init() {
+                    this.$nextTick(() => this.mountEditor());
+                },
+                mount() {
+                    this.$nextTick(() => this.mountEditor());
+                },
+                mountEditor() {
+                    if (typeof tinymce === 'undefined') {
+                        const existing = document.querySelector('script[data-rft-tinymce]');
+                        if (existing) {
+                            existing.addEventListener('load', () => this.initTiny());
+                            return;
+                        }
+                        const script = document.createElement('script');
+                        script.src = '/tinymce/tinymce.min.js';
+                        script.dataset.rftTinymce = '1';
+                        script.onload = () => this.initTiny();
+                        document.head.appendChild(script);
+                        return;
+                    }
+                    this.initTiny();
+                },
+                notifyPreview(html) {
+                    window.dispatchEvent(new CustomEvent('ls-rich-preview-update', {
+                        detail: { editorId: this.editorId, html: html || '' },
+                        bubbles: true,
+                    }));
+                },
+                syncToWire(html, live) {
+                    if (this.$wire && this.wireKey) {
+                        this.$wire.set(this.wireKey, html, live);
+                    }
+                },
+                initTiny() {
+                    if (typeof tinymce === 'undefined') {
+                        return;
+                    }
+                    if (tinymce.get(this.editorId)) {
+                        tinymce.remove('#' + this.editorId);
+                    }
+                    const self = this;
+                    tinymce.init({
+                        selector: '#' + this.editorId,
+                        menubar: false,
+                        statusbar: false,
+                        branding: false,
+                        height: 160,
+                        plugins: 'lists link',
+                        toolbar: 'bold italic underline | bullist numlist',
+                        content_style: 'body { font-family: inherit; font-size: 13px; }',
+                        setup(editor) {
+                            const push = (live) => {
+                                const html = editor.getContent();
+                                self.notifyPreview(html);
+                                self.syncToWire(html, live);
+                            };
+                            editor.on('change keyup', () => push(false));
+                            editor.on('blur', () => push(true));
+                        },
+                    });
+                },
+                destroy() {
+                    if (typeof tinymce !== 'undefined' && tinymce.get(this.editorId)) {
+                        tinymce.remove('#' + this.editorId);
+                    }
+                },
+            });
+
+            if (!window.__ceqLsRichTextRegistered) {
+                Alpine.data('lsRichTextInline', ceqRichTextEditorFactory);
+                window.__ceqLsRichTextRegistered = true;
+            }
+
+            const bootCeqSelect2 = () => {
+                if (typeof window.initWalkInLsSelect2 === 'function') {
+                    const root = document.querySelector('.ceq-wizard-modal');
+                    window.initWalkInLsSelect2(root || document);
+                }
+            };
+            queueMicrotask(bootCeqSelect2);
+            document.addEventListener('livewire:navigated', bootCeqSelect2);
+            Livewire.hook('morph.updated', ({ el }) => {
+                if (el?.closest?.('.ceq-wizard-modal')) {
+                    window.setTimeout(bootCeqSelect2, 60);
+                }
+            });
+        </script>
+        @endscript
+        @include('livewire.partials.walk-in-trf-ls-select2-scripts')
     @endif
 </div>

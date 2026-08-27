@@ -2,6 +2,7 @@
 
 namespace App\Services\Lab;
 
+use App\Models\Billing\Pricelist;
 use App\Models\Lab\LabUserNotification;
 use App\QuotationHeader;
 use App\User;
@@ -14,6 +15,8 @@ final class LabSystemNotificationService
     public const TYPE_QUOTATION_APPROVED_READY_TO_SEND = 'quotation_approved_ready_to_send';
 
     public const TYPE_LAB_SECTION_WORKSHEET = 'lab_section_worksheet';
+
+    public const TYPE_PRICELIST_IMPORT = 'pricelist_import';
 
     /**
      * @param  Collection<int, User>|iterable<User>  $users
@@ -68,6 +71,35 @@ final class LabSystemNotificationService
                 'quote_number' => $quoteNumber,
                 'lab_sections' => $labSections,
                 'sample_submission_request_id' => (string) ($header->sample_submission_request_id ?? ''),
+            ],
+        );
+    }
+
+    /**
+     * Persist a clear import warning/result in the lab notification bell.
+     *
+     * @param  array{created?: int, updated?: int, skipped?: int, total_rows?: int, warnings?: list<string>}  $result
+     */
+    public function notifyPricelistImportResult(
+        User $user,
+        Pricelist $pricelist,
+        string $title,
+        string $message,
+        array $result = [],
+    ): void {
+        $this->notifyUsers(
+            [$user],
+            self::TYPE_PRICELIST_IMPORT,
+            $title,
+            $message,
+            Pricelist::class,
+            (string) $pricelist->id,
+            [
+                'pricelist_id' => (string) $pricelist->id,
+                'pricelist_code' => (string) ($pricelist->code ?? ''),
+                'created' => (int) ($result['created'] ?? 0),
+                'updated' => (int) ($result['updated'] ?? 0),
+                'skipped' => (int) ($result['skipped'] ?? count($result['warnings'] ?? [])),
             ],
         );
     }
@@ -159,6 +191,7 @@ final class LabSystemNotificationService
         return match ((string) $type) {
             self::TYPE_QUOTATION_APPROVAL => 'mdi-file-document-alert-outline',
             self::TYPE_QUOTATION_APPROVED_READY_TO_SEND => 'mdi-send',
+            self::TYPE_PRICELIST_IMPORT => 'mdi-file-excel-outline',
             'equipment_usage_request_pending' => 'mdi-wrench-outline',
             'equipment_usage_request_approved' => 'mdi-check-circle-outline',
             'equipment_usage_request_rejected' => 'mdi-close-circle-outline',

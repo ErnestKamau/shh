@@ -6,8 +6,11 @@ use App\Livewire\Concerns\WithToastNotifications;
 use App\Models\Billing\Pricelist;
 use App\Models\Currency;
 use App\Services\Billing\PdfTextExtractor;
+use App\Services\Billing\PricelistCleanupService;
 use App\Services\Billing\PricelistNumberGenerator;
 use App\Services\Billing\PricelistPackageImportService;
+use App\Services\Lab\LabSystemNotificationService;
+use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -46,6 +49,10 @@ class PricelistManager extends Component
     public string $importPricingMode = 'per_package';
 
     public $importFile = null;
+
+    public bool $showDeletePricelistConfirmModal = false;
+
+    public ?string $pendingDeletePricelistId = null;
 
     public $message = '';
     public $messageType = 'success';
@@ -423,6 +430,53 @@ class PricelistManager extends Component
         return $this->redirect(route('show-pricelist', ['id' => $id]));
     }
 
+    public function openDeletePricelistConfirmModal(string $pricelistId): void
+    {
+        $exists = Pricelist::query()->whereKey($pricelistId)->exists();
+
+        if (! $exists) {
+            $this->showMessage('Pricelist not found.', 'danger');
+
+            return;
+        }
+
+        $this->pendingDeletePricelistId = (string) $pricelistId;
+        $this->showDeletePricelistConfirmModal = true;
+    }
+
+    public function closeDeletePricelistConfirmModal(): void
+    {
+        $this->showDeletePricelistConfirmModal = false;
+        $this->pendingDeletePricelistId = null;
+    }
+
+    public function confirmDeletePricelist(PricelistCleanupService $cleanupService): void
+    {
+        if ($this->pendingDeletePricelistId === null || $this->pendingDeletePricelistId === '') {
+            return;
+        }
+
+        $pricelistId = $this->pendingDeletePricelistId;
+
+        try {
+            $result = $cleanupService->deleteOne($pricelistId);
+            $this->closeDeletePricelistConfirmModal();
+            $this->resetPage();
+            $message = sprintf(
+                'Deleted pricelist %s (%d item(s), %d customer assignment(s)).',
+                $result['code'],
+                $result['items'],
+                $result['customers']
+            );
+            $this->showMessage($message, 'success');
+            $this->imaraToast('success', 'Pricelist deleted', $message);
+        } catch (\Throwable $e) {
+            $this->closeDeletePricelistConfirmModal();
+            $this->showMessage('Failed to delete pricelist: '.$e->getMessage(), 'danger');
+            $this->imaraToast('error', 'Could not delete pricelist', $e->getMessage());
+        }
+    }
+
     public function openImportModal(string $pricelistId): void
     {
         $this->importPricelistId = $pricelistId;
@@ -500,15 +554,46 @@ class PricelistManager extends Component
             $updated = (int) ($result['updated'] ?? 0);
             $skipped = (int) ($result['skipped'] ?? count($result['warnings'] ?? []));
             $msg = $importService->formatImportSummary($result);
+            $title = $importService->formatImportToastTitle($result);
             $toastType = ($created + $updated) === 0
                 ? 'danger'
                 : ($skipped > 0 ? 'warning' : 'success');
 
             $this->closeImportModal();
-            $this->showMessage($msg, $toastType);
+            $this->showMessage($msg, $toastType, $title, $skipped > 0 ? 16000 : 8000);
+            $this->notifyImportResult($pricelist, $title, $msg, $result, $skipped > 0 || ($created + $updated) === 0);
         } catch (\Throwable $e) {
-            $this->showMessage('Import failed: '.$e->getMessage(), 'danger');
+            $this->showMessage('Import failed: '.$e->getMessage(), 'danger', 'Pricelist import failed', 10000);
         }
+    }
+
+    /**
+     * @param  array{created?: int, updated?: int, skipped?: int, warnings?: list<string>}  $result
+     */
+    private function notifyImportResult(
+        Pricelist $pricelist,
+        string $title,
+        string $message,
+        array $result,
+        bool $shouldNotify,
+    ): void {
+        if (! $shouldNotify) {
+            return;
+        }
+
+        $user = auth()->user();
+        if (! $user instanceof User) {
+            return;
+        }
+
+        app(LabSystemNotificationService::class)->notifyPricelistImportResult(
+            $user,
+            $pricelist,
+            $title,
+            $message,
+            $result,
+        );
+        $this->dispatch('lab-notifications-updated');
     }
 
     public function closePricelistModal(): void
@@ -525,7 +610,7 @@ class PricelistManager extends Component
         $this->message = '';
     }
 
-    private function showMessage(string $message, string $type = 'success'): void
+    private function showMessage(string $message, string $type = 'success', ?string $title = null, int $durationMs = 7000): void
     {
         $this->message = $message;
         $this->messageType = $type;
@@ -537,14 +622,14 @@ class PricelistManager extends Component
             default => 'success',
         };
 
-        $title = match ($toastType) {
+        $resolvedTitle = $title ?? match ($toastType) {
             'success' => 'Success',
             'error' => 'Error',
             'warning' => 'Warning',
             default => 'Notice',
         };
 
-        $this->imaraToast($toastType, $title, $message);
+        $this->imaraToast($toastType, $resolvedTitle, $message, $durationMs);
     }
 
     private function resetPricelistForm(): void

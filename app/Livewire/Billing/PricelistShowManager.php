@@ -20,6 +20,8 @@ use App\Services\Billing\QuotationLineTaxResolver;
 use App\Services\Billing\QuotationPricingResolver;
 use App\Services\Billing\PdfTextExtractor;
 use App\Livewire\Concerns\WithToastNotifications;
+use App\Services\Lab\LabSystemNotificationService;
+use App\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -2060,7 +2062,7 @@ class PricelistShowManager extends Component
         $this->message = '';
     }
 
-    private function showMessage(string $message, string $type = 'success'): void
+    private function showMessage(string $message, string $type = 'success', ?string $title = null, int $durationMs = 7000): void
     {
         $this->message = $message;
         $this->messageType = $type;
@@ -2072,7 +2074,7 @@ class PricelistShowManager extends Component
             default => 'success',
         };
 
-        $title = match ($toastType) {
+        $resolvedTitle = $title ?? match ($toastType) {
             'success' => 'Success',
             'error' => 'Error',
             'warning' => 'Warning',
@@ -2080,7 +2082,7 @@ class PricelistShowManager extends Component
         };
 
         // Single toast path (imara) — avoid also firing SweetAlert `notify`.
-        $this->imaraToast($toastType, $title, $message);
+        $this->imaraToast($toastType, $resolvedTitle, $message, $durationMs);
     }
 
     private function fillPricelistForm(): void
@@ -2440,15 +2442,46 @@ class PricelistShowManager extends Component
             $updated = (int) ($result['updated'] ?? 0);
             $skipped = (int) ($result['skipped'] ?? count($result['warnings'] ?? []));
             $msg = $importService->formatImportSummary($result);
+            $title = $importService->formatImportToastTitle($result);
             $toastType = ($created + $updated) === 0
                 ? 'danger'
                 : ($skipped > 0 ? 'warning' : 'success');
 
-            $this->showMessage($msg, $toastType);
+            $this->showMessage($msg, $toastType, $title, $skipped > 0 ? 16000 : 8000);
+            $this->notifyImportResult($pricelist, $title, $msg, $result, $skipped > 0 || ($created + $updated) === 0);
             $this->closeImportModal();
         } catch (\Throwable $e) {
-            $this->showMessage('Import failed: '.$e->getMessage(), 'danger');
+            $this->showMessage('Import failed: '.$e->getMessage(), 'danger', 'Pricelist import failed', 10000);
         }
+    }
+
+    /**
+     * @param  array{created?: int, updated?: int, skipped?: int, warnings?: list<string>}  $result
+     */
+    private function notifyImportResult(
+        Pricelist $pricelist,
+        string $title,
+        string $message,
+        array $result,
+        bool $shouldNotify,
+    ): void {
+        if (! $shouldNotify) {
+            return;
+        }
+
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            return;
+        }
+
+        app(LabSystemNotificationService::class)->notifyPricelistImportResult(
+            $user,
+            $pricelist,
+            $title,
+            $message,
+            $result,
+        );
+        $this->dispatch('lab-notifications-updated');
     }
 
     private function resetCloneForm(): void

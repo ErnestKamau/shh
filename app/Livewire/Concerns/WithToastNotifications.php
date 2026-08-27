@@ -16,13 +16,13 @@ trait WithToastNotifications
         ]);
     }
 
-    protected function imaraToast(string $type, string $title, string $message): void
+    protected function imaraToast(string $type, string $title, string $message, int $durationMs = 7000): void
     {
         $this->dispatch('imara-toast', [
             'type' => $type,
             'title' => $title,
             'message' => $message,
-            'durationMs' => 7000,
+            'durationMs' => $durationMs,
         ]);
     }
 

@@ -788,24 +788,81 @@
 
 	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-lead > td.ls-quote-col-sample {
 		border-top: 2px solid #8b1538;
-		vertical-align: middle !important;
+		vertical-align: top !important;
 		background: linear-gradient(180deg, #fff5f7 0%, #fff 55%);
 	}
 
-	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-cont > td {
-		background: #fcfcfd;
-		border-top-color: #f1e4e8;
+	.quotation-show-page .ls-quote-col-sample--per-test-stack {
+		min-width: 9.5rem;
 	}
 
-	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-cont > td:first-child {
-		border-left: 2px solid #f5c2d1;
+	.quotation-show-page .ls-quote-per-test-sample-stack {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.45rem;
+		margin-bottom: 0.55rem;
+		width: 100%;
+	}
+
+	.quotation-show-page .ls-quote-per-test-sample-stack__name {
+		font-size: 1.05rem;
+		font-weight: 750;
+		line-height: 1.25;
+		color: #1e293b;
+		letter-spacing: -0.01em;
+		word-break: break-word;
+	}
+
+	.quotation-show-page .ls-quote-col-sample--per-test-stack .select2-container {
+		width: 100% !important;
+		max-width: 100%;
+	}
+
+	.quotation-show-page .ls-quote-per-test-tests-drop {
+		width: 100%;
+		margin-top: 0.15rem;
+	}
+
+	.quotation-show-page .ls-quote-per-test-tests-drop > summary {
+		cursor: pointer;
+		list-style: none;
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: #8b1538;
+		padding: 0.2rem 0;
+	}
+
+	.quotation-show-page .ls-quote-per-test-tests-drop > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.quotation-show-page .ls-quote-per-test-tests-drop__list {
+		max-height: 9.5rem;
+		overflow-y: auto;
+		margin-top: 0.25rem;
+		padding: 0.35rem 0.45rem;
+		border: 1px solid #f5c2d1;
+		border-radius: 8px;
+		background: #fff;
+	}
+
+	.quotation-show-page .ls-quote-per-test-tests-drop__item {
+		font-size: 0.72rem;
+		color: #334155;
+		padding: 0.2rem 0;
+		border-bottom: 1px solid #f8e7ec;
+	}
+
+	.quotation-show-page .ls-quote-per-test-tests-drop__item:last-child {
+		border-bottom: 0;
 	}
 
 	.quotation-show-page .ls-quote-per-test-band {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
-		margin-top: 0.4rem;
+		margin-top: 0;
 		padding: 0.15rem 0.5rem;
 		border-radius: 999px;
 		font-size: 0.625rem;
@@ -815,6 +872,15 @@
 		color: #8b1538;
 		background: #fce7ef;
 		border: 1px solid #f5c2d1;
+	}
+
+	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-cont > td {
+		background: #fcfcfd;
+		border-top-color: #f1e4e8;
+	}
+
+	.quotation-show-page .ls-quote-analysis-table tr.ls-quote-line--per-test-cont > td:first-child {
+		border-left: 2px solid #f5c2d1;
 	}
 
 	.quotation-show-page .ls-quote-per-test-band .mdi {

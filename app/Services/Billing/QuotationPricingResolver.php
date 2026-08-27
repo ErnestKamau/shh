@@ -42,19 +42,50 @@ class QuotationPricingResolver
         private readonly UncertaintyBudgetResolver $uncertaintyBudgetResolver,
     ) {}
 
+    /**
+     * True only when the quotation header was explicitly bound to a pricelist
+     * (commercial chooser modal). Independent quotes leave pricelist_id null.
+     */
+    public function hasExplicitPricelist(?QuotationHeader $header): bool
+    {
+        return $header !== null && trim((string) ($header->pricelist_id ?? '')) !== '';
+    }
+
+    /**
+     * Resolve the quotation's bound pricelist only — no customer/master fallback.
+     */
+    public function resolveBoundPricelist(?QuotationHeader $header): ?Pricelist
+    {
+        if (! $this->hasExplicitPricelist($header)) {
+            return null;
+        }
+
+        $selected = Pricelist::query()->find($header->pricelist_id);
+        if ($selected === null) {
+            return null;
+        }
+
+        $customerId = $header->crm_customer_id ? (string) $header->crm_customer_id : null;
+        $eligibleIds = collect(
+            $this->acceptanceFormPricingService->eligiblePricelistsForCustomer($customerId)
+        )->map(fn (Pricelist $p): string => (string) $p->id)->all();
+
+        return in_array((string) $selected->id, $eligibleIds, true) ? $selected : null;
+    }
+
     public function resolvePricelist(?string $customerId, ?QuotationHeader $header = null): ?Pricelist
     {
-        if ($header !== null && ! empty($header->pricelist_id)) {
-            $selected = Pricelist::query()->find($header->pricelist_id);
-            if ($selected !== null) {
-                $eligibleIds = collect(
-                    $this->acceptanceFormPricingService->eligiblePricelistsForCustomer($customerId)
-                )->map(fn (Pricelist $p): string => (string) $p->id)->all();
-
-                if (in_array((string) $selected->id, $eligibleIds, true)) {
-                    return $selected;
-                }
+        if ($header !== null && $this->hasExplicitPricelist($header)) {
+            $bound = $this->resolveBoundPricelist($header);
+            if ($bound !== null) {
+                return $bound;
             }
+        }
+
+        // Independent quotations (no modal-bound pricelist) must not silently
+        // inherit a customer-assigned list for line pricing / VAT.
+        if ($header !== null && ! $this->hasExplicitPricelist($header)) {
+            return null;
         }
 
         $assigned = $this->acceptanceFormPricingService->resolveCustomerAssignedPricelist($customerId);
@@ -198,7 +229,26 @@ class QuotationPricingResolver
         string $analysisTypeIdsCsv,
     ): array {
         $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
-        $pricelist = $this->resolvePricelist($header->crm_customer_id, $header);
+        $activeTax = round($this->quotationLineTaxResolver->activeTaxRegimePercent(), 2);
+
+        if (! $this->hasExplicitPricelist($header)) {
+            return [
+                'found' => false,
+                'element_ids' => [],
+                'accredited_ids' => [],
+                'default_ids' => [],
+                'parameters' => [],
+                'unit_price' => 0.0,
+                'tax' => $activeTax,
+                'source' => 'manual',
+                'hint' => 'Independent quotation — open Parameters to select tests, then enter unit price.',
+                'is_package' => false,
+                'pricing_mode' => self::PRICING_MODE_PER_PACKAGE,
+                'max_tat' => null,
+            ];
+        }
+
+        $pricelist = $this->resolveBoundPricelist($header);
 
         $elementIds = [];
         $foundAny = false;
@@ -231,9 +281,9 @@ class QuotationPricingResolver
                 'default_ids' => [],
                 'parameters' => [],
                 'unit_price' => 0.0,
-                'tax' => 0.0,
+                'tax' => $activeTax,
                 'source' => 'none',
-                'hint' => 'No package on the customer pricelist for the selected analysis type.',
+                'hint' => 'No package on the selected pricelist for the selected analysis type.',
                 'is_package' => false,
                 'pricing_mode' => self::PRICING_MODE_AUTO,
                 'max_tat' => null,
@@ -400,15 +450,39 @@ class QuotationPricingResolver
     ): array {
         $pricingMode = $this->normalizePricingMode($pricingMode);
         $maxTat = $this->maxTatForElements($elementIds, $analysisTypeIdsCsv);
+        $activeTax = $this->quotationLineTaxResolver->activeTaxRegimePercent();
 
         if ($elementIds === []) {
             return [
                 'unit_price' => 0.0,
-                'tax' => 0.0,
+                'tax' => $this->hasExplicitPricelist($header) ? 0.0 : round($activeTax, 2),
                 'source' => 'none',
-                'hint' => 'Select tests in Description to load pricelist total.',
+                'hint' => $this->hasExplicitPricelist($header)
+                    ? 'Select tests in Description to load pricelist total.'
+                    : 'Select tests in Parameters, then enter unit price (independent quotation).',
                 'is_package' => false,
                 'pricing_mode' => $pricingMode,
+                'max_tat' => $maxTat,
+            ];
+        }
+
+        // Independent quotation: no modal-bound pricelist → manual price + active tax regime.
+        if (! $this->hasExplicitPricelist($header)) {
+            $modeLabel = $pricingMode === self::PRICING_MODE_PER_TEST ? 'per test' : 'package';
+
+            return [
+                'unit_price' => 0.0,
+                'tax' => round($activeTax, 2),
+                'source' => 'manual',
+                'hint' => sprintf(
+                    'Independent quotation (%s): enter unit price. Tax uses the active tax regime (%.2f%%).',
+                    $modeLabel,
+                    $activeTax
+                ),
+                'is_package' => false,
+                'pricing_mode' => $pricingMode === self::PRICING_MODE_AUTO
+                    ? self::PRICING_MODE_PER_PACKAGE
+                    : $pricingMode,
                 'max_tat' => $maxTat,
             ];
         }
@@ -421,9 +495,9 @@ class QuotationPricingResolver
         if ($pricingMode === self::PRICING_MODE_PER_PACKAGE && $package === null) {
             return [
                 'unit_price' => 0.0,
-                'tax' => 0.0,
-                'source' => 'none',
-                'hint' => 'No matching package on the customer pricelist for the selected parameters.',
+                'tax' => round($activeTax, 2),
+                'source' => 'manual',
+                'hint' => 'No matching package on the selected pricelist — enter unit price manually. Tax uses the active tax regime.',
                 'is_package' => false,
                 'pricing_mode' => $pricingMode,
                 'max_tat' => $maxTat,

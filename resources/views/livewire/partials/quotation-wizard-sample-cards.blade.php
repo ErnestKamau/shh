@@ -1,5 +1,10 @@
+{{--
+    Create-enquiry wizard sample cards — same RFT columns/components as walk-in TRF fill.
+    Uses test-request-field-render, ls-field-rich-text-cell, walk-in-trf-qty-unit-cell.
+--}}
 @php
     $rowCount = max(1, (int) ($rowCount ?? 1));
+    $gridRows = $this->wizardSampleCardGridRows($fields ?? []);
     $progressFieldNames = collect($fields ?? [])
         ->map(static fn (array $field): string => (string) ($field['name'] ?? ''))
         ->filter(static fn (string $name): bool => $name !== '' && $name !== 'sample_quantity_unit')
@@ -8,7 +13,7 @@
 @endphp
 
 <div
-    class="rft-sample-cards ceq-wizard-sample-cards"
+    class="rft-sample-cards ceq-wizard-sample-cards trf-ls-theme"
     x-data="{
         openRow: 0,
         typeId: @js($typeId),
@@ -57,16 +62,13 @@
         },
         setOpenRow(row) {
             const previous = this.openRow;
-            if (previous >= 0 && previous !== row) {
-                window.dispatchEvent(new CustomEvent('ceq-sync-tinymce'));
-            }
             this.openRow = this.openRow === row ? -1 : row;
             if (previous >= 0 && previous !== this.openRow) {
-                this.$dispatch('ceq-sample-card-hidden', { row: previous });
+                this.$dispatch('rft-sample-card-hidden', { row: previous });
             }
             if (this.openRow >= 0) {
                 this.$nextTick(() => {
-                    this.$dispatch('ceq-sample-card-shown', { row: this.openRow });
+                    this.$dispatch('rft-sample-card-shown', { row: this.openRow });
                     this.refreshAllProgress();
                 });
             } else {
@@ -82,9 +84,14 @@
         $el.addEventListener('input', () => $nextTick(() => refreshAllProgress()), true);
         $el.addEventListener('change', () => $nextTick(() => refreshAllProgress()), true);
         window.addEventListener('ceq-sample-progress-refresh', () => $nextTick(() => refreshAllProgress()));
-        $nextTick(() => $dispatch('ceq-sample-card-shown', { row: 0 }));
+        $nextTick(() => {
+            $dispatch('rft-sample-card-shown', { row: 0 });
+            if (typeof window.initWalkInLsSelect2 === 'function') {
+                window.initWalkInLsSelect2($el);
+            }
+        });
     "
-    x-on:ceq-sample-rows-cloned.window="if (openRow >= 0) { $nextTick(() => $dispatch('ceq-sample-card-shown', { row: openRow })); } $nextTick(() => refreshAllProgress());"
+    x-on:ceq-sample-rows-cloned.window="if (openRow >= 0) { $nextTick(() => $dispatch('rft-sample-card-shown', { row: openRow })); } $nextTick(() => refreshAllProgress());"
 >
     @if($rowCount > 1)
         <div class="d-flex justify-content-end mb-2">
@@ -95,7 +102,6 @@
                 aria-label="Copy Sample 1 details to all other samples"
                 wire:click="cloneFirstSampleRowToOthers('{{ $typeId }}')"
                 wire:loading.attr="disabled"
-                x-on:click="window.dispatchEvent(new CustomEvent('ceq-sync-tinymce'))"
             >
                 <span wire:loading.remove wire:target="cloneFirstSampleRowToOthers('{{ $typeId }}')">
                     <i class="mdi mdi-content-copy"></i>
@@ -112,10 +118,12 @@
     @for($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++)
         @php
             $rowValues = $sectionRowFieldValuesByType[$typeId][$rowIndex] ?? [];
+            $wireBase = 'sectionRowFieldValuesByType.'.$typeId.'.'.$rowIndex;
         @endphp
 
         <article
             class="rft-sample-row-card"
+            data-trf-sample-index="{{ $rowIndex }}"
             wire:key="ceq-row-card-{{ $typeId }}-{{ $trfIndex }}-{{ $rowIndex }}"
             :class="{ 'is-open': openRow === {{ $rowIndex }} }"
         >
@@ -151,7 +159,7 @@
                             aria-label="Copy Sample 1 details into Sample {{ $rowIndex + 1 }}"
                             wire:click="cloneFirstSampleRowToRow('{{ $typeId }}', {{ $rowIndex }})"
                             wire:loading.attr="disabled"
-                            x-on:click.stop="window.dispatchEvent(new CustomEvent('ceq-sync-tinymce'))"
+                            x-on:click.stop
                         >
                             <i class="mdi mdi-content-copy"></i>
                         </button>
@@ -173,110 +181,74 @@
                 x-show="openRow === {{ $rowIndex }}"
                 x-cloak
             >
-                <div class="row">
-                    @foreach($fields as $field)
-                        @php
-                            $fieldName = (string) ($field['name'] ?? '');
-                            if (($field['render_paired'] ?? false) && $fieldName === 'sample_quantity_unit') {
-                                continue;
-                            }
-                            $type = $field['element_type'] ?? 'text';
-                            $isFullWidth = in_array($type, ['textarea', 'rich_text'], true)
-                                || in_array($fieldName, ['sample_description'], true);
-                            $colClass = $isFullWidth ? 'col-12' : 'col-md-6';
-                            $wirePrefix = 'sectionRowFieldValuesByType.'.$typeId.'.'.$rowIndex;
-                        @endphp
-                        <div class="{{ $colClass }}">
-                            <div class="form-group">
-                                <label>
-                                    @if($fieldName === 'sample_quantity')
-                                        Qty / Unit
-                                    @else
-                                        {{ $field['label'] }}
-                                    @endif
-                                    @if($field['is_required']) <span class="text-danger">*</span> @endif
-                                </label>
-
-                                @if($fieldName === 'sample_quantity')
-                                    <div class="d-flex ceq-wizard-qty-unit" style="gap: 8px;">
-                                        <input type="number"
-                                               step="0.01"
-                                               min="0"
-                                               placeholder="Amount"
-                                               wire:model="{{ $wirePrefix }}.sample_quantity"
-                                               class="form-control @error($wirePrefix.'.sample_quantity') is-invalid @enderror">
-                                        <select wire:model="{{ $wirePrefix }}.sample_quantity_unit"
-                                                class="form-control no-select2 @error($wirePrefix.'.sample_quantity_unit') is-invalid @enderror">
-                                            <option value="">Unit</option>
-                                            @foreach($field['unit_options'] ?? [] as $option)
-                                                <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    @error($wirePrefix.'.sample_quantity')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                    @enderror
-                                    @error($wirePrefix.'.sample_quantity_unit')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                    @enderror
-                                @elseif(in_array($type, ['select', 'radio'], true) && !empty($field['options']))
-                                    <select wire:model="{{ $wirePrefix }}.{{ $fieldName }}"
-                                            class="form-control @error($wirePrefix.'.'.$fieldName) is-invalid @enderror">
-                                        <option value="">Select...</option>
-                                        @foreach($field['options'] as $option)
-                                            <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
-                                        @endforeach
-                                    </select>
-                                @elseif($type === 'checkbox' && !empty($field['options']))
-                                    <div class="d-flex flex-column">
-                                        @foreach($field['options'] as $option)
-                                            <div class="custom-control custom-checkbox">
-                                                <input type="checkbox"
-                                                       class="custom-control-input"
-                                                       id="ceq-field-{{ $typeId }}-{{ $rowIndex }}-{{ $fieldName }}-{{ $option['value'] }}"
-                                                       value="{{ $option['value'] }}"
-                                                       wire:model="{{ $wirePrefix }}.{{ $fieldName }}">
-                                                <label class="custom-control-label"
-                                                       for="ceq-field-{{ $typeId }}-{{ $rowIndex }}-{{ $fieldName }}-{{ $option['value'] }}">
-                                                    {{ $option['label'] }}
-                                                </label>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @elseif($type === 'checkbox')
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox"
-                                               class="custom-control-input"
-                                               id="ceq-field-{{ $typeId }}-{{ $rowIndex }}-{{ $fieldName }}"
-                                               wire:model="{{ $wirePrefix }}.{{ $fieldName }}">
-                                        <label class="custom-control-label" for="ceq-field-{{ $typeId }}-{{ $rowIndex }}-{{ $fieldName }}">Yes</label>
-                                    </div>
-                                @elseif($type === 'rich_text' || $fieldName === 'sample_description')
-                                    @include('livewire.partials.livewire-tinymce-field', [
-                                        'wireKey' => $wirePrefix.'.sample_description',
-                                        'editorId' => 'ceq-desc-'.$typeId.'-'.$trfIndex.'-'.$rowIndex,
-                                        'value' => $rowValues['sample_description'] ?? '',
-                                        'rowIndex' => $rowIndex,
-                                    ])
-                                @elseif($type === 'textarea')
-                                    <textarea rows="2" wire:model="{{ $wirePrefix }}.{{ $fieldName }}" class="form-control @error($wirePrefix.'.'.$fieldName) is-invalid @enderror"></textarea>
-                                @elseif($type === 'date')
-                                    <input type="date" wire:model="{{ $wirePrefix }}.{{ $fieldName }}" class="form-control @error($wirePrefix.'.'.$fieldName) is-invalid @enderror">
-                                @elseif($type === 'number')
-                                    <input type="number" step="0.01" min="0" wire:model="{{ $wirePrefix }}.{{ $fieldName }}" class="form-control @error($wirePrefix.'.'.$fieldName) is-invalid @enderror">
+                @foreach($gridRows as $gridRow)
+                    @php
+                        $gridColumns = $gridRow['columns'] ?? [];
+                        $gridCols = (int) ($gridRow['cols'] ?? 3);
+                        $gridRowClass = 'rft-sample-grid-row rft-sample-grid-row--cols-'.$gridCols;
+                    @endphp
+                    <div class="{{ $gridRowClass }}">
+                        @foreach($gridColumns as $column)
+                            @php
+                                $fieldColClass = match ($gridCols) {
+                                    1 => 'col-md-12',
+                                    2 => 'col-md-6',
+                                    default => 'col-md-4',
+                                };
+                            @endphp
+                            <div class="{{ $fieldColClass }} rft-sample-field">
+                                @if($column === null)
+                                    <div class="rft-sample-field--empty"></div>
                                 @else
-                                    <input type="text" wire:model="{{ $wirePrefix }}.{{ $fieldName }}" class="form-control @error($wirePrefix.'.'.$fieldName) is-invalid @enderror">
-                                @endif
-
-                                @if($fieldName !== 'sample_quantity')
-                                    @error($wirePrefix.'.'.$fieldName)
+                                    @php
+                                        $field = $column['field'];
+                                        $fieldName = (string) ($field['name'] ?? '');
+                                        $wirePrefix = $wireBase.'.'.$fieldName;
+                                    @endphp
+                                    <label>
+                                        {{ $column['label'] ?? ($field['label'] ?? $fieldName) }}
+                                        @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
+                                    </label>
+                                    @if(($column['type'] ?? '') === 'qty_unit')
+                                        @include('livewire.partials.walk-in-trf-qty-unit-cell', [
+                                            'rowIndex' => $rowIndex,
+                                            'hideLabel' => true,
+                                            'nativeSelect' => false,
+                                            'quantityWire' => $wireBase.'.sample_quantity',
+                                            'unitWire' => $wireBase.'.sample_quantity_unit',
+                                            'qtyValue' => $rowValues['sample_quantity'] ?? '',
+                                            'unitValue' => $rowValues['sample_quantity_unit'] ?? '',
+                                            'unitOptions' => $column['unit_options'] ?? [],
+                                        ])
+                                    @elseif($fieldName === 'sample_description' || ($field['type'] ?? '') === 'rich_text')
+                                        @include('layouts.lab.partials.ls-ui.fields.ls-field-rich-text-cell', [
+                                            'label' => null,
+                                            'value' => $rowValues[$fieldName] ?? '',
+                                            'wireModel' => $wirePrefix,
+                                            'editorId' => 'ceq-desc-'.$typeId.'-'.$trfIndex.'-'.$rowIndex.'-'.$fieldName,
+                                            'rowLabel' => 'Sample '.($rowIndex + 1),
+                                            'compact' => true,
+                                        ])
+                                    @else
+                                        @include('livewire.sampleworkflow.test-request-field-render', [
+                                            'field' => $field,
+                                            'wirePrefix' => $wirePrefix,
+                                            'fieldId' => 'ceq_'.$typeId.'_'.$rowIndex.'_'.$fieldName,
+                                            'rowIndex' => $rowIndex,
+                                            'compact' => false,
+                                            'hideLabel' => true,
+                                            'useCrmSelectors' => true,
+                                            'showCrmActions' => false,
+                                        ])
+                                    @endif
+                                    @error($wirePrefix)
                                         <div class="invalid-feedback d-block">{{ $message }}</div>
                                     @enderror
                                 @endif
                             </div>
-                        </div>
-                    @endforeach
-                </div>
+                        @endforeach
+                    </div>
+                @endforeach
             </div>
         </article>
     @endfor

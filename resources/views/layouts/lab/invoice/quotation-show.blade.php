@@ -889,6 +889,7 @@
             quotationHeaderId: @json((string) $header->id),
             csrf: @json(csrf_token()),
             labSectionNames: @json($header->labSections->pluck('name')->values()->all()),
+            activeTaxPercent: @json(app(\App\Services\Billing\QuotationLineTaxResolver::class)->activeTaxRegimePercent()),
         };
 
         var quotationImportConfig = {
@@ -905,6 +906,25 @@
             var fromChooser = String($('#ls-quote-commercial-chooser').data('selected-pricelist') || '');
             var fromWorkspace = String($quoteWorkspace.data('pricelist-id') || '');
             return fromChooser || fromWorkspace;
+        }
+
+        function independentDefaultTax() {
+            var tax = parseFloat(quotationPricingConfig.activeTaxPercent);
+            return isNaN(tax) ? 0 : tax;
+        }
+
+        function formatTaxDisplay(tax) {
+            var value = parseFloat(tax);
+            if (isNaN(value) || value <= 0) {
+                return '0%';
+            }
+            return value.toFixed(2) + '%';
+        }
+
+        function applyDefaultTaxToRow($row) {
+            var tax = boundPricelistId() !== '' ? 0 : independentDefaultTax();
+            $row.find('.quotation-tax').val(tax);
+            $row.find('.quotation-tax-display').text(formatTaxDisplay(tax));
         }
 
         function currentQuotePricingMode() {
@@ -1139,7 +1159,14 @@
                 }).done(function () {
                     window.location.reload();
                 }).fail(function () {
-                    alert('Could not delete selected lines.');
+                    if (typeof window.showImaraToast === 'function') {
+                        window.showImaraToast({
+                            type: 'error',
+                            title: 'Could not delete',
+                            message: 'Could not delete selected lines.',
+                            variant: 'shake',
+                        });
+                    }
                 });
             });
         })();
@@ -1150,6 +1177,7 @@
             var $row = $input.closest('tr');
             var mode = applyManualLineModeUi($row);
             if (mode !== 'per_test') {
+                collapsePerTestGroupToPackage($row);
                 return;
             }
             var ids = collectElementIdsFromRow($row);
@@ -1622,9 +1650,7 @@
             }
             if (data && typeof data.tax !== 'undefined') {
                 $row.find('.quotation-tax').val(data.tax);
-                $row.find('.quotation-tax-display').text(
-                    parseFloat(data.tax) > 0 ? parseFloat(data.tax).toFixed(2) + '%' : '0%'
-                );
+                $row.find('.quotation-tax-display').text(formatTaxDisplay(data.tax));
             }
             updateQuoteLineTotal($row);
         }
@@ -1647,8 +1673,7 @@
             );
             $row.find('input.select-part-final').val('');
             $row.find('.quotation-unit-price').val(0);
-            $row.find('.quotation-tax').val(0);
-            $row.find('.quotation-tax-display').text('0%');
+            applyDefaultTaxToRow($row);
             $row.removeData('pricelistSuggestion');
             $row.find('.quotation-price-hint').text('Pick tests in Parameters to load package / pricelist price.');
             updateQuoteLineTotal($row);
@@ -1728,8 +1753,7 @@
                     $desc.empty().removeClass('text-center');
                     $desc.append($(buildParamsPanelHtml(sampleTypeName, rowNo, sampleTypeId, sampleTypeName, '', 'mdi-eye-outline')));
                     $row.find('.quotation-unit-price').val(0);
-                    $row.find('.quotation-tax').val(0);
-                    $row.find('.quotation-tax-display').text('0%');
+                    applyDefaultTaxToRow($row);
                     $row.removeData('pricelistSuggestion');
                     $hint.text(data && data.hint ? data.hint : 'Pick tests in Parameters to load package / pricelist price.');
                 } else {
@@ -2569,10 +2593,99 @@
         function clearPerTestVisuals($row) {
             $row.removeClass('ls-quote-line--per-test ls-quote-line--per-test-lead ls-quote-line--per-test-cont');
             $row.removeAttr('data-per-test-group');
-            $row.find('.ls-quote-per-test-band, .ls-quote-per-test-cont-label').remove();
+            $row.find('.ls-quote-per-test-band, .ls-quote-per-test-cont-label, .ls-quote-per-test-sample-stack').remove();
             $row.find('.ls-quote-col-sample .select2-container, .ls-quote-line-mode-wrap').css('display', '');
+            $row.find('.ls-quote-col-sample .ls-quote-line-mode-wrap').removeClass('d-none');
             var $sample = $row.find('td.ls-quote-col-sample').first();
-            $sample.removeAttr('rowspan').removeClass('ls-quote-col-sample--merged-away').css('display', '');
+            $sample.removeAttr('rowspan').removeClass('ls-quote-col-sample--merged-away ls-quote-col-sample--per-test-stack').css('display', '');
+        }
+
+        /**
+         * Uncheck Per parameter: merge exploded sibling rows back into one package line.
+         */
+        function collapsePerTestGroupToPackage($row) {
+            var groupId = String($row.attr('data-per-test-group') || '');
+            var $lead = $row;
+            if (groupId) {
+                var $group = $('#create-detail > tr[data-per-test-group="' + groupId + '"]');
+                if ($group.length) {
+                    $lead = $group.filter('.ls-quote-line--per-test-lead').first();
+                    if (!$lead.length) {
+                        $lead = $group.first();
+                    }
+                }
+            }
+
+            var sampleTypeId = String($lead.find('select[name="sample_type[]"]').val()
+                || $lead.find('input.ls-quote-per-test-sample-type').val()
+                || '');
+            var sampleTypeName = String(
+                $lead.find('select[name="sample_type[]"] option:selected').text()
+                || sampleTypeId
+            );
+
+            var merged = {
+                tests: [],
+                analysisTypeIds: [],
+                analytes_accreditted: [],
+                analyte_sub: [],
+                sub_acc: [],
+                default_analytes: [],
+                loqMap: {},
+                spans: [],
+            };
+
+            var $rows = groupId
+                ? $('#create-detail > tr[data-per-test-group="' + groupId + '"]')
+                : $lead;
+            $rows.each(function () {
+                var $tr = $(this);
+                var part = readRowParameterState($tr);
+                merged.analytes_accreditted = merged.analytes_accreditted.concat(part.accreditedIds || []);
+                merged.analyte_sub = merged.analyte_sub.concat(part.subIds || []);
+                merged.sub_acc = merged.sub_acc.concat(part.subAccIds || []);
+                merged.default_analytes = merged.default_analytes.concat(part.defaultIds || []);
+                Object.assign(merged.loqMap, part.loqMap || {});
+                var analysisTypeId = String($tr.find('input.select-part-final, input[name="part_number_final[]"]').val() || '');
+                if (analysisTypeId) {
+                    analysisTypeId.split(',').forEach(function (id) {
+                        id = String(id || '').trim();
+                        if (id && merged.analysisTypeIds.indexOf(id) === -1) {
+                            merged.analysisTypeIds.push(id);
+                        }
+                    });
+                }
+                (part.selectedIds || []).forEach(function (id) {
+                    if (!id) {
+                        return;
+                    }
+                    var $chip = $tr.find('.ls-quote-param-chip').first();
+                    var label = $chip.length
+                        ? $chip.clone().children().remove().end().text().trim()
+                        : id;
+                    merged.spans.push(buildParamChipHtml(
+                        label,
+                        (part.accreditedIds || []).indexOf(id) !== -1 || (part.subAccIds || []).indexOf(id) !== -1,
+                        (part.subIds || []).indexOf(id) !== -1 || (part.subAccIds || []).indexOf(id) !== -1
+                    ));
+                });
+            });
+
+            var uniq = function (arr) {
+                return arr.filter(function (id, index, all) { return id && all.indexOf(id) === index; });
+            };
+            merged.analytes_accreditted = uniq(merged.analytes_accreditted);
+            merged.analyte_sub = uniq(merged.analyte_sub);
+            merged.sub_acc = uniq(merged.sub_acc);
+            merged.default_analytes = uniq(merged.default_analytes);
+
+            if (groupId) {
+                removePerTestGroupSiblings($lead, groupId);
+            }
+            writePackageParameterFields($lead, merged, sampleTypeId, sampleTypeName);
+            $lead.find('.ls-quote-line-mode-input').prop('checked', false).data('userTouched', true);
+            applyManualLineModeUi($lead);
+            renumberQuoteAnalysisLines();
         }
 
         function writeSingleTestParameterFields($row, test, sampleTypeId, sampleTypeName) {
@@ -2609,13 +2722,28 @@
             clearPerTestVisuals($row);
             $row.addClass('ls-quote-line--per-test ls-quote-line--per-test-lead');
             $row.attr('data-per-test-group', groupId);
-            $row.find('.ls-quote-col-sample .ls-quote-per-test-band').remove();
-            $row.find('.ls-quote-col-sample').append(
-                $('<div class="ls-quote-per-test-band"></div>').html(
-                    '<i class="mdi mdi-view-list-outline"></i> Per parameter · '
+            var $sample = $row.find('.ls-quote-col-sample').first();
+            $sample.addClass('ls-quote-col-sample--per-test-stack');
+            $sample.find('.ls-quote-per-test-band, .ls-quote-per-test-sample-stack').remove();
+            var safeName = escapeQuoteHtml(sampleTypeName || 'Sample');
+            var manyTests = testCount > 6;
+            $sample.prepend(
+                $('<div class="ls-quote-per-test-sample-stack"></div>').html(
+                    '<div class="ls-quote-per-test-sample-stack__name" title="' + safeName + '">' + safeName + '</div>'
+                    + '<div class="ls-quote-per-test-band">'
+                    + '<i class="mdi mdi-view-list-outline"></i> Per parameter · '
                     + testCount + ' test' + (testCount === 1 ? '' : 's')
+                    + '</div>'
+                    + (manyTests
+                        ? '<details class="ls-quote-per-test-tests-drop">'
+                            + '<summary>Browse ' + testCount + ' tests</summary>'
+                            + '<div class="ls-quote-per-test-tests-drop__list" data-per-test-list="' + escapeQuoteHtml(groupId) + '"></div>'
+                            + '</details>'
+                        : '')
                 )
             );
+            // Keep mode toggle visible on the lead so users can revert to package.
+            $sample.find('.ls-quote-line-mode-wrap').removeClass('d-none').css('display', '');
         }
 
         function markPerTestContinuation($row, groupId, sampleTypeName) {
@@ -2645,7 +2773,24 @@
                 return;
             }
             $leadSample.attr('rowspan', $rows.length);
-            $leadSample.removeClass('ls-quote-col-sample--merged-away').css({ display: '', verticalAlign: 'middle' });
+            $leadSample
+                .removeClass('ls-quote-col-sample--merged-away')
+                .addClass('ls-quote-col-sample--per-test-stack')
+                .css({ display: '', verticalAlign: 'top' });
+
+            // Populate browse-tests dropdown when many tests.
+            var $list = $leadSample.find('.ls-quote-per-test-tests-drop__list');
+            if ($list.length) {
+                var items = [];
+                $rows.each(function (idx) {
+                    var label = $(this).find('.ls-quote-param-chip').first().clone().children().remove().end().text().trim();
+                    if (!label) {
+                        label = 'Test ' + (idx + 1);
+                    }
+                    items.push('<div class="ls-quote-per-test-tests-drop__item">' + escapeQuoteHtml(label) + '</div>');
+                });
+                $list.html(items.join(''));
+            }
 
             $rows.each(function () {
                 var $tr = $(this);
@@ -2682,6 +2827,7 @@
             $row.find('input[data-ls-quote-required="1"]').prop('required', true);
             $row.find('.ls-quote-line-select').prop('disabled', false).val('');
             applyManualLineModeUi($row);
+            applyDefaultTaxToRow($row);
             initLsSampleTypeSelect($row.find('select.select-sample-type'));
 
             $row.find('.js-delete-line').on('click', function () {
@@ -2729,8 +2875,7 @@
                         $(buildParamsPanelHtml(sample_code, thisRowNo, sample_type, sample_code, '', 'mdi-eye-outline'))
                     );
                     $row.find('.quotation-unit-price').val(0);
-                    $row.find('.quotation-tax').val(0);
-                    $row.find('.quotation-tax-display').text('0%');
+                    applyDefaultTaxToRow($row);
                     $row.removeData('pricelistSuggestion');
                     clearPerTestVisuals($row);
                     var rowMode = applyManualLineModeUi($row);
@@ -2862,7 +3007,14 @@
                         + state.sub_acc.length
                         + state.default_analytes.length);
                 if (selectedCount === 0) {
-                    window.alert('Select at least one test (left checkbox / Select all) before saving parameters.');
+                    if (typeof window.showImaraToast === 'function') {
+                        window.showImaraToast({
+                            type: 'warning',
+                            title: 'Select tests',
+                            message: 'Select at least one test (left checkbox / Select all) before saving parameters.',
+                            variant: 'pulse',
+                        });
+                    }
                     return;
                 }
 

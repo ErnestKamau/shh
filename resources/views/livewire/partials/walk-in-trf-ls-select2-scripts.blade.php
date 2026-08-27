@@ -4,9 +4,9 @@
 	const $ = window.jQuery;
 
 	const walkInDropdownParent = ($el) => {
-		const $modal = $el.closest('.modal');
+		const $modal = $el.closest('.modal, .ceq-wizard-overlay, .ceq-wizard-dialog, .ceq-wizard-modal');
 		if ($modal.length) {
-			const $content = $modal.find('.modal-content').first();
+			const $content = $modal.find('.modal-content, .ceq-wizard-modal').first();
 			return $content.length ? $content : $modal;
 		}
 
@@ -15,7 +15,7 @@
 			return $rvModal;
 		}
 
-		const $shell = $el.closest('.walk-in-trf-wizard-shell, .workflow-board-panel');
+		const $shell = $el.closest('.walk-in-trf-wizard-shell, .workflow-board-panel, .trf-ls-theme');
 		if ($shell.length) {
 			return $shell;
 		}

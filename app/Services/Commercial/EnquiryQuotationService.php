@@ -25,6 +25,16 @@ final class EnquiryQuotationService
         string $linkSource,
         ?string $linkedByUserId = null,
     ): EnquiryQuotation {
+        // Reusing a billing quotation on an enquiry requires a completed quote.
+        // Enquiry-born drafts may still be In Preparation / In Approval.
+        if (in_array($linkSource, [
+            EnquiryQuotation::LINK_SOURCE_BILLING_WIZARD,
+            EnquiryQuotation::LINK_SOURCE_PROCESS_ENQUIRY_EXISTING,
+            EnquiryQuotation::LINK_SOURCE_REVISION_OPT_IN,
+        ], true) && (string) $quotation->status !== 'Quote Complete') {
+            throw new RuntimeException('Only completed quotations can be linked to an enquiry.');
+        }
+
         $existing = $this->findEngagement($enquiry, $quotation);
         if ($existing !== null) {
             return $existing;

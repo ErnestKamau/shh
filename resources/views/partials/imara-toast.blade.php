@@ -58,7 +58,10 @@
 		font-size: 0.8rem;
 		color: #64748b;
 		margin: 0;
-		line-height: 1.4;
+		line-height: 1.45;
+		white-space: pre-line;
+		max-height: 14rem;
+		overflow-y: auto;
 	}
 
 	.imara-toast__close {

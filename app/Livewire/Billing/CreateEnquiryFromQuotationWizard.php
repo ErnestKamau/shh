@@ -2,11 +2,15 @@
 
 namespace App\Livewire\Billing;
 
+use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\CustomerContact;
+use App\Models\CRM\SamplePoint;
 use App\Models\SampleSubmissionRequest;
 use App\QuotationHeader;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Commercial\EnquiryFromQuotationService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -68,6 +72,16 @@ class CreateEnquiryFromQuotationWizard extends Component
 
     public bool $isMultiSampleType = false;
 
+    /** CRM customer from quotation header (drives sampling-location options). */
+    public string $crmCustomerId = '';
+
+    /**
+     * Walk-in-compatible CRM form bag (company unit for sample-point filtering).
+     *
+     * @var array<string, mixed>
+     */
+    public array $formData = [];
+
     #[On('open-create-enquiry-from-quotation')]
     public function open(string $quotationId): void
     {
@@ -115,6 +129,7 @@ class CreateEnquiryFromQuotationWizard extends Component
                 $this->sendPortal = false;
             }
             $this->seedSelectionsForGroups();
+            $this->seedCrmFromQuotation($quotation);
             $this->applyDeliveryDefaultsForChannel();
             if ($this->quoteAlreadySentFromBilling) {
                 $this->sendEmail = false;
@@ -505,6 +520,127 @@ class CreateEnquiryFromQuotationWizard extends Component
         return view('livewire.billing.create-enquiry-from-quotation-wizard');
     }
 
+    /**
+     * Map enquiry-wizard field DTO → shape expected by test-request-field-render.
+     *
+     * @param  array<string, mixed>  $field
+     * @return array{name: string, label: string, type: string, required: bool, readonly: bool, options: mixed}
+     */
+    public function mapWizardFieldToTrfField(array $field): array
+    {
+        $name = (string) ($field['name'] ?? '');
+        $elementType = strtolower(trim((string) ($field['element_type'] ?? 'text')));
+
+        // Client / contact / unit live in the excluded Customer details section.
+        // Keep sampling location as CRM sample-point select (seeded from quotation header).
+        $unsupportedCrmTypes = [
+            'client_select',
+            'client_contact_select',
+            'client_unit_select',
+        ];
+        if (in_array($elementType, $unsupportedCrmTypes, true)
+            || in_array($name, ['contact_person', 'company_unit_id'], true)
+        ) {
+            $elementType = 'text';
+        }
+
+        $type = match ($name) {
+            'sampling_time' => 'time',
+            'method_of_sampling', 'test_category', 'test_requirements' => 'checkbox',
+            'sample_description' => 'rich_text',
+            default => $elementType !== '' ? $elementType : 'text',
+        };
+
+        return [
+            'name' => $name,
+            'label' => (string) ($field['label'] ?? $name),
+            'type' => $type,
+            'required' => (bool) ($field['is_required'] ?? false),
+            'readonly' => false,
+            'options' => $field['options'] ?? [],
+            'unit_options' => $field['unit_options'] ?? [],
+            'render_paired' => (bool) ($field['render_paired'] ?? false),
+        ];
+    }
+
+    /**
+     * RFT-style grid rows for wizard sample cards (same column packing language as walk-in TRF).
+     *
+     * @param  list<array<string, mixed>>  $fields
+     * @return list<array{type: string, cols?: int, columns?: list<array<string, mixed>|null>}>
+     */
+    public function wizardSampleCardGridRows(array $fields): array
+    {
+        $mapped = [];
+        foreach ($fields as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            if (($field['render_paired'] ?? false) && $name === 'sample_quantity_unit') {
+                continue;
+            }
+            $trf = $this->mapWizardFieldToTrfField($field);
+            if ($name === 'sample_quantity') {
+                $mapped[] = [
+                    'type' => 'qty_unit',
+                    'label' => 'Qty / Unit',
+                    'field' => $trf,
+                    'unit_options' => $field['unit_options'] ?? [],
+                ];
+                continue;
+            }
+            $mapped[] = [
+                'type' => 'field',
+                'label' => $trf['label'],
+                'field' => $trf,
+            ];
+        }
+
+        $rows = [];
+        $buffer = [];
+        $flush = static function () use (&$rows, &$buffer): void {
+            if ($buffer === []) {
+                return;
+            }
+            $cols = count($buffer);
+            while (count($buffer) < 3) {
+                $buffer[] = null;
+            }
+            $rows[] = [
+                'type' => 'fields',
+                'cols' => max(1, min(3, $cols)),
+                'columns' => $buffer,
+            ];
+            $buffer = [];
+        };
+
+        foreach ($mapped as $column) {
+            $fieldName = (string) ($column['field']['name'] ?? '');
+            $fieldType = (string) ($column['field']['type'] ?? '');
+            $isFull = $fieldName === 'sample_description'
+                || in_array($fieldType, ['textarea', 'rich_text'], true);
+
+            if ($isFull) {
+                $flush();
+                $rows[] = [
+                    'type' => 'fields',
+                    'cols' => 1,
+                    'columns' => [$column],
+                ];
+                continue;
+            }
+
+            $buffer[] = $column;
+            if (count($buffer) === 3) {
+                $flush();
+            }
+        }
+        $flush();
+
+        return $rows;
+    }
+
     private function currentSampleTypeId(): string
     {
         return (string) ($this->currentTrfGroup['sample_type_id'] ?? '');
@@ -534,7 +670,113 @@ class CreateEnquiryFromQuotationWizard extends Component
         $this->quoteNumber = '';
         $this->customerName = '';
         $this->isMultiSampleType = false;
+        $this->crmCustomerId = '';
+        $this->formData = [];
         $this->resetValidation();
+    }
+
+    /**
+     * Prefill CRM client / company unit / sampling location from the quotation header.
+     */
+    private function seedCrmFromQuotation(QuotationHeader $quotation): void
+    {
+        $this->crmCustomerId = trim((string) ($quotation->crm_customer_id ?? ''));
+        $unitId = trim((string) ($quotation->crm_company_unit_id ?? ''));
+        $this->formData = [
+            'company_unit_id' => $unitId,
+        ];
+
+        $pointId = trim((string) ($quotation->sample_point_id ?? ''));
+        $locationText = trim((string) ($quotation->sampling_location ?? ''));
+        $seedLocation = $pointId !== '' ? $pointId : $locationText;
+        if ($seedLocation === '') {
+            return;
+        }
+
+        foreach ($this->sectionFieldValuesByType as $typeId => $fields) {
+            if (! is_array($fields)) {
+                continue;
+            }
+            if (array_key_exists('sampling_location', $fields)) {
+                $this->sectionFieldValuesByType[$typeId]['sampling_location'] = $seedLocation;
+            }
+            if (array_key_exists('sampling_point', $fields)) {
+                $this->sectionFieldValuesByType[$typeId]['sampling_point'] = $seedLocation;
+            }
+        }
+    }
+
+    public function getSelectedCrmCustomerIdProperty(): string
+    {
+        return $this->crmCustomerId;
+    }
+
+    public function getSelectedCompanyUnitNameProperty(): ?string
+    {
+        $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        if ($unitId === '') {
+            return null;
+        }
+
+        return CRMCompanyUnit::query()->whereKey($unitId)->value('name');
+    }
+
+    public function getCustomerSamplePointsProperty(): Collection
+    {
+        $customerId = trim($this->crmCustomerId);
+        if ($customerId === '') {
+            return collect();
+        }
+
+        $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        if ($unitId === '') {
+            return collect();
+        }
+
+        return SamplePoint::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('crm_company_unit_id', $unitId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getCustomerCompanyUnitsProperty(): Collection
+    {
+        $customerId = trim($this->crmCustomerId);
+        if ($customerId === '') {
+            return collect();
+        }
+
+        return CRMCompanyUnit::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getCustomerContactsProperty(): Collection
+    {
+        $customerId = trim($this->crmCustomerId);
+        if ($customerId === '') {
+            return collect();
+        }
+
+        $contacts = CustomerContact::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        if ($unitId === '') {
+            return $contacts;
+        }
+
+        return $contacts
+            ->filter(fn (CustomerContact $contact): bool => $contact->isLinkedToCompanyUnit($unitId))
+            ->values();
     }
 
     public function updatedNotifyAgain(bool $value): void

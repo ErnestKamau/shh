@@ -300,12 +300,15 @@ class QuotationController extends Controller
         $header->terms_override = $request->input('terms_override');
 
         $header->status = 'Quote In Preparation';
-        // return response()->json($header,200);
-        $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
-        if ($pricelist !== null) {
-            $header->pricelist_id = $pricelist->id;
-            if (empty($header->currency_id) && $pricelist->currency_id) {
-                $header->currency_id = $pricelist->currency_id;
+        // Independent by default — pricelist binds only when chosen in the commercial modal.
+        // Still seed currency from an eligible customer list when the header has none.
+        if (empty($header->currency_id)) {
+            $eligible = $this->acceptanceFormPricingService->eligiblePricelistsForCustomer(
+                $header->crm_customer_id ? (string) $header->crm_customer_id : null
+            );
+            $currencyDonor = $eligible[0] ?? null;
+            if ($currencyDonor !== null && $currencyDonor->currency_id) {
+                $header->currency_id = $currencyDonor->currency_id;
             }
         }
         $header->save();
@@ -768,11 +771,14 @@ class QuotationController extends Controller
             $header->currency_id = $request->currency_id;
         }
 
-        $pricelist = $this->quotationPricingResolver->resolvePricelist($header->crm_customer_id);
-        if ($pricelist !== null) {
-            $header->pricelist_id = $pricelist->id;
-            if (! $request->filled('currency_id') && $pricelist->currency_id) {
-                $header->currency_id = $pricelist->currency_id;
+        // Do not auto-bind a customer pricelist on header save — bind only via commercial modal.
+        if (empty($header->currency_id)) {
+            $eligible = $this->acceptanceFormPricingService->eligiblePricelistsForCustomer(
+                $header->crm_customer_id ? (string) $header->crm_customer_id : null
+            );
+            $currencyDonor = $eligible[0] ?? null;
+            if ($currencyDonor !== null && $currencyDonor->currency_id) {
+                $header->currency_id = $currencyDonor->currency_id;
             }
         }
         $header->save();

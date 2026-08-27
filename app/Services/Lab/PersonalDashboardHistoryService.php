@@ -215,10 +215,17 @@ class PersonalDashboardHistoryService
         $pending = $this->quotationApprovalService
             ->pendingApprovalsForUser($userId)
             ->map(function ($header): array {
-                $enquiry = $header->sampleSubmissionRequest;
-                $openUrl = $enquiry?->staffViewUrl() ?? route('add-qoute-details-view', ['id' => $header->id]);
-                if ($enquiry?->submissionFormInstance?->submissionForm) {
-                    $openUrl .= (str_contains($openUrl, '?') ? '&' : '?').'tab=quotation_approvals';
+                $status = (string) ($header->status ?? '');
+                if (in_array($status, ['Quote In Approval', 'Quote Complete'], true)) {
+                    $openUrl = route('view_quotation_final', [
+                        'id' => $header->id,
+                        'stage' => $status,
+                    ]);
+                } else {
+                    $openUrl = route('add-qoute-details-view', [
+                        'id' => $header->id,
+                        'stage' => $status !== '' ? $status : 'Quote In Preparation',
+                    ]);
                 }
 
                 $assignedAt = optional($header->approval_requested_at)->format('Y-m-d H:i') ?? '—';
@@ -253,10 +260,20 @@ class PersonalDashboardHistoryService
             ->get()
             ->map(function (QuotationApprovalLog $log): array {
                 $quote = $log->quotationHeader;
-                $enquiry = $log->enquiry;
-                $openUrl = $enquiry?->staffViewUrl() ?? ($quote ? route('add-qoute-details-view', ['id' => $quote->id]) : null);
-                if ($openUrl && $enquiry?->submissionFormInstance?->submissionForm) {
-                    $openUrl .= (str_contains($openUrl, '?') ? '&' : '?').'tab=quotation_approvals';
+                $status = (string) ($quote?->status ?? '');
+                $openUrl = null;
+                if ($quote !== null) {
+                    if (in_array($status, ['Quote In Approval', 'Quote Complete'], true)) {
+                        $openUrl = route('view_quotation_final', [
+                            'id' => $quote->id,
+                            'stage' => $status,
+                        ]);
+                    } else {
+                        $openUrl = route('add-qoute-details-view', [
+                            'id' => $quote->id,
+                            'stage' => $status !== '' ? $status : 'Quote In Preparation',
+                        ]);
+                    }
                 }
 
                 $isApproved = $log->action === QuotationApprovalLog::ACTION_APPROVED;

@@ -10,6 +10,7 @@ use App\Models\SubmissionFormSection;
 use App\QuotationHeader;
 use App\ReportingUnit;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
+use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -67,6 +68,7 @@ final class EnquiryFromQuotationService
         private readonly AcceptanceFormSampleConfigService $sampleConfigService,
         private readonly CommercialEnquirySampleLineSync $sampleLineSync,
         private readonly PortalEnquiryFormInstanceSyncService $formInstanceSync,
+        private readonly PortalSubmissionFormAccess $portalFormAccess,
         private readonly EnquiryReceptionReadinessService $receptionReadinessService,
         private readonly CommercialEnquiryFieldMapper $fieldMapper,
         private readonly EnquiryQuotationService $enquiryQuotationService,
@@ -500,7 +502,7 @@ final class EnquiryFromQuotationService
         $crmCustomerId = trim((string) ($quotation->crm_customer_id ?? ''));
         $crmCustomerId = $crmCustomerId !== '' ? $crmCustomerId : null;
 
-        $form = $this->formInstanceSync->resolveSubmissionFormForEnquiryLines($lines, null, $crmCustomerId);
+        $form = $this->resolveTrfFormLikeWalkIn($lines, $crmCustomerId);
         $sections = $form !== null ? $this->fillableSectionsForForm($form) : [];
 
         $typeNames = \App\SampleType::query()
@@ -518,6 +520,50 @@ final class EnquiryFromQuotationService
             'form_name' => (string) ($form?->name ?? $form?->document_code ?? 'Test Request Form'),
             'sections' => $sections,
         ]];
+    }
+
+    /**
+     * Prefer walk-in sample-type resolution (document code / category) so Food types like
+     * Nonseafood map to TRF-FOOD-019, not the Food & Feed form via category-union scoring.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function resolveTrfFormLikeWalkIn(array $lines, ?string $crmCustomerId): ?SubmissionForm
+    {
+        $sampleTypeIds = collect($lines)
+            ->map(static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($sampleTypeIds->count() === 1) {
+            $form = $this->portalFormAccess->testRequestFormForSampleType(
+                (string) $sampleTypeIds->first(),
+                $crmCustomerId,
+            );
+            if ($form !== null) {
+                return $form;
+            }
+        }
+
+        if ($sampleTypeIds->count() > 1) {
+            $resolvedIds = $sampleTypeIds
+                ->map(fn (string $typeId): ?string => $this->portalFormAccess
+                    ->testRequestFormForSampleType($typeId, $crmCustomerId)
+                    ?->id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($resolvedIds->count() === 1) {
+                $form = SubmissionForm::query()->find((string) $resolvedIds->first());
+                if ($form !== null) {
+                    return $form;
+                }
+            }
+        }
+
+        return $this->formInstanceSync->resolveSubmissionFormForEnquiryLines($lines, null, $crmCustomerId);
     }
 
     /**
