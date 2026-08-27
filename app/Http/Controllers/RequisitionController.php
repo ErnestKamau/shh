@@ -2270,7 +2270,7 @@ class RequisitionController extends Controller
 
 			$mailer = new Mailer;
 
-			$mailer->html_email($mailData, 'default');
+			$sendMail = $mailer->html_email($mailData, 'default');
 		} catch (\Throwable $e) {
 			\Log::warning('Change approver notification failed for '.$req->request_code.': '.$e->getMessage());
 
