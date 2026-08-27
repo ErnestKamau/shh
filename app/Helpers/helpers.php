@@ -1962,7 +1962,11 @@ function getUnitNamesByID(array $unitIds): string
 
 	foreach ($values as $value) {
 		if (\Illuminate\Support\Str::isUuid($value)) {
-			$display[] = $resolvedById[$value] ?? $value;
+			$name = trim((string) ($resolvedById[$value] ?? ''));
+			// Never surface raw unit UUIDs in UI labels.
+			if ($name !== '') {
+				$display[] = $name;
+			}
 		} else {
 			// Legacy contacts store unit names directly (e.g. "Nairobi"), not UUIDs.
 			$display[] = $value;

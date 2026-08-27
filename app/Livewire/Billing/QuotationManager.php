@@ -22,7 +22,6 @@ use Illuminate\Validation\ValidationException;
 use App\Services\Commercial\QuotationApprovalService;
 use App\Models\CRM\SamplePoint;
 use App\Models\CRM\CustomerContact;
-use App\Models\CRM\CRMCompanyUnit;
 
 class QuotationManager extends Component
 {
@@ -710,11 +709,6 @@ class QuotationManager extends Component
             ->orderBy('first_name')
             ->get();
 
-        $unitIds = $contacts->pluck('crm_company_unit_id')->filter()->unique()->values()->all();
-        $unitNamesById = $unitIds === []
-            ? collect()
-            : CRMCompanyUnit::query()->whereIn('id', $unitIds)->pluck('name', 'id');
-
         $samplePointsByContact = SamplePoint::query()
             ->where('crm_customer_id', $customerId)
             ->whereNotNull('contact_id')
@@ -736,13 +730,19 @@ class QuotationManager extends Component
                 || (string) $contact->id === $primaryContactId
                 || (bool) ($contact->is_main_customer_contact ?? false);
 
-            $unitLabel = '—';
-            $unitId = (string) ($contact->crm_company_unit_id ?? '');
-            if ($unitId !== '' && $unitNamesById->has($unitId)) {
-                $unitLabel = (string) $unitNamesById->get($unitId);
-            } elseif (trim((string) ($contact->unit_name ?? '')) !== '') {
-                $unitLabel = (string) $contact->unit_name;
+            // crm_company_unit_id and unit_name may both hold unit UUIDs (unit_name is CSV).
+            $unitIdsForLabel = [];
+            $primaryUnitId = trim((string) ($contact->crm_company_unit_id ?? ''));
+            if ($primaryUnitId !== '') {
+                $unitIdsForLabel[] = $primaryUnitId;
             }
+            foreach (explode(',', (string) ($contact->unit_name ?? '')) as $part) {
+                $part = trim($part);
+                if ($part !== '' && ! in_array($part, $unitIdsForLabel, true)) {
+                    $unitIdsForLabel[] = $part;
+                }
+            }
+            $unitLabel = getUnitNamesByID($unitIdsForLabel);
 
             $locations = $samplePointsByContact->get((string) $contact->id, collect())
                 ->map(fn ($point) => trim((string) ($point->display_name ?? $point->name ?? '')))
