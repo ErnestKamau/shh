@@ -139,7 +139,8 @@
 			<div class="modal-body">
 				<div class="form-group">
 					<label class="control-label">Select Users</label>
-					<select class="form-control" name="users[]" multiple placeholder="Select User...">
+					<select id="add-location-users" class="form-control ls-select2" name="users[]" multiple
+						data-placeholder="Select User..." placeholder="Select User...">
 						@foreach (getUsers(true) as $item)
 							<option value="{{ $item->id }}">{{ $item->name  }}</option>
 						@endforeach
@@ -160,6 +161,25 @@
 			var subCat = {{ $location->id }}+" "+$(e.relatedTarget).data('subid');
 
 			$('#create-an-order').find('[name="items[sub_category_id][]"]').val(subCat);
+		});
+
+		$('#add-user-access').on('shown.bs.modal', function () {
+			var $select = $('#add-location-users');
+			if (!$select.length || typeof $.fn.select2 !== 'function') {
+				return;
+			}
+
+			if ($select.data('select2')) {
+				try { $select.select2('destroy'); } catch (err) {}
+			}
+
+			$select.select2({
+				placeholder: $select.attr('placeholder') || 'Select User...',
+				allowClear: true,
+				width: '100%',
+				closeOnSelect: false,
+				dropdownParent: $('#add-user-access .modal-content')
+			});
 		});
 	});
 </script>
