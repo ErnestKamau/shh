@@ -1916,7 +1916,7 @@ Route::get('/lab/standard/show/{id}', 'Lab\StandardsController@show')->name('vie
 //###################################Standards#######################################
 
 //###################################API ROUTES#######################################
-// Route::get('/api-get-available-items/{item_id}/{brand_id}/{request_id?}', 'API\APIController@items_available')->name('api-get-available-items');
+Route::get('/api-get-available-items/{item_id}/{brand_id}/{request_id?}', 'API\APIController@items_available')->name('api-get-available-items')->middleware('auth');
 //###################################API ROUTES#######################################
 
 //###################################REMINDERS ROUTES#######################################

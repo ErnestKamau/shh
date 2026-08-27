@@ -489,22 +489,23 @@ class RequisitionController extends Controller
 			<br>Regards,<br>
 			' . $companyDetails['name'];
 
-		$mailData = array(
-			'contacts' => array($APPR_USER->email),
-			'body' => $body,
-			'subject' => '[' . $MATERIAL_REQUISITION->request_code . '] Goods from your Requisition have arrived at store.'
-		);
-
 		if (isKECU()) {
 			$this->send_creation_email($purchaseOrder, [], true, false, false);
 		} else {
 			$this->send_creation_email($purchaseOrder, [], true, true, true);
 		}
 
-		$mailer = new Mailer;
+		$smsMessage = in_array($MATERIAL_REQUISITION->request_type, ["Loan", "Lend"])
+			? 'Use the code ' . $OTP->code . ', when receiving items from ' . $MATERIAL_REQUISITION->request_type . ' - ' . $MATERIAL_REQUISITION->request_code
+			: 'You are required at the store to inspect the goods from ' . $MATERIAL_REQUISITION->request_code . '. Your OTP is ' . $OTP->code . '.';
 
-		sendTextMessage($APPR_USER->phone, in_array($MATERIAL_REQUISITION->request_type, ["Loan", "Lend"]) ? " Use the code " . $OTP->code . ", when receiving items from " . $MATERIAL_REQUISITION->request_type . " - " . $MATERIAL_REQUISITION->request_code : "You are required at the store to inspect the goods from " . $MATERIAL_REQUISITION->request_code . ". Your OTP is " . $OTP->code . ".");
-		$sendMail = $mailer->html_email($mailData, 'default');
+		$OTPController->notifyUser(
+			$OTP,
+			$APPR_USER,
+			'[' . $MATERIAL_REQUISITION->request_code . '] Goods from your Requisition have arrived at store.',
+			$body,
+			$smsMessage
+		);
 
 		$checkingUser = \App\User::find($request->issue_to);
 
@@ -1390,8 +1391,13 @@ class RequisitionController extends Controller
 			$this->send_creation_email($rfq, $emailList, false, true, true);
 		}
 
-		$this->notify_user($body, $theUser->email, $subject);
-		sendTextMessage($theUser->phone, "Items from your Request to Store " . $entity->request_code . " are available for pickup. Your OTP is " . $OTP->code . ".");
+		$OTPController->notifyUser(
+			$OTP,
+			$theUser,
+			$subject,
+			$body,
+			'Items from your Request to Store ' . $entity->request_code . ' are available for pickup. Your OTP is ' . $OTP->code . '.'
+		);
 
 		return redirect()->route('view-request-details', ['stage' => $rfq->request_type, 'id' => $rfq->id])->with('success', 'Purchase Request successfuly created.');
 	}
@@ -3283,15 +3289,13 @@ class RequisitionController extends Controller
 
 				$subject = '[' . $req->request_code . '] Items are available at the store for pick-up.';
 
-				$storeManagers = getInventoryWorkflowUsers('store_manager');
-
-				$emailList = [];
-
-				foreach ($storeManagers as $sm) {
-					$emailList[] = $sm->email;
-				}
-
-				$this->notify_user($body, $OTPUser->email, $subject);
+				$OTPController->notifyUser(
+					$OTP,
+					$OTPUser,
+					$subject,
+					$body,
+					'Items from Request to Store ' . $req->request_code . ' are available for pickup. Your OTP is ' . $OTP->code . '.'
+				);
 			}
 		}
 		$req->priority = $request->priority;
@@ -3541,7 +3545,8 @@ class RequisitionController extends Controller
 					?? null;
 				$item->unit_cost = is_numeric($unitCost) ? (float) $unitCost : 0.0;
 
-				$item->starting_sample = $request->items['starting_sample'][$i] ?? null;
+				$startingSample = $request->items['starting_sample'][$i] ?? null;
+				$item->starting_sample = filled($startingSample) ? $startingSample : null;
 				$item->lot_no = $request->items['lot_no'][$i] ?? null;
 
 				foreach ([

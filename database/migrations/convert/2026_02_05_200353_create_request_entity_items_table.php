@@ -35,7 +35,7 @@ return new class extends Migration
             $table->integer('request_entity_item_ammended_id')->default(0);
             $table->date('date_of_manufacture')->nullable();
             $table->uuid('item_brand_id')->nullable()->index('idx_request_entity_items_item_brand_id_2c58da8d');
-            $table->integer('starting_sample')->nullable()->default(1);
+            $table->uuid('starting_sample')->nullable();
             $table->string('catalog_number', 128)->nullable()->index('idx_request_entity_items_catalog_number_eb68ee4f');
             $table->string('uom', 100)->nullable();
             $table->string('test', 32)->nullable();
