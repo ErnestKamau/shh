@@ -21,6 +21,8 @@ use App\User;
 use App\UserRole;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -47,7 +49,8 @@ class InventoryDemoBootstrapSeeder extends Seeder
     private const LEGACY_LOCATION_NAMES = ['SystemAdmin', 'Nairobi Laboratory'];
 
     private User $user;
-    private int $companyId;
+    /** Company UUID string (amspec_dubai) — never cast to int. */
+    private string $companyId;
     private InventoryLocation $location;
 
     /** @var array<string, Role> */
@@ -176,8 +179,43 @@ class InventoryDemoBootstrapSeeder extends Seeder
             );
         }
 
+        $companyId = $this->uuidOrNull($user->company_id);
+        if ($companyId === null) {
+            throw new \RuntimeException(
+                'User '.self::TARGET_EMAIL.' has no valid UUID company_id (got: '.var_export($user->company_id, true).').'
+            );
+        }
+
         $this->user = $user;
-        $this->companyId = (int) ($user->company_id ?: 1);
+        $this->companyId = $companyId;
+    }
+
+    /** Empty / non-UUID FK values must be null on Postgres uuid columns (never 0). */
+    private function uuidOrNull(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === 0 || $value === '0') {
+            return null;
+        }
+
+        $value = is_string($value) ? trim($value) : (string) $value;
+
+        return Str::isUuid($value) ? $value : null;
+    }
+
+    private function columnAcceptsUuid(string $table, string $column): bool
+    {
+        if (! Schema::hasColumn($table, $column)) {
+            return false;
+        }
+
+        try {
+            $type = Schema::getColumnType($table, $column);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        // Native uuid, or varchar/string used to hold UUID text (users.location_id pattern).
+        return in_array($type, ['uuid', 'guid', 'string', 'text'], true);
     }
 
     private function seedLocation(): void
@@ -199,13 +237,13 @@ class InventoryDemoBootstrapSeeder extends Seeder
                 ],
                 [
                     'level' => 1,
-                    'inventory_location_id' => 0,
+                    'inventory_location_id' => null, // root site — never 0 on uuid column
                     'active' => 1,
                 ]
             );
         }
 
-        $this->command?->info("Location ready: {$this->location->name} (#{$this->location->id})");
+        $this->command?->info("Location ready: {$this->location->name} ({$this->location->id})");
     }
 
     private function seedDepartments(): void
@@ -227,6 +265,12 @@ class InventoryDemoBootstrapSeeder extends Seeder
         ];
 
         foreach ($org as $name) {
+            $attrs = ['active' => 1];
+            // department_head_id may still be integer on some DBs; only set when UUID-safe.
+            if ($this->columnAcceptsUuid('inventory_departments', 'department_head_id')) {
+                $attrs['department_head_id'] = $this->user->id;
+            }
+
             $this->departments[$name] = InventoryDepartment::updateOrCreate(
                 [
                     'name' => $name,
@@ -234,10 +278,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                     'location_id' => $this->location->id,
                     'module' => 'organizational',
                 ],
-                [
-                    'active' => 1,
-                    'department_head_id' => $this->user->id,
-                ]
+                $attrs
             );
         }
 
@@ -704,7 +745,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                     [
                         'supplier_id' => $supplier->id,
                         'inventory_sub_category_id' => $item->id,
-                        'inventory_item_brand_id' => $brand->id ?? 0,
+                        'inventory_item_brand_id' => $this->uuidOrNull($brand->id ?? null),
                     ],
                     [
                         'supplier_image' => '',
@@ -720,7 +761,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
     private function seedStock(): void
     {
         $defaultSupplier = reset($this->suppliers) ?: null;
-        $deptId = $this->departments['Stores']->id ?? 0;
+        $deptId = $this->uuidOrNull($this->departments['Stores']->id ?? null);
 
         foreach ($this->items as $code => $item) {
             $plans = $item->getAttribute('_demo_stock') ?? [];
@@ -738,6 +779,27 @@ class InventoryDemoBootstrapSeeder extends Seeder
                 $storeId = $slot->inventory_store_id;
                 $batch = $plan['batch'];
 
+                $stockAttrs = [
+                    'inventory_category_id' => $item->inventory_category_id,
+                    'stock_in' => $plan['qty'],
+                    'stock_out' => 0,
+                    'created_by' => $this->user->id,
+                    'supplier_id' => $this->uuidOrNull($defaultSupplier->id ?? null),
+                    'inventory_department_id' => $deptId,
+                    'status' => 'approved',
+                    'expiry' => now()->addYears(2)->toDateString(),
+                    'price' => $item->unit_price,
+                    'barcode' => strtoupper(substr(md5($batch), 0, 12)),
+                    'item_brand_id' => $this->uuidOrNull($brand->id ?? null),
+                    'unit_of_measure' => $item->unit_type,
+                    'lot_no' => $batch,
+                    'date_of_manufacture' => now()->subMonths(2)->toDateString(),
+                ];
+
+                if ($this->columnAcceptsUuid('inventory_items', 'edited_by')) {
+                    $stockAttrs['edited_by'] = null;
+                }
+
                 $stock = InventoryItem::updateOrCreate(
                     [
                         'inventory_sub_category_id' => $item->id,
@@ -746,23 +808,7 @@ class InventoryDemoBootstrapSeeder extends Seeder
                         'inventory_store_slot_id' => $slot->id,
                         'batch_code' => $batch,
                     ],
-                    [
-                        'inventory_category_id' => $item->inventory_category_id,
-                        'stock_in' => $plan['qty'],
-                        'stock_out' => 0,
-                        'created_by' => $this->user->id,
-                        'supplier_id' => $defaultSupplier->id ?? null,
-                        'inventory_department_id' => $deptId,
-                        'edited_by' => 0,
-                        'status' => 'approved',
-                        'expiry' => now()->addYears(2)->toDateString(),
-                        'price' => $item->unit_price,
-                        'barcode' => strtoupper(substr(md5($batch), 0, 12)),
-                        'item_brand_id' => $brand->id ?? 0,
-                        'unit_of_measure' => $item->unit_type,
-                        'lot_no' => $batch,
-                        'date_of_manufacture' => now()->subMonths(2)->toDateString(),
-                    ]
+                    $stockAttrs
                 );
 
                 InventoryStoreSlotContent::firstOrCreate(
