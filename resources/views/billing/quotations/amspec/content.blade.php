@@ -2,6 +2,7 @@
     $primaryColor = $branding['primary'] ?? 'var(--color-primary)';
     $accentColor = $branding['accent'] ?? '#4CAF50';
     $isPdf = (bool) ($forPdf ?? false);
+    $isBrazilQuotation = (bool) ($isBrazilQuotation ?? false);
 @endphp
 
 <div class="amspec-quotation" style="--quotation-primary: {{ $primaryColor }}; --quotation-accent: {{ $accentColor }};">
@@ -13,7 +14,9 @@
         <div class="amspec-page-body">
             @include('billing.quotations.amspec.partials.header')
             @include('billing.quotations.amspec.partials.meta')
-            @include('billing.quotations.amspec.partials.intro')
+            @unless($isBrazilQuotation)
+                @include('billing.quotations.amspec.partials.intro')
+            @endunless
             @include('billing.quotations.amspec.partials.test-table')
         </div>
         @if(!$isPdf)
@@ -27,6 +30,9 @@
         @endif
         @include('billing.quotations.amspec.partials.page-logo')
         <div class="amspec-page-body">
+            @if($isBrazilQuotation)
+                @include('billing.quotations.amspec.partials.terms-of-sale')
+            @endif
             @include('billing.quotations.amspec.partials.terms')
             @include('billing.quotations.amspec.partials.signature')
         </div>

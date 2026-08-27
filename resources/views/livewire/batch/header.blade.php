@@ -272,6 +272,15 @@
                                             <i class="mdi mdi-printer mr-2"></i> Print tests PDF
                                         </a>
                                     </li>
+                                    @if(in_array($batch->status, ['Sample Verification', 'Sample Approval', 'Samples In Lab'], true))
+                                        <li>
+                                            <a href="#raw-results"
+                                               class="dropdown-item"
+                                               onclick="event.preventDefault(); var tab = document.getElementById('raw-results-tab'); if (tab) { tab.click(); }">
+                                                <i class="mdi mdi-eye-outline mr-2"></i> View results
+                                            </a>
+                                        </li>
+                                    @endif
                                     <li><hr class="dropdown-divider"></li>
                                 @endif
                                 @if(isset($batch->id))

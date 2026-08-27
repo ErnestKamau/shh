@@ -528,6 +528,8 @@ class Header extends Component
                 $approvers->show_report = 0;
                 $approvers->save();
             }
+
+            $this->ensureLabManagerVerificationApprover($batch, $status, $level);
         }
 
         $batch->save();
@@ -649,6 +651,8 @@ class Header extends Component
         $batch = $this->batch;
 
         if ($batch->status === 'Sample Verification') {
+            $this->ensureLabManagerVerificationApprover($batch, 'Sample Verification', '0');
+
             try {
                 app(WorkflowService::class)->assertStageApprovalsCompleted((string) $batch->id, 'Sample Verification');
             } catch (ValidationException $exception) {
@@ -658,9 +662,100 @@ class Header extends Component
                 $this->showChecklistRequiredModal = true;
                 return;
             }
+
+            $hasTechnicalReviewer = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->where('is_technical_reviewer', true)
+                ->exists();
+            $hasLabManager = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->where('can_send_back_to_lab', true)
+                ->exists();
+
+            if (! $hasTechnicalReviewer || ! $hasLabManager) {
+                session()->flash(
+                    'error',
+                    'Verification approvals not properly configured. Both Technical Reviewer and Lab Manager must be assigned.'
+                );
+
+                return;
+            }
         }
 
         $this->showApprovalModal = true;
+    }
+
+    /**
+     * Ensure a Lab Manager verification approver (order 2) exists alongside Technical Reviewers.
+     */
+    protected function ensureLabManagerVerificationApprover(SampleHeader $batch, string $status, string $level): void
+    {
+        $existingLabManager = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', $status)
+            ->where('can_send_back_to_lab', true)
+            ->first();
+
+        if ($existingLabManager) {
+            return;
+        }
+
+        $labManager = $this->resolveLabManagerUserForBatch($batch);
+        if (! $labManager) {
+            return;
+        }
+
+        $lmApprover = new \App\BatchLabSectionApprover();
+        $lmApprover->status = 0;
+        $lmApprover->user_id = $labManager->id;
+        $lmApprover->title = 'Lab Manager';
+        $lmApprover->lab_section_ids = (string) ($batch->lab_section_ids ?: 0);
+        $lmApprover->batch_id = $batch->id;
+        $lmApprover->batch_status = $status;
+        $lmApprover->is_prelim = ($level != '0') ? 1 : 0;
+        $lmApprover->show_report = 1;
+        $lmApprover->approver_order = 2;
+        $lmApprover->is_technical_reviewer = 0;
+        $lmApprover->approver_type = 'Lab Manager';
+        $lmApprover->can_send_back_to_lab = 1;
+        $lmApprover->save();
+    }
+
+    protected function resolveLabManagerUserForBatch(SampleHeader $batch): ?\App\User
+    {
+        $labManager = \App\User::query()
+            ->where('active', 1)
+            ->whereHas('roles', function ($query): void {
+                $query->where('name', 'like', '%Lab Manager%');
+            })
+            ->first();
+        if ($labManager) {
+            return $labManager;
+        }
+
+        foreach ($this->getBatchLabs() as $lab) {
+            $managers = $this->getLabManagersForLab($lab->id);
+            if ($managers->isNotEmpty()) {
+                return $managers->first();
+            }
+        }
+
+        $sectionIds = array_values(array_filter(array_map('trim', explode(',', (string) $batch->lab_section_ids))));
+        if ($sectionIds !== []) {
+            $section = \App\SampleAnalysisStage::whereIn('id', $sectionIds)->first();
+            if ($section && $section->section_head_id) {
+                $head = \App\User::find($section->section_head_id);
+                if ($head) {
+                    return $head;
+                }
+            }
+        }
+
+        $technicalReviewer = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Verification')
+            ->where('is_technical_reviewer', true)
+            ->first();
+
+        return $technicalReviewer ? \App\User::find($technicalReviewer->user_id) : null;
     }
 
     public function closeChecklistRequiredModal()

@@ -8,6 +8,7 @@ use App\QuotationHeader;
 use App\SampleType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 /**
@@ -26,6 +27,10 @@ final class QuotationLabSectionScope
      */
     public function allowedLabSectionIds(QuotationHeader $header): array
     {
+        if (! Schema::hasTable('quotation_header_lab_sections')) {
+            return [];
+        }
+
         $header->loadMissing('labSections');
 
         return $header->labSections

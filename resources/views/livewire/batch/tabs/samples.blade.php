@@ -254,6 +254,14 @@
                     title="Capture results for selected samples">
                     <i class="mdi mdi-flask-outline"></i> Capture results
                 </button>
+                @if(in_array($batch->status ?? '', ['Sample Verification', 'Sample Approval', 'Samples In Lab'], true))
+                    <button type="button"
+                        class="btn btn-outline-primary btn-sm btn-action-sm"
+                        onclick="(function(){ var tab = document.getElementById('raw-results-tab'); if (tab) { tab.click(); } })()"
+                        title="Open Raw Results to review without Capture Results">
+                        <i class="mdi mdi-eye-outline"></i> View results
+                    </button>
+                @endif
             </div>
         </div>
         <div class="workflow-board-panel-body flush-top">

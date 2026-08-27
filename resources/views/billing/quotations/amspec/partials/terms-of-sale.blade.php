@@ -1,10 +1,18 @@
+@php
+    $isBrazilQuotation = (bool) ($isBrazilQuotation ?? false);
+    $showPrices = array_key_exists('show_prices', $termsOfSale ?? [])
+        ? (bool) $termsOfSale['show_prices']
+        : ! $isBrazilQuotation;
+    $deliveryOfResults = trim((string) ($termsOfSale['delivery_of_results'] ?? $termsOfSale['service_delivery'] ?? ''));
+    $confidentiality = trim((string) ($termsOfSale['confidentiality'] ?? ''));
+@endphp
 <div class="amspec-terms-of-sale" style="margin-top: 18px; font-size: 11px;">
     <p class="amspec-terms-title" style="font-weight: 700; margin-bottom: 8px;">Terms of Sale</p>
     <p style="margin-bottom: 8px;">
-        @if(! empty($termsOfSale['prices']))
+        @if($showPrices && ! empty($termsOfSale['prices']))
             <strong>Prices:</strong> {{ $termsOfSale['prices'] }} {{ $currencyCode }}<br>
         @endif
-        <strong>Delivery of results:</strong> {{ $termsOfSale['service_delivery'] }}<br>
+        <strong>Delivery of results:</strong> {{ $termsOfSale['service_delivery'] ?? $deliveryOfResults }}<br>
         <strong>Payments:</strong> {{ $termsOfSale['payments'] }}<br>
         <strong>Proposal Acceptance:</strong> {{ $termsOfSale['quote_specification'] }}
     </p>
@@ -17,7 +25,16 @@
         {!! nl2br(e($termsOfSale['payment_info'] ?? '')) !!}
     </p>
 
-    @if(! empty(array_filter($bankDetails)))
+    @if($isBrazilQuotation)
+        <p style="margin-bottom: 8px;">
+            <strong>Delivery of results:</strong> {{ $deliveryOfResults !== '' ? $deliveryOfResults : 'Results are made available by e-mail/portal to the contact provided by the applicant in the registration form.' }}
+        </p>
+        <p style="margin-bottom: 8px;">
+            <strong>Confidentiality:</strong> {{ $confidentiality !== '' ? $confidentiality : 'All customer information obtained is treated by Amspec Lab as confidential and is not shared.' }}
+        </p>
+    @endif
+
+    @if(! empty(array_filter($bankDetails ?? [])))
         <div class="amspec-bank-details text-center" style="margin-top: 12px;">
             <p style="margin-bottom: 4px;">
                 Cheques made payable to <strong>{{ $company->name ?? '' }}</strong>

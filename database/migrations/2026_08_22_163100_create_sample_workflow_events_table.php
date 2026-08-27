@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('sample_workflow_events')) {
+            return;
+        }
+
         Schema::create('sample_workflow_events', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('subject_type', 191);

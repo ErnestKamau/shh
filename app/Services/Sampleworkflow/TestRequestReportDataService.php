@@ -5,6 +5,7 @@ namespace App\Services\Sampleworkflow;
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
 use App\Country;
+use App\Enums\CompanyCode;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\SamplePoint;
 use App\Models\SubmissionFormInstance;
@@ -208,6 +209,8 @@ class TestRequestReportDataService
 
         $loqByCapturedResultId = $this->buildLoqIndex($capturedResults);
 
+        $isBrazilExportationReport = $this->isBrazilExportationTrf($sfi);
+
         $sampleDetailContexts = $this->buildSampleDetailContexts(
             $batch,
             $samples,
@@ -231,6 +234,7 @@ class TestRequestReportDataService
                 'approvalDate' => $approvalDate,
             ],
             $capturedResults,
+            $isBrazilExportationReport,
         );
 
         return [
@@ -273,7 +277,101 @@ class TestRequestReportDataService
             'signatureWarning' => $signatureWarning,
             'measureUncertaintyByCapturedResultId' => $measureUncertaintyByCapturedResultId,
             'loqByCapturedResultId' => $loqByCapturedResultId,
+            'isBrazilExportationReport' => $isBrazilExportationReport,
         ];
+    }
+
+    public function isBrazilExportationBatch(SampleHeader $batch): bool
+    {
+        return $this->isBrazilExportationTrf($this->resolveSubmissionFormInstance($batch));
+    }
+
+    /**
+     * Exportation TRF misc fields for Sample Verification (Brazil only).
+     *
+     * @return array{fields: array<string, string>, form_name: string}|null
+     */
+    public function exportationSampleInfoForBatch(SampleHeader $batch): ?array
+    {
+        $sfi = $this->resolveSubmissionFormInstance($batch);
+        if (! $this->isBrazilExportationTrf($sfi)) {
+            return null;
+        }
+
+        $formData = $sfi !== null
+            ? app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)->valuesMapFromInstance($sfi)
+            : [];
+        $trfPayload = $sfi !== null ? $this->trfReportBuilder->buildFromSubmissionFormInstance($sfi) : null;
+        $collection = is_array($trfPayload) && is_array($trfPayload['collection'] ?? null)
+            ? $trfPayload['collection']
+            : [];
+        $extras = is_array($collection['collection_extras'] ?? null)
+            ? $collection['collection_extras']
+            : [];
+
+        $fields = [
+            'packaging' => $this->firstNonEmptyFromMixed(
+                $extras['packaging'] ?? null,
+                $formData['packaging'] ?? null,
+            ) ?? '',
+            'sample_weight' => $this->firstNonEmptyFromMixed(
+                $extras['sample_weight'] ?? null,
+                $formData['sample_weight'] ?? null,
+            ) ?? '',
+            'sample_information' => $this->firstNonEmptyFromMixed(
+                $extras['sample_information'] ?? null,
+                $formData['sample_information'] ?? null,
+            ) ?? '',
+            'ship_name' => $this->firstNonEmptyFromMixed(
+                $extras['ship_name'] ?? null,
+                $formData['ship_name'] ?? null,
+            ) ?? '',
+            'port_of_loading' => $this->firstNonEmptyFromMixed(
+                $extras['port_of_loading'] ?? null,
+                $formData['port_of_loading'] ?? null,
+            ) ?? '',
+            'port_of_discharge' => $this->firstNonEmptyFromMixed(
+                $extras['port_of_discharge'] ?? null,
+                $formData['port_of_discharge'] ?? null,
+            ) ?? '',
+            'seal_number' => $this->firstNonEmptyFromMixed(
+                $extras['seal_number'] ?? null,
+                $formData['seal_number'] ?? null,
+            ) ?? '',
+            'date_received' => $this->firstNonEmptyFromMixed(
+                $extras['date_received'] ?? null,
+                $this->formatReportDate($formData['date_received'] ?? null),
+                $batch->receipt_date ? date('d/m/Y', strtotime((string) $batch->receipt_date)) : null,
+            ) ?? '',
+        ];
+
+        return [
+            'fields' => $fields,
+            'form_name' => (string) ($sfi?->submissionForm?->name ?? 'Exportation'),
+        ];
+    }
+
+    private function isBrazilExportationTrf(?SubmissionFormInstance $sfi): bool
+    {
+        if (! companyHasCode(CompanyCode::Brl) || $sfi === null) {
+            return false;
+        }
+
+        $form = $sfi->submissionForm;
+        if ($form === null) {
+            $sfi->loadMissing('submissionForm');
+            $form = $sfi->submissionForm;
+        }
+
+        if ($form === null) {
+            return false;
+        }
+
+        $haystack = mb_strtolower(trim(
+            (string) ($form->document_code ?? '').' '.(string) ($form->name ?? '')
+        ));
+
+        return str_contains($haystack, 'export');
     }
 
     /**
@@ -298,6 +396,7 @@ class TestRequestReportDataService
         array $trfCollectionExtras,
         array $shared,
         $capturedResults,
+        bool $isBrazilExportationReport = false,
     ): array {
         $contexts = [];
         $usersById = $this->analystUsersById($capturedResults);
@@ -416,8 +515,22 @@ class TestRequestReportDataService
                 }
             }
 
-            $contexts[] = [
-                'rows' => [
+            if ($isBrazilExportationReport) {
+                $rows = $this->brazilExportationSampleDetailRows(
+                    $batch,
+                    $sampleCode,
+                    $reportNumber,
+                    $sampleDescription,
+                    $sampleType,
+                    $lotNo,
+                    $productionDate,
+                    $expiry,
+                    $quantity,
+                    $trfCollectionExtras,
+                    $shared,
+                );
+            } else {
+                $rows = [
                     [
                         'left' => ['label' => 'job_no', 'value' => (string) $batch->batch_code],
                         'right' => ['label' => 'sample_no', 'value' => $sampleCode !== '' ? $sampleCode : '-'],
@@ -473,7 +586,11 @@ class TestRequestReportDataService
                         'left' => ['label' => 'additional_notes', 'value' => $additionalNotes],
                         'right' => ['label' => 'sample_preservation', 'value' => $preservation],
                     ],
-                ],
+                ];
+            }
+
+            $contexts[] = [
+                'rows' => $this->compactSampleDetailRows($rows),
                 'lab_section' => $labSectionNames,
                 'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
                 'sample_photo_data_uri' => $samplePhotoDataUri,
@@ -481,6 +598,75 @@ class TestRequestReportDataService
         }
 
         return $contexts;
+    }
+
+    /**
+     * SAMPLE INFORMATION rows for Brazil Exportation TRF only (p2 product + p3 misc).
+     *
+     * @param  array<string, mixed>  $trfCollectionExtras
+     * @param  array<string, string|null>  $shared
+     * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}}>
+     */
+    private function brazilExportationSampleDetailRows(
+        SampleHeader $batch,
+        string $sampleCode,
+        string $reportNumber,
+        string $sampleDescription,
+        string $sampleType,
+        string $lotNo,
+        string $productionDate,
+        string $expiry,
+        string $quantity,
+        array $trfCollectionExtras,
+        array $shared,
+    ): array {
+        $sampleWeight = $this->firstNonEmptyFromMixed(
+            $trfCollectionExtras['sample_weight'] ?? null,
+            $quantity,
+        ) ?? '-';
+
+        return [
+            [
+                'left' => ['label' => 'job_no', 'value' => (string) $batch->batch_code],
+                'right' => ['label' => 'sample_no', 'value' => $sampleCode !== '' ? $sampleCode : '-'],
+            ],
+            [
+                'left' => ['label' => 'sample_description', 'value' => $sampleDescription],
+                'right' => ['label' => 'report_no', 'value' => $this->perSampleReportNumber($sampleCode, $reportNumber), 'emphasize' => true],
+            ],
+            [
+                'left' => ['label' => 'sample_type', 'value' => $sampleType],
+                'right' => ['label' => 'date_received', 'value' => (string) ($shared['dateReceived'] ?? ($trfCollectionExtras['date_received'] ?? '-'))],
+            ],
+            [
+                'left' => ['label' => 'lot_no', 'value' => $lotNo],
+                'right' => ['label' => 'production_date', 'value' => $productionDate],
+            ],
+            [
+                'left' => ['label' => 'expiry_date', 'value' => $expiry],
+                'right' => ['label' => 'weight', 'value' => $quantity],
+            ],
+            [
+                'left' => ['label' => 'sample_information', 'value' => (string) ($trfCollectionExtras['sample_information'] ?? '-')],
+                'right' => ['label' => 'packaging', 'value' => (string) ($trfCollectionExtras['packaging'] ?? '-')],
+            ],
+            [
+                'left' => ['label' => 'sample_weight', 'value' => $sampleWeight],
+                'right' => ['label' => 'ship_name', 'value' => (string) ($trfCollectionExtras['ship_name'] ?? '-')],
+            ],
+            [
+                'left' => ['label' => 'port_of_loading', 'value' => (string) ($trfCollectionExtras['port_of_loading'] ?? '-')],
+                'right' => ['label' => 'port_of_discharge', 'value' => (string) ($trfCollectionExtras['port_of_discharge'] ?? '-')],
+            ],
+            [
+                'left' => ['label' => 'seal_number', 'value' => (string) ($trfCollectionExtras['seal_number'] ?? '-')],
+                'right' => ['label' => 'reporting_date', 'value' => (string) ($shared['approvalDate'] ?? date('d/m/Y'))],
+            ],
+            [
+                'left' => ['label' => 'analysis_start_date', 'value' => (string) ($shared['analysisStartDate'] ?? '-')],
+                'right' => ['label' => 'analysis_end_date', 'value' => (string) ($shared['analysisEndDate'] ?? '-')],
+            ],
+        ];
     }
 
     private function perSampleReportNumber(string $sampleCode, string $batchReportNumber): string
@@ -496,6 +682,59 @@ class TestRequestReportDataService
         }
 
         return $formattedCode;
+    }
+
+    /**
+     * Drop empty / placeholder detail cells and re-pair remaining fields into two columns.
+     *
+     * @param  list<array{left?: array{label: string, value: string, emphasize?: bool}|null, right?: array{label: string, value: string, emphasize?: bool}|null}>  $rows
+     * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}|null}>
+     */
+    private function compactSampleDetailRows(array $rows): array
+    {
+        $cells = [];
+
+        foreach ($rows as $pair) {
+            foreach (['left', 'right'] as $side) {
+                $cell = $pair[$side] ?? null;
+                if (! is_array($cell)) {
+                    continue;
+                }
+
+                if (! $this->isReportValuePresent($cell['value'] ?? null)) {
+                    continue;
+                }
+
+                $cells[] = [
+                    'label' => (string) ($cell['label'] ?? ''),
+                    'value' => trim((string) ($cell['value'] ?? '')),
+                    ...(! empty($cell['emphasize']) ? ['emphasize' => true] : []),
+                ];
+            }
+        }
+
+        $compacted = [];
+        $count = count($cells);
+
+        for ($i = 0; $i < $count; $i += 2) {
+            $compacted[] = [
+                'left' => $cells[$i],
+                'right' => $cells[$i + 1] ?? null,
+            ];
+        }
+
+        return $compacted;
+    }
+
+    private function isReportValuePresent(mixed $value): bool
+    {
+        $trimmed = trim((string) ($value ?? ''));
+
+        if ($trimmed === '') {
+            return false;
+        }
+
+        return ! in_array($trimmed, ['-', '—', '–', 'N/A', 'n/a', 'NA'], true);
     }
 
     /**
@@ -970,6 +1209,31 @@ class TestRequestReportDataService
             }
         }
 
+        // Brazil Agri & Food Lab letterhead when no explicit Test Report logo is assigned.
+        if (companyHasCode(CompanyCode::Brl)) {
+            $hasExplicitTrrLogo = false;
+            if (method_exists($company, 'reportLogos')) {
+                $hasExplicitTrrLogo = $company->reportLogos()
+                    ->where('report_type', 'test_request_report')
+                    ->whereNotNull('logo_path')
+                    ->exists();
+            }
+
+            if (! $hasExplicitTrrLogo) {
+                $brazilLogo = $this->resolveLogoSrc('images/amspec/agri-food-lab-logo.png', $allowPublicUrlFallback);
+                if ($brazilLogo !== '') {
+                    $reportLogo = $brazilLogo;
+                    $reportLogos['top_left'] = [
+                        'src' => $brazilLogo,
+                        'show_on_every_page' => true,
+                    ];
+                    if ($companyLogo === '') {
+                        $companyLogo = $brazilLogo;
+                    }
+                }
+            }
+        }
+
         if ($reportLogo === '' && ! empty($company->report_logo)) {
             $src = $this->resolveLogoSrc((string) $company->report_logo, $allowPublicUrlFallback);
             if ($src !== '') {
@@ -982,11 +1246,13 @@ class TestRequestReportDataService
         }
 
         if ($reportLogo === '') {
-            foreach (array_filter([
+            $fallbackCandidates = array_filter([
+                companyHasCode(CompanyCode::Brl) ? 'images/amspec/agri-food-lab-logo.png' : null,
                 $company->logo ?? null,
                 'images/logo-report.png',
                 'images/company_logo.png',
-            ]) as $candidate) {
+            ]);
+            foreach ($fallbackCandidates as $candidate) {
                 $src = $this->resolveLogoSrc((string) $candidate, $allowPublicUrlFallback);
                 if ($src !== '') {
                     $reportLogo = $src;
@@ -998,6 +1264,20 @@ class TestRequestReportDataService
                         $companyLogo = $src;
                     }
                     break;
+                }
+            }
+        }
+
+        if (companyHasCode(CompanyCode::Brl) && $reportLogo === '') {
+            $brazilLogo = $this->resolveLogoSrc('images/amspec/agri-food-lab-logo.png', $allowPublicUrlFallback);
+            if ($brazilLogo !== '') {
+                $reportLogo = $brazilLogo;
+                $reportLogos['top_left'] = [
+                    'src' => $brazilLogo,
+                    'show_on_every_page' => true,
+                ];
+                if ($companyLogo === '') {
+                    $companyLogo = $brazilLogo;
                 }
             }
         }

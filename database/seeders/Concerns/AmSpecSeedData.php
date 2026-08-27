@@ -199,6 +199,7 @@ class AmSpecSeedData
     {
         return [
             'name' => 'AmSpec Middle East Inspection & Testing Services',
+            'code' => 'uae',
             'logo' => '/images/no-logo.png',
             'report_logo' => null,
             'location' => 'Dubai, United Arab Emirates',
@@ -221,6 +222,7 @@ class AmSpecSeedData
     {
         return [
             'name' => 'AmSpec Rio Crude Oil Center',
+            'code' => 'brl',
             'logo' => '/images/no-logo.png',
             'report_logo' => null,
             'location' => 'Rio de Janeiro, Brazil',

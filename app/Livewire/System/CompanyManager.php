@@ -4,6 +4,7 @@ namespace App\Livewire\System;
 
 use App\Company;
 use App\Country;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -23,7 +24,7 @@ class CompanyManager extends Component
     public ?string $editingCompanyId = null;
 
     public string $name = '';
-    public string $code = '';
+    public ?string $code = null;
     public ?string $location = null;
     public ?string $address = null;
     public ?string $country_id = null;
@@ -103,7 +104,7 @@ class CompanyManager extends Component
 
         $this->editingCompanyId = $company->id;
         $this->name = (string) $company->name;
-        $this->code = (string) ($company->code ?? '');
+        $this->code = $company->code;
         $this->location = $company->location;
         $this->address = $company->address;
         $this->country_id = $company->country_id;
@@ -158,17 +159,22 @@ class CompanyManager extends Component
 
         $this->authorizeAction($permission);
 
-        $this->code = Company::normalizeCode($this->code) ?? '';
+        $this->code = $this->normalizeCompanyCode($this->code);
+
+        $codeRules = [
+            'required',
+            'string',
+            'max:32',
+            'regex:/^[a-z][a-z0-9_-]*$/',
+        ];
+
+        if (Schema::hasColumn('companies', 'code')) {
+            $codeRules[] = Rule::unique('companies', 'code')->ignore($this->editingCompanyId);
+        }
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => [
-                'required',
-                'string',
-                'max:64',
-                'regex:/^[A-Za-z0-9][A-Za-z0-9_-]*$/',
-                Rule::unique('companies', 'code')->ignore($this->editingCompanyId),
-            ],
+            'code' => $codeRules,
             'location' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
             'country_id' => ['nullable', 'string', 'exists:countries,id'],
@@ -188,7 +194,8 @@ class CompanyManager extends Component
             'maintenanceEndYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'maintenanceEndMonth' => ['nullable', 'integer', 'min:1', 'max:12'],
         ], [
-            'code.regex' => 'Code may only contain letters, numbers, hyphens, and underscores.',
+            'code.regex' => 'Use a lowercase code starting with a letter (e.g. brl, uae). Letters, numbers, hyphens, and underscores only.',
+            'code.unique' => 'This company code is already used by another company.',
         ]);
 
         $company = $this->editingCompanyId === null
@@ -196,6 +203,7 @@ class CompanyManager extends Component
             : Company::query()->findOrFail($this->editingCompanyId);
 
         $company->name = $validated['name'];
+        $company->code = $validated['code'];
         $company->code = $validated['code'];
         $company->location = $validated['location'];
         $company->address = $validated['address'];
@@ -357,6 +365,7 @@ class CompanyManager extends Component
                 $query->where(function ($subQuery): void {
                     $subQuery->where('companies.id', 'like', '%' . $this->search . '%')
                         ->orWhere('companies.code', 'like', '%' . $this->search . '%')
+                        ->orWhere('companies.code', 'like', '%' . $this->search . '%')
                         ->orWhere('c.name', 'like', '%' . $this->search . '%');
                 });
             })
@@ -376,7 +385,7 @@ class CompanyManager extends Component
     private function resetCompanyForm(): void
     {
         $this->name = '';
-        $this->code = '';
+        $this->code = null;
         $this->location = null;
         $this->address = null;
         $this->country_id = null;
@@ -447,5 +456,12 @@ class CompanyManager extends Component
         }
 
         abort(403);
+    }
+
+    private function normalizeCompanyCode(?string $code): ?string
+    {
+        $normalized = strtolower(trim((string) $code));
+
+        return $normalized === '' ? null : $normalized;
     }
 }

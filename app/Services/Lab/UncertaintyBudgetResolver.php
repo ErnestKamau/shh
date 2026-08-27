@@ -143,23 +143,50 @@ final class UncertaintyBudgetResolver
         return '';
     }
 
-    public function formatTestMethod(AnalysisElements $element, ?Collection $siblingsByAnalyte = null): string
+    public function formatTestMethod(AnalysisElements $element, ?Collection $siblingsByAnalyte = null, bool $preferMethodCode = false): string
     {
         $metricsElement = $this->resolveMetricsElement($element, $siblingsByAnalyte);
         $metricsElement->loadMissing(['ltmethod', 'mmethod', 'methodSequence']);
 
+        $format = static function (?object $method) use ($preferMethodCode): string {
+            if ($method === null) {
+                return '';
+            }
+
+            $code = trim((string) ($method->code ?? ''));
+            $name = trim((string) ($method->name ?? ''));
+
+            if ($preferMethodCode && $code !== '') {
+                if ($name !== '' && strcasecmp($code, $name) !== 0 && ! str_contains(strtolower($name), strtolower($code))) {
+                    return $code.' ('.$name.')';
+                }
+
+                return $code;
+            }
+
+            return $name !== '' ? $name : $code;
+        };
+
         if ($metricsElement->ltmethod) {
-            return (string) $metricsElement->ltmethod->name;
+            $formatted = $format($metricsElement->ltmethod);
+            if ($formatted !== '') {
+                return $formatted;
+            }
         }
 
         if ($metricsElement->mmethod) {
-            return (string) $metricsElement->mmethod->name;
+            $formatted = $format($metricsElement->mmethod);
+            if ($formatted !== '') {
+                return $formatted;
+            }
         }
 
         if (! empty($metricsElement->method)) {
             $method = AnalysisMethod::query()->find($metricsElement->method);
-
-            return (string) ($method?->name ?? '');
+            $formatted = $format($method);
+            if ($formatted !== '') {
+                return $formatted;
+            }
         }
 
         if ($metricsElement->methodSequence) {
@@ -176,6 +203,7 @@ final class UncertaintyBudgetResolver
         AnalysisElements $element,
         ?Collection $budgets = null,
         ?Collection $siblingsByAnalyte = null,
+        bool $preferMethodCode = false,
     ): array {
         $metricsElement = $this->resolveMetricsElement($element, $siblingsByAnalyte);
         $budgets ??= $this->preloadForElements(collect([$element, $metricsElement])->unique('id')->values());
@@ -184,7 +212,7 @@ final class UncertaintyBudgetResolver
         return [
             'loq' => $this->formatLoq($metricsElement),
             'mu_percent' => $this->formatMuPercent($metricsElement, $budget, $siblingsByAnalyte),
-            'test_method' => $this->formatTestMethod($metricsElement, $siblingsByAnalyte),
+            'test_method' => $this->formatTestMethod($metricsElement, $siblingsByAnalyte, $preferMethodCode),
         ];
     }
 

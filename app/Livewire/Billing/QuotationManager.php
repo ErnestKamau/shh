@@ -13,6 +13,7 @@ use App\Services\Billing\QuotationPricingResolver;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
@@ -225,7 +226,12 @@ class QuotationManager extends Component
             ]);
         }
 
-        $query = QuotationHeaderView::with(['preparedBy', 'labSections'])->where('is_draft', 0);
+        $eager = ['preparedBy'];
+        if (Schema::hasTable('quotation_header_lab_sections')) {
+            $eager[] = 'labSections';
+        }
+
+        $query = QuotationHeaderView::with($eager)->where('is_draft', 0);
 
         if ($this->search !== '') {
             $term = '%'.trim($this->search).'%';
@@ -250,7 +256,7 @@ class QuotationManager extends Component
             $query->where('quotation_type', $this->quotationTypeFilter);
         }
 
-        if ($this->labSectionFilter !== '') {
+        if ($this->labSectionFilter !== '' && Schema::hasTable('quotation_header_lab_sections')) {
             $labSectionId = (string) $this->labSectionFilter;
             $query->whereHas('labSections', function ($q) use ($labSectionId): void {
                 $q->where('sample_analysis_stages.id', $labSectionId);
@@ -398,7 +404,9 @@ class QuotationManager extends Component
             DB::beginTransaction();
 
             $quotation = QuotationHeader::findOrFail($quotationId);
-            $quotation->labSections()->detach();
+            if (Schema::hasTable('quotation_header_lab_sections')) {
+                $quotation->labSections()->detach();
+            }
             $quotation->details()->delete();
             $quotation->delete();
 

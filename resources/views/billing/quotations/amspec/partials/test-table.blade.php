@@ -2,7 +2,9 @@
     $primaryColor = $branding['primary'] ?? 'var(--color-primary)';
     $accentColor = $branding['accent'] ?? '#4CAF50';
     $isPdf = (bool) ($forPdf ?? false);
-    $categoryBg = '#E0E0E0';
+    $isBrazilQuotation = (bool) ($isBrazilQuotation ?? false);
+    $categoryBg = $branding['categoryBg'] ?? ($isBrazilQuotation ? $primaryColor : '#E0E0E0');
+    $categoryText = $branding['categoryText'] ?? ($isBrazilQuotation ? '#ffffff' : '#111111');
 
     $showLoqColumn = (bool) ($showLoqColumn ?? true);
     $showMuColumn = (bool) ($showMuColumn ?? true);
@@ -117,7 +119,7 @@
                 @endphp
                 @if($categoryName !== '')
                     <tr class="amspec-category-row">
-                        <td colspan="{{ $columnCount }}" class="amspec-category-banner" bgcolor="{{ $categoryBg }}" style="background-color: {{ $categoryBg }}; font-weight: 700; text-align: left; padding: 5px 8px;">
+                        <td colspan="{{ $columnCount }}" class="amspec-category-banner" bgcolor="{{ $categoryBg }}" style="background-color: {{ $categoryBg }}; color: {{ $categoryText }}; font-weight: 700; text-align: left; padding: 5px 8px;">
                             {{ $categoryName }}
                         </td>
                     </tr>
@@ -133,6 +135,7 @@
                             array_map('strval', (array) ($row['package_parameters'] ?? []))
                         ));
                         $rowTat = $row['tat'] ?? null;
+                        $isPackageMember = ! empty($row['is_package_member']) && ! $showCommercial;
                     @endphp
                     <tr class="amspec-test-row" @if($isPackageHeader) style="background-color: #f8fafc;" @endif>
                         <td class="text-center amspec-num-cell">{{ $serialNo }}</td>
@@ -153,6 +156,8 @@
                             <td class="text-center amspec-num-cell">
                                 @if($showCommercial && $rowTat !== null && (int) $rowTat > 0)
                                     {{ (int) $rowTat }}
+                                @elseif($isBrazilQuotation && $isPackageMember)
+                                    —
                                 @endif
                             </td>
                         @endif
@@ -160,6 +165,8 @@
                             <td class="text-center amspec-num-cell">
                                 @if($showCommercial)
                                     {{ max(1, (int) ($row['quantity'] ?? 1)) }}
+                                @elseif($isBrazilQuotation && $isPackageMember)
+                                    —
                                 @endif
                             </td>
                         @endif
@@ -167,6 +174,8 @@
                             <td class="text-right amspec-price-cell">
                                 @if($showCommercial)
                                     {{ number_format((float) ($row['unit_price'] ?? 0), 2) }}
+                                @elseif($isBrazilQuotation && $isPackageMember)
+                                    —
                                 @endif
                             </td>
                         @endif

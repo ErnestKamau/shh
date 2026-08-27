@@ -215,12 +215,18 @@
             'mode' => 'preview-doc',
             'lang' => $language ?? 'en',
             'include_reference_method' => !empty($includeReferenceMethod) ? 1 : 0,
+            'show_specification' => !empty($showSpecification) ? 1 : 0,
+            'show_specification_standard' => !empty($showSpecificationStandard) ? 1 : 0,
+            'show_mu_percent' => !empty($showMuPercent) ? 1 : 0,
         ]);
         $previewPdfUrl = route('generateTestRequestReport', [
             'batch_id' => $batch->id,
             'mode' => 'preview-pdf',
             'lang' => $language ?? 'en',
             'include_reference_method' => !empty($includeReferenceMethod) ? 1 : 0,
+            'show_specification' => !empty($showSpecification) ? 1 : 0,
+            'show_specification_standard' => !empty($showSpecificationStandard) ? 1 : 0,
+            'show_mu_percent' => !empty($showMuPercent) ? 1 : 0,
         ]);
     @endphp
 

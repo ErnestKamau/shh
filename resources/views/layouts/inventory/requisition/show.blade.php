@@ -452,10 +452,15 @@
 			@endif
 			@if ($stage == "Request to Store")
 			@if($request->status == 'Approval Complete')
+			<?php
+				$hasMIForComplete = issue_received_complete($request->id);
+			?>
+			@if($hasMIForComplete['items'] >= $hasMIForComplete['all'] && $hasMIForComplete['all'] > 0)
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
 				data-alert="Are you sure you want to proceed?">
 				<i class="mdi mdi-content-save"></i> Mark as Complete
 			</button>
+			@endif
 			@endif
 			@endif
 			@if ($request->request_type == "Goods Receipt")
@@ -582,18 +587,45 @@
 			</span>
 			@endif
 			@endif
-			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to
-			Store"]))
+
+			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
+			@if (!in_array($request->status, ["Approval Complete", "Rejected"]) &&
+			$isInventoryProcurement && trim($request->email_body) != "")
+			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
+				<i class="mdi mdi-email-send"></i> Send Out RFQS
+			</button>
+			@endif
+			@if (in_array($request->status, ["Awarded", "RFQs sent out"]))
+			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
+				<i class="mdi mdi-account-check"></i> Get Approval
+			</button>
+			@endif
+			@if ($request->status == "Approval Complete" && $isInventoryProcurement)
+			<?php $approvalStatus = $request->approvals(); ?>
+			<button class="btn btn-default text-dark float-right btn-sm" data-target="#create-po-confirmation-modal"
+				data-toggle="modal">
+				<i class="mdi mdi-file-move"></i> Create Purchase Order
+			</button>
+			@if (isset($request->status) && $isInventoryProcurement)
+			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
+				data-alert="Are you sure you want to proceed?">
+				<i class="mdi mdi-content-save"></i> Mark as Complete
+			</button>
+			@endif
+			@endif
+			@endif
+			@if (in_array($request->status, ["Approval Complete", "Items Issued Out", "Completed"]) && $stage === "Request to Store")
 			<?php
 						$hasMI = issue_received_complete($request->id);
 					?>
-			@if($hasMI['items'] < $hasMI['all']) <button class="btn btn-default text-info float-right btn-sm"
+			@if($hasMI['items'] < $hasMI['all'])
+			<button class="btn btn-default text-info float-right btn-sm"
 				data-toggle="modal" data-target="#Create-Material-Issuance-Modal">
 				<i class="mdi mdi-package-variant-closed"></i> Create Material Issuance
-				</button>
-				@endif
-				@endif
-				@if ($request->status == "Approval Complete" && $stage=="Purchase Request" &&
+			</button>
+			@endif
+			@endif
+			@if ($request->status == "Approval Complete" && $stage=="Purchase Request" &&
 				$isInventoryProcurement)
 				<?php
 						$hasAnRFQ = \App\RequestEntity::where('request_type', 'Request for Quotation')->where('parent_material_requisition', $request->id)->first();
@@ -1360,12 +1392,13 @@
 											?>
 											<select name="items[store_id][]" data-selected="{{ $selectedStoreId }}" style="min-width: 180px"
 												class="form-control selected-store {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
-												data-placeholder="Select Store..." {!! $storeEditable ? '' : 'disabled="true"' !!}
+												data-placeholder="Select Store..." {!! (isset($request->status) && in_array($request->status,
+												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
+												"Awaiting User Reception"))) || !isset($request->status) ? '' : 'disabled="true"' !!}
 												{{ in_array($stage, ["Goods Receipt", "Material Issuance"]) && $request->status != "Awaiting Approval" ? "required" : "" }}>
-												<option value="">Select Store...</option>
 												@foreach ($allStores as $store)
-												<option value="{{ $store->id }}" {{ $store->id == $selectedStoreId ? 'selected' : '' }}
-													data-slots='@json($store->slots->map->only(["id", "name"]))'>{{ $store->name }}</option>
+												<option value="{{ $store->id }}" {{ (string) $store->id === (string) $req_item->store_id ? 'selected' : '' }}
+													data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
 												@endforeach
 											</select>
 										</div>
@@ -1374,17 +1407,10 @@
 										<div class="form-group">
 											<select name="items[slot_id][]" data-slot="{{ $selectedSlotId }}" style="min-width: 160px"
 												class="form-control store-slots {{ in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']) ? 'trigger-save' : '' }}"
-												data-placeholder="Select Slot..." {!! $storeEditable ? '' : 'disabled="true"' !!}
-												{{ in_array($stage, ["Goods Receipt", "Material Issuance"]) && $request->status != "Awaiting Approval" ? "required" : "" }}>
-												<option value="">Select Slot...</option>
-												@if($storeForSlots)
-													@foreach($storeForSlots->slots as $slotOption)
-														<option value="{{ $slotOption->id }}" {{ $slotOption->id == $selectedSlotId ? 'selected' : '' }}>
-															{{ $slotOption->name }}
-														</option>
-													@endforeach
-												@endif
-											</select>
+												data-placeholder="Select Slot..." {!! (isset($request->status) && in_array($request->status,
+												array("In Preparation", "Approval Complete", "Partially Approved", "Partially Fulfilled",
+												"Awaiting User Reception"))) || !isset($request->status) ? '' : 'disabled="true"' !!}
+												{{ in_array($stage, ["Goods Receipt", "Material Issuance"]) && $request->status != "Awaiting Approval" ? "required" : "" }}></select>
 										</div>
 									</td>
 									<td>
@@ -1935,8 +1961,7 @@
 							<div class="form-group">
 								<label class="control-label">Nature of Purchase*</label>
 								<select name="nature_of_purchase" class="form-control trigger-save"
-									placeholder="Select Nature of Purchase..." {!! isETCU() ? (!in_array($stage, ['Request to
-									Store', 'Loan' , 'Lend' ]) ? 'required' : '' ) : 'required' !!}>
+									placeholder="Select Nature of Purchase..." {!! isETCU() ? (!in_array($stage, ['Request to Store', 'Loan', 'Lend']) ? 'required' : '') : 'required' !!}>
 									<option value="">Select Nature of Purchase...</option>
 									@foreach (getNatureOfExpense() as $np)
 									@if (in_array($stage, ['Request to Store', 'Material Issuance']))
@@ -4942,6 +4967,11 @@
 					$('#req-items').find('select, input').removeProp('disabled');
 				}
 
+				if(type == 'issue-items' || type == 'accept-goods-receipt'){
+					$('#req-items').find('select, input').removeAttr('disabled');
+					$('#req-items').find('select, input').removeProp('disabled');
+				}
+
 				var subMit = true;
 				var isValidIn = true;
 				var isValidSel = true;
@@ -5072,29 +5102,32 @@
 			$('#req-items').on('change', 'tr .selected-store', function(){
 				var selected = $(this).children('option:selected');
 				var slots = selected.data('slots') || [];
+				var slots = selected.data('slots') || [];
 
 				if(typeof slots === 'string'){
 					try { slots = JSON.parse(slots); } catch (e) { slots = []; }
 				}
 
 				var slotDiv = $(this).parents('tr').find('[name="items[slot_id][]"]');
-				var selectedVal = slotDiv.data('slot') || slotDiv.val();
+				var selectedVal = slotDiv.data('slot');
 
-				slotDiv.html('<option value="">Select Slot...</option>');
+				slotDiv.html('');
+
+				if (!Array.isArray(slots)) {
+					slots = [];
+				}
 
 				$.each(slots, function(i, s){
+					if (!s || typeof s !== 'object') {
+						return;
+					}
 					var newOption = new Option(s.name, s.id, false, false);
+					slotDiv.append(newOption);
 					slotDiv.append(newOption);
 				});
 
-				if(selectedVal){
-					slotDiv.val(selectedVal);
-				}
-				else{
-					var firstSlot = slotDiv.find('option[value!=""]').first().val();
-					if(firstSlot){
-						slotDiv.val(firstSlot);
-					}
+				if (selectedVal) {
+					slotDiv.val(String(selectedVal));
 				}
 				slotDiv.trigger('change');
 			});

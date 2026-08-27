@@ -2,10 +2,12 @@
 
 namespace App;
 
+use App\Casts\SafeEncrypted;
+use App\Enums\CompanyCode;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
-use App\Casts\SafeEncrypted;
 
 class Company extends Model implements Auditable
 {
@@ -19,6 +21,7 @@ class Company extends Model implements Auditable
     protected $fillable = [
         'code',
         'name',
+        'code',
         'logo',
         'favicon',
         'report_logo',
@@ -58,39 +61,49 @@ class Company extends Model implements Auditable
     ];
 
     /**
-     * Normalize a business code: trim, uppercase, collapse separators.
+     * @param  string|CompanyCode  ...$codes
      */
-    public static function normalizeCode(?string $code): ?string
+    public function hasCode(string|CompanyCode ...$codes): bool
     {
-        if ($code === null) {
-            return null;
+        $current = $this->normalizedCode();
+        if ($current === null) {
+            return false;
         }
 
-        $normalized = strtoupper(trim($code));
-        $normalized = preg_replace('/[^A-Z0-9_-]+/', '-', $normalized) ?? '';
-        $normalized = trim($normalized, '-_');
+        foreach ($codes as $code) {
+            $value = $code instanceof CompanyCode
+                ? $code->value
+                : strtolower(trim($code));
 
-        return $normalized === '' ? null : $normalized;
-    }
-
-    public static function findByCode(string $code): ?self
-    {
-        $normalized = self::normalizeCode($code);
-        if ($normalized === null) {
-            return null;
+            if ($value !== '' && $current === $value) {
+                return true;
+            }
         }
 
-        return self::query()->where('code', $normalized)->first();
+        return false;
     }
 
-    public function setCodeAttribute(?string $value): void
+    public function normalizedCode(): ?string
     {
-        $this->attributes['code'] = self::normalizeCode($value);
+        $code = strtolower(trim((string) ($this->code ?? '')));
+
+        return $code === '' ? null : $code;
     }
 
     public function labs()
     {
         return $this->hasMany('App\Lab');
+    }
+
+    protected function code(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                $normalized = strtolower(trim((string) $value));
+
+                return $normalized === '' ? null : $normalized;
+            },
+        );
     }
 
     public function reportLogos()

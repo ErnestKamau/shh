@@ -59,3 +59,7 @@
 </div>
 
 <div class="end-text">{{ $labels['end_of_text'] }}</div>
+
+@if(!empty($isBrazilExportationReport))
+<div class="report-footer-text">{{ $labels['lab_address_closing'] ?? 'The analyses were performed at the laboratory address identified in the header.' }}</div>
+@endif

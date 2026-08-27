@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class RequisitionController extends Controller
@@ -287,7 +288,7 @@ class RequisitionController extends Controller
 
 		$isExistingRequest = Str::isUuid((string) $id) && isset($request->id);
 
-		$criteria = $isExistingRequest
+		$criteria = ($isExistingRequest && Schema::hasColumn('suppliers_rating_criterias', 'request_id'))
 			? \App\SuppliersRatingCriteria::where('request_id', $id)->where('is_current', 1)->get()
 			: collect();
 
@@ -1493,8 +1494,22 @@ class RequisitionController extends Controller
 		$hasNoStock = [];
 		foreach ($request->items['req_item_id'] as $i => $id) {
 			$entityItem = RequestEntityItem::find($id);
-			if ($entityItem->store_id == 0 || $entityItem->slot_id == 0) {
-				$hasZeroStoreIDs[] = $entityItem->store_id;
+
+			if (! $entityItem) {
+				continue;
+			}
+
+			$storeId = $this->uuidOrNull($request->items['store_id'][$i] ?? $entityItem->store_id);
+			$slotId = $this->uuidOrNull($request->items['slot_id'][$i] ?? $entityItem->slot_id);
+			$lotNo = $request->items['lot_no'][$i] ?? $entityItem->lot_no ?? $request->request_code;
+
+			$entityItem->store_id = $storeId;
+			$entityItem->slot_id = $slotId;
+			$entityItem->lot_no = $lotNo;
+			$entityItem->save();
+
+			if (blank($storeId) || blank($slotId)) {
+				$hasZeroStoreIDs[] = $entityItem->id;
 			}
 
 			$invSubCat = InventorySubCategories::find($entityItem->inventory_sub_category_id);
@@ -1516,9 +1531,9 @@ class RequisitionController extends Controller
 		foreach ($request->items['req_item_id'] as $i => $id) {
 			$entityItem = RequestEntityItem::find($id);
 
-			$lot_no = $request->items['lot_no'][$i] ?? $request->request_code;
-
-			$entityItem->lot_no = $lot_no;
+			if (! $entityItem) {
+				continue;
+			}
 
 			$quantity = $request->items['quantity'][$i];
 			$issuedItem = $entityItem->replicate();
@@ -1531,8 +1546,13 @@ class RequisitionController extends Controller
 
 			$issuedItem->quantity = $quantity;
 			$issuedItem->action = 'issued_received';
-			$issuedItem->net_value = floatval($issuedItem->quantity) / floatval($entityItem->quantity) * $entityItem->net_value;
+			$issuedItem->net_value = floatval($entityItem->quantity) > 0
+				? floatval($issuedItem->quantity) / floatval($entityItem->quantity) * $entityItem->net_value
+				: 0;
 			$issuedItem->status = 'completed';
+			$issuedItem->store_id = $entityItem->store_id;
+			$issuedItem->slot_id = $entityItem->slot_id;
+			$issuedItem->lot_no = $entityItem->lot_no;
 			$issuedItem->issued_by = \Auth::user()->id;
 			$issuedItem->save();
 
@@ -2249,14 +2269,18 @@ class RequisitionController extends Controller
 
 			$mailer = new Mailer;
 
-			$mailer->html_email($mailData, 'default');
+			$sendMail = $mailer->html_email($mailData, 'default');
 		} catch (\Throwable $e) {
 			\Log::warning('Change approver notification failed for '.$req->request_code.': '.$e->getMessage());
 
 			return redirect()->back()->with('success', 'Approver has been changed. Notification email could not be sent.');
 		}
 
-		return  redirect()->back()->with('success', 'Approver has been changed.');
+		if ($sendMail === false) {
+			return redirect()->back()->with('warning', 'Approver has been changed, but the notification email could not be sent.');
+		}
+
+		return redirect()->back()->with('success', 'Approver has been changed.');
 	}
 
 	public function create_lpo_from_mr(Request $request, $id)
