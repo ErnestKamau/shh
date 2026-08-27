@@ -41,16 +41,17 @@
                         </ul>
 
                         <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="billing-approval-notify-email" wire:model="notifyEmail">
+                            <input class="form-check-input" type="checkbox" id="billing-approval-notify-email" wire:model.live="notifyEmail">
                             <label class="form-check-label" for="billing-approval-notify-email">
                                 Email all listed personnel
                             </label>
                         </div>
                         <div class="form-check mb-0">
-                            <input class="form-check-input" type="checkbox" id="billing-approval-notify-app" wire:model="notifyInApp">
+                            <input class="form-check-input" type="checkbox" id="billing-approval-notify-app" wire:model.live="notifyInApp" disabled>
                             <label class="form-check-label" for="billing-approval-notify-app">
                                 Notify in app (bell) for all listed personnel
                             </label>
+                            <div class="small text-muted mt-1">In-app notifications are always sent so approvers see the navbar bell.</div>
                         </div>
                     </div>
                     <div class="modal-footer">

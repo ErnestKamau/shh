@@ -40,6 +40,7 @@ use App\Services\Billing\QuotationRevisionService;
 use App\Exports\Billing\QuotationKpiExport;
 use App\Services\Billing\QuotationStatisticsService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
+use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Commercial\CommercialEnquirySyncService;
 use App\Services\Commercial\EnquiryFromQuotationService;
@@ -150,7 +151,9 @@ class QuotationController extends Controller
             $enquiry = $this->enquiryFromQuotationService->create(
                 $quotation,
                 [
-                    'number_of_samples' => (int) $validated['number_of_samples'],
+                    'number_of_samples' => isset($validated['number_of_samples'])
+                        ? (int) $validated['number_of_samples']
+                        : null,
                     'reference_number' => $validated['reference_number'] ?? null,
                     'date_expected' => $validated['date_expected'] ?? null,
                     'sample_description' => $validated['sample_description'] ?? null,
@@ -169,24 +172,14 @@ class QuotationController extends Controller
         }
 
         $reference = $enquiry->reference_number ?: $enquiry->formatted_number;
-        $instance = $enquiry->submissionFormInstance;
 
-        if ($instance !== null && $instance->submission_form_id !== null) {
-            return redirect()->route('submission-forms.instances.fill', [
-                'submissionForm' => $instance->submission_form_id,
-                'instance' => $instance->id,
-            ])->with(
+        return redirect()
+            ->to($enquiry->staffViewUrl())
+            ->with(
                 'success',
                 'Enquiry '.$reference.' was created from quotation '.$quotation->quote_number
-                .'. Complete the remaining Test Request Form fields, then submit it.',
+                .'. Review the Test Request Form and quotation PDF under Documents, then complete any remaining fields.',
             );
-        }
-
-        return back()->with(
-            'success',
-            'Enquiry '.$reference.' was created from quotation '.$quotation->quote_number
-            .'. No matching Test Request Form template was found; create the TRF before physical reception.',
-        );
     }
 
     public function exportQuotationKpi(Request $request)
@@ -406,9 +399,8 @@ class QuotationController extends Controller
             ++$count;
             // return response()->json($detail,200);
         }
-        if ($header->status == 'Quote Complete') {
-
-            return redirect()->route('view_quotation_final', ['id' => $header->id, 'stage' => $header->stage]);
+        if (in_array($header->status, ['Quote Complete', 'Quote In Approval'], true)) {
+            return redirect()->route('view_quotation_final', ['id' => $header->id, 'stage' => $header->status]);
         }
 
 
@@ -439,8 +431,9 @@ class QuotationController extends Controller
         $linkedEnquiryEngagements = $this->enquiryQuotationService->engagementsForQuotation($header);
         $accountPaymentOptions = $this->quotationReportService->accountPaymentOptions();
         $labSections = $this->activeLabSectionsForQuotation();
+        $canApproveQuotation = app(QuotationApprovalService::class)->canCurrentUserApprove($header);
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'pricelistChooser', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'companyUnits', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'pricelistChooser', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'companyUnits', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections', 'canApproveQuotation'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)
@@ -808,7 +801,7 @@ class QuotationController extends Controller
                 $join->whereRaw('tc.id::text = users.position');
             })
             ->where('quotation_headers.id', $id)
-            ->selectRaw('quotation_headers.service_delivery,quotation_headers.payments,quotation_headers.payment_info,quotation_headers.quotation_type,quotation_headers.additional_info,quotation_headers.quote_specification,quotation_headers.quote_number,quotation_headers.upload_url,quotation_headers.is_print,quotation_headers.id,quotation_headers.quote_date,quotation_headers.expiring_date,quotation_headers.email_to_customer,quotation_headers.is_draft,quotation_headers.is_complete,quotation_headers.approved_by,quotation_headers.email_to_customer,quotation_headers.total_amount,quotation_headers.sub_total,quotation_headers.tax,crm_customers.name,crm_customers.postal_address,crm_customers.physical_address,crm_customer_contacts.first_name,crm_customer_contacts.middle_name,crm_customer_contacts.last_name,crm_customer_contacts.email,crm_customer_contacts.mobile,
+            ->selectRaw('quotation_headers.service_delivery,quotation_headers.payments,quotation_headers.payment_info,quotation_headers.quotation_type,quotation_headers.additional_info,quotation_headers.quote_specification,quotation_headers.quote_number,quotation_headers.upload_url,quotation_headers.is_print,quotation_headers.id,quotation_headers.quote_date,quotation_headers.expiring_date,quotation_headers.email_to_customer,quotation_headers.is_draft,quotation_headers.is_complete,quotation_headers.is_approved,quotation_headers.status,quotation_headers.approved_by,quotation_headers.email_to_customer,quotation_headers.total_amount,quotation_headers.sub_total,quotation_headers.tax,crm_customers.name,crm_customers.postal_address,crm_customers.physical_address,crm_customer_contacts.first_name,crm_customer_contacts.middle_name,crm_customer_contacts.last_name,crm_customer_contacts.email,crm_customer_contacts.mobile,
                                 users.name as prepared_by,tc.name as position,users.email as prepared_by_email,users.phone,'.$batchGenerateSelect)
             ->get();
 
@@ -819,9 +812,12 @@ class QuotationController extends Controller
         $labs = Lab::where('active', 1)->get();
         $reportViewData = $this->quotationReportService->buildViewData($hd);
         $revisionFamily = $this->quotationRevisionService->collectRevisionFamily($hd);
+        $linkedEnquiryEngagements = $this->enquiryQuotationService->engagementsForQuotation($hd);
+        $quotationHeader = $hd;
+        $canApproveQuotation = app(QuotationApprovalService::class)->canCurrentUserApprove($hd);
 
         return view('layouts.lab.invoice.quotation-doc', array_merge(
-            compact('header', 'currency', 'labs', 'revisionFamily'),
+            compact('header', 'currency', 'labs', 'revisionFamily', 'linkedEnquiryEngagements', 'quotationHeader', 'canApproveQuotation'),
             $reportViewData
         ));
     }

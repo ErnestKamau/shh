@@ -231,8 +231,22 @@ class CreateEnquiryFromQuotationWizard extends Component
 
     public function updatedNumberOfSamples(): void
     {
-        if ($this->isMultiSampleType) {
+        // Sample counts are locked to the quotation; ignore Livewire updates.
+        if ($this->quotationId === null) {
             return;
+        }
+
+        try {
+            $quotation = QuotationHeader::query()->with('details')->find($this->quotationId);
+            if ($quotation === null) {
+                return;
+            }
+            $service = app(EnquiryFromQuotationService::class);
+            $this->numberOfSamples = $service->inferPhysicalSampleCount(
+                $service->eligibleQuotationLines($quotation)
+            );
+        } catch (Throwable) {
+            // Keep current value if quote cannot be re-read.
         }
 
         foreach ($this->trfGroups as $group) {
@@ -249,15 +263,15 @@ class CreateEnquiryFromQuotationWizard extends Component
             return max(1, $this->numberOfSamples);
         }
 
-        if (! $this->isMultiSampleType) {
-            return max(1, $this->numberOfSamples);
-        }
-
         $max = collect($this->quoteLines)
             ->filter(static fn (array $line): bool => (string) ($line['sample_type_id'] ?? '') === $typeId)
             ->max(static fn (array $line): int => max(1, (int) ($line['quantity'] ?? 1)));
 
-        return max(1, (int) $max);
+        if ($max !== null) {
+            return max(1, (int) $max);
+        }
+
+        return max(1, $this->numberOfSamples);
     }
 
     public function sampleRowCompletionPercent(string $typeId, int $rowIndex): int
@@ -344,9 +358,6 @@ class CreateEnquiryFromQuotationWizard extends Component
             'sendEmail' => ['boolean'],
             'sendPortal' => ['boolean'],
         ];
-        if (! $this->isMultiSampleType) {
-            $rules['numberOfSamples'] = ['required', 'integer', 'min:1', 'max:10000'];
-        }
         $this->validate($rules);
 
         $inheritBillingDelivery = $this->quoteAlreadySentFromBilling && ! $this->notifyAgain;
@@ -368,8 +379,13 @@ class CreateEnquiryFromQuotationWizard extends Component
         try {
             $this->syncOpenSampleRowEditorsBeforeSubmit();
             $quotation = QuotationHeader::query()->findOrFail($this->quotationId);
+            $service = app(EnquiryFromQuotationService::class);
+            // Quote line quantities are authoritative — never take a user override here.
+            $this->numberOfSamples = $service->inferPhysicalSampleCount(
+                $service->eligibleQuotationLines($quotation)
+            );
             $trfCount = count($this->trfGroups);
-            $enquiry = app(EnquiryFromQuotationService::class)->createAndSend(
+            $enquiry = $service->createAndSend(
                 $quotation,
                 [
                     'number_of_samples' => $this->numberOfSamples,
@@ -394,13 +410,15 @@ class CreateEnquiryFromQuotationWizard extends Component
                 ? ' Quotation was already sent from Billing; enquiry marked Quotation Sent without re-sending.'
                 : ' and marked Quotation Sent.';
 
+            $pdfNote = ' Open the request view Documents rail for the TRF and quotation PDFs.';
+
             session()->flash(
                 'success',
                 'Enquiry '.$reference.' was created from quotation '.$quotation->quote_number
-                .$deliveryNote.' '.$trfLabel.'.'
+                .$deliveryNote.' '.$trfLabel.'.'.$pdfNote
             );
 
-            return $this->redirect(url()->previous() ?: route('quotation-index'), navigate: false);
+            return $this->redirect($enquiry->staffViewUrl(), navigate: false);
         } catch (Throwable $exception) {
             $this->errorMessage = $exception->getMessage();
         }
@@ -436,27 +454,47 @@ class CreateEnquiryFromQuotationWizard extends Component
     }
 
     /**
-     * @return list<array{key: string, label: string, active: bool}>
+     * @return list<array{key: string, label: string, hint: string, icon: string, active: bool, done: bool}>
      */
     public function getStepBadgesProperty(): array
     {
         $badges = [
-            ['key' => 'review', 'label' => '1. Quote review', 'active' => $this->phase === 'review'],
+            [
+                'key' => 'review',
+                'label' => 'Review',
+                'hint' => 'Quote & origin',
+                'icon' => 'mdi-file-document-outline',
+                'active' => $this->phase === 'review',
+                'done' => $this->phase !== 'review',
+            ],
         ];
-        $n = 2;
+
         foreach ($this->trfGroups as $index => $group) {
-            $name = (string) ($group['sample_type_name'] ?? 'TRF');
+            $name = trim((string) ($group['sample_type_name'] ?? 'TRF'));
+            $active = in_array($this->phase, ['sections', 'fill'], true) && $this->trfIndex === $index;
+            $done = $this->phase === 'send' || $this->trfIndex > $index;
+
             $badges[] = [
                 'key' => 'trf-'.$index,
-                'label' => $n.'. '.$name,
-                'active' => in_array($this->phase, ['sections', 'fill'], true) && $this->trfIndex === $index,
+                'label' => $name !== '' ? $name : 'TRF',
+                'hint' => $this->phase === 'sections' && $active
+                    ? 'Choose sections'
+                    : ($this->phase === 'fill' && $active ? 'Fill details' : 'TRF details'),
+                'icon' => 'mdi-flask-outline',
+                'active' => $active,
+                'done' => $done,
             ];
-            $n++;
         }
+
         $badges[] = [
             'key' => 'send',
-            'label' => $n.'. Send quote',
+            'label' => 'Finish',
+            'hint' => $this->quoteAlreadySentFromBilling && ! $this->notifyAgain
+                ? 'Create enquiry'
+                : 'Create & send',
+            'icon' => 'mdi-send-check',
             'active' => $this->phase === 'send',
+            'done' => false,
         ];
 
         return $badges;

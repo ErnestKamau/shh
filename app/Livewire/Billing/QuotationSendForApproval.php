@@ -81,6 +81,8 @@ class QuotationSendForApproval extends Component
                 throw new RuntimeException('No approvers configured.');
             }
 
+            $this->notifyInApp = true;
+
             app(QuotationApprovalService::class)->submitBillingForApproval(
                 $header,
                 (string) $approverId,
@@ -95,6 +97,8 @@ class QuotationSendForApproval extends Component
                 'Sent for approval',
                 'Quotation '.$this->quoteNumber.' was sent for approval.',
             );
+
+            $this->dispatch('lab-notifications-updated');
 
             $this->redirect(route('add-qoute-details-view', ['id' => $this->quotationHeaderId]), navigate: false);
         } catch (ValidationException $exception) {

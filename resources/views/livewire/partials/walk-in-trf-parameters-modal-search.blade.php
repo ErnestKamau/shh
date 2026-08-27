@@ -52,11 +52,12 @@
                 </div>
             </section>
 
-            <section class="rft-trf-params-filter-section">
+            <section class="rft-trf-params-filter-section" data-rft-filter-section="lab">
                 <h6 class="rft-trf-params-filter-section__title">
                     <i class="mdi mdi-domain" aria-hidden="true"></i> Lab section
                 </h6>
-                <div class="rft-trf-params-filter-chips">
+
+                <div class="rft-trf-params-filter-chips" x-show="!useLabSectionSelect" x-cloak>
                     <template x-for="item in filterOptions.labSections" :key="'ls-' + item.value">
                         <label class="rft-trf-params-filter-chip" :class="filterLabSections.includes(item.value) && 'is-active'">
                             <input type="checkbox" class="sr-only" :value="item.value" :checked="filterLabSections.includes(item.value)" @change="toggleFilterValue('filterLabSections', item.value)">
@@ -65,20 +66,74 @@
                     </template>
                     <span class="small text-muted" x-show="!filterOptions.labSections.length">—</span>
                 </div>
-            </section>
 
-            <section class="rft-trf-params-filter-section">
-                <h6 class="rft-trf-params-filter-section__title">
-                    <i class="mdi mdi-file-document-outline" aria-hidden="true"></i> Method
-                </h6>
-                <div class="rft-trf-params-filter-chips">
-                    <template x-for="item in filterOptions.methods" :key="'m-' + item.value">
-                        <label class="rft-trf-params-filter-chip" :class="filterMethods.includes(item.value) && 'is-active'">
-                            <input type="checkbox" class="sr-only" :value="item.value" :checked="filterMethods.includes(item.value)" @change="toggleFilterValue('filterMethods', item.value)">
-                            <span x-text="item.label"></span>
-                        </label>
-                    </template>
-                    <span class="small text-muted" x-show="!filterOptions.methods.length">—</span>
+                <div
+                    class="rft-trf-filter-select"
+                    x-show="useLabSectionSelect"
+                    x-cloak
+                    @click.outside="labSectionFilterOpen = false"
+                >
+                    <button
+                        type="button"
+                        class="rft-trf-filter-select__trigger"
+                        @click.prevent="openLabSectionFilter()"
+                        :aria-expanded="labSectionFilterOpen ? 'true' : 'false'"
+                    >
+                        <span class="rft-trf-filter-select__summary" x-text="labSectionFilterSummary()"></span>
+                        <i class="mdi" :class="labSectionFilterOpen ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+                    </button>
+
+                    <div class="rft-trf-filter-select__panel" x-show="labSectionFilterOpen" x-cloak>
+                        <div class="rft-trf-filter-select__search">
+                            <i class="mdi mdi-magnify" aria-hidden="true"></i>
+                            <input
+                                type="search"
+                                class="form-control form-control-sm"
+                                placeholder="Search lab sections…"
+                                x-model="labSectionFilterQuery"
+                                @keydown.escape.prevent="labSectionFilterOpen = false"
+                            >
+                        </div>
+
+                        <div class="rft-trf-filter-select__tags" x-show="filterLabSections.length" x-cloak>
+                            <template x-for="tag in visibleSelectedFilterTags('filterLabSections')" :key="'ls-tag-' + tag.value">
+                                <button
+                                    type="button"
+                                    class="rft-trf-filter-select__tag"
+                                    @click.prevent="toggleFilterValue('filterLabSections', tag.value)"
+                                    :title="'Remove ' + tag.label"
+                                >
+                                    <span x-text="tag.label"></span>
+                                    <i class="mdi mdi-close" aria-hidden="true"></i>
+                                </button>
+                            </template>
+                            <span
+                                class="rft-trf-filter-select__more"
+                                x-show="filterLabSections.length > 3"
+                                x-text="'+' + (filterLabSections.length - 3)"
+                            ></span>
+                        </div>
+
+                        <div class="rft-trf-filter-select__list" role="listbox" aria-label="Lab sections">
+                            <template x-for="item in labSectionFilterPicker.choices" :key="'ls-opt-' + item.value">
+                                <label class="rft-trf-filter-select__option" :class="filterLabSections.includes(item.value) && 'is-active'">
+                                    <input
+                                        type="checkbox"
+                                        class="sr-only"
+                                        :value="item.value"
+                                        :checked="filterLabSections.includes(item.value)"
+                                        @change="toggleFilterValue('filterLabSections', item.value)"
+                                    >
+                                    <span class="rft-trf-filter-select__check" aria-hidden="true"></span>
+                                    <span x-text="item.label"></span>
+                                </label>
+                            </template>
+                            <p class="rft-trf-filter-select__empty" x-show="!labSectionFilterPicker.choices.length">No lab sections match.</p>
+                            <p class="rft-trf-filter-select__hint" x-show="labSectionFilterPicker.truncated">
+                                Showing first 50 — type to search more.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>

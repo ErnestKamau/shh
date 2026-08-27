@@ -29,7 +29,7 @@
     <div class="trf-ww-apparatus-grid">
         @foreach(['sterile_bottle' => 'Sterile bottle', 'bottle_catcher' => 'Bottle catcher'] as $optValue => $optLabel)
             @php $displayLabel = $apparatusOptions[$optValue] ?? $optLabel; @endphp
-            <div class="trf-ww-apparatus-grid__cell" wire:key="ww-apparatus-opt-{{ $optValue }}">
+            <div class="trf-ww-apparatus-grid__cell trf-ww-apparatus-grid__cell--option" wire:key="ww-apparatus-opt-{{ $optValue }}">
                 <label class="trf-option-chip trf-ww-apparatus-chip">
                     <input type="checkbox"
                         wire:model="formData.sampling_apparatus.{{ $optValue }}">
@@ -40,15 +40,18 @@
 
         @foreach($instrumentCells as $instrument)
             @php $instrumentEl = $collectionField($instrument['name']); @endphp
-            <div class="trf-ww-apparatus-grid__cell trf-ww-apparatus-grid__cell--instrument"
+            <div class="trf-ww-apparatus-grid__cell trf-ww-apparatus-grid__cell--instrument{{ $instrument['name'] === 'chlorine_meter_id' ? ' trf-ww-apparatus-grid__cell--chlorine' : '' }}"
                 wire:key="ww-instrument-{{ $instrument['name'] }}">
-                <span class="small font-weight-bold d-block mb-1">{{ $instrument['label'] }}</span>
-                @if($instrumentEl)
-                    <input type="text"
-                        class="form-control form-control-sm"
-                        wire:model.defer="formData.{{ $instrument['name'] }}"
-                        placeholder="ID">
-                @endif
+                <div class="trf-option-chip trf-ww-apparatus-chip trf-ww-apparatus-id-chip">
+                    <span class="trf-option-chip__label">{{ $instrument['label'] }}</span>
+                    @if($instrumentEl)
+                        <input type="text"
+                            class="form-control form-control-sm trf-ww-apparatus-id-chip__input"
+                            wire:model.defer="formData.{{ $instrument['name'] }}"
+                            placeholder="ID"
+                            aria-label="{{ $instrument['label'] }}">
+                    @endif
+                </div>
             </div>
         @endforeach
     </div>

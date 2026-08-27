@@ -12,13 +12,13 @@
     $descValue = (string) ($trfEditCollectionFields['sample_sampling_point_description'] ?? '');
     $wwPriorityNames = [
         'sampling_date', 'sampling_time', 'sampling_location',
-        'sample_sampling_point_description', 'sampling_apparatus', 'method_of_sampling',
+        'sample_sampling_point_description', 'sample_types_ww', 'method_of_sampling',
+        'reason_of_collection', 'sampling_technique', 'sampling_source',
+        'transport_condition', 'sampling_apparatus',
         'thermometer_id', 'ph_meter_id', 'chlorine_meter_id', 'sampling_apparatus_others',
-        'extra_sampling_equipment', 'reason_of_collection', 'sampling_technique', 'sampling_source',
-        'transport_condition', 'sample_types_ww', 'field_data_requirements',
+        'extra_sampling_equipment', 'field_data_requirements',
         'field_data_quantity', 'field_data_appearance', 'field_data_color', 'field_data_odor',
         'field_data_ph', 'field_data_temperature', 'field_data_free_chlorine', 'date_received',
-        'sampling_apparatus_others',
     ];
 @endphp
 
@@ -32,7 +32,7 @@
         @endforeach
     </div>
 
-    {{-- Row 2 --}}
+    {{-- Row 2: Description | Sample types | Method --}}
     <div class="rv-trf-collection-trio">
         <div class="trf-ww-description-cell">
             @if(is_array($descField))
@@ -52,71 +52,14 @@
             @endif
         </div>
 
-        <div class="trf-ww-apparatus-block">
-            <div class="trf-ww-apparatus-block__title ls-type-label mb-2">Sampling apparatus</div>
-            @if($collectionByName->has('sampling_apparatus'))
-                @php
-                    $apparatusField = $collectionByName->get('sampling_apparatus');
-                    $apparatusOptions = collect($apparatusField['options'] ?? [])
-                        ->filter(function ($opt) {
-                            $value = is_array($opt) ? (string) ($opt['value'] ?? '') : (string) $opt;
-
-                            return ! in_array(strtolower($value), ['others', 'other'], true);
-                        })
-                        ->values()
-                        ->all();
-                    $apparatusField['options'] = $apparatusOptions;
-                @endphp
-                @include($fieldPartial, [
-                    'field' => $apparatusField,
-                    'colClass' => '',
-                    'hideOuterCol' => true,
-                    'optionGridClass' => 'rv-trf-option-grid rv-trf-option-grid--apparatus trf-option-grid--ww-apparatus-3',
-                ])
-            @endif
-            <div class="trf-ww-apparatus-grid mt-2">
-                @foreach(['thermometer_id', 'ph_meter_id', 'chlorine_meter_id'] as $name)
-                    @if($collectionByName->has($name))
-                        <div class="trf-ww-apparatus-grid__cell">
-                            @include($fieldPartial, [
-                                'field' => $collectionByName->get($name),
-                                'colClass' => '',
-                                'hideOuterCol' => true,
-                            ])
-                        </div>
-                    @endif
-                @endforeach
-            </div>
-            @if(! $readOnly)
-                <div class="trf-ww-extra-equipment mt-3">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="addTrfEditExtraSamplingEquipmentRow">
-                            <i class="mdi mdi-plus" aria-hidden="true"></i> Others
-                        </button>
-                    </div>
-                    @foreach($extraRows as $rowIndex => $row)
-                        <div class="trf-ww-extra-equipment-row" wire:key="rv-ww-extra-{{ $rowIndex }}">
-                            <input type="text" class="form-control form-control-sm"
-                                wire:model.defer="trfEditCollectionFields.extra_sampling_equipment.{{ $rowIndex }}.label"
-                                placeholder="Equipment type">
-                            <input type="text" class="form-control form-control-sm"
-                                wire:model.defer="trfEditCollectionFields.extra_sampling_equipment.{{ $rowIndex }}.id"
-                                placeholder="Equipment ID">
-                            <button type="button" class="btn btn-sm btn-outline-danger"
-                                wire:click="removeTrfEditExtraSamplingEquipmentRow({{ $rowIndex }})">
-                                <i class="mdi mdi-close" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    @endforeach
-                </div>
-            @elseif(count($extraRows) > 0)
-                <ul class="small mb-0 pl-3 mt-2">
-                    @foreach($extraRows as $row)
-                        <li>{{ trim(($row['label'] ?? '').': '.($row['id'] ?? '')) }}</li>
-                    @endforeach
-                </ul>
-            @endif
-        </div>
+        @if($collectionByName->has('sample_types_ww'))
+            @include($fieldPartial, [
+                'field' => array_merge($collectionByName->get('sample_types_ww'), ['label' => 'Sample types']),
+                'colClass' => '',
+                'hideOuterCol' => true,
+                'optionGridClass' => 'rv-trf-option-grid trf-option-grid--ww-sample-types',
+            ])
+        @endif
 
         @if($collectionByName->has('method_of_sampling'))
             @include($fieldPartial, [
@@ -148,24 +91,100 @@
         @endforeach
     </div>
 
-    {{-- Row 4: transport | sample types --}}
+    {{-- Row 4: Transport (Reason width) | Apparatus (from Technique onward) --}}
     <div class="trf-ww-collection-row4">
-        @if($collectionByName->has('transport_condition'))
-            @include($fieldPartial, [
-                'field' => $collectionByName->get('transport_condition'),
-                'colClass' => '',
-                'hideOuterCol' => true,
-                'optionGridClass' => 'rv-trf-option-grid trf-option-grid--ww-transport',
-            ])
-        @endif
-        @if($collectionByName->has('sample_types_ww'))
-            @include($fieldPartial, [
-                'field' => array_merge($collectionByName->get('sample_types_ww'), ['label' => 'Sample types']),
-                'colClass' => '',
-                'hideOuterCol' => true,
-                'optionGridClass' => 'rv-trf-option-grid trf-option-grid--ww-sample-types',
-            ])
-        @endif
+        <div class="trf-ww-collection-row4__transport">
+            @if($collectionByName->has('transport_condition'))
+                @include($fieldPartial, [
+                    'field' => $collectionByName->get('transport_condition'),
+                    'colClass' => '',
+                    'hideOuterCol' => true,
+                    'optionGridClass' => 'rv-trf-option-grid trf-option-grid--ww-transport',
+                ])
+            @endif
+        </div>
+        <div class="trf-ww-collection-row4__apparatus">
+            <div class="trf-ww-apparatus-block">
+                <div class="trf-ww-apparatus-block__title ls-type-label mb-2">Sampling apparatus</div>
+                @if($collectionByName->has('sampling_apparatus'))
+                    @php
+                        $apparatusField = $collectionByName->get('sampling_apparatus');
+                        $apparatusOptions = collect($apparatusField['options'] ?? [])
+                            ->filter(function ($opt) {
+                                $value = is_array($opt) ? (string) ($opt['value'] ?? '') : (string) $opt;
+
+                                return ! in_array(strtolower($value), ['others', 'other'], true);
+                            })
+                            ->values()
+                            ->all();
+                        $apparatusField['options'] = $apparatusOptions;
+                    @endphp
+                    @include($fieldPartial, [
+                        'field' => $apparatusField,
+                        'colClass' => '',
+                        'hideOuterCol' => true,
+                        'optionGridClass' => 'rv-trf-option-grid rv-trf-option-grid--apparatus trf-option-grid--ww-apparatus-4',
+                    ])
+                @endif
+                <div class="trf-ww-apparatus-grid mt-2">
+                    @foreach([
+                        'thermometer_id' => 'Thermometer ID',
+                        'ph_meter_id' => 'pH meter ID',
+                        'chlorine_meter_id' => 'Chlorine meter ID',
+                    ] as $name => $instrumentLabel)
+                        @if($collectionByName->has($name))
+                            @php
+                                $instrumentValue = (string) ($trfEditCollectionFields[$name] ?? '');
+                            @endphp
+                            <div class="trf-ww-apparatus-grid__cell trf-ww-apparatus-grid__cell--instrument{{ $name === 'chlorine_meter_id' ? ' trf-ww-apparatus-grid__cell--chlorine' : '' }}"
+                                wire:key="rv-ww-instrument-{{ $name }}">
+                                <div class="rv-trf-option-chip trf-ww-apparatus-chip trf-ww-apparatus-id-chip">
+                                    <span class="rv-trf-option-chip__label">{{ $instrumentLabel }}</span>
+                                    @if($readOnly)
+                                        <span class="trf-ww-apparatus-id-chip__value">{{ $instrumentValue !== '' ? $instrumentValue : '—' }}</span>
+                                    @else
+                                        <input type="text"
+                                            class="form-control form-control-sm trf-ww-apparatus-id-chip__input"
+                                            wire:model.defer="trfEditCollectionFields.{{ $name }}"
+                                            placeholder="ID"
+                                            aria-label="{{ $instrumentLabel }}">
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                    @endforeach
+                </div>
+                @if(! $readOnly)
+                    <div class="trf-ww-extra-equipment mt-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="addTrfEditExtraSamplingEquipmentRow">
+                                <i class="mdi mdi-plus" aria-hidden="true"></i> Others
+                            </button>
+                        </div>
+                        @foreach($extraRows as $rowIndex => $row)
+                            <div class="trf-ww-extra-equipment-row" wire:key="rv-ww-extra-{{ $rowIndex }}">
+                                <input type="text" class="form-control form-control-sm"
+                                    wire:model.defer="trfEditCollectionFields.extra_sampling_equipment.{{ $rowIndex }}.label"
+                                    placeholder="Equipment type">
+                                <input type="text" class="form-control form-control-sm"
+                                    wire:model.defer="trfEditCollectionFields.extra_sampling_equipment.{{ $rowIndex }}.id"
+                                    placeholder="Equipment ID">
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    wire:click="removeTrfEditExtraSamplingEquipmentRow({{ $rowIndex }})">
+                                    <i class="mdi mdi-close" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                @elseif(count($extraRows) > 0)
+                    <ul class="small mb-0 pl-3 mt-2">
+                        @foreach($extraRows as $row)
+                            <li>{{ trim(($row['label'] ?? '').': '.($row['id'] ?? '')) }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+            </div>
+        </div>
     </div>
 
     {{-- Row 5: field data --}}

@@ -1394,6 +1394,9 @@ class ProcessEnquiryWizard extends Component
             $this->persistQuotationLines();
             $this->persistSampleConfiguration($enquiry);
 
+            // In-app (navbar bell) is always created by the approval service.
+            $this->approvalNotifyInApp = true;
+
             $header = $header->fresh() ?? $header;
             $enquiry = $approvalService->submitForApproval(
                 $enquiry,
@@ -1419,6 +1422,7 @@ class ProcessEnquiryWizard extends Component
             $this->imaraToast('success', 'Sent for approval', $flashMessage);
             $this->setStatus('success', $flashMessage, true);
             $this->dispatch('process-enquiry-completed');
+            $this->dispatch('lab-notifications-updated');
         } catch (Throwable $exception) {
             $this->setStatus('error', $exception->getMessage());
         }

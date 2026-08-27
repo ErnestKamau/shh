@@ -62,5 +62,6 @@
 
 @section('script2')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+@include('livewire.partials.walk-in-trf-page-scripts')
 @stack('script2')
 @endsection

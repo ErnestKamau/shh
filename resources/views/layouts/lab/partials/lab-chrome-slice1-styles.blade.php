@@ -13,13 +13,22 @@
 	}
 
 	#sidebar-container {
+		display: flex !important;
+		flex-direction: column !important;
+		overflow: hidden !important;
 		background:
 			linear-gradient(180deg, color-mix(in srgb, var(--lab-chrome-blue-soft) 10%, transparent) 0%, transparent 32%),
 			var(--lab-chrome-sidebar-bg) !important;
 	}
 
 	#sidebar-container .sidebar-module-div {
-		background: linear-gradient(135deg, var(--lab-chrome-glass) 0%, rgba(255, 255, 255, 0.05) 100%) !important;
+		position: sticky;
+		top: 0;
+		z-index: 2;
+		padding: 1.275rem !important; /* p-4 (1.5rem) × 0.85 */
+		background:
+			linear-gradient(135deg, var(--lab-chrome-glass) 0%, rgba(255, 255, 255, 0.05) 100%),
+			var(--lab-chrome-sidebar-bg) !important;
 		border: 1px solid rgba(255, 255, 255, 0.22) !important;
 		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
@@ -30,8 +39,14 @@
 		color: #fff !important;
 	}
 
-	#sidebar-container .sidebar-module-div i,
+	#sidebar-container .sidebar-module-div i {
+		font-size: 2.975rem !important; /* 3.5rem × 0.85 */
+		margin-bottom: 6.8px !important; /* 8px × 0.85 */
+		color: #fff !important;
+	}
+
 	#sidebar-container .sidebar-module-div span {
+		font-size: calc(var(--text-sidebar) * 0.85) !important;
 		color: #fff !important;
 	}
 
@@ -80,15 +95,17 @@
 	}
 
 	/*
-		Keep the native single-column list-group layout.
-		Do NOT turn #sidebar-container into a flex shell — that collapsed
-		nav rows into overlapping “columns”. Foot scrolls with the sidebar
-		like the old copyright block.
+		Pin header + footer; only the nav list scrolls.
+		Keep list-group items full-width / nowrap so rows stay a single column.
 	*/
 	#sidebar-container > ul.list-group {
 		display: flex !important;
 		flex-direction: column !important;
 		flex-wrap: nowrap !important;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		overflow-x: hidden;
 		width: 100%;
 		margin-bottom: 0 !important;
 	}
@@ -103,12 +120,14 @@
 	}
 
 	#sidebar-container .lab-sidebar-foot {
+		flex: 0 0 auto;
 		width: 100%;
 		padding: 0.55rem 0.55rem 0.65rem;
 		border-top: 1px solid rgba(255, 255, 255, 0.12);
 		background: rgba(0, 0, 0, 0.18);
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
+		z-index: 2;
 	}
 
 	#sidebar-container .lab-sidebar-foot__actions {

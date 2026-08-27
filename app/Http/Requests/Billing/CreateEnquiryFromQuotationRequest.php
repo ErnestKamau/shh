@@ -23,7 +23,7 @@ class CreateEnquiryFromQuotationRequest extends FormRequest
             'creation_token' => ['required', 'uuid'],
             'creation_intent' => ['required', Rule::in(EnquiryFromQuotationService::creationIntents())],
             'source_channel' => ['nullable', Rule::in(EnquiryFromQuotationService::allowedSourceChannels())],
-            'number_of_samples' => ['required', 'integer', 'min:1', 'max:10000'],
+            'number_of_samples' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'reference_number' => ['nullable', 'string', 'max:255'],
             'client_po_number' => ['nullable', 'string', 'max:255'],
             'po_skipped' => ['nullable', 'boolean'],
@@ -42,7 +42,6 @@ class CreateEnquiryFromQuotationRequest extends FormRequest
             'quotation_id.exists' => 'The selected quotation no longer exists.',
             'creation_intent.required' => 'Choose how this quotation should enter the workflow.',
             'creation_intent.in' => 'Choose a valid quotation creation intent.',
-            'number_of_samples.required' => 'Confirm the number of physical samples.',
             'number_of_samples.min' => 'At least one physical sample is required.',
         ];
     }

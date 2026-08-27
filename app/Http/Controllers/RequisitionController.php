@@ -1784,22 +1784,21 @@ class RequisitionController extends Controller
 			$resolvedSlots[$i] = $slot;
 		}
 
-		$otp = null;
-		if (!$isInternal) {
-			$OTPController = new OTPController;
+		// Always require OTP (Polucon behaviour). Final GR approval may call this with
+		// $isInternal=true and no otp_value — that path must fail so Confirm / Accept Goods stay available.
+		$OTPController = new OTPController;
 
-			$otp = $OTPController->close(
-				(object)[
-					"code" => $request->otp_value,
-					"model" => "Goods Receipt",
-					"model_id" => $entity->id,
-					"approved_by" => \Auth::user()->id
-				]
-			);
+		$otp = $OTPController->close(
+			(object) [
+				"code" => $request->otp_value,
+				"model" => "Goods Receipt",
+				"model_id" => $entity->id,
+				"approved_by" => \Auth::user()->id
+			]
+		);
 
-			if (!isset($otp->code)) {
-				return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
-			}
+		if (!isset($otp->code)) {
+			return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
 		}
 
 		// Drop incomplete receive rows left by a previous failed stock-in attempt.
@@ -3070,6 +3069,7 @@ class RequisitionController extends Controller
 			$contacteMails = array($USER->email);
 
 			$isMRMessage = "";
+			$createdRFQ = null;
 
 			if ($req->request_type == "Purchase Orders" && $req->status == "Approval Complete") {
 				$rptG = new ReportGeneratorController;
@@ -3097,6 +3097,7 @@ class RequisitionController extends Controller
 					$isMRMessage = "and RFQ " . $createdRFQ->request_code . " has been created from this Purchase Request.";
 				} else {
 					$isMRMessage = "but RFQ creation failed. Please create the RFQ manually.";
+					$createdRFQ = null;
 				}
 			}
 
@@ -3191,6 +3192,13 @@ class RequisitionController extends Controller
 
 			if ($isInternal) {
 				return $req;
+			}
+
+			if ($createdRFQ instanceof \App\RequestEntity) {
+				return redirect()->route('view-request-details', [
+					'stage' => $createdRFQ->request_type,
+					'id' => $createdRFQ->id,
+				])->with('success', 'Request for Quotation ' . $createdRFQ->request_code . ' has been created.');
 			}
 
 			return \redirect()->back()->with('success', $stage . ' Approval was successful');

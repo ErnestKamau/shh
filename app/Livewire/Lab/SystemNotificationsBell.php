@@ -13,6 +13,10 @@ class SystemNotificationsBell extends Component
 {
     public bool $open = false;
 
+    protected $listeners = [
+        'lab-notifications-updated' => '$refresh',
+    ];
+
     public function markRead(string $notificationId): void
     {
         $userId = (string) (auth()->id() ?? '');

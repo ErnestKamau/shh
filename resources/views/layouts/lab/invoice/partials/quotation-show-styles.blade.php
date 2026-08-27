@@ -639,7 +639,11 @@
 	}
 
 	.ls-quotation-workflow-modal .modal-header {
-		background: linear-gradient(135deg, #8b1538 0%, #a61d45 100%);
+		background: linear-gradient(
+			135deg,
+			var(--color-primary, #6D0A0E) 0%,
+			var(--color-primary-hover, #8b1538) 100%
+		);
 		color: #fff;
 		border: 0;
 		padding: 1rem 1.25rem;
@@ -682,8 +686,8 @@
 	}
 
 	.ls-quotation-workflow-modal .btn-quotation-primary {
-		background: #8b1538;
-		border-color: #8b1538;
+		background: var(--color-primary, #6D0A0E);
+		border-color: var(--color-primary, #6D0A0E);
 		color: #fff;
 		border-radius: 10px;
 		font-weight: 600;
@@ -879,7 +883,7 @@
 	.quotation-show-page .ls-quote-params__toolbar {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: flex-start;
 		gap: 0.5rem;
 		margin-bottom: 0.35rem;
 	}
@@ -977,6 +981,13 @@
 		background:
 			linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(248 250 252 / 0.98)),
 			radial-gradient(120% 80% at 0% 0%, rgb(14 165 233 / 0.06), transparent 55%);
+	}
+
+	/* Params modal: never collapse the analyte table to zero height (blank white stage). */
+	.ls-quote-params-modal .ls-quote-params-stage > .ls-quote-analyte-table,
+	.ls-quote-params-modal .ls-quote-analyte-table.is-stage-visible {
+		position: relative;
+		min-height: 180px !important;
 	}
 
 	.ls-quotation-workflow-modal .ls-quote-analyte-group td {
@@ -1337,7 +1348,6 @@
 	}
 
 	.ls-quote-params-stage > .ls-quote-analyte-table,
-	.ls-quote-params-stage > .ls-quote-params-skeleton,
 	.ls-quote-params-stage > .ls-quote-params-empty {
 		flex: 1 1 auto;
 		min-height: 180px;
@@ -1347,16 +1357,42 @@
 	.ls-quote-params-stage > .ls-quote-analyte-table:not([hidden]),
 	.ls-quote-params-stage > .ls-quote-analyte-table.is-stage-visible {
 		display: block !important;
+		position: relative;
 		overflow: auto;
-		min-height: 180px;
-	}
-
-	.ls-quote-params-stage > .ls-quote-params-skeleton.is-stage-visible {
-		display: flex !important;
+		min-height: 180px !important;
 	}
 
 	.ls-quote-params-stage > .ls-quote-params-empty.is-stage-visible {
 		display: flex !important;
+	}
+
+	.ls-quote-params-stage-loading {
+		position: absolute;
+		inset: 0;
+		z-index: 4;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		border-radius: inherit;
+		background: rgb(248 250 252 / 0.82);
+		backdrop-filter: blur(2px);
+		pointer-events: none;
+	}
+
+	.ls-quote-params-stage-loading[hidden] {
+		display: none !important;
+	}
+
+	.ls-quote-params-stage-loading.is-stage-visible,
+	.ls-quote-params-stage-loading:not([hidden]) {
+		display: flex !important;
+	}
+
+	.ls-quote-params-stage-loading__label {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: #475569;
 	}
 
 	.ls-quote-params-stage::after {
@@ -1402,7 +1438,6 @@
 	}
 
 	.ls-quote-params-empty[hidden],
-	.ls-quote-params-skeleton[hidden],
 	.ls-quote-analyte-table[hidden] {
 		display: none !important;
 	}
@@ -1411,11 +1446,7 @@
 	.ls-quote-params-stage > .ls-quote-analyte-table.is-stage-visible {
 		display: block !important;
 		overflow: auto;
-		min-height: 180px;
-	}
-
-	.ls-quote-params-stage > .ls-quote-params-skeleton.is-stage-visible {
-		display: flex !important;
+		min-height: 180px !important;
 	}
 
 	.ls-quote-params-stage > .ls-quote-params-empty.is-stage-visible {

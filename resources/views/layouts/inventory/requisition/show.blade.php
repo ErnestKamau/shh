@@ -437,10 +437,10 @@
 			@endif
 
 			@if($request->status == "Approval Complete")
-			{{-- <button class="btn btn-default text-dark float-right save-details-form btn-sm"
+			<button class="btn btn-default text-dark float-right save-details-form btn-sm"
 				data-type="send-purchase-order">
 				<i class="mdi mdi-send"></i> Send Purchase Order
-			</button> --}}
+			</button>
 			@endif
 			@if (isset($request->status) && $isInventoryProcurement)
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
