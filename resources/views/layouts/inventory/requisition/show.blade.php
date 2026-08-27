@@ -213,11 +213,11 @@
 	$gate_pass_category = getConfigByName('gate_pass_category_id');
 	$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : 0;
 
-	$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin']);
-	$inventoryDepartmentHeadRoles = filterExistingSpatieRoleNames(['Inventory Department Head Group', 'Department Head', 'Admin']);
-	$inventoryManagerRoles = filterExistingSpatieRoleNames(['Inventory Manager Group', 'Manager', 'Admin']);
-	$inventoryFinanceRoles = filterExistingSpatieRoleNames(['Inventory Finance Group', 'Financial Accountant', 'Finance', 'Admin']);
-	$inventoryStoreManagerRoles = filterExistingSpatieRoleNames(['Inventory Store Manager Group', 'Store Manager', 'Store', 'Admin']);
+	$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin', 'admin']);
+	$inventoryDepartmentHeadRoles = filterExistingSpatieRoleNames(['Inventory Department Head Group', 'Department Head', 'Admin', 'admin']);
+	$inventoryManagerRoles = filterExistingSpatieRoleNames(['Inventory Manager Group', 'Manager', 'Admin', 'admin']);
+	$inventoryFinanceRoles = filterExistingSpatieRoleNames(['Inventory Finance Group', 'Financial Accountant', 'Finance', 'Admin', 'admin']);
+	$inventoryStoreManagerRoles = filterExistingSpatieRoleNames(['Inventory Store Manager Group', 'Store Manager', 'Store', 'Admin', 'admin']);
 
 	$isInventoryProcurement = $inventoryProcurementRoles !== [] && \Auth::user()->hasAnyRole($inventoryProcurementRoles);
 	$isInventoryDepartmentHead = $inventoryDepartmentHeadRoles !== [] && \Auth::user()->hasAnyRole($inventoryDepartmentHeadRoles);

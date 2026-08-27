@@ -736,7 +736,7 @@ Route::post('/billing/quotations/{id}/bulk-delete-details', 'Invoice\QuotationCo
 Route::post('/billing/quotations/{id}/import-prep-lines', 'Invoice\QuotationController@importPrepLines')->name('quotation.import_prep_lines')->middleware('can:laboratory.components.quotation.edit');
 Route::get('/billing/quotations/import-prep-capability', 'Invoice\QuotationController@importPrepCapability')->name('quotation.import_prep_capability')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/templates/amspec-quotation-preparation.pdf', function () {
-    $path = storage_path('app/public/templates/amspec-quotation-preparation.pdf');
+    $path = public_path('templates/amspec-quotation-preparation.pdf');
     if (! is_file($path)) {
         abort(404, 'Amspec template not found.');
     }
@@ -751,7 +751,7 @@ Route::get('/billing/templates/amspec-import.xlsx', function (\Illuminate\Http\R
     $file = $context === 'pricelist'
         ? 'amspec-pricelist-import.xlsx'
         : 'amspec-quotation-prep-import.xlsx';
-    $path = storage_path('app/public/templates/'.$file);
+    $path = public_path('templates/'.$file);
     if (! is_file($path)) {
         abort(404, 'Amspec Excel template not found.');
     }

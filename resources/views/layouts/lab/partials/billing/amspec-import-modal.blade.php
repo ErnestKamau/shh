@@ -93,10 +93,10 @@
 							Sample type and parameter names must match LIMS. Skipped rows appear as warnings.
 						</p>
 						<div class="ls-amspec-guide-card__actions">
-							<a href="{{ $excelTemplateUrl }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+							<a href="{{ $excelTemplateUrl }}" class="btn btn-sm btn-outline-secondary" download="Amspec-{{ $isPricelist ? 'Pricelist' : 'Quotation-prep' }}-import.xlsx">
 								<i class="mdi mdi-file-excel"></i> Download Excel template
 							</a>
-							<a href="{{ $pdfTemplateUrl }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+							<a href="{{ $pdfTemplateUrl }}" class="btn btn-sm btn-outline-secondary" download="Amspec-Quotation-preparation.pdf">
 								<i class="mdi mdi-file-pdf-box"></i> Download PDF template
 							</a>
 						</div>
