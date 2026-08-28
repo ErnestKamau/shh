@@ -37,7 +37,7 @@
 			<li>Create a <strong>fresh quotation</strong> from the samples and tests on this request.</li>
 			<li>Adjust unit prices, sample counts, and VAT per line.</li>
 			<li>Tick <strong>LOQ</strong> and <strong>MU%</strong> at the top if those columns should appear on the <strong>customer PDF</strong> (they do not change the money — only what is printed).</li>
-			<li>When ready, press <strong>Send for Approval</strong>. Approvers are the people set under Billing → Approval configuration.</li>
+			<li>When ready, press <strong>Send for Approval</strong> (see <strong>Approval &amp; notifications</strong> — Process enquiry path).</li>
 			<li>After approval, send the quote to the customer from this flow when your process says so.</li>
 			<li><strong>Use when:</strong> this job needs its own prices or mix of tests.</li>
 		</ul>
@@ -53,11 +53,36 @@
 	</div>
 </div>
 
-<h2>How this relates to Billing quotations</h2>
+<h2>Similarities and differences with Billing quotations</h2>
 <p>
-	Quotes created here are the same quotations you see under <strong>Billing → Quotations</strong>
+	Quotes created here are the <strong>same records</strong> you see under <strong>Billing → Quotations</strong>
 	(In Preparation → In Approval → Complete). Process enquiry is the guided door from the request;
-	the Quotations page is the shelf where finance and commercial teams browse every quote.
+	the Quotations page is where finance and commercial teams browse every quote.
+</p>
+
+<div class="um-compare">
+	<div class="um-compare__card">
+		<h4>Same</h4>
+		<ul>
+			<li>One quotation record, same tabs, same approvers, same customer PDF.</li>
+			<li>Both paths end in <strong>Quotations → In Approval</strong> for approve/reject.</li>
+			<li>LOQ and MU% columns work the same way on the PDF.</li>
+		</ul>
+	</div>
+	<div class="um-compare__card">
+		<h4>Different</h4>
+		<ul>
+			<li><strong>Entry point</strong> — request view vs Billing → Quotations.</li>
+			<li><strong>Send button</strong> — <strong>Send for Approval</strong> here vs <strong>Move To workflow</strong> on Billing.</li>
+			<li><strong>Use existing</strong> skips re-approval; Billing always approves new quotes.</li>
+			<li>Billing path can <strong>Create enquiry from quotation</strong> after Complete; Process enquiry starts from the request.</li>
+		</ul>
+	</div>
+</div>
+
+<p>
+	For step-by-step approval from both paths, see <strong>Approval &amp; notifications</strong>.
+	For the full Billing journey (add quote → prepare → approve → create enquiry), see <strong>Billing quotation workflow</strong>.
 </p>
 
 <div class="um-tip">

@@ -1,8 +1,11 @@
 <h2>Who prepares quotations?</h2>
 <p>
 	<strong>Commercial staff</strong> and <strong>lab coordinators</strong> build quotations under
-	<strong>Billing → Quotations</strong> (or via <strong>Process enquiry</strong> on a request).
-	This chapter covers line items, billing modes, and using a customer pricelist.
+	<strong>Billing → Quotations</strong>.
+</p>
+<p>
+	This chapter is the detailed reference for line math, billing modes, and pricelist conditions.
+	For the full Billing journey step-by-step, start with <strong>Billing quotation workflow</strong> (Steps 1–7).
 </p>
 
 <h2>Quotation without a pricelist</h2>

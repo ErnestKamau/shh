@@ -1046,6 +1046,11 @@ function getSystemModules()
 			'route' => '/system-settings',
 			'default_visible' => true,
 		),
+		'usermanual' => array(
+			'name' => 'User Manual',
+			'route' => '/usermanual',
+			'default_visible' => true,
+		),
 		'ai_analytics' => array(
 			'name' => 'AI Analytics',
 			'route' => '/ai-analytics',

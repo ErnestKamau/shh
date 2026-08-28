@@ -1774,9 +1774,9 @@ Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remov
 //###################################PRICELISTS#######################################
 
 //###################################USER MANUAL#######################################
-Route::middleware(['auth', 'can:laboratory.module.access'])->prefix('usermanual')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Lab\UserManualController::class, 'index'])->name('usermanual.index');
-    Route::get('/{manual}/{chapter?}', [\App\Http\Controllers\Lab\UserManualController::class, 'show'])
+Route::middleware(['auth', 'can:usermanual.module.access'])->prefix('usermanual')->group(function () {
+    Route::get('/', [\App\Http\Controllers\UserManualController::class, 'index'])->name('usermanual.index');
+    Route::get('/{manual}/{chapter?}', [\App\Http\Controllers\UserManualController::class, 'show'])
         ->where('manual', 'quotations|direct-registration|request-view|sample-receiving|inventory')
         ->name('usermanual.show');
 });

@@ -353,13 +353,6 @@
 		</div>
 			@endif
 
-			<a href="{{ route('usermanual.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('usermanual.*') ? 'active' : '' }}">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-book-open-page-variant-outline mr-3"></span>
-					<span class="menu-collapsed">User Manual</span>
-				</div>
-			</a>
-
 			{{-- Equipment Request temporarily hidden
 			@if($canEquipmentRequests)
 			<a href="{{ route('lab.equipment-requests.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab.equipment-requests.*') ? 'active' : '' }}">
