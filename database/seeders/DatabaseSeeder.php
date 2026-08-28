@@ -60,6 +60,7 @@ class DatabaseSeeder extends Seeder
             // Keep MAS translations last so migrated MAS keys win on overlap.
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,
+            \Database\Seeders\Setup\HelpDeskPermissionsSeeder::class,
             \Database\Seeders\Setup\InventoryWorkflowRolesPermissionsSeeder::class,
             UsersSeeder::class,
             AmSpecPersonnelSeeder::class,

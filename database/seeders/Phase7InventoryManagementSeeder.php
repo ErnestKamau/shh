@@ -49,7 +49,19 @@ class Phase7InventoryManagementSeeder extends Seeder
             }
 
             $department = DB::connection('pgsql')->table('inventory_departments')->first();
-            $departmentId = $department?->id ?? '019dde3f-07e8-7286-a09e-1483410114f6';
+            if (!$department) {
+                $departmentId = Str::uuid()->toString();
+                DB::connection('pgsql')->table('inventory_departments')->insert([
+                    'id' => $departmentId,
+                    'name' => 'Main Laboratory Department',
+                    'company_id' => $companyId,
+                    'location_id' => (string) $locations->first()->id,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            } else {
+                $departmentId = $department->id;
+            }
 
             // 2. Clear old inventory records to avoid duplicates
             DB::connection('pgsql')->table('inventory_order_items')->delete();
