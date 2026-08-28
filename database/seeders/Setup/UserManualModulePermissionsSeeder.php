@@ -36,40 +36,19 @@ class UserManualModulePermissionsSeeder extends Seeder
 
         $moduleAccessPermission = $permissions[0];
 
-        $adminRoles = Role::query()
+        $allRoles = Role::query()
             ->where('guard_name', 'web')
-            ->where(function ($query): void {
-                $query->whereRaw('LOWER(name) = ?', ['admin'])
-                    ->orWhereRaw('LOWER(name) = ?', ['super admin'])
-                    ->orWhereRaw('LOWER(name) = ?', ['super-admin'])
-                    ->orWhereRaw('LOWER(name) = ?', ['system admin'])
-                    ->orWhereRaw('LOWER(name) = ?', ['system-admin'])
-                    ->orWhereRaw('LOWER(name) = ?', ['system admin group'])
-                    ->orWhereRaw('LOWER(name) = ?', ['super admin group']);
-            })
             ->get();
 
-        foreach ($adminRoles as $adminRole) {
-            $adminRole->givePermissionTo($moduleAccessPermission);
-        }
-
-        $labModuleAccessRoles = Role::query()
-            ->where('guard_name', 'web')
-            ->whereHas('permissions', function ($query): void {
-                $query->where('name', 'laboratory.module.access');
-            })
-            ->get();
-
-        foreach ($labModuleAccessRoles as $role) {
+        foreach ($allRoles as $role) {
             $role->givePermissionTo($moduleAccessPermission);
         }
 
-        $usersWithLabModuleAccess = User::query()
+        $activeUsers = User::query()
             ->where('active', 1)
-            ->permission('laboratory.module.access')
             ->get();
 
-        foreach ($usersWithLabModuleAccess as $user) {
+        foreach ($activeUsers as $user) {
             $user->givePermissionTo($moduleAccessPermission);
         }
 
@@ -77,9 +56,7 @@ class UserManualModulePermissionsSeeder extends Seeder
 
         $this->command?->info(
             'User Manual module permissions ensured: '.count($permissions).' permission(s), assigned to '
-            .$adminRoles->count().' admin role(s), '
-            .$labModuleAccessRoles->count().' role(s) with laboratory.module.access, and '
-            .$usersWithLabModuleAccess->count().' user(s) with direct laboratory module access.'
+            .$allRoles->count().' role(s) and '.$activeUsers->count().' active user(s).'
         );
     }
 }
