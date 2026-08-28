@@ -50,6 +50,36 @@ final class QuotationApprovalService
         return $query->get();
     }
 
+    /**
+     * Create navbar (in-app) notifications for every eligible approver, ensuring the
+     * assigned manager is included even if role membership drifts.
+     */
+    private function notifyApproversInApp(QuotationHeader $header, User $manager, string $actorName): void
+    {
+        $approvers = $this->eligibleApprovers();
+        if ($approvers->where('id', $manager->id)->isEmpty()) {
+            $approvers = $approvers->push($manager)->values();
+        }
+
+        if ($approvers->isEmpty()) {
+            report(new RuntimeException(
+                'Quotation '.$header->quote_number.' submitted for approval but no in-app recipients were found.'
+            ));
+
+            return;
+        }
+
+        try {
+            app(LabSystemNotificationService::class)->notifyQuotationApprovalRequired(
+                $header,
+                $approvers,
+                $actorName,
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
+
     public function submitForApproval(
         SampleSubmissionRequest $enquiry,
         QuotationHeader $header,
@@ -111,19 +141,9 @@ final class QuotationApprovalService
         });
 
         $freshHeader = $submitted->currentQuotation ?? $header->fresh() ?? $header;
-        $approvers = $this->eligibleApprovers();
 
-        if ($notifyInApp) {
-            try {
-                app(LabSystemNotificationService::class)->notifyQuotationApprovalRequired(
-                    $freshHeader,
-                    $approvers,
-                    (string) $actor->name,
-                );
-            } catch (\Throwable $exception) {
-                report($exception);
-            }
-        }
+        // Navbar bell always gets in-app rows for approvers (email remains optional).
+        $this->notifyApproversInApp($freshHeader, $manager, (string) $actor->name);
 
         if ($notifyEmail) {
             NotifyQuotationApproversJob::dispatch(
@@ -508,19 +528,8 @@ final class QuotationApprovalService
             return $header->fresh() ?? $header;
         });
 
-        $approvers = $this->eligibleApprovers();
-
-        if ($notifyInApp) {
-            try {
-                app(LabSystemNotificationService::class)->notifyQuotationApprovalRequired(
-                    $submitted,
-                    $approvers,
-                    (string) $actor->name,
-                );
-            } catch (\Throwable $exception) {
-                report($exception);
-            }
-        }
+        // Navbar bell always gets in-app rows for approvers (email remains optional).
+        $this->notifyApproversInApp($submitted, $manager, (string) $actor->name);
 
         if ($notifyEmail) {
             NotifyQuotationApproversJob::dispatch(

@@ -21,7 +21,7 @@
 <h2>How they work together</h2>
 <ol>
 	<li>Keep pricelists up to date (billing mode: <strong>per package</strong> or <strong>per test</strong>) and assign the right customers.</li>
-	<li>After samples are received, open <strong>Process enquiry</strong> to price the work, or build a quote from <strong>Billing → Quotations</strong>.</li>
+	<li>Build a quote from <strong>Billing → Quotations</strong> (see <strong>Billing quotation workflow</strong>), or price later from <strong>Process enquiry</strong> on a request.</li>
 	<li>Line totals use unit price × number of samples (or package price × samples).</li>
 	<li>Catalogue changes become live selling prices only after <strong>Apply Price Changes</strong> on the pricelist.</li>
 </ol>
@@ -32,8 +32,8 @@
 		<h4>Use a pricelist</h4>
 		<ul>
 			<li>Assign the customer to a pricelist under Billing → Pricelists.</li>
-			<li>On the quote, open <strong>Commercial / Customer pricelist</strong> and select an eligible list.</li>
-			<li>Lines follow the list’s billing mode (package or per test).</li>
+	<li>On the quote, open <strong>Commercial</strong> and select an eligible list — or use <strong>+ Add line</strong> for manual pricing.</li>
+			<li>Default line mode is <strong>per package</strong>; tick <strong>Per parameter</strong> to bill each test separately.</li>
 		</ul>
 	</div>
 	<div class="um-compare__card">
@@ -50,6 +50,7 @@
 	<span class="um-tip__icon"><i class="mdi mdi-information-outline"></i></span>
 	<p>
 		Think of the pricelist as the price book, and the quotation as the customer-facing offer for one job.
-		Continue with <strong>Quote preparation</strong>, <strong>Import</strong>, <strong>Pricelist in depth</strong>, and <strong>Approval</strong> chapters for the full path.
+		Read in order: <strong>Quote preparation &amp; math</strong> → <strong>Billing quotation workflow</strong> →
+		<strong>Approval &amp; notifications</strong> → <strong>Process request (pricing)</strong> for how both paths fit together.
 	</p>
 </div>

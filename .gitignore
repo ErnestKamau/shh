@@ -13,8 +13,11 @@ yarn-error.log
 storage/*
 vendor_old/*
 vendor_old
-/public/images
+/public/images/*
 !/public/images/forms/
+!/public/images/forms/**
+!/public/images/usermanual/
+!/public/images/usermanual/**
 .history/
 .md
 helpdesk-developer.backup.20260111-183650/

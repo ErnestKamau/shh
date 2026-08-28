@@ -736,7 +736,7 @@ Route::post('/billing/quotations/{id}/bulk-delete-details', 'Invoice\QuotationCo
 Route::post('/billing/quotations/{id}/import-prep-lines', 'Invoice\QuotationController@importPrepLines')->name('quotation.import_prep_lines')->middleware('can:laboratory.components.quotation.edit');
 Route::get('/billing/quotations/import-prep-capability', 'Invoice\QuotationController@importPrepCapability')->name('quotation.import_prep_capability')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/templates/amspec-quotation-preparation.pdf', function () {
-    $path = storage_path('app/public/templates/amspec-quotation-preparation.pdf');
+    $path = public_path('templates/amspec-quotation-preparation.pdf');
     if (! is_file($path)) {
         abort(404, 'Amspec template not found.');
     }
@@ -746,24 +746,13 @@ Route::get('/billing/templates/amspec-quotation-preparation.pdf', function () {
     ]);
 })->name('billing.templates.amspec_quotation_preparation')->middleware('auth');
 
-Route::get('/billing/templates/amspec-import.xlsx', function (\Illuminate\Http\Request $request) {
-    $context = $request->query('context', 'quotation') === 'pricelist' ? 'pricelist' : 'quotation';
-    $file = $context === 'pricelist'
-        ? 'amspec-pricelist-import.xlsx'
-        : 'amspec-quotation-prep-import.xlsx';
-    $path = storage_path('app/public/templates/'.$file);
-    if (! is_file($path)) {
-        abort(404, 'Amspec Excel template not found.');
-    }
+Route::get('/billing/templates/amspec-import/excel', [\App\Http\Controllers\Billing\AmspecImportTemplateController::class, 'excel'])
+    ->name('billing.templates.amspec_import_excel')
+    ->middleware('auth');
 
-    $downloadName = $context === 'pricelist'
-        ? 'Amspec-Pricelist-import.xlsx'
-        : 'Amspec-Quotation-prep-import.xlsx';
-
-    return response()->download($path, $downloadName, [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ]);
-})->name('billing.templates.amspec_import_excel')->middleware('auth');
+// Legacy URL kept for bookmarks; same download handler.
+Route::get('/billing/templates/amspec-import.xlsx', [\App\Http\Controllers\Billing\AmspecImportTemplateController::class, 'excel'])
+    ->middleware('auth');
 Route::post('/billing/quotations/{id}/package-defaults', 'Invoice\QuotationController@packageDefaults')->name('quotation.package_defaults')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/elements/loq', 'Invoice\QuotationController@updateElementLoq')->name('quotation.update_element_loq')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail')->middleware('can:laboratory.components.quotation.add');
@@ -1785,10 +1774,10 @@ Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remov
 //###################################PRICELISTS#######################################
 
 //###################################USER MANUAL#######################################
-Route::middleware(['auth', 'can:laboratory.module.access'])->prefix('usermanual')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Lab\UserManualController::class, 'index'])->name('usermanual.index');
-    Route::get('/{manual}/{chapter?}', [\App\Http\Controllers\Lab\UserManualController::class, 'show'])
-        ->where('manual', 'quotations|direct-registration|request-view|sample-receiving')
+Route::middleware(['auth', 'can:usermanual.module.access'])->prefix('usermanual')->group(function () {
+    Route::get('/', [\App\Http\Controllers\UserManualController::class, 'index'])->name('usermanual.index');
+    Route::get('/{manual}/{chapter?}', [\App\Http\Controllers\UserManualController::class, 'show'])
+        ->where('manual', 'quotations|direct-registration|request-view|sample-receiving|inventory')
         ->name('usermanual.show');
 });
 
@@ -1916,7 +1905,7 @@ Route::get('/lab/standard/show/{id}', 'Lab\StandardsController@show')->name('vie
 //###################################Standards#######################################
 
 //###################################API ROUTES#######################################
-// Route::get('/api-get-available-items/{item_id}/{brand_id}/{request_id?}', 'API\APIController@items_available')->name('api-get-available-items');
+Route::get('/api-get-available-items/{item_id}/{brand_id}/{request_id?}', 'API\APIController@items_available')->name('api-get-available-items')->middleware('auth');
 //###################################API ROUTES#######################################
 
 //###################################REMINDERS ROUTES#######################################

@@ -192,6 +192,9 @@
             color: var(--ls-muted);
             margin: 0.2rem 0 0;
             clear: both;
+            white-space: pre-line;
+            max-height: 7.5rem;
+            overflow-y: auto;
         }
         .imara-system-bell .ls-notify-empty {
             padding: 1rem 0.25rem;

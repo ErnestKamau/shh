@@ -276,26 +276,26 @@
                         <th style="width: 40px; text-align: center;">
                             <input type="checkbox" id="select-all-samples" title="Select All">
                         </th>
-                        <th style="width: 100px; text-align: center;">Actions</th>
-                        <th style="min-width: 180px;">Code</th>
-                        <th style="min-width: 150px;">Matrix<sup class="text-danger">*</sup></th>
+                        <th style="width: 100px; text-align: center;">Sample Action</th>
+                        <th style="min-width: 180px;">Sample ID</th>
+                        <th style="min-width: 150px;">Analysis Type<sup class="text-danger">*</sup></th>
                         <th style="min-width: 150px;">Sample Type</th>
-                        <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
                         <th style="min-width: 130px;">
                             Specification<sup class="text-danger">*</sup>
                         </th>
                         <th style="min-width: 130px;">
                             Secondary Specification
                         </th>
-                        <th style="min-width: 120px;">Condition</th>
+                        <th style="min-width: 120px;">Laboratory<sup class="text-danger">*</sup></th>
+                        <th style="min-width: 120px;">Sample Condition</th>
                         <th style="min-width: 150px;">
-                            Sample Point
+                            Sampling Point
                             <button type="button" class="btn btn-xs btn-outline-primary ml-1"
-                                wire:click="openAddModal('sample_point_id', null)" title="Add New Sample Point">
+                                wire:click="openAddModal('sample_point_id', null)" title="Add New Sampling Point">
                                 <i class="mdi mdi-plus"></i>
                             </button>
                         </th>
-                        <th style="min-width: 150px;">Description</th>
+                        <th style="min-width: 150px;">Sample Description</th>
                         <th style="min-width: 110px;">Disposal Date</th>
                     </tr>
                 </thead>
@@ -435,7 +435,7 @@
                                     @endif
 
                                     <input type="text" wire:model.live="analysisTypeSearch" class="tag-input"
-                                        placeholder="{{ (is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0) ? '' : 'Search matrix...' }}"
+                                        placeholder="{{ (is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0) ? '' : 'Search analysis type...' }}"
                                         autocomplete="off">
                                 </div>
 
@@ -458,7 +458,7 @@
                                     </div>
                                     @endforeach
                                     @else
-                                    <div class="p-3 text-center text-muted">No matrix options found</div>
+                                    <div class="p-3 text-center text-muted">No analysis type options found</div>
                                     @endif
                                 </div>
                                 @endif
@@ -497,28 +497,6 @@
                             @enderror
                         </td>
 
-                        {{-- Lab Section --}}
-                        <td>
-                            @if($isReadOnly)
-                            <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($labSections)->firstWhere('id', $sampleForm['lab_id'])['name'] ?? '-' }}"
-                                readonly>
-                            @else
-                            <select class="form-control form-control-sm modern-select no-select2"
-                                wire:model="sampleForms.{{ $index }}.lab_id"
-                                wire:key="sample-lab-{{ $index }}"
-                                required>
-                                <option value="">Select...</option>
-                                @foreach($labSections as $lab)
-                                <option value="{{ (string) $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
-                                @endforeach
-                            </select>
-                            @error("sampleForms.$index.lab_id")
-                            <small class="text-danger">{{ $message }}</small>
-                            @enderror
-                            @endif
-                        </td>
-
                         {{-- Specification --}}
                         <td>
                             <select class="form-control form-control-sm modern-select no-select2"
@@ -542,6 +520,28 @@
                                 <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
                                 @endforeach
                             </select>
+                        </td>
+
+                        {{-- Laboratory --}}
+                        <td>
+                            @if($isReadOnly)
+                            <input type="text" class="form-control form-control-sm readonly-input"
+                                value="{{ collect($labSections)->firstWhere('id', $sampleForm['lab_id'])['name'] ?? '-' }}"
+                                readonly>
+                            @else
+                            <select class="form-control form-control-sm modern-select no-select2"
+                                wire:model="sampleForms.{{ $index }}.lab_id"
+                                wire:key="sample-lab-{{ $index }}"
+                                required>
+                                <option value="">Select...</option>
+                                @foreach($labSections as $lab)
+                                <option value="{{ (string) $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
+                                @endforeach
+                            </select>
+                            @error("sampleForms.$index.lab_id")
+                            <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                            @endif
                         </td>
 
                         {{-- Condition --}}

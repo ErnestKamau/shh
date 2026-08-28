@@ -10,6 +10,7 @@ use App\Models\SubmissionFormSection;
 use App\QuotationHeader;
 use App\ReportingUnit;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
+use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\SubmissionForm\SubmissionFormInstanceDocumentAttachmentService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -67,6 +68,7 @@ final class EnquiryFromQuotationService
         private readonly AcceptanceFormSampleConfigService $sampleConfigService,
         private readonly CommercialEnquirySampleLineSync $sampleLineSync,
         private readonly PortalEnquiryFormInstanceSyncService $formInstanceSync,
+        private readonly PortalSubmissionFormAccess $portalFormAccess,
         private readonly EnquiryReceptionReadinessService $receptionReadinessService,
         private readonly CommercialEnquiryFieldMapper $fieldMapper,
         private readonly EnquiryQuotationService $enquiryQuotationService,
@@ -122,10 +124,8 @@ final class EnquiryFromQuotationService
 
             $lines = $this->eligibleQuotationLines($source);
 
-            $numberOfSamples = max(
-                1,
-                (int) ($intake['number_of_samples'] ?? $this->inferPhysicalSampleCount($lines)),
-            );
+            // Quotation line quantities are the source of truth for physical sample counts.
+            $numberOfSamples = $this->inferPhysicalSampleCount($lines);
             $intent = $this->normalizeIntent($intake['creation_intent'] ?? null);
             $sourceChannel = $this->normalizeSourceChannel($intake['source_channel'] ?? null);
 
@@ -193,6 +193,10 @@ final class EnquiryFromQuotationService
             ]), submit: true);
 
             $this->attachTestRequestFormPdfs($enquiry->fresh() ?? $enquiry);
+            $this->attachQuotationPdfToEnquiry(
+                $enquiry->fresh(['submissionFormInstance']) ?? $enquiry,
+                $source->fresh() ?? $source,
+            );
 
             $enquiry = $enquiry->fresh([
                 'currentQuotation.details',
@@ -374,7 +378,7 @@ final class EnquiryFromQuotationService
                 $uploaderId,
             );
         } catch (Throwable $exception) {
-            Log::warning('Failed to attach quotation PDF after create-from-quotation (already sent).', [
+            Log::warning('Failed to attach quotation PDF after create-from-quotation.', [
                 'enquiry_id' => $enquiry->id,
                 'quotation_id' => $header->id,
                 'error' => $exception->getMessage(),
@@ -498,7 +502,7 @@ final class EnquiryFromQuotationService
         $crmCustomerId = trim((string) ($quotation->crm_customer_id ?? ''));
         $crmCustomerId = $crmCustomerId !== '' ? $crmCustomerId : null;
 
-        $form = $this->formInstanceSync->resolveSubmissionFormForEnquiryLines($lines, null, $crmCustomerId);
+        $form = $this->resolveTrfFormLikeWalkIn($lines, $crmCustomerId);
         $sections = $form !== null ? $this->fillableSectionsForForm($form) : [];
 
         $typeNames = \App\SampleType::query()
@@ -516,6 +520,50 @@ final class EnquiryFromQuotationService
             'form_name' => (string) ($form?->name ?? $form?->document_code ?? 'Test Request Form'),
             'sections' => $sections,
         ]];
+    }
+
+    /**
+     * Prefer walk-in sample-type resolution (document code / category) so Food types like
+     * Nonseafood map to TRF-FOOD-019, not the Food & Feed form via category-union scoring.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function resolveTrfFormLikeWalkIn(array $lines, ?string $crmCustomerId): ?SubmissionForm
+    {
+        $sampleTypeIds = collect($lines)
+            ->map(static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($sampleTypeIds->count() === 1) {
+            $form = $this->portalFormAccess->testRequestFormForSampleType(
+                (string) $sampleTypeIds->first(),
+                $crmCustomerId,
+            );
+            if ($form !== null) {
+                return $form;
+            }
+        }
+
+        if ($sampleTypeIds->count() > 1) {
+            $resolvedIds = $sampleTypeIds
+                ->map(fn (string $typeId): ?string => $this->portalFormAccess
+                    ->testRequestFormForSampleType($typeId, $crmCustomerId)
+                    ?->id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($resolvedIds->count() === 1) {
+                $form = SubmissionForm::query()->find((string) $resolvedIds->first());
+                if ($form !== null) {
+                    return $form;
+                }
+            }
+        }
+
+        return $this->formInstanceSync->resolveSubmissionFormForEnquiryLines($lines, null, $crmCustomerId);
     }
 
     /**
@@ -1032,15 +1080,20 @@ final class EnquiryFromQuotationService
     }
 
     /**
+     * Build sample configs from quotation lines. Per-type physical sample counts
+     * always come from quotation line quantities; $numberOfSamples is retained for
+     * call-site compatibility and is not used to override those counts.
+     *
      * @param  list<array<string, mixed>>  $lines
      * @return list<array<string, mixed>>
      */
     private function buildSampleConfigs(array $lines, int $numberOfSamples): array
     {
+        unset($numberOfSamples);
+
         $groups = collect($lines)->groupBy(
             static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')),
         );
-        $singleType = $groups->count() === 1;
         $prefill = [];
         $rowIndex = 0;
 
@@ -1089,14 +1142,12 @@ final class EnquiryFromQuotationService
                 ->values()
                 ->all();
 
-            $groupSampleCount = $singleType
-                ? $numberOfSamples
-                : max(1, (int) $group->max(
-                    static fn (array $line): int => max(
-                        1,
-                        (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1),
-                    )
-                ));
+            $groupSampleCount = max(1, (int) $group->max(
+                static fn (array $line): int => max(
+                    1,
+                    (int) ($line['physical_sample_count'] ?? $line['quantity'] ?? 1),
+                )
+            ));
 
             $first = $group->first();
             $prefill[] = [

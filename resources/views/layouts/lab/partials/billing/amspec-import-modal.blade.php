@@ -90,13 +90,19 @@
 							<strong>Package total = No. of samples × Unit price</strong> (once) — not × number of tests.
 						</p>
 						<p class="ls-amspec-guide-card__text ls-amspec-guide-card__text--muted">
-							Sample type and parameter names must match LIMS. Skipped rows appear as warnings.
+							@if($isPricelist)
+								<strong>cost_price</strong> — the cost the lab incurs to perform this test.
+								<strong>selling_price</strong> — the price charged to clients on quotations.
+								Enter both on every row; do not use one price for both.
+							@else
+								Sample type and parameter names must match LIMS. Skipped rows appear as warnings.
+							@endif
 						</p>
 						<div class="ls-amspec-guide-card__actions">
-							<a href="{{ $excelTemplateUrl }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+							<a href="{{ $excelTemplateUrl }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer">
 								<i class="mdi mdi-file-excel"></i> Download Excel template
 							</a>
-							<a href="{{ $pdfTemplateUrl }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+							<a href="{{ $pdfTemplateUrl }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer">
 								<i class="mdi mdi-file-pdf-box"></i> Download PDF template
 							</a>
 						</div>
@@ -131,7 +137,7 @@
 							<p class="ls-amspec-fmt-explain ls-amspec-fmt-explain--excel mb-0" @if($format === 'pdf') hidden @endif>
 								Upload a filled spreadsheet from the Excel template.
 								@if($isPricelist)
-									Use columns <code>sample_type</code>, <code>parameters</code>, <code>unit_price</code>, and optional <code>tax</code>.
+									Use <code>sample_type</code>, <code>parameters</code>, <code>cost_price</code> (lab cost to perform the test), <code>selling_price</code> (price charged to clients), and optional <code>tax</code>.
 								@else
 									Use columns <code>sample_type</code>, <code>parameters</code>, <code>quantity_required</code>, <code>quantity</code>, and <code>unit_price</code>.
 								@endif

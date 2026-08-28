@@ -213,11 +213,11 @@
 	$gate_pass_category = getConfigByName('gate_pass_category_id');
 	$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : 0;
 
-	$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin']);
-	$inventoryDepartmentHeadRoles = filterExistingSpatieRoleNames(['Inventory Department Head Group', 'Department Head', 'Admin']);
-	$inventoryManagerRoles = filterExistingSpatieRoleNames(['Inventory Manager Group', 'Manager', 'Admin']);
-	$inventoryFinanceRoles = filterExistingSpatieRoleNames(['Inventory Finance Group', 'Financial Accountant', 'Finance', 'Admin']);
-	$inventoryStoreManagerRoles = filterExistingSpatieRoleNames(['Inventory Store Manager Group', 'Store Manager', 'Store', 'Admin']);
+	$inventoryProcurementRoles = filterExistingSpatieRoleNames(['Inventory Procurement Group', 'Procurement', 'Admin', 'admin']);
+	$inventoryDepartmentHeadRoles = filterExistingSpatieRoleNames(['Inventory Department Head Group', 'Department Head', 'Admin', 'admin']);
+	$inventoryManagerRoles = filterExistingSpatieRoleNames(['Inventory Manager Group', 'Manager', 'Admin', 'admin']);
+	$inventoryFinanceRoles = filterExistingSpatieRoleNames(['Inventory Finance Group', 'Financial Accountant', 'Finance', 'Admin', 'admin']);
+	$inventoryStoreManagerRoles = filterExistingSpatieRoleNames(['Inventory Store Manager Group', 'Store Manager', 'Store', 'Admin', 'admin']);
 
 	$isInventoryProcurement = $inventoryProcurementRoles !== [] && \Auth::user()->hasAnyRole($inventoryProcurementRoles);
 	$isInventoryDepartmentHead = $inventoryDepartmentHeadRoles !== [] && \Auth::user()->hasAnyRole($inventoryDepartmentHeadRoles);
@@ -437,10 +437,10 @@
 			@endif
 
 			@if($request->status == "Approval Complete")
-			{{-- <button class="btn btn-default text-dark float-right save-details-form btn-sm"
+			<button class="btn btn-default text-dark float-right save-details-form btn-sm"
 				data-type="send-purchase-order">
 				<i class="mdi mdi-send"></i> Send Purchase Order
-			</button> --}}
+			</button>
 			@endif
 			@if (isset($request->status) && $isInventoryProcurement)
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
@@ -635,8 +635,9 @@
 					?>
 				@if((!isset($hasAnRFQ->id) || $rfqIsIncomplete) && !isset($hasAnPO->id))
 				<button class="btn btn-default text-success float-right save-details-form btn-sm"
-					data-type="create-rfq-from-material-requisition">
-					<i class="mdi mdi-text-box-plus-outline"></i> {{ isETCU() ? 'Create RFQ' : 'Send to Procurement' }}
+					data-type="create-rfq-from-material-requisition"
+					title="Create a Request for Quotation from this approved Purchase Request">
+					<i class="mdi mdi-text-box-plus-outline"></i> Send to Procurement (create RFQ)
 				</button>
 				{{-- <button class="btn btn-default text-primary float-right btn-sm" data-target="#create-lpo-from-mr-modal"
 					data-toggle="modal">

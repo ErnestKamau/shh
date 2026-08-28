@@ -37,8 +37,8 @@ class InventorySubCategories extends Model implements Auditable
 			$zStoreSlot = \App\InventoryStoreSlot::where('inventory_store_id', $zStore->store_id)->first();
 		}
 
-		$defaultStore['store'] = isset($zStore->store_id) ? $zStore->store_id : 0;
-		$defaultStore['slot'] = isset($zStoreSlot) && isset($zStoreSlot->id) ? $zStoreSlot->id : 0;
+		$defaultStore['store'] = $zStore->store_id ?? null;
+		$defaultStore['slot'] = isset($zStoreSlot) && isset($zStoreSlot->id) ? $zStoreSlot->id : null;
 
 
 		$stock = \App\InventoryItem::join('inventory_stores as ins', 'inventory_items.inventory_store_id', 'ins.id')
@@ -46,11 +46,11 @@ class InventorySubCategories extends Model implements Auditable
 			->selectRaw('SUM(stock_in) as stockin, SUM(stock_out) as stockout')
 			->where('inventory_sub_category_id', $this->id);
 
-		if($defaultStore['store'] > 0){
+		if (filled($defaultStore['store'])) {
 			$stock = $stock->where('inventory_items.inventory_store_id', $defaultStore['store']);
 		}
 
-		if($defaultStore['slot'] > 0){
+		if (filled($defaultStore['slot'])) {
 			$stock = $stock->where('inventory_items.inventory_store_slot_id', $defaultStore['slot']);
 		}
 

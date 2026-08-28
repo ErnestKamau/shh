@@ -334,6 +334,10 @@
                             <td class="wide-cell">{{ $sampleDescription }}</td>
                         </tr>
                         <tr>
+                            <td>Test Category</td>
+                            <td class="wide-cell">{{ ($registrationLabel['testCategory'] ?? '') !== '' ? $registrationLabel['testCategory'] : (($testCategory ?? '') !== '' ? $testCategory : 'N/A') }}</td>
+                        </tr>
+                        <tr>
                             <td>Date &amp; Time of Collection:</td>
                             <td class="wide-cell">{{ $normalizedDateTime }}</td>
                         </tr>

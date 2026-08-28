@@ -29,7 +29,84 @@
             tests: normalizeOptions(group?.tests),
         })) : []);
 
-        const mountTestsLottie = () => {};
+        const ensureLottieScript = () => {
+            if (typeof lottie !== 'undefined') {
+                return Promise.resolve();
+            }
+            if (window.__rftTestsLottiePromise) {
+                return window.__rftTestsLottiePromise;
+            }
+            window.__rftTestsLottiePromise = new Promise((resolve) => {
+                if (window.__rftTestsLottieLoaded) {
+                    const wait = () => {
+                        if (typeof lottie !== 'undefined') {
+                            resolve();
+                            return;
+                        }
+                        setTimeout(wait, 50);
+                    };
+                    wait();
+                    return;
+                }
+                window.__rftTestsLottieLoaded = true;
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => resolve();
+                document.head.appendChild(script);
+            });
+            return window.__rftTestsLottiePromise;
+        };
+
+        const mountTestsLottie = (el) => {
+            if (!el || el.getAttribute('data-rft-lottie-ready') === '1') {
+                return;
+            }
+            const src = el.getAttribute('data-rft-tests-lottie') || el.getAttribute('data-ls-lottie');
+            if (!src) {
+                return;
+            }
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                el.setAttribute('data-rft-lottie-ready', '1');
+                return;
+            }
+
+            const fallback = el.querySelector('[data-rft-lottie-fallback]');
+            ensureLottieScript().then(() => {
+                if (typeof lottie === 'undefined') {
+                    return;
+                }
+                if (el.getAttribute('data-rft-lottie-ready') === '1') {
+                    return;
+                }
+                try {
+                    el.setAttribute('data-rft-lottie-ready', '1');
+                    const anim = lottie.loadAnimation({
+                        container: el,
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        path: src,
+                    });
+                    anim.addEventListener('DOMLoaded', () => {
+                        if (fallback) {
+                            fallback.style.display = 'none';
+                        }
+                    });
+                    anim.addEventListener('data_failed', () => {
+                        el.removeAttribute('data-rft-lottie-ready');
+                        if (fallback) {
+                            fallback.style.display = '';
+                        }
+                    });
+                } catch (e) {
+                    el.removeAttribute('data-rft-lottie-ready');
+                    if (fallback) {
+                        fallback.style.display = '';
+                    }
+                }
+            });
+        };
 
         return {
         open: false,
@@ -38,7 +115,8 @@
         filtersOpen: false,
         filterAnalysisTypes: [],
         filterLabSections: [],
-        filterMethods: [],
+        labSectionFilterQuery: '',
+        labSectionFilterOpen: false,
         syncing: false,
         dirty: false,
         analysisLoading: false,
@@ -55,6 +133,7 @@
         selected: Array.isArray(config.selected) ? config.selected.map(String) : [],
         groups: normalizeGroups(config.groups),
         hydrating: false,
+        mountTestsLottie,
         init() {
             if (!this.livewireComponentId) {
                 this.livewireComponentId = this.$el?.closest?.('[wire\\:id]')?.getAttribute('wire:id') ?? null;
@@ -155,9 +234,13 @@
         },
         toggleFilters() {
             this.filtersOpen = !this.filtersOpen;
+            if (!this.filtersOpen) {
+                this.labSectionFilterOpen = false;
+            }
         },
         closeFilters() {
             this.filtersOpen = false;
+            this.labSectionFilterOpen = false;
         },
         toggleFilterValue(key, value) {
             const token = String(value);
@@ -169,25 +252,37 @@
                 list.splice(index, 1);
             }
             this[key] = list;
+            if (key === 'filterAnalysisTypes') {
+                this.pruneCascadedFilters();
+            }
             this.invalidateFilterCaches();
+        },
+        pruneCascadedFilters() {
+            const labSet = Object.create(null);
+            this.filterOptions.labSections.forEach((item) => {
+                labSet[item.value] = true;
+            });
+            this.filterLabSections = (this.filterLabSections || []).filter((token) => labSet[token]);
         },
         clearFilters() {
             this.search = '';
             this.filterAnalysisTypes = [];
             this.filterLabSections = [];
-            this.filterMethods = [];
+            this.labSectionFilterQuery = '';
+            this.labSectionFilterOpen = false;
             this.filtersOpen = false;
             this.invalidateFilterCaches();
         },
         get activeFilterCount() {
             return (this.filterAnalysisTypes?.length || 0)
-                + (this.filterLabSections?.length || 0)
-                + (this.filterMethods?.length || 0);
+                + (this.filterLabSections?.length || 0);
+        },
+        get hasActiveViewFilter() {
+            return this.activeFilterCount > 0 || String(this.search || '').trim() !== '';
         },
         get filterOptions() {
             const analysisTypes = {};
             const labSections = {};
-            const methods = {};
 
             (this.groups || []).forEach((group) => {
                 const label = String(group.analysis_type || '').trim();
@@ -195,14 +290,14 @@
                 if (label) {
                     analysisTypes[id] = label;
                 }
+
+                const matchesAnalysis = !this.filterAnalysisTypes.length
+                    || this.filterAnalysisTypes.some((token) => token === id || token === label);
+
                 (group.tests || []).forEach((test) => {
                     const lab = String(test.lab_section_code || '').trim();
-                    if (lab) {
+                    if (matchesAnalysis && lab) {
                         labSections[lab] = lab;
-                    }
-                    const method = String(test.method || '').trim();
-                    if (method) {
-                        methods[method] = method;
                     }
                 });
             });
@@ -214,8 +309,51 @@
             return {
                 analysisTypes: toList(analysisTypes),
                 labSections: toList(labSections),
-                methods: toList(methods),
             };
+        },
+        get useLabSectionSelect() {
+            return (this.filterOptions.labSections?.length || 0) > 20;
+        },
+        filterChoiceList(items, query, limit = 50) {
+            const list = Array.isArray(items) ? items : [];
+            const q = String(query || '').trim().toLowerCase();
+            const filtered = q
+                ? list.filter((item) => String(item.label || item.value || '').toLowerCase().includes(q))
+                : list;
+
+            return {
+                choices: filtered.slice(0, limit),
+                total: filtered.length,
+                truncated: filtered.length > limit,
+            };
+        },
+        get labSectionFilterPicker() {
+            return this.filterChoiceList(this.filterOptions.labSections, this.labSectionFilterQuery, 50);
+        },
+        openLabSectionFilter() {
+            this.labSectionFilterOpen = !this.labSectionFilterOpen;
+            if (!this.labSectionFilterOpen) {
+                return;
+            }
+            this.$nextTick(() => {
+                const section = this.$el?.querySelector?.('[data-rft-filter-section="lab"]');
+                section?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+                const input = section?.querySelector?.('.rft-trf-filter-select__search input');
+                input?.focus?.();
+            });
+        },
+        labSectionFilterSummary() {
+            const count = this.filterLabSections?.length || 0;
+            if (!count) {
+                return 'Search lab sections…';
+            }
+
+            return count === 1 ? '1 lab section selected' : `${count} lab sections selected`;
+        },
+        visibleSelectedFilterTags(key, max = 3) {
+            const selected = Array.isArray(this[key]) ? this[key] : [];
+
+            return selected.slice(0, max).map((value) => ({ value, label: value }));
         },
         testMatchesStructuredFilters(test) {
             if (this.filterAnalysisTypes.length) {
@@ -229,12 +367,6 @@
             if (this.filterLabSections.length) {
                 const lab = String(test.lab_section_code || '');
                 if (!this.filterLabSections.includes(lab)) {
-                    return false;
-                }
-            }
-            if (this.filterMethods.length) {
-                const method = String(test.method || '');
-                if (!this.filterMethods.includes(method)) {
                     return false;
                 }
             }
@@ -310,7 +442,6 @@
             const filterKey = [
                 this.filterAnalysisTypes.join('|'),
                 this.filterLabSections.join('|'),
-                this.filterMethods.join('|'),
             ].join('::');
             const key = `${query}::${filterKey}::${this.groups.length}`;
             if (
@@ -382,7 +513,6 @@
             const filterKey = [
                 this.filterAnalysisTypes.join('|'),
                 this.filterLabSections.join('|'),
-                this.filterMethods.join('|'),
             ].join('::');
             const cacheKey = `${query}::${filterKey}::${this.groups.length}`;
             if (
@@ -439,7 +569,22 @@
             return rows;
         },
         get allSelected() {
-            return this.options.length > 0 && this.selected.length === this.options.length;
+            const visible = this.visibleTestIds;
+            return visible.length > 0 && visible.every((id) => this.isSelected(id));
+        },
+        get visibleTestIds() {
+            return this.flatTableRows
+                .filter((row) => row.type === 'test' && row.test)
+                .map((row) => String(row.test.id));
+        },
+        get visibleSelectedCount() {
+            return this.visibleTestIds.reduce(
+                (count, id) => count + (this.isSelected(id) ? 1 : 0),
+                0,
+            );
+        },
+        get visibleTestCount() {
+            return this.visibleTestIds.length;
         },
         groupKey(group) {
             return String(group?.analysis_type_id || group?.analysis_type || 'group');
@@ -498,10 +643,47 @@
         },
         toggleSelectAllSwitch() {
             if (this.allSelected) {
-                this.clearAll();
+                this.clearVisibleSelection();
                 return;
             }
-            this.selectAll();
+            this.selectAllVisible();
+        },
+        selectAllVisible() {
+            const visible = this.visibleTestIds;
+            if (!visible.length) {
+                return;
+            }
+            const merge = Object.create(null);
+            this.selected.forEach((id) => {
+                merge[String(id)] = true;
+            });
+            visible.forEach((id) => {
+                merge[String(id)] = true;
+            });
+            this.setSelected(Object.keys(merge));
+            this.markDirty();
+        },
+        clearVisibleSelection() {
+            const remove = Object.create(null);
+            this.visibleTestIds.forEach((id) => {
+                remove[String(id)] = true;
+            });
+            this.setSelected(this.selected.filter((id) => !remove[String(id)]));
+            this.markDirty();
+        },
+        toolbarClearSelection() {
+            if (this.hasActiveViewFilter) {
+                this.clearVisibleSelection();
+                return;
+            }
+            this.clearAll();
+        },
+        selectAll() {
+            this.selectAllVisible();
+        },
+        clearAll() {
+            this.setSelected([]);
+            this.markDirty();
         },
         get isLoading() {
             return this.analysisLoading || this.hydrating;
@@ -678,15 +860,6 @@
         removeChip(id) {
             const value = String(id);
             this.setSelected(this.selected.filter((item) => item !== value));
-            this.markDirty();
-        },
-        selectAll() {
-            this.setSelected(this.options.map((option) => String(option.id)));
-            this.markDirty();
-        },
-        clearAll() {
-            this.setSelected([]);
-            this.search = '';
             this.markDirty();
         },
         syncTestsSelect2Display() {

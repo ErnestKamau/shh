@@ -449,7 +449,8 @@
 
 	.trf-ls-theme .trf-ww-collection-row4 {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		/* Align with row3: Reason 2fr | Technique+Source 4fr */
+		grid-template-columns: minmax(0, 2fr) minmax(0, 4fr);
 		column-gap: clamp(1rem, 4vw, 2rem);
 		align-items: start;
 		margin-bottom: 1.25rem;
@@ -457,6 +458,15 @@
 
 	.trf-ls-theme .trf-ww-collection-row4 > * {
 		min-width: 0;
+	}
+
+	.trf-ls-theme .trf-ww-collection-row4__transport {
+		max-width: 100%;
+	}
+
+	.trf-ls-theme .trf-ww-collection-row4__transport .ls-field__control,
+	.trf-ls-theme .trf-ww-collection-row4__transport .trf-option-grid--ww-transport {
+		max-width: 100%;
 	}
 
 	.trf-ls-theme .trf-option-grid--ww-reason {
@@ -496,24 +506,73 @@
 
 	.trf-ls-theme .trf-ww-apparatus-grid {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(0, 1.15fr);
 		gap: 0.65rem 0.75rem;
-		align-items: start;
+		align-items: stretch;
 	}
 
 	.trf-ls-theme .trf-ww-apparatus-grid__cell {
 		min-width: 0;
+		display: flex;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-grid__cell--option .trf-ww-apparatus-chip {
+		width: auto;
+		max-width: 100%;
 	}
 
 	.trf-ls-theme .trf-ww-apparatus-grid__cell--instrument {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
+		min-width: 0;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-grid__cell--chlorine {
+		grid-column: span 2;
+		max-width: 85%;
 	}
 
 	.trf-ls-theme .trf-ww-apparatus-chip {
 		width: 100%;
 		justify-content: flex-start;
+		min-height: 100%;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-id-chip {
+		cursor: default;
+		gap: 0.35rem;
+		padding: 0.4rem 0.5rem;
+		overflow: visible;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-id-chip:hover {
+		border-color: #e2e8f0;
+		background: #f8fafc;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-id-chip .trf-option-chip__label {
+		flex: 0 0 auto;
+		min-width: max-content;
+		white-space: nowrap;
+		font-size: 0.7rem;
+		line-height: 1.2;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-id-chip__input,
+	.trf-ls-theme .trf-ww-apparatus-id-chip .form-control {
+		flex: 1 1 3rem;
+		min-width: 2.75rem;
+		max-width: 100%;
+		width: auto !important;
+		height: 1.55rem;
+		min-height: 1.55rem;
+		padding: 0.1rem 0.35rem;
+		font-size: 0.72rem;
+		line-height: 1.2;
+		border-radius: 6px;
+	}
+
+	.trf-ls-theme .trf-ww-apparatus-grid__cell--chlorine .trf-ww-apparatus-id-chip__input {
+		flex: 1 1 4.25rem;
+		min-width: 3.8rem;
 	}
 
 	.trf-ls-theme .trf-ww-instrument-row__check {
@@ -545,6 +604,10 @@
 		.trf-ls-theme .trf-ww-collection-row4,
 		.trf-ls-theme .trf-ww-apparatus-grid {
 			grid-template-columns: 1fr;
+		}
+
+		.trf-ls-theme .trf-ww-apparatus-grid__cell--chlorine {
+			grid-column: auto;
 		}
 
 		.trf-ls-theme .trf-ww-field-data-grid {

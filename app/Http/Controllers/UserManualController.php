@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Http\Controllers\Lab;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Support\UserManualRegistry;
 use Illuminate\View\View;
 

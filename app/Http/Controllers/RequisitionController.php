@@ -489,22 +489,23 @@ class RequisitionController extends Controller
 			<br>Regards,<br>
 			' . $companyDetails['name'];
 
-		$mailData = array(
-			'contacts' => array($APPR_USER->email),
-			'body' => $body,
-			'subject' => '[' . $MATERIAL_REQUISITION->request_code . '] Goods from your Requisition have arrived at store.'
-		);
-
 		if (isKECU()) {
 			$this->send_creation_email($purchaseOrder, [], true, false, false);
 		} else {
 			$this->send_creation_email($purchaseOrder, [], true, true, true);
 		}
 
-		$mailer = new Mailer;
+		$smsMessage = in_array($MATERIAL_REQUISITION->request_type, ["Loan", "Lend"])
+			? 'Use the code ' . $OTP->code . ', when receiving items from ' . $MATERIAL_REQUISITION->request_type . ' - ' . $MATERIAL_REQUISITION->request_code
+			: 'You are required at the store to inspect the goods from ' . $MATERIAL_REQUISITION->request_code . '. Your OTP is ' . $OTP->code . '.';
 
-		sendTextMessage($APPR_USER->phone, in_array($MATERIAL_REQUISITION->request_type, ["Loan", "Lend"]) ? " Use the code " . $OTP->code . ", when receiving items from " . $MATERIAL_REQUISITION->request_type . " - " . $MATERIAL_REQUISITION->request_code : "You are required at the store to inspect the goods from " . $MATERIAL_REQUISITION->request_code . ". Your OTP is " . $OTP->code . ".");
-		$sendMail = $mailer->html_email($mailData, 'default');
+		$OTPController->notifyUser(
+			$OTP,
+			$APPR_USER,
+			'[' . $MATERIAL_REQUISITION->request_code . '] Goods from your Requisition have arrived at store.',
+			$body,
+			$smsMessage
+		);
 
 		$checkingUser = \App\User::find($request->issue_to);
 
@@ -1390,8 +1391,13 @@ class RequisitionController extends Controller
 			$this->send_creation_email($rfq, $emailList, false, true, true);
 		}
 
-		$this->notify_user($body, $theUser->email, $subject);
-		sendTextMessage($theUser->phone, "Items from your Request to Store " . $entity->request_code . " are available for pickup. Your OTP is " . $OTP->code . ".");
+		$OTPController->notifyUser(
+			$OTP,
+			$theUser,
+			$subject,
+			$body,
+			'Items from your Request to Store ' . $entity->request_code . ' are available for pickup. Your OTP is ' . $OTP->code . '.'
+		);
 
 		return redirect()->route('view-request-details', ['stage' => $rfq->request_type, 'id' => $rfq->id])->with('success', 'Purchase Request successfuly created.');
 	}
@@ -1804,22 +1810,24 @@ class RequisitionController extends Controller
 			$resolvedSlots[$i] = $slot;
 		}
 
-		$otp = null;
-		if (!$isInternal) {
-			$OTPController = new OTPController;
+		// Stock-in requires the requester OTP via Accept Goods — not during approval.
+		if ($isInternal && blank($request->input('otp_value'))) {
+			return false;
+		}
 
-			$otp = $OTPController->close(
-				(object)[
-					"code" => $request->otp_value,
-					"model" => "Goods Receipt",
-					"model_id" => $entity->id,
-					"approved_by" => \Auth::user()->id
-				]
-			);
+		$OTPController = new OTPController;
 
-			if (!isset($otp->code)) {
-				return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
-			}
+		$otp = $OTPController->close(
+			(object) [
+				"code" => $request->otp_value,
+				"model" => "Goods Receipt",
+				"model_id" => $entity->id,
+				"approved_by" => \Auth::user()->id
+			]
+		);
+
+		if (! $otp instanceof \App\OTP) {
+			return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
 		}
 
 		// Drop incomplete receive rows left by a previous failed stock-in attempt.
@@ -3115,43 +3123,8 @@ class RequisitionController extends Controller
 
 				$contacteMails = array_merge($contacteMails, $emailList);
 
-				$createdRFQ = $this->create_rfq_from_material_requisition($req, true);
-
-				if ($createdRFQ instanceof \App\RequestEntity) {
-					$isMRMessage = "and RFQ " . $createdRFQ->request_code . " has been created from this Purchase Request.";
-				} else {
-					$isMRMessage = "but RFQ creation failed. Please create the RFQ manually.";
-				}
-			}
-
-			if ($req->request_type == "Goods Receipt" && $req->status == "Approval Complete") {
-				$newReqOBJ = new Request();
-
-				$thisAmmendment = $req->ammendment;
-
-				$theItems = [
-					'req_item_id' => [],
-					'received_quantity' => [],
-					'expiry' => [],
-					'date_of_manufacture' => [],
-					'lot_no' => [],
-					'store_id' => [],
-					'slot_id' => []
-				];
-
-				foreach ($req->items($thisAmmendment)['normal'] as $iz => $itm) {
-					$theItems['req_item_id'][$iz] = $itm->id;
-					$theItems['received_quantity'][$iz] = $itm->quantity;
-					$theItems['expiry'][$iz] = $itm->gr_expiry ?? '2099-12-31';
-					$theItems['date_of_manufacture'][$iz] = $itm->date_of_manufacture ?? '2099-12-31';
-					$theItems['lot_no'][$iz] =  $itm->lot_no;
-					$theItems['store_id'][$iz] =  $itm->store_id;
-					$theItems['slot_id'][$iz] =  $itm->slot_id;
-				}
-
-				$newReqOBJ->merge(['items' => $theItems]);
-				$newReqOBJ->merge(['request_code' => $req->request_code]);
-				$this->accept_goods_receipt($newReqOBJ, $req, true);
+				// RFQ is created manually via "Send to Procurement (create RFQ)" on the Purchase Request.
+				$isMRMessage = 'Procurement can now open this Purchase Request and use Send to Procurement (create RFQ).';
 			}
 
 			$body = 'Hi ' . $USER->name . ',<br>
@@ -3275,15 +3248,13 @@ class RequisitionController extends Controller
 
 				$subject = '[' . $req->request_code . '] Items are available at the store for pick-up.';
 
-				$storeManagers = getInventoryWorkflowUsers('store_manager');
-
-				$emailList = [];
-
-				foreach ($storeManagers as $sm) {
-					$emailList[] = $sm->email;
-				}
-
-				$this->notify_user($body, $OTPUser->email, $subject);
+				$OTPController->notifyUser(
+					$OTP,
+					$OTPUser,
+					$subject,
+					$body,
+					'Items from Request to Store ' . $req->request_code . ' are available for pickup. Your OTP is ' . $OTP->code . '.'
+				);
 			}
 		}
 		$req->priority = $request->priority;
@@ -3533,7 +3504,8 @@ class RequisitionController extends Controller
 					?? null;
 				$item->unit_cost = is_numeric($unitCost) ? (float) $unitCost : 0.0;
 
-				$item->starting_sample = $request->items['starting_sample'][$i] ?? null;
+				$startingSample = $request->items['starting_sample'][$i] ?? null;
+				$item->starting_sample = filled($startingSample) ? $startingSample : null;
 				$item->lot_no = $request->items['lot_no'][$i] ?? null;
 
 				foreach ([

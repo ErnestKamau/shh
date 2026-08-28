@@ -157,6 +157,12 @@
 		border-color: #bbf7d0;
 	}
 
+	.ls-quotation-shell .quotation-status-chip--danger {
+		background: #fef2f2;
+		color: #b91c1c;
+		border-color: #fecaca;
+	}
+
 	.ls-quotation-shell .quotation-actions-cell {
 		gap: 0.45rem;
 		flex-wrap: nowrap;

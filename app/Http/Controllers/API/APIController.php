@@ -32,34 +32,41 @@ class APIController extends Controller
 	//   $this->middleware('auth');
 	// }
 
-	public function items_available(Request $request, $item_id, $brand_id=0, $request_id=0){
+	public function items_available(Request $request, $item_id, $brand_id = 0, $request_id = 0)
+	{
 		$items = ITEM::where('inventory_sub_category_id', $item_id)->selectRaw('SUM(stock_in) as stock_in, SUM(stock_out) as stock_out, item_brand_id')
-		->groupBy('item_brand_id');
+			->groupBy('item_brand_id');
 
-		if($brand_id > 0){
+		$ccs = [];
+		$storeIDs = collect();
+
+		// Non-specific brand is submitted as 0 / "0" / empty; real brands are UUIDs.
+		if (filled($brand_id) && ! in_array((string) $brand_id, ['0', ''], true)) {
 			$items = $items->where('item_brand_id', $brand_id);
 		}
 
-		if($request_id > 0){
+		if (filled($request_id) && ! in_array((string) $request_id, ['0', ''], true)) {
 			$entity = \App\RequestEntity::find($request_id);
 
-			$cc = $entity->cost_center;
-			$cc = explode(',', $cc);
+			if ($entity) {
+				$ccs = array_map('trim', explode(',', (string) $entity->cost_center));
 
-			$ccs = array_map('trim', $cc);
-			$storeIDs = collect();
+				if (\Illuminate\Support\Facades\Schema::hasTable('store_to_cost_centers')) {
+					$store_ids = \App\StoreToCostCenter::whereIn('cost_center', $ccs);
 
-			if (\Illuminate\Support\Facades\Schema::hasTable('store_to_cost_centers')) {
-				$store_ids = \App\StoreToCostCenter::whereIn('cost_center', $ccs);
+					if ($entity->request_type == 'Request to Store') {
+						$store_ids = $store_ids->join('inventory_stores as s', 's.id', 'store_to_cost_centers.store_id');
+						$store_ids = $store_ids->where('s.is_frozen', 0);
+					}
 
-				if ($entity->request_type == "Request to Store") {
-					$store_ids = $store_ids->join('inventory_stores as s', 's.id', 'store_to_cost_centers.store_id');
-					$store_ids = $store_ids->where('s.is_frozen', 0);
+					$storeIDs = $store_ids->get()->pluck('store_id')->filter()->values();
+
+					// Match getAvailableStockByCostCenter: only restrict when mappings exist.
+					// An empty whereIn() would incorrectly report 0 available stock.
+					if ($storeIDs->isNotEmpty()) {
+						$items = $items->whereIn('inventory_store_id', $storeIDs);
+					}
 				}
-
-				$store_ids = $store_ids->get();
-				$storeIDs = $store_ids->pluck('store_id');
-				$items = $items->whereIn('inventory_store_id', $storeIDs);
 			}
 		}
 
@@ -67,16 +74,22 @@ class APIController extends Controller
 
 		$created_at = \Carbon\Carbon::parse($request->created_at);
 
-		foreach($items->get() as $item){
+		foreach ($items->get() as $item) {
 			$available = floatval($item->stock_in) - floatval($item->stock_out);
-			$totalItems+=$available;
+			$totalItems += $available;
 		}
 
 		$leadTime = ISC::find($item_id)->total_lead_time() ?? 0;
 
 		$delivery_date = $created_at->addDays($leadTime == 0 ? 7 : $leadTime);
 
-		return json_encode(["cc"=>$ccs ?? [], 'stores'=>$storeIDs ?? [], "formatted"=>number_format($totalItems, 2), "value"=>$totalItems, "delivery_date"=> $delivery_date]);
+		return json_encode([
+			'cc' => $ccs,
+			'stores' => $storeIDs,
+			'formatted' => number_format($totalItems, 2),
+			'value' => $totalItems,
+			'delivery_date' => $delivery_date,
+		]);
 	}
 	private function process_results($batch_id, $internal = false)
 	{

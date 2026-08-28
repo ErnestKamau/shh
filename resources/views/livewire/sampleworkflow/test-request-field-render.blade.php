@@ -5,6 +5,8 @@
     $fieldName = $field['name'] ?? '';
     $compact = $compact ?? false;
     $hideLabel = $hideLabel ?? false;
+    $useCrmSelectors = (bool) ($useCrmSelectors ?? true);
+    $showCrmActions = (bool) ($showCrmActions ?? true);
     $optionCols = $optionCols ?? ($field['option_cols'] ?? null);
     $optionTight = (bool) ($optionTight ?? ($field['option_tight'] ?? false));
     $optionColClass = match ((int) $optionCols) {
@@ -80,7 +82,7 @@
 
 @if($fieldName === 'job_number' || $fieldName === 'crm_contact_id')
     {{-- Hidden in walk-in TRF modal --}}
-@elseif(in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client'], true) || ($field['type'] ?? '') === 'client_select')
+@elseif($useCrmSelectors && (in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client'], true) || ($field['type'] ?? '') === 'client_select'))
     @php
         $clientOptions = $this->customers->map(fn ($cust) => [
             'value' => (string) $cust->id,
@@ -88,7 +90,7 @@
         ])->values()->all();
         $clientSelected = (string) ($this->selectedCrmCustomerId ?? '');
     @endphp
-    <div class="trf-field-col trf-field-col--with-action">
+    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}">
         <div class="trf-field-col__main">
             @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
                 'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Client'),
@@ -104,13 +106,15 @@
                 'error' => $fieldError,
             ])
         </div>
-        <button type="button"
-            class="btn btn-xs btn-outline-primary trf-field-col__action"
-            wire:click="openWalkInAddCustomerModal"
-            title="Add client"
-            aria-label="Add client">
-            <i class="mdi mdi-plus" aria-hidden="true"></i>
-        </button>
+        @if($showCrmActions)
+            <button type="button"
+                class="btn btn-xs btn-outline-primary trf-field-col__action"
+                wire:click="openWalkInAddCustomerModal"
+                title="Add client"
+                aria-label="Add client">
+                <i class="mdi mdi-plus" aria-hidden="true"></i>
+            </button>
+        @endif
     </div>
 @elseif(in_array($fieldName, ['sample_type_id', 'sample_type'], true) || ($field['type'] ?? '') === 'sample_type_select')
     @include('livewire.partials.walk-in-trf-sample-type-multi', [
@@ -323,7 +327,7 @@
             <span class="trf-option-chip__label">{{ $field['label'] ?? $fieldName }}</span>
         </label>
     @endif
-@elseif(($field['type'] ?? '') === 'client_unit_select' || $fieldName === 'company_unit_id')
+@elseif($useCrmSelectors && (($field['type'] ?? '') === 'client_unit_select' || $fieldName === 'company_unit_id'))
     @php
         $unitOptions = $this->customerCompanyUnits->map(fn ($unit) => [
             'value' => (string) $unit->id,
@@ -335,7 +339,7 @@
             $selectedCustomerId = 'none';
         }
     @endphp
-    <div class="trf-field-col trf-field-col--with-action" wire:key="walk-in-company-unit-{{ $selectedCustomerId }}-{{ count($unitOptions) }}">
+    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-company-unit-{{ $selectedCustomerId }}-{{ count($unitOptions) }}">
         <div class="trf-field-col__main">
             @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
                 'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Company unit / Site name'),
@@ -353,12 +357,14 @@
                 'error' => $fieldError,
             ])
         </div>
-        <button type="button" class="btn btn-xs btn-outline-primary trf-field-col__action"
-            wire:click="openWalkInAddUnitModal" title="Add company unit" aria-label="Add company unit">
-            <i class="mdi mdi-plus" aria-hidden="true"></i>
-        </button>
+        @if($showCrmActions)
+            <button type="button" class="btn btn-xs btn-outline-primary trf-field-col__action"
+                wire:click="openWalkInAddUnitModal" title="Add company unit" aria-label="Add company unit">
+                <i class="mdi mdi-plus" aria-hidden="true"></i>
+            </button>
+        @endif
     </div>
-@elseif(($field['type'] ?? '') === 'client_contact_select' || $fieldName === 'contact_person')
+@elseif($useCrmSelectors && (($field['type'] ?? '') === 'client_contact_select' || $fieldName === 'contact_person'))
     @php
         $contactOptions = $this->customerContacts->map(function ($contact) {
             $contactLabel = trim(implode(' ', array_filter([
@@ -382,7 +388,7 @@
             ? 'Select a company unit first…'
             : (count($contactOptions) === 0 ? 'No CRM contacts linked to this company unit.' : null);
     @endphp
-    <div class="trf-field-col trf-field-col--with-action" wire:key="walk-in-contact-{{ $unitIdForContacts !== '' ? $unitIdForContacts : 'none' }}-{{ count($contactOptions) }}">
+    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-contact-{{ $unitIdForContacts !== '' ? $unitIdForContacts : 'none' }}-{{ count($contactOptions) }}">
         <div class="trf-field-col__main">
             @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
                 'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Contact person'),
@@ -398,12 +404,14 @@
                 'error' => $fieldError,
             ])
         </div>
-        <button type="button" class="btn btn-xs btn-outline-primary trf-field-col__action"
-            wire:click="openWalkInAddContactModal" title="Add customer contact" aria-label="Add customer contact">
-            <i class="mdi mdi-plus" aria-hidden="true"></i>
-        </button>
+        @if($showCrmActions)
+            <button type="button" class="btn btn-xs btn-outline-primary trf-field-col__action"
+                wire:click="openWalkInAddContactModal" title="Add customer contact" aria-label="Add customer contact">
+                <i class="mdi mdi-plus" aria-hidden="true"></i>
+            </button>
+        @endif
     </div>
-@elseif(($field['type'] ?? '') === 'customer_sample_point_select' || in_array($fieldName, ['sampling_location', 'sampling_point'], true))
+@elseif($useCrmSelectors && (($field['type'] ?? '') === 'customer_sample_point_select' || in_array($fieldName, ['sampling_location', 'sampling_point'], true)))
     @php
         $locationWireValue = data_get($this, $wirePrefix);
         if (is_array($locationWireValue)) {
@@ -427,7 +435,7 @@
             : ($pointOptions === [] ? 'No sampling locations for '.($this->selectedCompanyUnitName ?? 'selected unit') : null);
         $locationWireLive = false;
     @endphp
-    <div class="trf-field-col trf-field-col--with-action" wire:key="walk-in-point-{{ $selectedUnitId !== '' ? $selectedUnitId : 'none' }}-{{ count($pointOptions) }}-{{ $rowIndex ?? 'x' }}">
+    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-point-{{ $selectedUnitId !== '' ? $selectedUnitId : 'none' }}-{{ count($pointOptions) }}-{{ $rowIndex ?? 'x' }}">
         <div class="trf-field-col__main">
             @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
                 'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Sampling location'),
@@ -443,12 +451,14 @@
                 'required' => (bool) ($field['required'] ?? false),
             ])
         </div>
-        <button type="button" class="btn btn-xs btn-outline-primary trf-field-col__action"
-            wire:click="openWalkInAddPointModal(@js($fieldName !== '' ? $fieldName : 'sampling_location'), @js($rowIndex))"
-            title="Add sampling location"
-            aria-label="Add sampling location">
-            <i class="mdi mdi-plus"></i>
-        </button>
+        @if($showCrmActions)
+            <button type="button" class="btn btn-xs btn-outline-primary trf-field-col__action"
+                wire:click="openWalkInAddPointModal(@js($fieldName !== '' ? $fieldName : 'sampling_location'), @js($rowIndex))"
+                title="Add sampling location"
+                aria-label="Add sampling location">
+                <i class="mdi mdi-plus"></i>
+            </button>
+        @endif
     </div>
 @elseif($fieldName === 'customer_tax_id')
     {{-- Removed from walk-in TRF --}}

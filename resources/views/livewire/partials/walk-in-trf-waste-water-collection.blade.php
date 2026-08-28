@@ -20,7 +20,7 @@
     </div>
 </div>
 
-{{-- Row 2: Description (rich text cell) | Apparatus (3-col of 6) | Method --}}
+{{-- Row 2: Description | Sample types | Method --}}
 <div class="trf-collection-trio trf-collection-trio--ww-row2" wire:key="ww-collection-row-2">
     <div wire:key="ww-field-description" class="trf-ww-description-cell">
         @if($descEl)
@@ -35,13 +35,14 @@
             ])
         @endif
     </div>
-    <div wire:key="ww-field-apparatus">
-        @include('livewire.partials.walk-in-trf-waste-water-apparatus', [
-            'collectionField' => $collectionField,
-            'fieldMapper' => $fieldMapper,
-            'wwApparatus' => $collectionField('sampling_apparatus'),
-            'extraRows' => $extraRows,
-        ])
+    <div wire:key="ww-field-sample-types">
+        @php $el = $collectionField('sample_types_ww'); @endphp
+        @if($el)
+            @include('livewire.sampleworkflow.test-request-field-render', [
+                'field' => array_merge($fieldMapper->toField($el), ['label' => 'Sample types']),
+                'optionGridClass' => 'trf-option-grid trf-option-grid--ww-sample-types',
+            ])
+        @endif
     </div>
     <div wire:key="ww-field-method">
         @php $el = $collectionField('method_of_sampling'); @endphp
@@ -85,9 +86,9 @@
     </div>
 </div>
 
-{{-- Row 4: Transport | Sample types (LWS-036 checkboxes) --}}
+{{-- Row 4: Transport (aligns with Reason) | Apparatus (from Technique onward) --}}
 <div class="trf-ww-collection-row4" wire:key="ww-collection-row-4">
-    <div wire:key="ww-field-transport">
+    <div class="trf-ww-collection-row4__transport" wire:key="ww-field-transport">
         @php $el = $collectionField('transport_condition'); @endphp
         @if($el)
             @include('livewire.sampleworkflow.test-request-field-render', [
@@ -96,14 +97,13 @@
             ])
         @endif
     </div>
-    <div wire:key="ww-field-sample-types">
-        @php $el = $collectionField('sample_types_ww'); @endphp
-        @if($el)
-            @include('livewire.sampleworkflow.test-request-field-render', [
-                'field' => array_merge($fieldMapper->toField($el), ['label' => 'Sample types']),
-                'optionGridClass' => 'trf-option-grid trf-option-grid--ww-sample-types',
-            ])
-        @endif
+    <div class="trf-ww-collection-row4__apparatus" wire:key="ww-field-apparatus">
+        @include('livewire.partials.walk-in-trf-waste-water-apparatus', [
+            'collectionField' => $collectionField,
+            'fieldMapper' => $fieldMapper,
+            'wwApparatus' => $collectionField('sampling_apparatus'),
+            'extraRows' => $extraRows,
+        ])
     </div>
 </div>
 

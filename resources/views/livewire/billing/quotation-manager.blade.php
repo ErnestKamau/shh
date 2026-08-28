@@ -193,7 +193,9 @@
                                             <tr class="quotation-preview-hover-parent">
                                                 <td>
                                                     <div class="d-flex quotation-actions-cell">
-                                                        <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}"
+                                                        <a href="{{ $quotation->status === 'Quote In Preparation'
+                                                                ? route('add-qoute-details-view', ['id' => $quotation->id])
+                                                                : route('view_quotation_final', ['id' => $quotation->id]) }}"
                                                            class="rm-act-btn rm-act-btn--open"
                                                            title="Open quotation">
                                                             <i class="mdi mdi-eye"></i>
@@ -260,7 +262,9 @@
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <a href="{{ route('add-qoute-details-view', ['id' => $quotation->id]) }}" class="quotation-quote-number">
+                                                    <a href="{{ $quotation->status === 'Quote In Preparation'
+                                                            ? route('add-qoute-details-view', ['id' => $quotation->id])
+                                                            : route('view_quotation_final', ['id' => $quotation->id]) }}" class="quotation-quote-number">
                                                         {{ $quotation->quote_number }}
                                                     </a>
                                                 </td>

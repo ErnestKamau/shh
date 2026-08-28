@@ -435,6 +435,7 @@
     .app-card.settings { background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1)); }
     .app-card.dms { background: linear-gradient(135deg, rgba(103, 58, 183, 0.2), rgba(103, 58, 183, 0.1)); }
     .app-card.registry { background: linear-gradient(135deg, rgba(21, 101, 192, 0.2), rgba(13, 71, 161, 0.1)); }
+    .app-card.usermanual { background: linear-gradient(135deg, rgba(96, 125, 139, 0.2), rgba(69, 90, 100, 0.1)); }
 </style>
 @endsection
 
@@ -643,6 +644,17 @@
                 <i class="fas fa-cogs"></i>
             </div>
             <h3 class="app-title">System Settings</h3>
+        </a>
+        @endcan
+        @endif
+
+        @if(isSystemModuleVisible('usermanual'))
+        @can('usermanual.module.access')
+        <a class="app-card usermanual" href="{{ route('usermanual.index') }}" data-app="usermanual">
+            <div class="app-icon" style="background: linear-gradient(135deg, #607D8B, #455A64);">
+                <i class="mdi mdi-book-open-page-variant"></i>
+            </div>
+            <h3 class="app-title">User Manual</h3>
         </a>
         @endcan
         @endif

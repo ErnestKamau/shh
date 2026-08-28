@@ -125,21 +125,47 @@ final class PortalEnquiryFormInstanceSyncService
         $crmCustomerId = trim((string) ($crmCustomerId ?? $enquiry?->crm_customer_id ?? ''));
         $crmCustomerId = $crmCustomerId !== '' ? $crmCustomerId : null;
 
-        $categoryIds = $this->portalAccess->categoryIdsFromSampleLines($lines);
-        if ($categoryIds !== []) {
-            $form = $this->portalAccess->testRequestFormForCategoryIds($categoryIds, $crmCustomerId);
+        // Prefer walk-in sample-type resolution (document code) before category-union scoring
+        // so Food types like Nonseafood map to TRF-FOOD-019, not Food & Feed.
+        $sampleTypeIds = collect($lines)
+            ->map(static fn (array $line): string => trim((string) ($line['sample_type_id'] ?? '')))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $enquiryTypeId = trim((string) ($enquiry?->sample_type_id ?? $enquiry?->batch_sample_type_id ?? ''));
+        if ($sampleTypeIds->isEmpty() && $enquiryTypeId !== '') {
+            $sampleTypeIds = collect([$enquiryTypeId]);
+        }
+
+        if ($sampleTypeIds->count() === 1) {
+            $form = $this->portalAccess->testRequestFormForSampleType(
+                (string) $sampleTypeIds->first(),
+                $crmCustomerId,
+            );
             if ($form !== null) {
                 return $form;
             }
+        } elseif ($sampleTypeIds->count() > 1) {
+            $resolvedFormIds = $sampleTypeIds
+                ->map(fn (string $typeId): ?string => $this->portalAccess
+                    ->testRequestFormForSampleType($typeId, $crmCustomerId)
+                    ?->id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($resolvedFormIds->count() === 1) {
+                $form = SubmissionForm::query()->find((string) $resolvedFormIds->first());
+                if ($form !== null) {
+                    return $form;
+                }
+            }
         }
 
-        $sampleTypeId = trim((string) ($enquiry?->sample_type_id ?? $enquiry?->batch_sample_type_id ?? ''));
-        if ($sampleTypeId === '' && $lines !== []) {
-            $sampleTypeId = trim((string) ($lines[0]['sample_type_id'] ?? ''));
-        }
-
-        if ($sampleTypeId !== '') {
-            $form = $this->portalAccess->testRequestFormForSampleType($sampleTypeId, $crmCustomerId);
+        $categoryIds = $this->portalAccess->categoryIdsFromSampleLines($lines);
+        if ($categoryIds !== []) {
+            $form = $this->portalAccess->testRequestFormForCategoryIds($categoryIds, $crmCustomerId);
             if ($form !== null) {
                 return $form;
             }

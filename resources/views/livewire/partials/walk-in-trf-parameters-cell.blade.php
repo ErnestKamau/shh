@@ -153,7 +153,7 @@
                                     class="ls-quote-params-switch__input"
                                     :checked="allSelected"
                                     @change.prevent="toggleSelectAllSwitch()"
-                                    title="Select all tests"
+                                    title="Select all visible tests"
                                 >
                                 <span class="ls-quote-params-switch__ui" aria-hidden="true"></span>
                                 <span class="ls-quote-params-switch__label">Select all</span>
@@ -161,10 +161,11 @@
                             <button
                                 type="button"
                                 class="ls-quote-params-switch ls-quote-params-switch--btn"
-                                @click.prevent="clearAll()"
-                                :disabled="!selected.length"
+                                @click.prevent="toolbarClearSelection()"
+                                :disabled="hasActiveViewFilter ? !visibleSelectedCount : !selected.length"
+                                :title="hasActiveViewFilter ? 'Clear selection for visible filtered tests' : 'Clear all selected tests'"
                             >
-                                <span class="ls-quote-params-switch__label">Clear</span>
+                                <span class="ls-quote-params-switch__label" x-text="hasActiveViewFilter ? 'Clear visible' : 'Clear all'"></span>
                             </button>
                             <span class="rft-trf-params-modal__count small text-muted ml-auto">
                                 <span x-show="isLoading" class="text-primary" role="status">
@@ -172,7 +173,13 @@
                                     Loading…
                                 </span>
                                 <span x-show="!isLoading">
-                                    <span x-text="selected.length"></span>/<span x-text="options.length"></span> selected
+                                    <span x-text="visibleSelectedCount"></span>/<span x-text="visibleTestCount"></span> selected
+                                    <span
+                                        class="rft-trf-params-modal__count-total"
+                                        x-show="hasActiveViewFilter && options.length !== visibleTestCount"
+                                        x-cloak
+                                        x-text="' · ' + options.length + ' total'"
+                                    ></span>
                                 </span>
                             </span>
                         </div>
@@ -216,9 +223,22 @@
                             </template>
 
                             <template x-if="groups.length && flatTableRows.length === 0 && !isLoading">
-                                <div class="ls-quote-params-empty ls-quote-params-empty--muted">
+                                <div class="ls-quote-params-empty">
                                     <div class="ls-quote-params-empty__art" aria-hidden="true">
-                                        <i class="mdi mdi-filter-off-outline rft-trf-params-empty-icon"></i>
+                                        <svg viewBox="0 0 160 160" width="108" height="108" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="80" cy="80" r="72" fill="#fff1f2"/>
+                                            <circle cx="80" cy="80" r="56" fill="#ffe4e6"/>
+                                            <path d="M62 28h36v14l22 54a28 28 0 1 1-54 0l22-54V28z" fill="#fda4af" stroke="#be123c" stroke-width="4" stroke-linejoin="round"/>
+                                            <path d="M58 96c8 14 36 14 44 0 2 18-10 30-22 30S56 114 58 96z" fill="#f43f5e"/>
+                                            <circle cx="72" cy="108" r="5" fill="#fecdd3"/>
+                                            <circle cx="90" cy="102" r="3.5" fill="#fecdd3"/>
+                                            <circle cx="82" cy="116" r="2.5" fill="#fecdd3"/>
+                                            <rect x="58" y="22" width="44" height="10" rx="4" fill="#9f1239"/>
+                                            <path d="M118 46c8-2 14 8 8 14" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+                                            <circle cx="128" cy="40" r="5" fill="#fbbf24"/>
+                                            <path d="M36 58c-6 4-4 14 4 12" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+                                            <circle cx="34" cy="52" r="4" fill="#0ea5e9"/>
+                                        </svg>
                                     </div>
                                     <h4 class="ls-quote-params-empty__title">No tests match</h4>
                                     <p class="ls-quote-params-empty__text mb-0">Try clearing search or filters to see more tests.</p>

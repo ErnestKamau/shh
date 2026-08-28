@@ -1058,6 +1058,11 @@ function getSystemModules()
 			'route' => '/system-settings',
 			'default_visible' => true,
 		),
+		'usermanual' => array(
+			'name' => 'User Manual',
+			'route' => '/usermanual',
+			'default_visible' => true,
+		),
 		'ai_analytics' => array(
 			'name' => 'AI Analytics',
 			'route' => '/ai-analytics',
@@ -1974,7 +1979,11 @@ function getUnitNamesByID(array $unitIds): string
 
 	foreach ($values as $value) {
 		if (\Illuminate\Support\Str::isUuid($value)) {
-			$display[] = $resolvedById[$value] ?? $value;
+			$name = trim((string) ($resolvedById[$value] ?? ''));
+			// Never surface raw unit UUIDs in UI labels.
+			if ($name !== '') {
+				$display[] = $name;
+			}
 		} else {
 			// Legacy contacts store unit names directly (e.g. "Nairobi"), not UUIDs.
 			$display[] = $value;

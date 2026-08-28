@@ -86,25 +86,41 @@
         @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
         @include('layouts.lab.partials.ls-ui.quotation.ls-quotation-overview-styles')
         <?php
-    $items = array(
-        array(
-            'link' => '/lab-dashboard',
-            'name' => 'Dashboard',
-            'icon' => null
-        ),
-        array(
-            'link' => route('quotation-index'),
-            'name' => 'Quotation Overview',
-            'icon' => null
-        ),
+        $crumbHeader = $quotationHeader ?? $reportHeader ?? null;
+        $crumbStatus = (string) ($crumbHeader->status ?? $header[0]->status ?? '');
+        if (! in_array($crumbStatus, ['Quote In Preparation', 'Quote In Approval', 'Quote Complete'], true)) {
+            $crumbIsComplete = (int) ($header[0]->is_complete ?? 0) > 0
+                || (int) ($crumbHeader->is_approved ?? $header[0]->is_approved ?? 0) === 1;
+            $crumbStatus = $crumbIsComplete ? 'Quote Complete' : 'Quote In Preparation';
+        }
+        $crumbStageLabel = match ($crumbStatus) {
+            'Quote In Approval' => 'Quotes in Approval',
+            'Quote Complete' => 'Completed Quotes',
+            'Quote In Preparation' => 'Quotes in Preparation',
+            default => 'Quotations',
+        };
+        $items = array(
+            array(
+                'link' => '/lab-dashboard',
+                'name' => 'Dashboard',
+                'icon' => null
+            ),
+            array(
+                'link' => route('quotation-index', [
+                    'stage_filter' => $crumbStatus,
+                    'page_tab' => 'quotations',
+                ]),
+                'name' => $crumbStageLabel,
+                'icon' => null
+            ),
 
-        array(
-            'link' => null,
-            'name' => $header[0]->quote_number,
-            'icon' => null
-        ),
+            array(
+                'link' => null,
+                'name' => $header[0]->quote_number,
+                'icon' => null
+            ),
 
-    );
+        );
         $header_id = $header[0]->id;
         ?>
         <x-bread-crumb :items="$items"></x-bread-crumb>
@@ -113,6 +129,14 @@
         <div class="ls-quotation-doc-chrome quotation-preview-hover-parent">
             <div class="d-flex flex-wrap align-items-start" style="gap: 12px;">
                 <div>
+                    @php
+                        $docHeader = $quotationHeader ?? $reportHeader ?? null;
+                        $docIsApproved = (int) ($docHeader->is_approved ?? $header[0]->is_approved ?? 0) === 1;
+                        $docIsComplete = (int) ($header[0]->is_complete ?? 0) > 0;
+                        $docStatus = (string) ($docHeader->status ?? $header[0]->status ?? '');
+                        $docApproverId = $docHeader->approved_by ?? $header[0]->approved_by ?? null;
+                        $docApproverName = $docApproverId ? (getUserById($docApproverId)->name ?? null) : null;
+                    @endphp
                     <h1 class="ls-quotation-doc-chrome__title">
                         <i class="mdi mdi-file-cad"></i>
                         <span>{{ $header[0]->quote_number }}</span>
@@ -121,14 +145,29 @@
                         @endif
                     </h1>
                     <div class="ls-quotation-doc-chrome__meta">
-                        <span class="quotation-status-chip {{ $header[0]->approved_by > 0 ? 'quotation-status-chip--complete' : 'quotation-status-chip--prep' }}">
-                            <i class="mdi {{ $header[0]->approved_by > 0 ? 'mdi-thumb-up' : 'mdi-alert-decagram' }}"></i>
-                            {{ $header[0]->approved_by > 0 ? 'Approved' : 'Awaiting Approval' }}
-                        </span>
-                        <span class="quotation-status-chip {{ $header[0]->is_complete > 0 ? 'quotation-status-chip--complete' : 'quotation-status-chip--approval' }}">
-                            <i class="mdi {{ $header[0]->is_complete > 0 ? 'mdi-check-circle' : 'mdi-progress-clock' }}"></i>
-                            {{ $header[0]->is_complete > 0 ? 'Complete' : 'Not Complete' }}
-                        </span>
+                        @if($docIsApproved)
+                            <span class="quotation-status-chip quotation-status-chip--complete">
+                                <i class="mdi mdi-thumb-up"></i> Approved
+                            </span>
+                        @else
+                            <span class="quotation-status-chip quotation-status-chip--approval">
+                                <i class="mdi mdi-alert-decagram"></i> Awaiting Approval
+                            </span>
+                            @if($docApproverId && (string) $docApproverId !== (string) auth()->id() && filled($docApproverName))
+                                <span class="quotation-status-chip quotation-status-chip--danger">
+                                    <i class="mdi mdi-account-alert"></i> Approver — {{ $docApproverName }}
+                                </span>
+                            @endif
+                        @endif
+                        @if($docIsComplete)
+                            <span class="quotation-status-chip quotation-status-chip--complete">
+                                <i class="mdi mdi-check-circle"></i> Complete
+                            </span>
+                        @elseif($docStatus !== 'Quote In Approval')
+                            <span class="quotation-status-chip quotation-status-chip--approval">
+                                <i class="mdi mdi-progress-clock"></i> Not Complete
+                            </span>
+                        @endif
                         @if(($header[0]->is_batch_generate ?? 0) == 1)
                             <span class="quotation-status-chip quotation-status-chip--complete">
                                 <i class="mdi mdi-thumb-up"></i> Batch Generated
@@ -138,6 +177,12 @@
                 </div>
 
                 <div class="ls-quotation-doc-chrome__actions">
+                    @php
+                        $docNeedsApproval = $docStatus === 'Quote In Approval' && ! $docIsApproved;
+                    @endphp
+                    @if($docNeedsApproval)
+                        @livewire('billing.quotation-approve-from-detail', ['quotationHeaderId' => (string) $header[0]->id], key('billing-approve-detail-'.$header[0]->id))
+                    @endif
                     <div class="dropdown">
                         <button type="button" class="ls-btn-ghost dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             <i class="mdi mdi-compare-vertical"></i> Move to workflow
@@ -174,12 +219,33 @@
                                     <span class="dropdown-item" style="cursor: pointer;" data-toggle="modal" data-target="#quotation-upload">
                                         <i class="mdi mdi-share-all"></i> Send Quotation
                                     </span>
-                                    @if($header[0]->quotation_type == 'Analysis' && ($header[0]->is_batch_generate ?? 0) == 0)
-                                        <span class="dropdown-item" style="cursor: pointer;" data-target="#generate-batch" data-toggle="modal">
-                                            <i class="mdi mdi-cog"></i> Generate Batch
+                                @endif
+                                @can('laboratory.components.quotation.add')
+                                    @php
+                                        $docExpiringDate = $header[0]->expiring_date
+                                            ?? ($quotationHeader->expiring_date ?? null);
+                                        $docCanCreateEnquiry = $header[0]->quotation_type == 'Analysis'
+                                            && $docExpiringDate
+                                            && \Carbon\Carbon::parse($docExpiringDate)->startOfDay()->gte(now()->startOfDay());
+                                    @endphp
+                                    @if($docCanCreateEnquiry)
+                                        <span class="dropdown-item" style="cursor: pointer;"
+                                              onclick="window.Livewire && window.Livewire.dispatch('open-create-enquiry-from-quotation', { quotationId: @js((string) $header[0]->id) })">
+                                            <i class="mdi mdi-flask-outline"></i> Create Enquiry From Quotation
                                         </span>
                                     @endif
-                                @endif
+                                @endcan
+                            @endif
+                            @if($docNeedsApproval && ($canApproveQuotation ?? false))
+                                <div class="dropdown-divider"></div>
+                                <span class="dropdown-item text-success" style="cursor: pointer;"
+                                      onclick="window.Livewire && window.Livewire.dispatch('billing-quotation-open-approve')">
+                                    <i class="mdi mdi-check-decagram"></i> Approve quotation
+                                </span>
+                                <span class="dropdown-item text-danger" style="cursor: pointer;"
+                                      onclick="window.Livewire && window.Livewire.dispatch('billing-quotation-open-reject')">
+                                    <i class="mdi mdi-close-octagon-outline"></i> Reject quotation
+                                </span>
                             @endif
                             <div class="dropdown-divider"></div>
                             <form action="{{ route('create_quotation_revision', ['id' => $header[0]->id]) }}" method="POST" class="px-0 m-0">
@@ -210,6 +276,35 @@
                     </ul>
                 </div>
             @endif
+
+            @if(($linkedEnquiryEngagements ?? collect())->isNotEmpty())
+                <div class="mt-3 pt-3" style="border-top: 1px solid #e2e8f0;">
+                    <small class="text-muted d-block mb-1"><strong><i class="mdi mdi-link-variant"></i> Linked enquiries</strong></small>
+                    <ul class="mb-0 pl-3" style="font-size: 12px;">
+                        @foreach($linkedEnquiryEngagements as $engagement)
+                            <li>
+                                @if($engagement->enquiry)
+                                    @php
+                                        $linkedEnquiryLabel = trim((string) (
+                                            $engagement->enquiry->unique_identification
+                                            ?: $engagement->enquiry->reference_number
+                                            ?: $engagement->enquiry->formatted_number
+                                        ));
+                                    @endphp
+                                    <a href="{{ $engagement->enquiry->staffViewUrl() }}">{{ $linkedEnquiryLabel !== '' ? $linkedEnquiryLabel : 'Enquiry' }}</a>
+                                    <span class="text-muted">— {{ $engagement->enquiry->status }}</span>
+                                    @if($engagement->sent_to_customer_at)
+                                        <span class="text-muted">· sent {{ $engagement->sent_to_customer_at->format('Y-m-d') }}</span>
+                                    @endif
+                                    @if($engagement->accepted_at)
+                                        <span class="text-muted">· accepted {{ $engagement->accepted_at->format('Y-m-d') }}</span>
+                                    @endif
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </div>
 
         <div class="mt-3" id="quotation-document">
@@ -221,6 +316,8 @@
             @include('billing.quotations.amspec.shell')
         </div>
     </main>
+
+    <livewire:billing.create-enquiry-from-quotation-wizard />
 @endsection
 @section('script2')
     <div class="modal fade" id="quotation-upload" role="dialog">
@@ -246,39 +343,6 @@
         </div>
     </div>
 
-    <div class="modal fade" id="generate-batch" role="dialog">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form action="{{ route('convert-quote-batch') }}" method="post">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="alert alert-primary p-2 d-flex">
-                            <i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
-                            <span class="pl-2">Confirm you want to generate a batch from QOUTE NUMBER
-                                {{ $header[0]->quote_number }}. Note you will find the generated batch at Sample Reception
-                                area at the sample workflow. Kindly add other need information from there. <br> Choose the
-                                laboratory to tie the batch to below: </span>
-                        </div>
-                        <input type="hidden" name="quote_id" value="{{ $header[0]->id }}">
-                        <div class="form-group">
-                            <label for="" class="control-label">Labs <small class="text-danger">*</small></label>
-                            <select name="lab_id" required id="" class="form-control">
-                                <option value="">Select Lab</option>
-                                @foreach ($labs as $lab)
-                                    <option value="{{ $lab->id }}">{{ $lab->code . ' - ' . $lab->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumbs-up"></i> Yes,
-                            Generate</button>
-                        <sapn class="btn btn-sm btn-default" data-dismiss="modal">Close</sapn>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
     <div class="modal fade" id="print-quotation" data-backdrop="static" data-keyboard="false">
         <div class="modal-dialog">
             <div class="modal-content">

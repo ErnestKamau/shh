@@ -97,7 +97,6 @@
                                         <th>{{ __('system.logo') }}</th>
                                         <th>{{ __('system.name') }}</th>
                                         <th>{{ __('system.company_code') }}</th>
-                                        <th>{{ __('system.company_code') }}</th>
                                         <th>{{ __('system.email') }}</th>
                                         <th>{{ __('system.telephone') }}</th>
                                         <th>{{ __('system.country') }}</th>

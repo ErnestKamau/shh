@@ -2010,6 +2010,8 @@ class FormInstanceController extends Controller
             (string) ($formData['sample_collection_for'] ?? '')
         );
 
+        $testCategory = $this->resolveTestCategoryForLabel($sampleLines, $formData);
+
         $sampleIds = $this->resolveSampleIdsForLabel($instance);
         $sampleId = $sampleIds !== [] ? implode(', ', $sampleIds) : 'N/A';
 
@@ -2024,6 +2026,7 @@ class FormInstanceController extends Controller
                 'samplingPoint',
                 'sampleId',
                 'customerName',
+                'testCategory',
             ] as $field) {
                 if (filled($configLabelOverrides[$field] ?? null)) {
                     $$field = (string) $configLabelOverrides[$field];
@@ -2037,7 +2040,7 @@ class FormInstanceController extends Controller
             }
         }
 
-        $registrationLabels = $this->buildRegistrationLabels($sampleIds);
+        $registrationLabels = $this->buildRegistrationLabels($sampleIds, $sampleLines, $testCategory);
 
         return view('submission-forms.instances.sample-collection-label', compact(
             'instance',
@@ -2065,6 +2068,7 @@ class FormInstanceController extends Controller
             'containerType',
             'sampleCollectionFor',
             'sampleId',
+            'testCategory',
             'registrationLabels'
         ));
     }
@@ -2204,11 +2208,68 @@ class FormInstanceController extends Controller
     }
 
     /**
-     * @param  list<string>  $sampleIds
-     * @return list<array{sampleId: string}>
+     * Test category printed on lab sample labels — from the filled TRF only.
+     *
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @param  array<string, mixed>  $formData
      */
-    private function buildRegistrationLabels(array $sampleIds): array
+    private function resolveTestCategoryForLabel(array $sampleLines, array $formData): string
     {
+        $labels = [];
+        foreach ($sampleLines as $line) {
+            $label = $this->testCategoryLabelFromFilledLine($line);
+            if ($label !== '') {
+                $labels[$label] = $label;
+            }
+        }
+
+        if ($labels !== []) {
+            return implode(', ', array_values($labels));
+        }
+
+        foreach (['test_category', 'test_requirements'] as $field) {
+            $label = SubmissionFormSchemaHelper::testCategoryLabel($formData[$field] ?? null);
+            if ($label !== '') {
+                return $label;
+            }
+        }
+
+        return 'N/A';
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function testCategoryLabelFromFilledLine(array $line): string
+    {
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+
+        foreach ([
+            $line['parameter_category'] ?? null,
+            $line['test_requirements'] ?? null,
+            $line['test_category'] ?? null,
+            $attributes['test_category'] ?? null,
+            $attributes['test_requirements'] ?? null,
+        ] as $candidate) {
+            $label = SubmissionFormSchemaHelper::testCategoryLabel($candidate);
+            if ($label !== '') {
+                return $label;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param  list<string>  $sampleIds
+     * @param  list<array<string, mixed>>  $sampleLines
+     * @return list<array{sampleId: string, testCategory: string}>
+     */
+    private function buildRegistrationLabels(
+        array $sampleIds,
+        array $sampleLines = [],
+        string $fallbackCategory = 'N/A',
+    ): array {
         $ids = array_values(array_filter(
             array_map(static fn ($id): string => trim((string) $id), $sampleIds),
             static fn (string $id): bool => $id !== '',
@@ -2218,9 +2279,36 @@ class FormInstanceController extends Controller
             $ids = ['N/A'];
         }
 
+        $fallback = trim($fallbackCategory) !== '' ? trim($fallbackCategory) : 'N/A';
+
         return array_map(
-            static fn (string $sampleId): array => ['sampleId' => $sampleId],
+            function (string $sampleId, int $index) use ($sampleLines, $fallback): array {
+                $category = '';
+
+                if (isset($sampleLines[$index]) && is_array($sampleLines[$index])) {
+                    $category = $this->testCategoryLabelFromFilledLine($sampleLines[$index]);
+                }
+
+                if ($category === '') {
+                    foreach ($sampleLines as $line) {
+                        if (! is_array($line)) {
+                            continue;
+                        }
+                        $customerId = trim((string) ($line['customer_sample_id'] ?? ''));
+                        if ($customerId !== '' && strcasecmp($customerId, $sampleId) === 0) {
+                            $category = $this->testCategoryLabelFromFilledLine($line);
+                            break;
+                        }
+                    }
+                }
+
+                return [
+                    'sampleId' => $sampleId,
+                    'testCategory' => $category !== '' ? $category : $fallback,
+                ];
+            },
             $ids,
+            array_keys($ids),
         );
     }
 
@@ -2389,6 +2477,9 @@ class FormInstanceController extends Controller
             } elseif (in_array($label, ['sampling point', 'sampling point / location', 'site - location'], true)) {
                 $overrides['siteLocation'] = $value;
                 $overrides['samplingPoint'] = $value;
+            } elseif (in_array($label, ['test category', 'test requirements'], true)) {
+                $categoryLabel = SubmissionFormSchemaHelper::testCategoryLabel($value);
+                $overrides['testCategory'] = $categoryLabel !== '' ? $categoryLabel : $value;
             }
         }
 

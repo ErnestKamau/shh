@@ -711,12 +711,13 @@
                         </ul>
 
                         <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify-email" wire:model="approvalNotifyEmail">
+                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify-email" wire:model.live="approvalNotifyEmail">
                             <label class="form-check-label" for="enquiry-approval-notify-email">Email all listed personnel</label>
                         </div>
                         <div class="form-check mb-0">
-                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify-app" wire:model="approvalNotifyInApp">
+                            <input class="form-check-input" type="checkbox" id="enquiry-approval-notify-app" wire:model.live="approvalNotifyInApp" disabled>
                             <label class="form-check-label" for="enquiry-approval-notify-app">Notify in app (bell) for all listed personnel</label>
+                            <div class="small text-muted mt-1">In-app notifications are always sent so approvers see the navbar bell.</div>
                         </div>
                     </div>
                     <div class="acc-wizard-footer">

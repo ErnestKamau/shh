@@ -22,8 +22,9 @@ use RuntimeException;
  *     quotation Total = No. of samples × this unit price (ONCE)
  *   Per-test items bill separately per parameter.
  *
- * Tax defaults to true (VAT on) unless the sheet says otherwise.
- * Quantity is NOT stored on pricelist items — it is entered on the quotation line.
+ * Expected Excel columns (flexible headers):
+ *   sample_type | parameters | cost_price | selling_price | tax | pricing_mode
+ * Legacy unit_price maps to selling_price. cost_price defaults to 0 when omitted.
  *
  * PDF uses pdftotext (poppler-utils); when missing, use Excel.
  */
@@ -105,7 +106,7 @@ class PricelistPackageImportService
             }
         }
 
-        return $rows;
+        return $this->collapseExcelPackageContinuations($rows);
     }
 
     /**
@@ -142,11 +143,19 @@ class PricelistPackageImportService
             }
 
             $paramTokens = $this->splitParameters((string) ($row['parameters'] ?? ''));
-            $elements = $this->resolveElements($paramTokens);
+            $resolved = $this->resolveElements($paramTokens, $sampleType);
+            $elements = $resolved['elements'];
+            $unmatchedTokens = $resolved['unmatched'];
+
             if ($elements === []) {
                 $paramHint = $paramTokens === []
                     ? 'no parameters were parsed from the file for this package'
-                    : count($paramTokens).' parameter name(s) from the file did not resolve to analysis elements (analyte may exist without an analysis element)';
+                    : count($paramTokens).' parameter name(s) did not resolve to analysis elements under sample type «'.$sampleType->name.'»'
+                        .(count($unmatchedTokens) > 0
+                            ? ' (unmatched: '.implode(', ', array_slice($unmatchedTokens, 0, 5))
+                                .(count($unmatchedTokens) > 5 ? ', …' : '').')'
+                            : '')
+                        .' — add those tests under this sample type in LIMS, or fix the import labels';
                 $warnings[] = 'Row '.($index + 1).': no matching parameters for «'.$sampleTypeLabel.'»'
                     .(strcasecmp($sampleTypeLabel, (string) $sampleType->name) !== 0
                         ? ' (matched LIMS sample type «'.$sampleType->name.'»)'
@@ -156,6 +165,13 @@ class PricelistPackageImportService
                 continue;
             }
 
+            if ($unmatchedTokens !== []) {
+                $warnings[] = 'Row '.($index + 1).': «'.$sampleType->name.'» package imported with '
+                    .count($elements).' parameter(s); skipped unmatched under this sample type: '
+                    .implode(', ', array_slice($unmatchedTokens, 0, 8))
+                    .(count($unmatchedTokens) > 8 ? ', …' : '').'.';
+            }
+
             $mode = strtolower(trim((string) ($row['pricing_mode'] ?? $defaultPricingMode)));
             $isPackage = ($mode === 'per_package' || $mode === 'package' || $mode === '1' || $mode === 'yes')
                 || ((bool) ($row['is_package'] ?? false));
@@ -163,10 +179,10 @@ class PricelistPackageImportService
             $vat = array_key_exists('tax', $row)
                 ? $this->truthy($row['tax'])
                 : true;
-            $unitPrice = (float) ($row['unit_price'] ?? 0);
+            $sellingPrice = (float) ($row['selling_price'] ?? $row['unit_price'] ?? 0);
             $costPrice = array_key_exists('cost_price', $row) && $row['cost_price'] !== null && $row['cost_price'] !== ''
                 ? $this->cleanNumber($row['cost_price'])
-                : $unitPrice;
+                : 0.0;
 
             if ($isPackage) {
                 $analysisTypeId = (string) ($elements[0]->analysis_type_id ?? '');
@@ -192,8 +208,8 @@ class PricelistPackageImportService
                 }
 
                 $item->cost_price = $costPrice;
-                $item->selling_price = $unitPrice;
-                $item->changed_price = $unitPrice;
+                $item->selling_price = $sellingPrice;
+                $item->changed_price = $sellingPrice;
                 $item->vat = $vat;
                 $item->save();
 
@@ -208,7 +224,7 @@ class PricelistPackageImportService
                 $itemsOut[] = [
                     'id' => $item->id,
                     'is_package' => true,
-                    'selling_price' => $unitPrice,
+                    'selling_price' => $sellingPrice,
                     'element_count' => count($elements),
                 ];
 
@@ -241,15 +257,15 @@ class PricelistPackageImportService
                 }
 
                 $item->cost_price = $costPrice;
-                $item->selling_price = $unitPrice;
-                $item->changed_price = $unitPrice;
+                $item->selling_price = $sellingPrice;
+                $item->changed_price = $sellingPrice;
                 $item->vat = $vat;
                 $item->save();
 
                 $itemsOut[] = [
                     'id' => $item->id,
                     'is_package' => false,
-                    'selling_price' => $unitPrice,
+                    'selling_price' => $sellingPrice,
                     'element_id' => $element->id,
                 ];
             }
@@ -266,7 +282,30 @@ class PricelistPackageImportService
     }
 
     /**
-     * Human-readable import summary for toasts / flash messages.
+     * Toast / banner title for an import result.
+     *
+     * @param  array{created?: int, updated?: int, skipped?: int, warnings?: list<string>}  $result
+     */
+    public function formatImportToastTitle(array $result): string
+    {
+        $created = (int) ($result['created'] ?? 0);
+        $updated = (int) ($result['updated'] ?? 0);
+        $skipped = (int) ($result['skipped'] ?? count($result['warnings'] ?? []));
+        $saved = $created + $updated;
+
+        if ($saved === 0 && $skipped > 0) {
+            return 'Pricelist import failed — nothing saved';
+        }
+
+        if ($skipped > 0) {
+            return 'Pricelist import partial — '.$skipped.' package(s) skipped';
+        }
+
+        return 'Pricelist import complete';
+    }
+
+    /**
+     * Human-readable import summary for toasts / flash / bell notifications.
      *
      * @param  array{created?: int, updated?: int, skipped?: int, total_rows?: int, warnings?: list<string>}  $result
      */
@@ -277,22 +316,52 @@ class PricelistPackageImportService
         $skipped = (int) ($result['skipped'] ?? count($result['warnings'] ?? []));
         $totalRows = (int) ($result['total_rows'] ?? ($created + $updated + $skipped));
         $warnings = array_values(array_filter(array_map('strval', $result['warnings'] ?? [])));
+        $saved = $created + $updated;
 
         $lines = [
-            "Imported {$created} new / {$updated} updated pricelist item(s) from {$totalRows} package row(s) in the file.",
+            "Saved {$saved} package(s) ({$created} new, {$updated} updated) from {$totalRows} package row(s) in the file.",
         ];
 
         if ($skipped > 0) {
-            $lines[] = "Skipped {$skipped} row(s):";
-            foreach (array_slice($warnings, 0, 6) as $warning) {
-                $lines[] = '• '.$warning;
+            $lines[] = '';
+            $lines[] = "⚠ Skipped {$skipped} package(s) — fix LIMS catalogue, then re-import:";
+            foreach (array_slice($warnings, 0, 8) as $warning) {
+                $lines[] = '• '.$this->clarifyImportWarning($warning);
             }
-            if (count($warnings) > 6) {
-                $lines[] = '• (+'.(count($warnings) - 6).' more)';
+            if (count($warnings) > 8) {
+                $lines[] = '• (+'.(count($warnings) - 8).' more — see page banner)';
             }
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Shorten verbose persist warnings for toast / notification readability.
+     */
+    private function clarifyImportWarning(string $warning): string
+    {
+        if (preg_match('/unknown sample type «([^»]+)»/iu', $warning, $m)) {
+            return 'Unknown sample type «'.$m[1].'» — add it under Sample Types (or rename the sheet), then re-import.';
+        }
+
+        if (preg_match('/no matching parameters for «([^»]+)»/iu', $warning, $m)) {
+            $sample = $m[1];
+            $unmatched = '';
+            if (preg_match('/unmatched:\s*([^\)]+)\)/iu', $warning, $u)) {
+                $unmatched = trim($u[1]);
+            }
+
+            if ($unmatched !== '') {
+                return '«'.$sample.'» — no matching tests under this sample type ('
+                    .$unmatched
+                    .'). Add those analysis elements under «'.$sample.'», then re-import.';
+            }
+
+            return '«'.$sample.'» — no matching tests under this sample type. Add them in LIMS, then re-import.';
+        }
+
+        return $warning;
     }
 
     private function normalizeHeader(string $header): string
@@ -300,9 +369,12 @@ class PricelistPackageImportService
         $key = Str::of($header)->lower()->replaceMatches('/[^a-z0-9]+/', '_')->trim('_')->toString();
 
         return match (true) {
-            str_contains($key, 'sample') => 'sample_type',
-            str_contains($key, 'parameter') || str_contains($key, 'test') => 'parameters',
-            str_contains($key, 'unit_price') || $key === 'price' || str_contains($key, 'selling') => 'unit_price',
+            str_contains($key, 'sample') && str_contains($key, 'type') => 'sample_type',
+            $key === 'sample' || $key === 'sample_description' => 'sample_type',
+            str_contains($key, 'no_of_sample') || $key === 'qty' || $key === 'quantity' || $key === 'samples' => 'quantity',
+            str_contains($key, 'parameter') || (str_contains($key, 'test') && ! str_contains($key, 'method')) => 'parameters',
+            (str_contains($key, 'cost') && str_contains($key, 'price')) || $key === 'cost' => 'cost_price',
+            (str_contains($key, 'selling') && str_contains($key, 'price')) || str_contains($key, 'unit_price') || $key === 'price' => 'selling_price',
             $key === 'tax' || str_contains($key, 'vat') => 'tax',
             str_contains($key, 'pricing_mode') || str_contains($key, 'package') => 'pricing_mode',
             default => $key,
@@ -321,16 +393,127 @@ class PricelistPackageImportService
             if ($key === '') {
                 continue;
             }
+            // First non-empty wins for duplicate keys (avoid later columns overwriting Sample).
+            if (array_key_exists($key, $mapped) && trim((string) ($mapped[$key] ?? '')) !== '') {
+                continue;
+            }
             $mapped[$key] = $line[$col] ?? null;
         }
 
-        if (trim((string) ($mapped['sample_type'] ?? '')) === '') {
+        $sample = trim((string) ($mapped['sample_type'] ?? ''));
+        $params = trim((string) ($mapped['parameters'] ?? ''));
+        if ($sample === '' && $params === '') {
             return null;
         }
 
-        $mapped['unit_price'] = $this->cleanNumber($mapped['unit_price'] ?? 0);
+        $mapped['selling_price'] = $this->cleanNumber($mapped['selling_price'] ?? $mapped['unit_price'] ?? 0);
+        if (array_key_exists('cost_price', $mapped) && $mapped['cost_price'] !== null && $mapped['cost_price'] !== '') {
+            $mapped['cost_price'] = $this->cleanNumber($mapped['cost_price']);
+        }
 
         return $mapped;
+    }
+
+    /**
+     * Amspec Excel package layout: Sample / Unit Price sit on the first row of a merged
+     * block; follow-on rows only have Test (and Method). Carry sample forward and merge
+     * tests into one per-package commercial row.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function collapseExcelPackageContinuations(array $rows): array
+    {
+        $packages = [];
+        /** @var array<string, mixed>|null $open */
+        $open = null;
+
+        foreach ($rows as $row) {
+            $sample = trim((string) ($row['sample_type'] ?? ''));
+            $params = trim((string) ($row['parameters'] ?? ''));
+            $sellingPrice = (float) ($row['selling_price'] ?? $row['unit_price'] ?? 0);
+            $costPrice = array_key_exists('cost_price', $row) && $row['cost_price'] !== null && $row['cost_price'] !== ''
+                ? $this->cleanNumber($row['cost_price'])
+                : 0.0;
+
+            if ($this->isExcelFooterLabel($sample) || $this->isExcelFooterLabel($params)) {
+                if ($open !== null) {
+                    $packages[] = $this->finalizeExcelPackage($open);
+                    $open = null;
+                }
+
+                continue;
+            }
+
+            if ($sample !== '') {
+                if ($open !== null) {
+                    $packages[] = $this->finalizeExcelPackage($open);
+                }
+
+                $open = $row;
+                $open['sample_type'] = $sample;
+                $open['_tests'] = $params !== '' ? [$params] : [];
+                $open['selling_price'] = $sellingPrice;
+                $open['cost_price'] = $costPrice;
+
+                continue;
+            }
+
+            if ($params === '' || $open === null) {
+                continue;
+            }
+
+            $open['_tests'][] = $params;
+            if ($sellingPrice > 0 && (float) ($open['selling_price'] ?? 0) <= 0) {
+                $open['selling_price'] = $sellingPrice;
+            }
+            if ($costPrice > 0 && (float) ($open['cost_price'] ?? 0) <= 0) {
+                $open['cost_price'] = $costPrice;
+            }
+        }
+
+        if ($open !== null) {
+            $packages[] = $this->finalizeExcelPackage($open);
+        }
+
+        return $packages;
+    }
+
+    /**
+     * @param  array<string, mixed>  $open
+     * @return array<string, mixed>
+     */
+    private function finalizeExcelPackage(array $open): array
+    {
+        /** @var list<string> $tests */
+        $tests = array_values(array_filter(
+            array_map('trim', is_array($open['_tests'] ?? null) ? $open['_tests'] : []),
+            fn (string $t): bool => $t !== '' && ! is_numeric($t)
+        ));
+        unset($open['_tests']);
+
+        $open['parameters'] = implode('; ', array_values(array_unique($tests)));
+        $open['pricing_mode'] = $open['pricing_mode'] ?? 'per_package';
+        $open['is_package'] = true;
+
+        return $open;
+    }
+
+    private function isExcelFooterLabel(string $label): bool
+    {
+        $normalized = strtolower(trim($label));
+
+        return in_array($normalized, [
+            'net amount',
+            'net',
+            'subtotal',
+            'sub total',
+            'vat',
+            'tax',
+            'grand total',
+            'total',
+            'amount due',
+        ], true);
     }
 
     private function resolveSampleType(string $name): ?SampleType
@@ -361,28 +544,51 @@ class PricelistPackageImportService
     }
 
     /**
+     * Resolve parameter tokens to analysis elements that belong to the given sample type.
+     * Does not fall back to elements under other sample types (avoids Hand Swab packages
+     * picking up E. coli / Enterobacteriaceae from unrelated catalogs).
+     *
      * @param  list<string>  $tokens
-     * @return list<AnalysisElements>
+     * @return array{elements: list<AnalysisElements>, unmatched: list<string>}
      */
-    private function resolveElements(array $tokens): array
+    private function resolveElements(array $tokens, SampleType $sampleType): array
     {
         $elements = [];
+        $unmatched = [];
+        $seenElementIds = [];
+
         foreach ($tokens as $token) {
             $analyte = $this->resolveAnalyte($token);
             if ($analyte === null) {
+                $unmatched[] = $token;
                 continue;
             }
 
             $element = AnalysisElements::query()
                 ->where('analyte_id', $analyte->id)
+                ->whereHas('analysis_type', function ($query) use ($sampleType) {
+                    $query->where('sample_type_id', $sampleType->id);
+                })
                 ->orderBy('id')
                 ->first();
-            if ($element !== null) {
-                $elements[] = $element;
+
+            if ($element === null) {
+                $unmatched[] = $token;
+                continue;
             }
+
+            $elementId = (string) $element->id;
+            if (isset($seenElementIds[$elementId])) {
+                continue;
+            }
+            $seenElementIds[$elementId] = true;
+            $elements[] = $element;
         }
 
-        return $elements;
+        return [
+            'elements' => $elements,
+            'unmatched' => $unmatched,
+        ];
     }
 
     private function resolveAnalyte(string $token): ?Analyte

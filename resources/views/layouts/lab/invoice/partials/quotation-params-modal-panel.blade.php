@@ -7,6 +7,9 @@
 
 	Required: $prefix ('quote' | 'edit')
 	Optional: $introTitle, $introCaption, $footNote
+
+	Stage model: table shell stays mounted; loading is an overlay; empty is a sibling.
+	Never hide empty + table + loading all at once (avoids blank white stage).
 --}}
 @php
 	$prefix = $prefix ?? 'quote';
@@ -14,7 +17,7 @@
 	$emptyId = $isEdit ? 'edit-params-empty' : 'quote-params-empty';
 	$emptyTitleId = $isEdit ? 'edit-params-empty-title' : 'quote-params-empty-title';
 	$emptyTextId = $isEdit ? 'edit-params-empty-text' : 'quote-params-empty-text';
-	$skeletonId = $isEdit ? 'edit-params-skeleton' : 'quote-params-skeleton';
+	$loadingId = $isEdit ? 'edit-params-loading' : 'quote-params-loading';
 	$tableWrapId = $isEdit ? 'edit-params-table-wrap' : 'quote-params-table-wrap';
 	$tbodyId = $isEdit ? 'edit-description' : 'analysis-analytes-holder';
 	$selectAllId = $isEdit ? 'edit-analyte-all' : 'select-analyte-all';
@@ -81,21 +84,18 @@
 			<p class="ls-quote-params-empty__text" id="{{ $emptyTextId }}"></p>
 		</div>
 
-		<div id="{{ $skeletonId }}" class="ls-quote-params-skeleton" hidden>
-			@for($i = 0; $i < 6; $i++)
-				<div class="ls-quote-params-skeleton__row">
-					<span class="ls-skeleton ls-quote-params-skeleton__chk"></span>
-					<span class="ls-skeleton ls-quote-params-skeleton__name"></span>
-					<span class="ls-skeleton ls-quote-params-skeleton__flag"></span>
-					<span class="ls-skeleton ls-quote-params-skeleton__flag"></span>
-					<span class="ls-skeleton ls-quote-params-skeleton__loq"></span>
-					<span class="ls-skeleton ls-quote-params-skeleton__mu"></span>
-					<span class="ls-skeleton ls-quote-params-skeleton__tat"></span>
-				</div>
-			@endfor
-		</div>
-
-		<div id="{{ $tableWrapId }}" class="ls-quote-analyte-table" hidden>
+		<div id="{{ $tableWrapId }}" class="ls-quote-analyte-table is-stage-visible">
+			<div
+				id="{{ $loadingId }}"
+				class="ls-quote-params-stage-loading"
+				hidden
+				role="status"
+				aria-live="polite"
+				aria-label="Loading parameters"
+			>
+				<span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+				<span class="ls-quote-params-stage-loading__label">Updating parameters…</span>
+			</div>
 			<table class="ls-quote-analyte-grid">
 				<colgroup>
 					<col class="ls-quote-analyte-col--select">
