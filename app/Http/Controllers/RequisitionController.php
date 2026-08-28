@@ -1810,8 +1810,11 @@ class RequisitionController extends Controller
 			$resolvedSlots[$i] = $slot;
 		}
 
-		// Always require OTP (Polucon behaviour). Final GR approval may call this with
-		// $isInternal=true and no otp_value — that path must fail so Confirm / Accept Goods stay available.
+		// Stock-in requires the requester OTP via Accept Goods — not during approval.
+		if ($isInternal && blank($request->input('otp_value'))) {
+			return false;
+		}
+
 		$OTPController = new OTPController;
 
 		$otp = $OTPController->close(
@@ -1823,7 +1826,7 @@ class RequisitionController extends Controller
 			]
 		);
 
-		if (!isset($otp->code)) {
+		if (! $otp instanceof \App\OTP) {
 			return redirect()->back()->with('error', 'No matching OTP code found for this Goods Receipt.');
 		}
 
@@ -3099,7 +3102,6 @@ class RequisitionController extends Controller
 			$contacteMails = array($USER->email);
 
 			$isMRMessage = "";
-			$createdRFQ = null;
 
 			if ($req->request_type == "Purchase Orders" && $req->status == "Approval Complete") {
 				$rptG = new ReportGeneratorController;
@@ -3121,44 +3123,8 @@ class RequisitionController extends Controller
 
 				$contacteMails = array_merge($contacteMails, $emailList);
 
-				$createdRFQ = $this->create_rfq_from_material_requisition($req, true);
-
-				if ($createdRFQ instanceof \App\RequestEntity) {
-					$isMRMessage = "and RFQ " . $createdRFQ->request_code . " has been created from this Purchase Request.";
-				} else {
-					$isMRMessage = "but RFQ creation failed. Please create the RFQ manually.";
-					$createdRFQ = null;
-				}
-			}
-
-			if ($req->request_type == "Goods Receipt" && $req->status == "Approval Complete") {
-				$newReqOBJ = new Request();
-
-				$thisAmmendment = $req->ammendment;
-
-				$theItems = [
-					'req_item_id' => [],
-					'received_quantity' => [],
-					'expiry' => [],
-					'date_of_manufacture' => [],
-					'lot_no' => [],
-					'store_id' => [],
-					'slot_id' => []
-				];
-
-				foreach ($req->items($thisAmmendment)['normal'] as $iz => $itm) {
-					$theItems['req_item_id'][$iz] = $itm->id;
-					$theItems['received_quantity'][$iz] = $itm->quantity;
-					$theItems['expiry'][$iz] = $itm->gr_expiry ?? '2099-12-31';
-					$theItems['date_of_manufacture'][$iz] = $itm->date_of_manufacture ?? '2099-12-31';
-					$theItems['lot_no'][$iz] =  $itm->lot_no;
-					$theItems['store_id'][$iz] =  $itm->store_id;
-					$theItems['slot_id'][$iz] =  $itm->slot_id;
-				}
-
-				$newReqOBJ->merge(['items' => $theItems]);
-				$newReqOBJ->merge(['request_code' => $req->request_code]);
-				$this->accept_goods_receipt($newReqOBJ, $req, true);
+				// RFQ is created manually via "Send to Procurement (create RFQ)" on the Purchase Request.
+				$isMRMessage = 'Procurement can now open this Purchase Request and use Send to Procurement (create RFQ).';
 			}
 
 			$body = 'Hi ' . $USER->name . ',<br>
@@ -3222,13 +3188,6 @@ class RequisitionController extends Controller
 
 			if ($isInternal) {
 				return $req;
-			}
-
-			if ($createdRFQ instanceof \App\RequestEntity) {
-				return redirect()->route('view-request-details', [
-					'stage' => $createdRFQ->request_type,
-					'id' => $createdRFQ->id,
-				])->with('success', 'Request for Quotation ' . $createdRFQ->request_code . ' has been created.');
 			}
 
 			return \redirect()->back()->with('success', $stage . ' Approval was successful');

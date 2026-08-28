@@ -32,8 +32,8 @@
 		<h4>Use a pricelist</h4>
 		<ul>
 			<li>Assign the customer to a pricelist under Billing → Pricelists.</li>
-			<li>On the quote, open <strong>Commercial / Customer pricelist</strong> and select an eligible list.</li>
-			<li>Lines follow the list’s billing mode (package or per test).</li>
+	<li>On the quote, open <strong>Commercial</strong> and select an eligible list — or use <strong>+ Add line</strong> for manual pricing.</li>
+			<li>Default line mode is <strong>per package</strong>; tick <strong>Per parameter</strong> to bill each test separately.</li>
 		</ul>
 	</div>
 	<div class="um-compare__card">

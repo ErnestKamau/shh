@@ -635,8 +635,9 @@
 					?>
 				@if((!isset($hasAnRFQ->id) || $rfqIsIncomplete) && !isset($hasAnPO->id))
 				<button class="btn btn-default text-success float-right save-details-form btn-sm"
-					data-type="create-rfq-from-material-requisition">
-					<i class="mdi mdi-text-box-plus-outline"></i> {{ isETCU() ? 'Create RFQ' : 'Send to Procurement' }}
+					data-type="create-rfq-from-material-requisition"
+					title="Create a Request for Quotation from this approved Purchase Request">
+					<i class="mdi mdi-text-box-plus-outline"></i> Send to Procurement (create RFQ)
 				</button>
 				{{-- <button class="btn btn-default text-primary float-right btn-sm" data-target="#create-lpo-from-mr-modal"
 					data-toggle="modal">

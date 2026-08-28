@@ -28,9 +28,9 @@
 					<p class="um-hero__kicker">AmSpec Lab handbook</p>
 					<h1>User Manual</h1>
 					<p>
-						Plain-language guides for quotations, pricelists, receiving samples,
-						direct registration, and the request view. Pick a manual from the sidebar
-						or open a card below.
+						Plain-language guides for quotations, inventory, receiving samples,
+						direct registration, and the request view.
+						Pick a manual from the sidebar or open a card below.
 					</p>
 				</div>
 				<div class="um-hero__lottie" data-um-lottie="https://assets10.lottiefiles.com/packages/lf20_jcikwtux.json" aria-hidden="true"></div>
