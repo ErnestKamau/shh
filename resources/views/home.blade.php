@@ -459,7 +459,7 @@
                 <a class="dropdown-item" href="/system-user/{{ Auth::user()->id }}">
                     <i class="mdi mdi-account-details text-primary"></i> &nbsp;&nbsp;My Profile
                 </a>
-                <a class="dropdown-item" href="http://127.0.0.1:8000/logout"
+                <a class="dropdown-item" href="{{ route('logout') }}"
                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                     <i class="text-danger mdi mdi-power"></i> &nbsp;&nbsp;Sign-Out
                 </a>
