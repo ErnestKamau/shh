@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\File as PILE;
 use Illuminate\Support\Facades\Storage;
 use App\Services\Dashboards\InventoryDashboardService;
 use App\Support\CaseInsensitiveSearch;
+use Carbon\Carbon;
 
 class HomeController extends Controller
 {
@@ -147,76 +148,140 @@ class HomeController extends Controller
 		return view('layouts.inventory.approvals.index', compact('approvals'));
 	}
 
-  public function inventory(){
+  public function inventory(Request $request, InventoryDashboardService $dashboardService)
+  {
 		$location = getCurrentUserLocation();
 		if (! $location?->id) {
 			viewableLocations();
 			$location = getCurrentUserLocation();
 		}
 
-		$departments = InventoryDepartment::all()->count();
+		$departmentsCount = InventoryDepartment::query()->count();
+		$filters = [
+			'range' => $request->get('range', '1m'),
+			'start_date' => $request->get('start_date'),
+			'end_date' => $request->get('end_date'),
+			'category_id' => $request->get('category_id'),
+			'store_id' => $request->get('store_id'),
+			'department_id' => $request->get('department_id'),
+		];
+
 		$dashboard = [
-			'activity' => collect(),
-			'categoriesNo' => 0,
-			'departments' => $departments,
-			'suppliers' => 0,
 			'locationName' => $location?->name,
+			'location_id' => $location?->id,
+			'departments' => $departmentsCount,
+			'categoriesNo' => 0,
+			'suppliers' => 0,
 			'pendingApprovalsCount' => 0,
 			'pendingApprovalsPreview' => collect(),
 			'restockCount' => 0,
 			'restockItems' => [],
-			'hasActivity' => false,
-			'stockInTotal' => 0,
-			'stockOutTotal' => 0,
-			'ops' => app(InventoryDashboardService::class)->emptyOperationsBoard(),
+			'has_activity' => false,
+			'ops' => $dashboardService->emptyOperationsBoard(),
+			'trend_chart' => [
+				'labels' => [],
+				'stock_in' => [],
+				'stock_out' => [],
+				'net_movement' => [],
+				'cumulative' => [],
+				'tooltips' => [],
+				'timeline' => [],
+				'granularity' => 'weekly',
+				'granularity_label' => inventoryLabel('granularity_weekly', 'Week-by-Week (1 Month)'),
+			],
+			'metrics' => [
+				'total_stock_in' => 0,
+				'total_stock_out' => 0,
+				'net_movement' => 0,
+				'transactions_count' => 0,
+				'active_items_count' => 0,
+				'range_preset' => $filters['range'],
+				'granularity' => 'weekly',
+				'granularity_label' => inventoryLabel('granularity_weekly', 'Week-by-Week (1 Month)'),
+				'period_description' => inventoryLabel('period_1m', 'Last 30 Days (1 Month)'),
+				'start_date' => Carbon::now()->subDays(27)->toDateString(),
+				'end_date' => Carbon::now()->toDateString(),
+				'start_formatted' => Carbon::now()->subDays(27)->format('d M Y'),
+				'end_formatted' => Carbon::now()->format('d M Y'),
+			],
+			'top_moving_items' => [],
+			'category_breakdown' => [],
+			'store_breakdown' => [],
+			'categories' => collect(),
+			'stores' => collect(),
+			'departmentsList' => collect(),
+			'filters' => $filters,
 		];
 
 		if (! $location?->id) {
+			if ($request->wantsJson() || $request->ajax()) {
+				return response()->json($dashboard);
+			}
 			return view('layouts.inventory.index', $dashboard);
 		}
 
-		$locationId = $location->id;
-
+		$locationId = (string) $location->id;
 		$dashboard['categoriesNo'] = InventoryCategories::where('inventory_location_id', $locationId)->count();
 		$dashboard['suppliers'] = Supplier::where('inventory_location_id', $locationId)->count();
-		$activity = InventoryItem::join('inventory_categories as ic', 'ic.id', '=', 'inventory_items.inventory_category_id')
-			->join('inventory_sub_categories as isc', 'isc.inventory_category_id', '=', 'ic.id')
-			->selectRaw('isc.name as category, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out')
-			->where('ic.inventory_location_id', $locationId)
-			->where("ic.category_type", "!=", "is_lab_samples")
-			->where('inventory_items.created_at', '>', (new \Carbon\Carbon)->submonths(1))
-			->groupBy('isc.name')
-			->get();
-		$dashboard['stockInTotal'] = round((float) $activity->sum('stock_in'), 2);
-		$dashboard['stockOutTotal'] = round((float) $activity->sum('stock_out'), 2);
-		$dashboard['activity'] = $activity
-			->sortByDesc(fn ($row) => (float) $row->stock_in + (float) $row->stock_out)
-			->take(8)
-			->values();
-		$dashboard['hasActivity'] = $dashboard['activity']->contains(function ($row) {
-			return (float) ($row->stock_in ?? 0) > 0 || (float) ($row->stock_out ?? 0) > 0;
-		});
-		$dashboard['ops'] = app(InventoryDashboardService::class)->getLocationOperationsBoard((string) $locationId);
 
-		try {
-			$pending = pendingApprovals();
-			$dashboard['pendingApprovalsCount'] = $pending->count();
-			$dashboard['pendingApprovalsPreview'] = $pending->take(5)->values();
-		} catch (\Throwable $exception) {
-			$dashboard['pendingApprovalsCount'] = 0;
-			$dashboard['pendingApprovalsPreview'] = collect();
-		}
+		$payload = $dashboardService->getInventoryDashboardPayload($locationId, $filters);
+		$dashboard = array_merge($dashboard, $payload);
+		$dashboard['departmentsList'] = $payload['departments'] ?? collect();
+		$dashboard['departments'] = $departmentsCount;
+		$dashboard['locationName'] = $location->name;
 
-		try {
-			$restock = getRestockNotifications(true);
-			$dashboard['restockCount'] = (int) ($restock['count'] ?? 0);
-			$dashboard['restockItems'] = $restock['items'] ?? [];
-		} catch (\Throwable $exception) {
-			$dashboard['restockCount'] = 0;
-			$dashboard['restockItems'] = [];
+		if ($request->wantsJson() || $request->ajax()) {
+			return response()->json($dashboard);
 		}
 
 		return view('layouts.inventory.index', $dashboard);
+  }
+
+  /**
+   * JSON API endpoint for dynamic asynchronous dashboard metric and trend chart refreshes.
+   */
+  public function inventoryDashboardData(Request $request, InventoryDashboardService $dashboardService)
+  {
+		$location = getCurrentUserLocation();
+		if (! $location?->id) {
+			viewableLocations();
+			$location = getCurrentUserLocation();
+		}
+
+		if (! $location?->id) {
+			return response()->json([
+				'error' => 'No active location selected.',
+				'trend_chart' => [
+					'labels' => [],
+					'stock_in' => [],
+					'stock_out' => [],
+					'net_movement' => [],
+					'cumulative' => [],
+					'tooltips' => [],
+					'timeline' => [],
+					'granularity' => 'weekly',
+				],
+				'metrics' => [
+					'total_stock_in' => 0,
+					'total_stock_out' => 0,
+					'net_movement' => 0,
+					'transactions_count' => 0,
+				],
+			], 404);
+		}
+
+		$filters = [
+			'range' => $request->get('range', '1m'),
+			'start_date' => $request->get('start_date'),
+			'end_date' => $request->get('end_date'),
+			'category_id' => $request->get('category_id'),
+			'store_id' => $request->get('store_id'),
+			'department_id' => $request->get('department_id'),
+		];
+
+		$payload = $dashboardService->getInventoryDashboardPayload((string) $location->id, $filters);
+
+		return response()->json($payload);
   }
 
 	public function get_file($link, $public=false)

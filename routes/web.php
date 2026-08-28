@@ -856,6 +856,7 @@ Route::post('/lab/batch/ammendment', 'BatchAmmendmentController@add')->name('add
 //############################################INVENTORY##########################################################
 
 Route::get('/inventory-home', 'HomeController@inventory')->name('inventory-home')->middleware('can:inventory.module.access');
+Route::get('/inventory-dashboard-data', 'HomeController@inventoryDashboardData')->name('inventory-dashboard-data')->middleware('can:inventory.module.access');
 Route::get('/inventory-activity', 'InventoryItemController@index')->name('inventory-activity')->middleware('can:inventory.components.inventory-movement.view');
 Route::get('/inventory-activity/server-side', 'InventoryItemController@activity_serverside')->name('get-stock-movement')->middleware('can:inventory.components.inventory-movement.view');
 

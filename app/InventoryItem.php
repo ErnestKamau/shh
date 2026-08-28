@@ -38,7 +38,15 @@ class InventoryItem extends Model implements Auditable
 		return $this->belongsTo('App\Supplier');
 	}
 
+	public function store(){
+		return $this->belongsTo('App\InventoryStore', 'inventory_store_id');
+	}
+
 	public function sub_category(){
+		return $this->belongsTo('App\InventorySubCategories', 'inventory_sub_category_id');
+	}
+
+	public function subCategory(){
 		return $this->belongsTo('App\InventorySubCategories', 'inventory_sub_category_id');
 	}
 
