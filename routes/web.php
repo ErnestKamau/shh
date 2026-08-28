@@ -746,23 +746,10 @@ Route::get('/billing/templates/amspec-quotation-preparation.pdf', function () {
     ]);
 })->name('billing.templates.amspec_quotation_preparation')->middleware('auth');
 
-Route::get('/billing/templates/amspec-import.xlsx', function (\Illuminate\Http\Request $request) {
+Route::get('/billing/templates/amspec-import.xlsx', function (\Illuminate\Http\Request $request, \App\Services\Billing\AmspecImportTemplateService $templateService) {
     $context = $request->query('context', 'quotation') === 'pricelist' ? 'pricelist' : 'quotation';
-    $file = $context === 'pricelist'
-        ? 'amspec-pricelist-import.xlsx'
-        : 'amspec-quotation-prep-import.xlsx';
-    $path = public_path('templates/'.$file);
-    if (! is_file($path)) {
-        abort(404, 'Amspec Excel template not found.');
-    }
 
-    $downloadName = $context === 'pricelist'
-        ? 'Amspec-Pricelist-import.xlsx'
-        : 'Amspec-Quotation-prep-import.xlsx';
-
-    return response()->download($path, $downloadName, [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ]);
+    return $templateService->downloadExcel($context);
 })->name('billing.templates.amspec_import_excel')->middleware('auth');
 Route::post('/billing/quotations/{id}/package-defaults', 'Invoice\QuotationController@packageDefaults')->name('quotation.package_defaults')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/elements/loq', 'Invoice\QuotationController@updateElementLoq')->name('quotation.update_element_loq')->middleware('can:laboratory.components.quotation.edit');

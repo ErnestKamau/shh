@@ -32,7 +32,7 @@ class PricelistPackageImportExcelCollapseTest extends TestCase
 
             $this->assertCount(2, $rows);
             $this->assertSame('Food', $rows[0]['sample_type']);
-            $this->assertSame(20.0, (float) $rows[0]['unit_price']);
+            $this->assertSame(20.0, (float) $rows[0]['selling_price']);
             $this->assertSame(
                 'Mesophilic Aerobic plate count; Enumeration of Yeast and Moulds; Detection of Salmonella',
                 $rows[0]['parameters']
@@ -44,6 +44,26 @@ class PricelistPackageImportExcelCollapseTest extends TestCase
                 'Heterotopic plate count; Enumeration of E. coli',
                 $rows[1]['parameters']
             );
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    public function test_excel_reads_separate_cost_and_selling_prices(): void
+    {
+        $path = $this->writeTempWorkbook([
+            ['sample_type', 'parameters', 'cost_price', 'selling_price', 'tax'],
+            ['Hand Swab', 'TPC;Yeast & Mould', 50, 85, 5],
+        ]);
+
+        try {
+            $file = new UploadedFile($path, 'pricelist.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+            $rows = $this->service()->parseExcelRows($file);
+
+            $this->assertCount(1, $rows);
+            $this->assertSame('Hand Swab', $rows[0]['sample_type']);
+            $this->assertSame(50.0, (float) $rows[0]['cost_price']);
+            $this->assertSame(85.0, (float) $rows[0]['selling_price']);
         } finally {
             @unlink($path);
         }
@@ -63,7 +83,7 @@ class PricelistPackageImportExcelCollapseTest extends TestCase
 
             $this->assertCount(1, $rows);
             $this->assertSame('Hand Swab', $rows[0]['sample_type']);
-            $this->assertSame(20.0, (float) $rows[0]['unit_price']);
+            $this->assertSame(20.0, (float) $rows[0]['selling_price']);
             $this->assertSame(
                 'Enumeration of E. coli; Enumeration of Enterobacteriaceae',
                 $rows[0]['parameters']

@@ -22,8 +22,9 @@ use RuntimeException;
  *     quotation Total = No. of samples × this unit price (ONCE)
  *   Per-test items bill separately per parameter.
  *
- * Tax defaults to true (VAT on) unless the sheet says otherwise.
- * Quantity is NOT stored on pricelist items — it is entered on the quotation line.
+ * Expected Excel columns (flexible headers):
+ *   sample_type | parameters | cost_price | selling_price | tax | pricing_mode
+ * Legacy unit_price maps to selling_price. cost_price defaults to 0 when omitted.
  *
  * PDF uses pdftotext (poppler-utils); when missing, use Excel.
  */
@@ -178,10 +179,10 @@ class PricelistPackageImportService
             $vat = array_key_exists('tax', $row)
                 ? $this->truthy($row['tax'])
                 : true;
-            $unitPrice = (float) ($row['unit_price'] ?? 0);
+            $sellingPrice = (float) ($row['selling_price'] ?? $row['unit_price'] ?? 0);
             $costPrice = array_key_exists('cost_price', $row) && $row['cost_price'] !== null && $row['cost_price'] !== ''
                 ? $this->cleanNumber($row['cost_price'])
-                : $unitPrice;
+                : 0.0;
 
             if ($isPackage) {
                 $analysisTypeId = (string) ($elements[0]->analysis_type_id ?? '');
@@ -207,8 +208,8 @@ class PricelistPackageImportService
                 }
 
                 $item->cost_price = $costPrice;
-                $item->selling_price = $unitPrice;
-                $item->changed_price = $unitPrice;
+                $item->selling_price = $sellingPrice;
+                $item->changed_price = $sellingPrice;
                 $item->vat = $vat;
                 $item->save();
 
@@ -223,7 +224,7 @@ class PricelistPackageImportService
                 $itemsOut[] = [
                     'id' => $item->id,
                     'is_package' => true,
-                    'selling_price' => $unitPrice,
+                    'selling_price' => $sellingPrice,
                     'element_count' => count($elements),
                 ];
 
@@ -256,15 +257,15 @@ class PricelistPackageImportService
                 }
 
                 $item->cost_price = $costPrice;
-                $item->selling_price = $unitPrice;
-                $item->changed_price = $unitPrice;
+                $item->selling_price = $sellingPrice;
+                $item->changed_price = $sellingPrice;
                 $item->vat = $vat;
                 $item->save();
 
                 $itemsOut[] = [
                     'id' => $item->id,
                     'is_package' => false,
-                    'selling_price' => $unitPrice,
+                    'selling_price' => $sellingPrice,
                     'element_id' => $element->id,
                 ];
             }
@@ -372,7 +373,8 @@ class PricelistPackageImportService
             $key === 'sample' || $key === 'sample_description' => 'sample_type',
             str_contains($key, 'no_of_sample') || $key === 'qty' || $key === 'quantity' || $key === 'samples' => 'quantity',
             str_contains($key, 'parameter') || (str_contains($key, 'test') && ! str_contains($key, 'method')) => 'parameters',
-            str_contains($key, 'unit_price') || $key === 'price' || str_contains($key, 'selling') => 'unit_price',
+            (str_contains($key, 'cost') && str_contains($key, 'price')) || $key === 'cost' => 'cost_price',
+            (str_contains($key, 'selling') && str_contains($key, 'price')) || str_contains($key, 'unit_price') || $key === 'price' => 'selling_price',
             $key === 'tax' || str_contains($key, 'vat') => 'tax',
             str_contains($key, 'pricing_mode') || str_contains($key, 'package') => 'pricing_mode',
             default => $key,
@@ -404,7 +406,10 @@ class PricelistPackageImportService
             return null;
         }
 
-        $mapped['unit_price'] = $this->cleanNumber($mapped['unit_price'] ?? 0);
+        $mapped['selling_price'] = $this->cleanNumber($mapped['selling_price'] ?? $mapped['unit_price'] ?? 0);
+        if (array_key_exists('cost_price', $mapped) && $mapped['cost_price'] !== null && $mapped['cost_price'] !== '') {
+            $mapped['cost_price'] = $this->cleanNumber($mapped['cost_price']);
+        }
 
         return $mapped;
     }
@@ -426,7 +431,10 @@ class PricelistPackageImportService
         foreach ($rows as $row) {
             $sample = trim((string) ($row['sample_type'] ?? ''));
             $params = trim((string) ($row['parameters'] ?? ''));
-            $unitPrice = (float) ($row['unit_price'] ?? 0);
+            $sellingPrice = (float) ($row['selling_price'] ?? $row['unit_price'] ?? 0);
+            $costPrice = array_key_exists('cost_price', $row) && $row['cost_price'] !== null && $row['cost_price'] !== ''
+                ? $this->cleanNumber($row['cost_price'])
+                : 0.0;
 
             if ($this->isExcelFooterLabel($sample) || $this->isExcelFooterLabel($params)) {
                 if ($open !== null) {
@@ -445,7 +453,8 @@ class PricelistPackageImportService
                 $open = $row;
                 $open['sample_type'] = $sample;
                 $open['_tests'] = $params !== '' ? [$params] : [];
-                $open['unit_price'] = $unitPrice;
+                $open['selling_price'] = $sellingPrice;
+                $open['cost_price'] = $costPrice;
 
                 continue;
             }
@@ -455,8 +464,11 @@ class PricelistPackageImportService
             }
 
             $open['_tests'][] = $params;
-            if ($unitPrice > 0 && (float) ($open['unit_price'] ?? 0) <= 0) {
-                $open['unit_price'] = $unitPrice;
+            if ($sellingPrice > 0 && (float) ($open['selling_price'] ?? 0) <= 0) {
+                $open['selling_price'] = $sellingPrice;
+            }
+            if ($costPrice > 0 && (float) ($open['cost_price'] ?? 0) <= 0) {
+                $open['cost_price'] = $costPrice;
             }
         }
 
