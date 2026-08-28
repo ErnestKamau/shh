@@ -341,16 +341,19 @@
         print-color-adjust: exact;
     }
     .trr-sample-photo-frame {
+        width: 150mm;
+        height: 100mm;
+        margin: 8mm auto 0;
+        padding: 0;
+        border: 1px solid #ccc;
+        overflow: hidden;
         text-align: center;
-        padding: 8px 0 4px;
     }
     .trr-sample-photo-frame img {
-        max-width: 100%;
-        max-height: 420px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        border: 1px solid #ccc;
+        width: 150mm;
+        height: 100mm;
+        display: block;
+        border: 0;
     }
 
     /* ── RESULTS TABLE ──────────────────────────── */
@@ -746,9 +749,15 @@
         padding: 5px 7px;
         font-size: 9pt;
     }
+    .trr-sample-photo-frame {
+        width: 150mm;
+        height: 100mm;
+        margin: 8mm auto 0;
+    }
     .trr-sample-photo-frame img {
-        max-width: 100%;
-        max-height: 170mm;
+        width: 150mm;
+        height: 100mm;
+        display: block;
     }
     .results-table {
         font-size: 8pt;

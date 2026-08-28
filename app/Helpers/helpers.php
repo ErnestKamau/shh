@@ -240,6 +240,18 @@ function getInventoryWorkflowStageLabel(string $stage): string
 	return $stage;
 }
 
+/**
+ * Translate an inventory language key, falling back to a readable label when
+ * the language line has not been seeded for the current locale.
+ */
+function inventoryLabel(string $key, string $fallback): string
+{
+	$fullKey = str_starts_with($key, 'inventory.') ? $key : 'inventory.'.$key;
+	$translated = __($fullKey);
+
+	return $translated !== $fullKey ? $translated : $fallback;
+}
+
 function getConvoID($id)
 {
 	$convo_id1 = App\Conversation::where('from_user_id', auth()->user()->id)->where('to_user_id', $id)->get();

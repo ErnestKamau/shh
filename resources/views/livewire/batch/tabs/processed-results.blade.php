@@ -1,3 +1,9 @@
+@php
+    $analystColumnLabel = in_array($batch->status ?? '', ['Sample Verification', 'Sample Approval'], true)
+        || in_array($batch->prelim_batch_status ?? '', ['Sample Verification', 'Sample Approval'], true)
+        ? 'Checked Analyst'
+        : 'Analyst';
+@endphp
 <div>
     <div class="workflow-board-panel">
         <div class="workflow-board-panel-header">
@@ -30,7 +36,7 @@
                                 <th>Analysis Type</th>
                                 <th>Analyte</th>
                                 <th>Result</th>
-                                <th>Analyst</th>
+                                <th>{{ $analystColumnLabel }}</th>
                                 <th>Remark</th>
                             </tr>
                         </thead>
@@ -69,7 +75,7 @@
                                 <th>Analysis Type</th>
                                 <th>Analyte</th>
                                 <th>Result</th>
-                                <th>Analyst</th>
+                                <th>{{ $analystColumnLabel }}</th>
                                 <th>Remark</th>
                             </tr>
                         </thead>
@@ -77,9 +83,13 @@
                             <tr>
                                 <td colspan="6" class="text-center py-5 workflow-empty-state">
                                     <i class="mdi mdi-check-circle-outline text-muted" style="font-size: 48px;"></i>
-                                    <h6 class="mt-3 text-muted">No Processed Results Found</h6>
+                                    <h6 class="mt-3 text-muted">
+                                        {{ ($hasOfficialTestReport ?? false) ? 'No Processed Results Found' : 'Processed results appear after the Test Report is generated' }}
+                                    </h6>
                                     <p class="text-muted mb-0"><small>
-                                        @if($search)
+                                        @if(! ($hasOfficialTestReport ?? false))
+                                            Generate the Test Report to view processed results for this batch.
+                                        @elseif($search)
                                             No results match your search criteria
                                         @else
                                             There are no processed results to display

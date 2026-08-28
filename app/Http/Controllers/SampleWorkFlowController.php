@@ -9100,93 +9100,14 @@ class SampleWorkFlowController extends Controller
     }
 
     /**
-     * Update result value via AJAX
+     * Raw Results is view-only. Capture results from the Parameters for sample modal.
      */
-    public function updateResult(Request $request)
+    public function updateResult(Request $request): \Illuminate\Http\JsonResponse
     {
-        try {
-            $resultId = $request->input('result_id');
-            $sampleCode = $request->input('sample_code');
-            $analyte = $request->input('analyte');
-            $result = $request->input('result');
-
-            $capturedResult = null;
-
-            if ($resultId) {
-                $capturedResult = CapturedResult::find($resultId);
-            } else {
-                $sample = SampleDetails::where('sample_code', $sampleCode)->first();
-                if (!$sample) {
-                    return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
-                }
-
-                $analyteRecord = Analyte::where('code', $analyte)->first();
-                if (!$analyteRecord) {
-                    return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
-                }
-
-                $capturedResult = new CapturedResult();
-                $capturedResult->sample_detail_id = $sample->id;
-                $capturedResult->sample_header_id = $sample->sample_header_id;
-                $capturedResult->analyte_id = $analyteRecord->id;
-                $capturedResult->analysis_type_id = 1; // Default - adjust as needed
-                $capturedResult->analyte_code = $analyte;
-            }
-
-            if (! $capturedResult) {
-                return response()->json(['success' => false, 'message' => 'Result not found'], 404);
-            }
-
-            $labSectionAccess = app(LabSectionResultAccess::class);
-            $actingUser = auth()->user();
-            if ($capturedResult->exists && ! $labSectionAccess->canEditCapturedResult($actingUser, $capturedResult)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $labSectionAccess->hasLabSectionAssignment($actingUser)
-                        ? 'You can only update parameters for your assigned lab section(s).'
-                        : 'Assign a lab section in your profile before capturing results.',
-                ], 403);
-            }
-            if (! $capturedResult->exists && ! $labSectionAccess->hasLabSectionAssignment($actingUser)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Assign a lab section in your profile before capturing results.',
-                ], 403);
-            }
-
-            $validationResult = null;
-            $attributes = ['result' => $result];
-
-            if ($result !== null && trim((string) $result) !== '' && $capturedResult->main_value) {
-                $validationResult = app(ResultRemarkService::class)->calculateRemark(
-                    $capturedResult,
-                    (string) $result,
-                    null,
-                    (string) $capturedResult->main_value,
-                    $capturedResult->result_reporting_symbol,
-                );
-
-                if (in_array($validationResult, ['PASS', 'FAIL'], true)) {
-                    $attributes['remark'] = $validationResult;
-                }
-            }
-
-            $actingUserId = auth()->id() ? (string) auth()->id() : null;
-            app(CapturedResultCaptureService::class)->applyOnSave($capturedResult, $attributes, $actingUserId);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Result updated successfully',
-                'result_id' => $capturedResult->id,
-                'validation_result' => $validationResult,
-                'standard_limit' => $capturedResult->main_value ?: null,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error updating result: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => false,
+            'message' => 'Results must be entered from the Parameters for sample modal.',
+        ], 403);
     }
 
     /**

@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Batch\Tabs;
 
+use App\Models\TestRequestReportRevision;
 use App\SampleHeader;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -28,6 +30,10 @@ class ProcessedResults extends Component
 
     public function getProcessedResultsProperty()
     {
+        if (! $this->batchHasOfficialTestReport()) {
+            return new LengthAwarePaginator([], 0, $this->perPage, 1);
+        }
+
         return \App\Result::with(['captured', 'captured.sample', 'captured.analysis_type', 'captured.operator'])
             ->where('sample_header_id', $this->batch->id)
             ->when($this->search, function($query) {
@@ -49,7 +55,23 @@ class ProcessedResults extends Component
     public function render(): \Illuminate\View\View
     {
         return view('livewire.batch.tabs.processed-results', [
-            'processedResults' => $this->processedResults
+            'processedResults' => $this->processedResults,
+            'hasOfficialTestReport' => $this->batchHasOfficialTestReport(),
         ]);
+    }
+
+    private function batchHasOfficialTestReport(): bool
+    {
+        $sequence = (int) SampleHeader::query()
+            ->whereKey($this->batch->id)
+            ->value('test_request_report_sequence');
+
+        if ($sequence > 0) {
+            return true;
+        }
+
+        return TestRequestReportRevision::query()
+            ->where('batch_id', $this->batch->id)
+            ->exists();
     }
 }

@@ -229,7 +229,11 @@
     <form wire:submit="saveSamples" class="workflow-board-panel batch-samples-panel">
         <div class="workflow-board-panel-header">
             <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
-                <h5><i class="mdi mdi-flask-outline"></i> Samples configuration</h5>
+                <h5><i class="mdi mdi-flask-outline"></i>
+                    {{ (($batch->status ?? '') === 'Sample Verification' || ($batch->prelim_batch_status ?? '') === 'Sample Verification')
+                        ? 'Verifications configuration'
+                        : 'Samples configuration' }}
+                </h5>
                 <button type="submit" class="btn btn-danger btn-sm btn-action-sm text-white"
                     wire:loading.attr="disabled" wire:target="saveSamples" style="height: auto; min-height: 32px;">
                     <span wire:loading.remove wire:target="saveSamples"><i class="mdi mdi-content-save"></i> Save</span>
@@ -1180,6 +1184,9 @@
                                             <option value="PASS">Conforming</option>
                                             <option value="FAIL">Non-Conforming</option>
                                         </select>
+                                        @if(! empty($parametersForm[$id]['specification_comment'] ?? $param['specification_comment'] ?? ''))
+                                            <small class="d-block text-muted mt-1">{{ $parametersForm[$id]['specification_comment'] ?? $param['specification_comment'] }}</small>
+                                        @endif
                                     </td>
                                     <td style="min-width: 120px;">
                                         @php
@@ -2386,6 +2393,19 @@
                         </div>
                         @endif
                         @endif
+
+                        <div class="form-group mb-3 mt-3">
+                            <label class="text-muted" for="spec_pass_comment">Pass comment</label>
+                            <textarea id="spec_pass_comment" class="form-control grey-input" rows="2"
+                                wire:model.defer="editingStandardData.pass_comment"
+                                placeholder="Applied when this result is conforming"></textarea>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="text-muted" for="spec_fail_comment">Fail comment</label>
+                            <textarea id="spec_fail_comment" class="form-control grey-input" rows="2"
+                                wire:model.defer="editingStandardData.fail_comment"
+                                placeholder="Applied when this result is non-conforming"></textarea>
+                        </div>
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-secondary"

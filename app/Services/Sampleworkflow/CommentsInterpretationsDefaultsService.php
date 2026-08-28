@@ -18,6 +18,10 @@ class CommentsInterpretationsDefaultsService
 
     private const NON_ACCREDITED_NOTE = "'*' denotes that the test is not accredited.";
 
+    public function __construct(
+        private readonly StandardPassFailCommentService $passFailComments,
+    ) {}
+
     /**
      * @return array{header_body: string, notes_body: string}
      */
@@ -54,6 +58,7 @@ class CommentsInterpretationsDefaultsService
             $outcomes[] = [
                 'name' => $standard['name'],
                 'passed' => $this->standardPassed($results, $index),
+                'comment' => $this->standardOutcomeComment($results, (string) $standard['id'], $index),
             ];
         }
 
@@ -114,19 +119,57 @@ class CommentsInterpretationsDefaultsService
     }
 
     /**
-     * @param  list<array{name: string, passed: bool}>  $outcomes
+     * @param  Collection<int, CapturedResult>  $results
+     */
+    private function standardOutcomeComment(Collection $results, string $standardId, int $index): string
+    {
+        $remarkColumn = match ($index) {
+            0 => 'remark',
+            1 => 'sec_remark',
+            default => 'third_remark',
+        };
+
+        $comments = [];
+        foreach ($results as $result) {
+            $remark = (string) ($result->{$remarkColumn} ?? '');
+            $comment = $this->passFailComments->commentFor(
+                $standardId,
+                (string) ($result->analyte_id ?? ''),
+                $remark,
+            );
+            if ($comment !== '') {
+                $comments[$comment] = $comment;
+            }
+        }
+
+        return implode(' ', array_values($comments));
+    }
+
+    /**
+     * @param  list<array{name: string, passed: bool, comment?: string}>  $outcomes
      */
     private function formatConformityRemark(array $outcomes): string
     {
+        $customParts = [];
+        $hasCustom = false;
+        foreach ($outcomes as $outcome) {
+            $comment = trim((string) ($outcome['comment'] ?? ''));
+            if ($comment !== '') {
+                $hasCustom = true;
+                $customParts[] = $comment;
+            } else {
+                $customParts[] = $this->defaultSentenceForOutcome($outcome);
+            }
+        }
+
+        if ($hasCustom) {
+            return implode(' ', $customParts);
+        }
+
         $count = count($outcomes);
 
         if ($count === 1) {
-            $name = $outcomes[0]['name'];
-            if ($outcomes[0]['passed']) {
-                return 'The above test result is conforming to "'.$name.'"';
-            }
-
-            return 'The above test result is non-conforming to "'.$name.'"';
+            return $this->defaultSentenceForOutcome($outcomes[0]);
         }
 
         if ($count === 2) {
@@ -154,6 +197,19 @@ class CommentsInterpretationsDefaultsService
         }
 
         return 'The above test result is '.implode(' & ', $parts);
+    }
+
+    /**
+     * @param  array{name: string, passed: bool}  $outcome
+     */
+    private function defaultSentenceForOutcome(array $outcome): string
+    {
+        $name = $outcome['name'];
+        if ($outcome['passed']) {
+            return 'The above test result is conforming to "'.$name.'"';
+        }
+
+        return 'The above test result is non-conforming to "'.$name.'"';
     }
 
     /**

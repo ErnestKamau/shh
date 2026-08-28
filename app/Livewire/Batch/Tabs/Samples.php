@@ -30,6 +30,7 @@ use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Services\Sampleworkflow\TrfSampleFieldMapper;
 use App\Services\Sampleworkflow\BatchResultsExcelImportService;
 use App\Services\Sampleworkflow\CapturedResultCaptureService;
+use App\Services\Sampleworkflow\StandardPassFailCommentService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\Models\SubmissionFormInstance;
 use App\Services\ResultRemarkService;
@@ -2807,6 +2808,11 @@ class Samples extends Component
                     'sec_standard_value' => $secStandardInfo['display'] ?? null,
                     'sec_standard_id' => $effectiveSecStandardId,
                     'remark' => $result->remark ?: '',
+                    'specification_comment' => app(StandardPassFailCommentService::class)->commentFor(
+                        (string) $effectiveMainStandardId,
+                        (string) $result->analyte_id,
+                        (string) ($result->remark ?: ''),
+                    ),
                     'remark_is_manual' => $result->remark_is_manual,
                     'reporting_unit' => $defaultUnitId ?? '',
                     'operator_name' => $operatorNames !== [] ? implode(', ', $operatorNames) : '-',
@@ -3264,6 +3270,8 @@ class Samples extends Component
         $data = $this->parametersForm[$id];
 
         if (! empty($data['remark_is_manual']) && (int) $data['remark_is_manual'] === 1) {
+            $this->applySpecificationComment((string) $id);
+
             return;
         }
 
@@ -3317,6 +3325,22 @@ class Samples extends Component
             '-' => '',
             default => '',
         };
+
+        $this->applySpecificationComment((string) $id);
+    }
+
+    private function applySpecificationComment(string $id): void
+    {
+        if (! isset($this->parametersForm[$id])) {
+            return;
+        }
+
+        $row = $this->parametersForm[$id];
+        $this->parametersForm[$id]['specification_comment'] = app(StandardPassFailCommentService::class)->commentFor(
+            (string) ($row['standard_id'] ?? ''),
+            (string) ($row['analyte_id'] ?? ''),
+            (string) ($row['remark'] ?? ''),
+        );
     }
 
     /**
@@ -3375,6 +3399,8 @@ class Samples extends Component
             'standard_valuetype' => $stdAnalyte->standard_value_id,
             'limit_measure' => $stdAnalyte->value_type,
             'value' => $stdAnalyte->standard_is_value,
+            'pass_comment' => $stdAnalyte->pass_comment ?? '',
+            'fail_comment' => $stdAnalyte->fail_comment ?? '',
         ];
 
         $this->showEditStandardModal = true;
@@ -3438,6 +3464,8 @@ class Samples extends Component
         $stdAnalyte->value_type = $data['limit_measure'];
         $stdAnalyte->standard_is_value = $data['value'];
         $stdAnalyte->standard_value_type = $data['standard_value_type'] == 1 ? 'is_range' : 'is_standard_value';
+        $stdAnalyte->pass_comment = trim((string) ($data['pass_comment'] ?? '')) ?: null;
+        $stdAnalyte->fail_comment = trim((string) ($data['fail_comment'] ?? '')) ?: null;
         $stdAnalyte->is_active = 1;
         $stdAnalyte->save();
 

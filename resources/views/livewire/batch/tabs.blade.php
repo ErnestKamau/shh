@@ -19,11 +19,16 @@
             @endif
         @endif
 
+    @php
+        $isVerificationStage = ($batch->status ?? '') === 'Sample Verification'
+            || ($batch->prelim_batch_status ?? '') === 'Sample Verification';
+    @endphp
+
     {{-- Tab Navigation --}}
     <ul class="nav batch-nav-tabs mb-0" id="batch-tabs" role="tablist">
         <li class="nav-item">
             <a class="nav-link active" id="samples-tab" data-toggle="tab" href="#samples" role="tab" aria-controls="samples" aria-selected="true">
-                <i class="mdi mdi-flask-outline"></i> Samples
+                <i class="mdi mdi-flask-outline"></i> {{ $isVerificationStage ? 'Verifications' : 'Samples' }}
             </a>
         </li>
         <li class="nav-item">
@@ -63,7 +68,7 @@
         @if(in_array($batch->status, ['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status ?? '', ['Sample Verification','Sample Approval']))
         <li class="nav-item">
             <a class="nav-link" id="approvals-tab" data-toggle="tab" href="#approvals" role="tab" aria-controls="approvals" aria-selected="false">
-                <i class="mdi mdi-account-check-outline"></i> Approvals
+                <i class="mdi mdi-account-check-outline"></i> {{ $isVerificationStage ? 'Verification' : 'Approvals' }}
             </a>
         </li>
         @endif

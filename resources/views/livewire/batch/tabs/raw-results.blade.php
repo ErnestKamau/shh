@@ -58,87 +58,33 @@
                                 @endphp
                                 <td class="parameter-cell" data-analyte="{{ $analyte }}" data-sample="{{ $sampleCode }}">
                                     @if($result)
-                                        <!-- Result Input Field -->
+                                        @php
+                                            $hasResult = $result->result !== null && $result->result !== '';
+                                            $remarkBorder = $result->remark == 'FAIL' ? 'border-danger' : ($result->remark == 'PASS' ? 'border-success' : 'border-secondary');
+                                            $remarkText = $result->remark == 'FAIL' ? 'text-danger' : ($result->remark == 'PASS' ? 'text-success' : '');
+                                        @endphp
                                         <div class="result-input-container mb-2">
-                                            <div class="input-group input-group-sm">
-                                                <input type="text" 
-                                                       class="form-control result-input {{ $result->remark == 'FAIL' ? 'border-danger' : ($result->remark == 'PASS' ? 'border-success' : 'border-secondary') }}" 
-                                                       value="{{ $result->result }}" 
-                                                       data-result-id="{{ $result->id }}"
-                                                       data-sample-code="{{ $sampleCode }}"
-                                                       data-analyte="{{ $analyte }}"
-                                                       placeholder="Enter result...">
-                                                <div class="input-group-append">
-                                                    <button class="btn btn-outline-secondary btn-sm parameter-settings-btn" 
-                                                            type="button" 
-                                                            data-result-id="{{ $result->id }}"
-                                                            data-sample-code="{{ $sampleCode }}"
-                                                            data-analyte="{{ $analyte }}"
-                                                            data-toggle="modal" 
-                                                            data-target="#parameter-settings-modal">
-                                                        <i class="mdi mdi-dots-vertical"></i>
-                                                    </button>
-                                                </div>
+                                            <div class="form-control form-control-sm bg-light {{ $remarkBorder }} {{ $remarkText }}"
+                                                 style="min-height: 31px;">
+                                                {{ $hasResult ? $result->result : '—' }}
                                             </div>
                                         </div>
-                                        
-                                        <!-- Standard Limit Display -->
                                         <div class="standard-limit-container">
-                                            <div class="d-flex align-items-center">
-                                                <span class="standard-limit-text text-muted small">
-                                                    @if($result->standard_limit_display ?? $result->main_value)
-                                                        {{ $result->standard_limit_display ?? $result->main_value }}
-                                                    @else
-                                                        No limit set
-                                                    @endif
-                                                </span>
-                                                <button class="btn btn-link btn-sm p-0 ml-1 edit-standard-btn" 
-                                                        type="button"
-                                                        data-result-id="{{ $result->id }}"
-                                                        data-sample-code="{{ $sampleCode }}"
-                                                        data-analyte="{{ $analyte }}"
-                                                        data-toggle="modal" 
-                                                        data-target="#edit-standard-modal">
-                                                    <i class="mdi mdi-pencil text-muted" style="font-size: 12px;"></i>
-                                                </button>
-                                            </div>
+                                            <span class="standard-limit-text text-muted small">
+                                                @if($result->standard_limit_display ?? $result->main_value)
+                                                    {{ $result->standard_limit_display ?? $result->main_value }}
+                                                @else
+                                                    No limit set
+                                                @endif
+                                            </span>
                                         </div>
                                     @else
-                                        <!-- Empty Cell for Missing Parameter -->
                                         <div class="result-input-container mb-2">
-                                            <div class="input-group input-group-sm">
-                                                <input type="text" 
-                                                       class="form-control result-input border-secondary" 
-                                                       value="" 
-                                                       data-sample-code="{{ $sampleCode }}"
-                                                       data-analyte="{{ $analyte }}"
-                                                       placeholder="Enter result...">
-                                                <div class="input-group-append">
-                                                    <button class="btn btn-outline-secondary btn-sm parameter-settings-btn" 
-                                                            type="button" 
-                                                            data-sample-code="{{ $sampleCode }}"
-                                                            data-analyte="{{ $analyte }}"
-                                                            data-toggle="modal" 
-                                                            data-target="#parameter-settings-modal">
-                                                        <i class="mdi mdi-dots-vertical"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            <div class="form-control form-control-sm bg-light border-secondary text-muted"
+                                                 style="min-height: 31px;">—</div>
                                         </div>
-                                        
-                                        <!-- Empty Standard Limit -->
                                         <div class="standard-limit-container">
-                                            <div class="d-flex align-items-center">
-                                                <span class="standard-limit-text text-muted small">No limit set</span>
-                                                <button class="btn btn-link btn-sm p-0 ml-1 edit-standard-btn" 
-                                                        type="button"
-                                                        data-sample-code="{{ $sampleCode }}"
-                                                        data-analyte="{{ $analyte }}"
-                                                        data-toggle="modal" 
-                                                        data-target="#edit-standard-modal">
-                                                    <i class="mdi mdi-pencil text-muted" style="font-size: 12px;"></i>
-                                                </button>
-                                            </div>
+                                            <span class="standard-limit-text text-muted small">No limit set</span>
                                         </div>
                                     @endif
                                 </td>

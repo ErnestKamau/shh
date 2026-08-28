@@ -511,7 +511,7 @@ class TestRequestReportDataService
             if ($sampleDetail !== null && (bool) ($sampleDetail->include_photo_in_report ?? false)) {
                 $photoPath = trim((string) ($sampleDetail->photo_url ?? ''));
                 if ($photoPath !== '') {
-                    $samplePhotoDataUri = $this->pathToDataUri($photoPath);
+                    $samplePhotoDataUri = $this->samplePhotoToDataUri($photoPath);
                 }
             }
 
@@ -1416,6 +1416,81 @@ class TestRequestReportDataService
         };
 
         return 'data:'.$mime.';base64,'.base64_encode($contents);
+    }
+
+    /**
+     * Letterbox a sample photo onto a fixed 1800x1200 (3:2) white canvas so every
+     * Test Report photo occupies the same 150mm x 100mm frame.
+     */
+    private function samplePhotoToDataUri(string $path): string
+    {
+        $fallback = $this->pathToDataUri($path);
+        if ($fallback === '' || ! function_exists('imagecreatetruecolor') || ! function_exists('imagecreatefromstring')) {
+            return $fallback;
+        }
+
+        $absolute = $this->resolveReadableLogoPath($path);
+        if ($absolute === null) {
+            return $fallback;
+        }
+
+        $contents = @file_get_contents($absolute);
+        if ($contents === false || $contents === '') {
+            return $fallback;
+        }
+
+        $source = @imagecreatefromstring($contents);
+        if ($source === false) {
+            return $fallback;
+        }
+
+        if (function_exists('imagepalettetotruecolor')) {
+            imagepalettetotruecolor($source);
+        }
+
+        $canvasWidth = 1800;
+        $canvasHeight = 1200;
+        $srcWidth = imagesx($source);
+        $srcHeight = imagesy($source);
+        if ($srcWidth < 1 || $srcHeight < 1) {
+            imagedestroy($source);
+
+            return $fallback;
+        }
+
+        $scale = min($canvasWidth / $srcWidth, $canvasHeight / $srcHeight);
+        $destWidth = max(1, (int) round($srcWidth * $scale));
+        $destHeight = max(1, (int) round($srcHeight * $scale));
+        $offsetX = (int) round(($canvasWidth - $destWidth) / 2);
+        $offsetY = (int) round(($canvasHeight - $destHeight) / 2);
+
+        $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
+        $white = imagecolorallocate($canvas, 255, 255, 255);
+        imagefill($canvas, 0, 0, $white);
+        imagecopyresampled(
+            $canvas,
+            $source,
+            $offsetX,
+            $offsetY,
+            0,
+            0,
+            $destWidth,
+            $destHeight,
+            $srcWidth,
+            $srcHeight
+        );
+
+        ob_start();
+        imagejpeg($canvas, null, 85);
+        $jpeg = ob_get_clean();
+        imagedestroy($source);
+        imagedestroy($canvas);
+
+        if ($jpeg === false || $jpeg === '') {
+            return $fallback;
+        }
+
+        return 'data:image/jpeg;base64,'.base64_encode($jpeg);
     }
 
     private function resolveReadableLogoPath(string $path): ?string

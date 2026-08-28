@@ -2,16 +2,16 @@
 
 @section('module-name')
 <li class="nav-item">
-  <a class="nav-link module-name" href="{{ route('inventory-home') }}"><i class="mdi mdi-package-variant"></i> {{ __('inventory.module_name') }}</a>
+  <a class="nav-link module-name" href="{{ route('inventory-home') }}"><i class="mdi mdi-package-variant"></i> {{ inventoryLabel('module_name', 'Inventory Management') }}</a>
 </li>
 <li class="nav-item pt-1">
 	<div class="btn-group mt-2">
 		<button class="btn btn-transparent btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 			<i class="mdi mdi-map-marker"></i>
 			@if (getCurrentUserLocation())
-				{{ __('inventory.location') }} <small class="text-muted"> > </small> {{ getCurrentUserLocation()->name }}
+				{{ inventoryLabel('location', 'Location') }} <small class="text-muted"> > </small> {{ getCurrentUserLocation()->name }}
 			@else
-				{{ __('inventory.select_location') }}
+				{{ inventoryLabel('select_location', 'Select Location') }}
 			@endif
 		</button>
 		<div class="dropdown-menu" id="location-selector">
@@ -66,12 +66,15 @@
 				$alertsArray['Restock'] = $restockAlerts;
 			}
 		?>
-		{{ __('inventory.alerts') }} {!! $alerts > 0 ? '<small class="badge badge-danger badge">'.number_format($alerts).' '.($alerts == 10 ? '+' : '').'</small>' : '' !!}
+		{{ inventoryLabel('alerts', 'Alerts') }} {!! $alerts > 0 ? '<small class="badge badge-danger badge">'.number_format($alerts).' '.($alerts == 10 ? '+' : '').'</small>' : '' !!}
 	</a>
-	<div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton" style="width: 350px; overflow-x: hidden; text=overflow: ellipsis ">
+	<div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton" style="width: 350px; overflow-x: hidden; text-overflow: ellipsis ">
+		@if(count($alertsArray) === 0)
+			<span class="dropdown-item text-muted"><i class="mdi mdi-information-outline"></i> {{ inventoryLabel('no_alerts', 'No Alerts') }}</span>
+		@endif
 		@foreach ($alertsArray as $alert=>$data)
 			@if($data['count'] > 0)
-				<span class="dropdown-header" style="text-overflow: ellipsis; whitespace: nowrap">{{ __('inventory.restock_alerts') }} {{ __('inventory.alerts') }}</span>
+				<span class="dropdown-header" style="text-overflow: ellipsis; whitespace: nowrap">{{ inventoryLabel('restock_alerts', 'Restock') }} {{ inventoryLabel('alerts', 'Alerts') }}</span>
 				@foreach ($data['items'] as $item)
 					<a class="dropdown-item" href="{{ $item['alert_url'] }}" style="overflow: hidden; text-overflow:ellipsis">
 						<small>{{ $item['url_name'] }}</small>
@@ -81,13 +84,9 @@
 					<div class="dropdown-divider"></div>
 				@endif
 			@endif
-
-			@if (gettype($alertsArray) == "array" && count($alertsArray) == 0)
-				<span class="text-muted"><i class="mdi mdi-information-circle"></i> {{ __('inventory.no_alerts') }}</span>
-			@endif
 		@endforeach
 		<div class="m-2 mt-4">
-			<a href="{{ route('send-restock-notifications') }}" class="btn btn-success btn-sm btn-block">{{ __('inventory.send_reorder_notifications') }}</a>
+			<a href="{{ route('send-restock-notifications') }}" class="btn btn-success btn-sm btn-block">{{ inventoryLabel('send_reorder_notifications', 'Send Re-order Notifications') }}</a>
 		</div>
 	</div>
 </li>
@@ -196,7 +195,17 @@
 		'view-currency-conversions',
 		'view-uom-conversions'
 	);
+	$pendingApprovalItems = collect();
+	if (getCurrentUserLocation()) {
+		try {
+			$pendingApprovalItems = pendingApprovals();
+		} catch (\Throwable $exception) {
+			$pendingApprovalItems = collect();
+		}
+	}
+	$pendingApprovalCount = $pendingApprovalItems->count();
 @endphp
+@include('layouts.lab.partials.lab-chrome-slice1-styles')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
 	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
@@ -205,34 +214,30 @@
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-package-variant fa-3x"></i><br>
-				<span class="text-lg text-bold">{{ __('inventory.module_name') }}</span>
+				<span class="text-lg text-bold">{{ inventoryLabel('module_name', 'Inventory Management') }}</span>
 			</div>
-			<!-- Separator with title -->
-			{{-- <li class="list-group-item bg-black sidebar-separator-title text-muted d-flex align-items-center menu-collapsed">
-				<small>MAIN MENU</small>
-			</li> --}}
-			<!-- /END Separator -->
-			<!-- Menu with submenu -->
 
-
+			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_operations', 'Operations') }}</span></div>
 			<a href="{{ route('inventory-home') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-home') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-desktop-mac-dashboard fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.dashboard') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('dashboard', 'Dashboard') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('my-approvals') }}" class="list-group-item list-group-item-action {{ request()->routeIs('my-approvals') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-draw fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.approval_requests') }}
-						<small class="float-right badge badge-danger mt-1 ml-3">{{ count(pendingApprovals()) }}</small>
+					<span class="menu-collapsed">{{ inventoryLabel('approval_requests', 'Approval Requests') }}
+						@if($pendingApprovalCount > 0)
+							<small class="float-right badge badge-danger mt-1 ml-3">{{ number_format($pendingApprovalCount) }}</small>
+						@endif
 					</span>
 				</div>
 			</a>
 			<a href="#request-to-order" data-toggle="collapse" aria-expanded="{{ $isInPurchaseWorkflow ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInPurchaseWorkflow ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-tree mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.request_to_order') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('request_to_order', 'Request to Order') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
@@ -243,7 +248,9 @@
 				@foreach (getRequisitionWorkflow() as $item)
 					<a href="{{ route('go_to_stage', ['stage'=>$item]) }}" class="list-group-item list-group-item-action {{ $inventoryStageValue === $item ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ getInventoryWorkflowStageLabel($item) }}
-						<small class="float-right badge badge-pill">{{ $menuTotals[$item] ?? 0 }}</small>
+						@if(($menuTotals[$item] ?? 0) > 0)
+							<small class="float-right badge badge-pill">{{ $menuTotals[$item] }}</small>
+						@endif
 					</span>
 					</a>
 				@endforeach
@@ -251,7 +258,7 @@
 			<a href="#request-to-store" data-toggle="collapse" aria-expanded="{{ $isInStoreWorkflow ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInStoreWorkflow ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-tree mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.request_to_store') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('request_to_store', 'Request to Store') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
@@ -259,7 +266,9 @@
 				@foreach (getRequestToStoreWorkflow() as $item)
 					<a href="{{ route('go_to_stage', ['stage'=>$item]) }}" class="list-group-item list-group-item-action {{ $inventoryStageValue === $item ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ getInventoryWorkflowStageLabel($item) }}
-						<small class="float-right badge badge-pill">{{ $menuTotals[$item] ?? 0 }}</small>
+						@if(($menuTotals[$item] ?? 0) > 0)
+							<small class="float-right badge badge-pill">{{ $menuTotals[$item] }}</small>
+						@endif
 					</span>
 					</a>
 				@endforeach
@@ -268,110 +277,114 @@
 				<a href="#loan-lend" data-toggle="collapse" aria-expanded="{{ $isInLoanLendWorkflow ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInLoanLendWorkflow ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-file-tree mr-3"></span>
-						<span class="menu-collapsed">{{ __('inventory.loan_lend') }}</span>
+						<span class="menu-collapsed">{{ inventoryLabel('loan_lend', 'Loan/Lend') }}</span>
 						<span class="submenu-icon ml-auto"></span>
 					</div>
 				</a>
 				<div id="loan-lend" class="collapse sidebar-submenu {{ $isInLoanLendWorkflow ? 'show' : '' }}">
 					<a href="{{ route('go_to_stage', ['stage'=>'Lend']) }}" class="list-group-item list-group-item-action {{ $inventoryStageValue === 'Lend' ? 'active' : '' }}">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ getInventoryWorkflowStageLabel('Lend') }}
-							<small class="float-right badge badge-pill">{{ $menuTotals['Lend'] ?? 0 }}</small>
+							@if(($menuTotals['Lend'] ?? 0) > 0)
+								<small class="float-right badge badge-pill">{{ $menuTotals['Lend'] }}</small>
+							@endif
 						</span>
 					</a>
 					<a href="{{ route('go_to_stage', ['stage'=>'Loan']) }}" class="list-group-item list-group-item-action {{ $inventoryStageValue === 'Loan' ? 'active' : '' }}">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ getInventoryWorkflowStageLabel('Loan') }}
-							<small class="float-right badge badge-pill">{{ $menuTotals['Loan'] ?? 0 }}</small>
+							@if(($menuTotals['Loan'] ?? 0) > 0)
+								<small class="float-right badge badge-pill">{{ $menuTotals['Loan'] }}</small>
+							@endif
 						</span>
 					</a>
 				</div>
 			@endif
-			{{-- <a href="{{route('user-detail-supplier')}}" class="list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-chat-processing fa-fw mr-3"></span>
-					<span class="menu-collapsed">Chat</span>
-				</div>
-			</a> --}}
+
+			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_catalog', 'Catalog') }}</span></div>
 			<a href="{{ route('inventory-categories') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-categories', 'show-inventory-category', 'show-inventory-items') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-format-list-bulleted-type fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.categories') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('categories', 'Categories') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('inventory-activity') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-activity', 'get-stock-movement') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-chart-areaspline fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.inventory_movement') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('inventory_movement', 'Inventory Movement') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('show-inventory-departments') }}" class="list-group-item list-group-item-action {{ request()->routeIs('show-inventory-departments', 'show-inventory-department') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-home-group fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.departments') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('departments', 'Departments') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('inventory-locations') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-locations', 'show-inventory-locations') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-map-marker fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.organizational_structure') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('organizational_structure', 'Organizational Structure') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('inventory-suppliers') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-suppliers', 'show-supplier') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-group fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.suppliers') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('suppliers', 'Suppliers') }}</span>
 				</div>
 			</a>
+
+			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_warehouse', 'Warehouse') }}</span></div>
 			<a href="{{ route('inventory-stores') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-stores', 'inventory-store-slots', 'inventory-slot-contents') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-package-variant-closed fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.store') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('store', 'Store') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('stock-taking-list') }}" class="list-group-item list-group-item-action {{ request()->routeIs('stock-taking-list', 'stock-taking-sheet') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-replace fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.stock_taking') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('stock_taking', 'Stock Taking') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('stock-transfer-list') }}" class="list-group-item list-group-item-action {{ request()->routeIs('stock-transfer-list', 'stock-transfer-sheet') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-bank-transfer-out fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.stock_transfer') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('stock_transfer', 'Stock Transfer') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('inventory-reports') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-reports', 'consumption-reports', 'fields', 'store_report', 'fetch_report', 'delete_report', 'report_print', 'report_csv', 'update_report') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-chart fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.reports') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('reports', 'Reports') }}</span>
 				</div>
 			</a>
+
+			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_setup', 'Setup') }}</span></div>
 			<a href="{{ route('inventory-reporting-units', ['module'=>'inventory']) }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-reporting-units') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.unit_of_measure') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('unit_of_measure', 'Unit of Measure') }}</span>
 				</div>
 			</a>
 			<a href="#inventory-config-menu" data-toggle="collapse" aria-expanded="{{ $isInventoryConfigActive ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInventoryConfigActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
-					<span class="menu-collapsed">{{ __('inventory.configurations') }}</span>
+					<span class="menu-collapsed">{{ inventoryLabel('configurations', 'Configurations') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
 			<div id="inventory-config-menu" class="collapse sidebar-submenu {{ $isInventoryConfigActive ? 'show' : '' }}">
 				<?php
-					$menuTotals = array("Material Type", "Currency");
+					$configMenuItems = array("Material Type", "Currency");
 				?>
-				@foreach ($menuTotals as $item)
+				@foreach ($configMenuItems as $item)
 					<a href="{{ route('module-pre-configs', ['config'=>$item, 'module'=>'Inventory-Management']) }}" class="list-group-item list-group-item-action">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item === 'Material Type' ? __('inventory.material_type') : __('inventory.currency') }}</span>
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item === 'Material Type' ? inventoryLabel('material_type', 'Material Type') : inventoryLabel('currency', 'Currency') }}</span>
 					</a>
 				@endforeach
 				<a href="{{ route('view-currency-conversions') }}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ __('inventory.currency_conversion') }}</span>
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ inventoryLabel('currency_conversion', 'Currency Conversion') }}</span>
 				</a>
 				<a href="{{ route('view-uom-conversions') }}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ __('inventory.uom_conversion') }}</span>
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ inventoryLabel('uom_conversion', 'UoM Conversion') }}</span>
 				</a>
 			</div>
 

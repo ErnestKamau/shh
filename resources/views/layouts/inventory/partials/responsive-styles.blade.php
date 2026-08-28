@@ -28,7 +28,8 @@
 		}
 
 		.inventory-page .workflow-board-panel-header,
-		.inventory-page .inventory-page-header {
+		.inventory-page .inventory-page-header,
+		.inventory-page .inventory-dash-hero {
 			flex-direction: column;
 			align-items: stretch !important;
 		}
@@ -50,6 +51,23 @@
 		.inventory-page h3.p-4 {
 			padding-left: 0 !important;
 			padding-right: 0 !important;
+		}
+
+		.inventory-dash-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.inventory-pipeline {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.inventory-pipeline-step {
+			border-right: 1px solid var(--workflow-border, #e2e8f0);
+			border-bottom: 1px solid var(--workflow-border, #e2e8f0);
+		}
+
+		.inventory-quick-actions a {
+			min-height: 44px;
 		}
 	}
 </style>

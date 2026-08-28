@@ -483,6 +483,16 @@
                             </div>
 
                             <div class="form-group mb-3">
+                                <label class="form-label" for="standard_manager_pass_comment">Pass comment</label>
+                                <textarea id="standard_manager_pass_comment" wire:model="standardAnalyteForm.pass_comment" class="form-control" rows="3" placeholder="Applied when the result is conforming to this specification"></textarea>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label" for="standard_manager_fail_comment">Fail comment</label>
+                                <textarea id="standard_manager_fail_comment" wire:model="standardAnalyteForm.fail_comment" class="form-control" rows="3" placeholder="Applied when the result is non-conforming to this specification"></textarea>
+                            </div>
+
+                            <div class="form-group mb-3">
                                 <label class="form-label">Comments</label>
                                 <textarea wire:model="standardAnalyteForm.comments" class="form-control" rows="3"></textarea>
                             </div>

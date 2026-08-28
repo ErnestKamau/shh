@@ -17,7 +17,7 @@ use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File as PILE;
 use Illuminate\Support\Facades\Storage;
-use App\Services\AI\AiInferenceService;
+use App\Services\Dashboards\InventoryDashboardService;
 use App\Support\CaseInsensitiveSearch;
 
 class HomeController extends Controller
@@ -155,34 +155,68 @@ class HomeController extends Controller
 		}
 
 		$departments = InventoryDepartment::all()->count();
+		$dashboard = [
+			'activity' => collect(),
+			'categoriesNo' => 0,
+			'departments' => $departments,
+			'suppliers' => 0,
+			'locationName' => $location?->name,
+			'pendingApprovalsCount' => 0,
+			'pendingApprovalsPreview' => collect(),
+			'restockCount' => 0,
+			'restockItems' => [],
+			'hasActivity' => false,
+			'stockInTotal' => 0,
+			'stockOutTotal' => 0,
+			'ops' => app(InventoryDashboardService::class)->emptyOperationsBoard(),
+		];
 
 		if (! $location?->id) {
-			return view('layouts.inventory.index', [
-				'activity' => collect(),
-				'categoriesNo' => 0,
-				'departments' => $departments,
-				'suppliers' => 0,
-			]);
+			return view('layouts.inventory.index', $dashboard);
 		}
 
 		$locationId = $location->id;
 
-		$categoriesNo = InventoryCategories::where('inventory_location_id', $locationId)
-			->get()->count();
-
-		$suppliers = Supplier::where('inventory_location_id', $locationId)->get()->count();
-
+		$dashboard['categoriesNo'] = InventoryCategories::where('inventory_location_id', $locationId)->count();
+		$dashboard['suppliers'] = Supplier::where('inventory_location_id', $locationId)->count();
 		$activity = InventoryItem::join('inventory_categories as ic', 'ic.id', '=', 'inventory_items.inventory_category_id')
 			->join('inventory_sub_categories as isc', 'isc.inventory_category_id', '=', 'ic.id')
 			->selectRaw('isc.name as category, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out')
 			->where('ic.inventory_location_id', $locationId)
 			->where("ic.category_type", "!=", "is_lab_samples")
 			->where('inventory_items.created_at', '>', (new \Carbon\Carbon)->submonths(1))
-			->groupBy('isc.name')->get();
+			->groupBy('isc.name')
+			->get();
+		$dashboard['stockInTotal'] = round((float) $activity->sum('stock_in'), 2);
+		$dashboard['stockOutTotal'] = round((float) $activity->sum('stock_out'), 2);
+		$dashboard['activity'] = $activity
+			->sortByDesc(fn ($row) => (float) $row->stock_in + (float) $row->stock_out)
+			->take(8)
+			->values();
+		$dashboard['hasActivity'] = $dashboard['activity']->contains(function ($row) {
+			return (float) ($row->stock_in ?? 0) > 0 || (float) ($row->stock_out ?? 0) > 0;
+		});
+		$dashboard['ops'] = app(InventoryDashboardService::class)->getLocationOperationsBoard((string) $locationId);
 
-		// return json_encode($activity);
+		try {
+			$pending = pendingApprovals();
+			$dashboard['pendingApprovalsCount'] = $pending->count();
+			$dashboard['pendingApprovalsPreview'] = $pending->take(5)->values();
+		} catch (\Throwable $exception) {
+			$dashboard['pendingApprovalsCount'] = 0;
+			$dashboard['pendingApprovalsPreview'] = collect();
+		}
 
-    return view('layouts.inventory.index', compact('activity', 'categoriesNo', 'departments', 'suppliers'));
+		try {
+			$restock = getRestockNotifications(true);
+			$dashboard['restockCount'] = (int) ($restock['count'] ?? 0);
+			$dashboard['restockItems'] = $restock['items'] ?? [];
+		} catch (\Throwable $exception) {
+			$dashboard['restockCount'] = 0;
+			$dashboard['restockItems'] = [];
+		}
+
+		return view('layouts.inventory.index', $dashboard);
   }
 
 	public function get_file($link, $public=false)

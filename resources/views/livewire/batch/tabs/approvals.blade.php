@@ -1,7 +1,33 @@
+@php
+    $isVerificationStage = ($batch->status ?? '') === 'Sample Verification'
+        || ($batch->prelim_batch_status ?? '') === 'Sample Verification';
+    $approversHeading = $isVerificationStage ? 'Verification' : 'Approvers';
+    $approvalDateLabel = $isVerificationStage ? 'Verification Date' : 'Approval Date';
+    $approverColumnLabel = $isVerificationStage ? 'Verified' : 'Approver';
+    $awaitingApprovalLabel = $isVerificationStage ? 'Awaiting Verification' : 'Awaiting Approval';
+    $updateStatusTitle = $isVerificationStage ? 'Update Verification Status' : 'Update Approval Status';
+    $editApproverTitle = $isVerificationStage ? 'Edit Verification' : 'Edit Approver';
+    $deleteApproverTitle = $isVerificationStage ? 'Delete Verification' : 'Delete Approver';
+    $emptyApproversHeading = $isVerificationStage ? 'No Verification Found' : 'No Approvers Found';
+    $searchPlaceholder = $isVerificationStage
+        ? 'Search by verification, title, status, or remark...'
+        : 'Search by approver, title, status, or remark...';
+    $selectApproverLabel = $isVerificationStage ? 'Select Verified' : 'Select Approver';
+    $approverTitlePlaceholder = $isVerificationStage ? 'Verification title' : 'Approver title';
+    $approverActionsLabel = $isVerificationStage ? 'Verification actions' : 'Approver actions';
+    $editApproverButtonTitle = $isVerificationStage ? 'Edit verification' : 'Edit approver';
+    $deleteApproverButtonTitle = $isVerificationStage ? 'Delete verification' : 'Delete approver';
+    $isCheckedAnalystStage = in_array($batch->status ?? '', ['Sample Verification', 'Sample Approval'], true)
+        || in_array($batch->prelim_batch_status ?? '', ['Sample Verification', 'Sample Approval'], true);
+    $analystColumnLabel = $isCheckedAnalystStage ? 'Checked Analyst' : 'Analyst';
+    $resultsSearchPlaceholder = $isCheckedAnalystStage
+        ? 'Search by sample code, analysis type, report display, result, method, standard, checked analyst, or remark...'
+        : 'Search by sample code, analysis type, report display, result, method, standard, analyst, or remark...';
+@endphp
 <div>
     <div class="workflow-board-panel">
         <div class="workflow-board-panel-header">
-            <h5><i class="mdi mdi-account-check-outline"></i> Approvers</h5>
+            <h5><i class="mdi mdi-account-check-outline"></i> {{ $approversHeading }}</h5>
             <div class="d-flex align-items-center gap-2">
                 <label for="perPage" class="form-label mb-0 me-2 text-muted small">Show</label>
                 <select wire:model.live="perPage" id="perPage" class="form-control form-control-sm" style="width: auto; min-width: 4.5rem; border-radius: 6px;">
@@ -34,7 +60,7 @@
                 <input type="text"
                     wire:model.live="search"
                     class="form-control"
-                    placeholder="Search by approver, title, status, or remark...">
+                    placeholder="{{ $searchPlaceholder }}">
             </div>
 
             @if($approvers->count() > 0)
@@ -45,8 +71,8 @@
                             <th>#</th>
                             <th>Actions</th>
                             <th>Status</th>
-                            <th>Approval Date</th>
-                            <th>Approver</th>
+                            <th>{{ $approvalDateLabel }}</th>
+                            <th>{{ $approverColumnLabel }}</th>
                             <th>Title</th>
                             <th>Remark</th>
                             <th>Lab Sections</th>
@@ -57,7 +83,7 @@
                         <tr wire:key="approver-{{ $approver->id }}" class="{{$approver->batch_status != $batch->status ? 'bg-light' : ''}}">
                             <td>{{ $loop->iteration }}</td>
                             <td class="text-nowrap">
-                                <div class="d-inline-flex align-items-center" style="gap: 0.5rem;" role="group" aria-label="Approver actions">
+                                <div class="d-inline-flex align-items-center" style="gap: 0.5rem;" role="group" aria-label="{{ $approverActionsLabel }}">
                                     @if($canShowReviewActions)
                                     <button type="button"
                                         class="btn btn-sm btn-outline-info"
@@ -90,7 +116,7 @@
                                     {{-- Edit --}}
                                     <button type="button"
                                         class="btn btn-sm btn-outline-primary"
-                                        title="Edit approver"
+                                        title="{{ $editApproverButtonTitle }}"
                                         wire:click="openEditModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
@@ -98,7 +124,7 @@
                                     {{-- Delete --}}
                                     <button type="button"
                                         class="btn btn-sm btn-outline-danger"
-                                        title="Delete approver"
+                                        title="{{ $deleteApproverButtonTitle }}"
                                         wire:click="openDeleteModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-delete-outline"></i>
                                     </button>
@@ -110,7 +136,7 @@
                             <td>
                                 @if($approver->status == 0)
                                 <span class="badge badge-primary badge-pill p-2">
-                                    <i class="mdi mdi-decagram"></i> Awaiting Approval
+                                    <i class="mdi mdi-decagram"></i> {{ $awaitingApprovalLabel }}
                                 </span>
                                 @elseif($approver->status == 1)
                                 @if($approver->batch_status == "Sample Verification" && $approver->show_report == 1)
@@ -176,8 +202,8 @@
                             <th>#</th>
                             <th>Actions</th>
                             <th>Status</th>
-                            <th>Approval Date</th>
-                            <th>Approver</th>
+                            <th>{{ $approvalDateLabel }}</th>
+                            <th>{{ $approverColumnLabel }}</th>
                             <th>Title</th>
                             <th>Remark</th>
                             <th>Lab Sections</th>
@@ -187,12 +213,12 @@
                         <tr>
                             <td colspan="8" class="text-center py-5 workflow-empty-state">
                                 <i class="mdi mdi-account-check-outline text-muted" style="font-size: 48px;"></i>
-                                <h6 class="mt-3 text-muted">No Approvers Found</h6>
+                                <h6 class="mt-3 text-muted">{{ $emptyApproversHeading }}</h6>
                                 <p class="text-muted mb-0"><small>
                                         @if($search)
-                                        No approvers match your search criteria
+                                        {{ $isVerificationStage ? 'No verified match your search criteria' : 'No approvers match your search criteria' }}
                                         @else
-                                        There are no approval records to display
+                                        {{ $isVerificationStage ? 'There are no verified records to display' : 'There are no approval records to display' }}
                                         @endif
                                     </small></p>
                             </td>
@@ -211,7 +237,7 @@
             <div class="modal-content modal-content-modern">
                 <div class="modal-header modal-header-modern">
                     <h5 class="modal-title modal-title-modern">
-                        <i class="mdi mdi-thumb-up-outline"></i> Update Approval Status
+                        <i class="mdi mdi-thumb-up-outline"></i> {{ $updateStatusTitle }}
                     </h5>
                     <button type="button" class="close" wire:click="$set('showStatusModal', false)">
                         <span>&times;</span>
@@ -257,7 +283,7 @@
             <div class="modal-content modal-content-modern">
                 <div class="modal-header modal-header-modern">
                     <h5 class="modal-title modal-title-modern">
-                        <i class="mdi mdi-pencil-outline"></i> Edit Approver
+                        <i class="mdi mdi-pencil-outline"></i> {{ $editApproverTitle }}
                     </h5>
                     <button type="button" class="close" wire:click="$set('showEditModal', false)">
                         <span>&times;</span>
@@ -265,9 +291,9 @@
                 </div>
                 <div class="modal-body modal-body-modern">
                     <div class="form-group">
-                        <label class="text-muted font-weight-bold small modal-label-small">Approver</label>
+                        <label class="text-muted font-weight-bold small modal-label-small">{{ $approverColumnLabel }}</label>
                         <select class="form-control form-control-modern" wire:model="editForm.user_id">
-                            <option value="">Select Approver</option>
+                            <option value="">{{ $selectApproverLabel }}</option>
                             @foreach($users as $user)
                             <option value="{{ $user->id }}">{{ $user->name }}</option>
                             @endforeach
@@ -279,7 +305,7 @@
                         <input type="text"
                             class="form-control form-control-modern"
                             wire:model="editForm.title"
-                            placeholder="Approver title">
+                            placeholder="{{ $approverTitlePlaceholder }}">
                         @error('editForm.title') <span class="text-danger small">{{ $message }}</span> @enderror
                     </div>
                 </div>
@@ -301,7 +327,7 @@
             <div class="modal-content modal-content-modern">
                 <div class="modal-header modal-header-modern">
                     <h5 class="modal-title modal-title-modern">
-                        <i class="mdi mdi-delete-outline"></i> Delete Approver
+                        <i class="mdi mdi-delete-outline"></i> {{ $deleteApproverTitle }}
                     </h5>
                     <button type="button" class="close" wire:click="$set('showDeleteModal', false)">
                         <span>&times;</span>
@@ -309,7 +335,7 @@
                 </div>
                 <div class="modal-body modal-body-modern">
                     <p class="mb-0">
-                        Are you sure you want to remove this approver from batch
+                        Are you sure you want to remove this {{ $isVerificationStage ? 'verification record' : 'approver' }} from batch
                         <strong>{{ $batch->batch_code }}</strong>?
                     </p>
                 </div>
@@ -376,7 +402,7 @@
                         <input type="text"
                             wire:model.live.debounce.300ms="resultsSearch"
                             class="form-control form-control-modern"
-                            placeholder="Search by sample code, analysis type, report display, result, method, standard, analyst, or remark...">
+                            placeholder="{{ $resultsSearchPlaceholder }}">
                     </div>
 
                     <div class="table-responsive">
@@ -390,7 +416,7 @@
                                     <th>Unit</th>
                                     <th>Method</th>
                                     <th>Standard</th>
-                                    <th>Analyst</th>
+                                    <th>{{ $analystColumnLabel }}</th>
                                     <th>Remark</th>
                                     <th>Limit</th>
                                 </tr>
