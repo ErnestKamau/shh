@@ -8,12 +8,16 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AmspecImportTemplateService
 {
-    public function downloadExcel(string $context): StreamedResponse
+    public function downloadExcel(string $context): BinaryFileResponse
     {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         $isPricelist = $context === 'pricelist';
         $spreadsheet = $isPricelist
             ? $this->buildPricelistWorkbook()
@@ -23,14 +27,34 @@ class AmspecImportTemplateService
             ? 'Amspec-Pricelist-import.xlsx'
             : 'Amspec-Quotation-prep-import.xlsx';
 
-        return response()->streamDownload(function () use ($spreadsheet): void {
-            $writer = new Xlsx($spreadsheet);
-            $writer->save('php://output');
-            $spreadsheet->disconnectWorksheets();
-        }, $filename, [
+        $path = $this->writeWorkbookToTempFile($spreadsheet);
+        $spreadsheet->disconnectWorksheets();
+
+        return response()->download($path, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Transfer-Encoding' => 'binary',
             'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
-        ]);
+            'Pragma' => 'public',
+        ])->deleteFileAfterSend(true);
+    }
+
+    private function writeWorkbookToTempFile(Spreadsheet $spreadsheet): string
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'amspec_tpl_');
+        if ($tmp === false) {
+            throw new \RuntimeException('Unable to create a temporary file for the Excel template.');
+        }
+
+        $path = $tmp.'.xlsx';
+        if (! @rename($tmp, $path)) {
+            @unlink($tmp);
+            throw new \RuntimeException('Unable to prepare the Excel template download path.');
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($path);
+
+        return $path;
     }
 
     private function buildPricelistWorkbook(): Spreadsheet

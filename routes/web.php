@@ -746,11 +746,13 @@ Route::get('/billing/templates/amspec-quotation-preparation.pdf', function () {
     ]);
 })->name('billing.templates.amspec_quotation_preparation')->middleware('auth');
 
-Route::get('/billing/templates/amspec-import.xlsx', function (\Illuminate\Http\Request $request, \App\Services\Billing\AmspecImportTemplateService $templateService) {
-    $context = $request->query('context', 'quotation') === 'pricelist' ? 'pricelist' : 'quotation';
+Route::get('/billing/templates/amspec-import/excel', [\App\Http\Controllers\Billing\AmspecImportTemplateController::class, 'excel'])
+    ->name('billing.templates.amspec_import_excel')
+    ->middleware('auth');
 
-    return $templateService->downloadExcel($context);
-})->name('billing.templates.amspec_import_excel')->middleware('auth');
+// Legacy URL kept for bookmarks; same download handler.
+Route::get('/billing/templates/amspec-import.xlsx', [\App\Http\Controllers\Billing\AmspecImportTemplateController::class, 'excel'])
+    ->middleware('auth');
 Route::post('/billing/quotations/{id}/package-defaults', 'Invoice\QuotationController@packageDefaults')->name('quotation.package_defaults')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/quotations/elements/loq', 'Invoice\QuotationController@updateElementLoq')->name('quotation.update_element_loq')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail')->middleware('can:laboratory.components.quotation.add');
