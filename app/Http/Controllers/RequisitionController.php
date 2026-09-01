@@ -54,6 +54,49 @@ class RequisitionController extends Controller
 		return Str::isUuid((string) $value) ? (string) $value : null;
 	}
 
+	private function resolveRequisitionLineQuantity(RequestEntityItem $item, ?RequestEntity $sourceEntity = null): float
+	{
+		if (filled($item->quantity) && floatval($item->quantity) > 0) {
+			return floatval($item->quantity);
+		}
+
+		$subCategoryId = $item->inventory_sub_category_id;
+		if (blank($subCategoryId)) {
+			return 0.0;
+		}
+
+		$candidateRequestIds = collect();
+
+		if ($sourceEntity !== null && filled($sourceEntity->id)) {
+			$candidateRequestIds->push($sourceEntity->id);
+		}
+
+		$requestEntity = RequestEntity::find($item->request_id);
+		if ($requestEntity !== null) {
+			if (filled($requestEntity->parent_request_id)) {
+				$candidateRequestIds->push($requestEntity->parent_request_id);
+			}
+			if (filled($requestEntity->parent_material_requisition)) {
+				$candidateRequestIds->push($requestEntity->parent_material_requisition);
+			}
+		}
+
+		foreach ($candidateRequestIds->unique()->filter() as $requestId) {
+			$line = RequestEntityItem::query()
+				->where('request_id', $requestId)
+				->where('inventory_sub_category_id', $subCategoryId)
+				->where('quantity', '>', 0)
+				->orderByDesc('ammendment')
+				->first();
+
+			if ($line !== null) {
+				return floatval($line->quantity);
+			}
+		}
+
+		return 0.0;
+	}
+
 	private function getFirstUserForRoleGroup($roleGroupName, array $excludedUserIds = [], $departmentId = null)
 	{
 		$excluded = array_map(static fn ($id) => (string) $id, $excludedUserIds);
@@ -1059,9 +1102,11 @@ class RequisitionController extends Controller
 				} else {
 					$iO->offsetUnset('vat_perc');
 				}
-				if ($request->has('split_items') && in_array($i->id, $split_items) && in_array($quote->supplier_id, $split_suppliers)) {
+				if ($request->has('split_items') && in_array($i->id, $split_items) && in_array($quote->supplier_id, $split_suppliers) && ! (bool) $quote->is_awarded) {
 					$iO->net_value = 0;
 					$iO->quantity = 0;
+				} elseif (! filled($iO->quantity) || floatval($iO->quantity) <= 0) {
+					$iO->quantity = $this->resolveRequisitionLineQuantity($i, $entity);
 				}
 				$iO->save();
 
@@ -3505,6 +3550,13 @@ class RequisitionController extends Controller
 				$item->quantity = filled($request->items['quantity'][$i] ?? null)
 					? $request->items['quantity'][$i]
 					: ($request->items['received_quantity'][$i] ?? $entityItem?->quantity ?? 0);
+
+				if ($req->request_type === 'Purchase Orders' && (! filled($item->quantity) || floatval($item->quantity) <= 0)) {
+					$item->quantity = $this->resolveRequisitionLineQuantity(
+						$entityItem ?? $item,
+						RequestEntity::find($req->parent_request_id)
+					);
+				}
 				$netValue = $request->items['net_value'][$i] ?? 0;
 				$item->net_value = is_numeric($netValue) ? $netValue : 0;
 				$item->currency = is_numeric($request->items['currency'][$i] ?? null)
