@@ -554,7 +554,7 @@
 				$rfqHasEmailBody = trim($request->email_body ?? '') !== '';
 			@endphp
 
-			@if ($request->status == "Approval Complete" && $isInventoryProcurement && $rfqHasAwardedQuotes)
+			@if ($request->status == "Approval Complete" && $isInventoryProcurement)
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
 				data-alert="Are you sure you want to proceed?">
 				<i class="mdi mdi-content-save"></i> Mark as Complete
@@ -585,33 +585,6 @@
 			<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
 				<i class="fas fa-plus"></i> Add Email Body
 			</span>
-			@endif
-			@endif
-
-			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
-			@if (!in_array($request->status, ["Approval Complete", "Rejected"]) &&
-			$isInventoryProcurement && trim($request->email_body) != "")
-			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
-				<i class="mdi mdi-email-send"></i> Send Out RFQS
-			</button>
-			@endif
-			@if (in_array($request->status, ["Awarded", "RFQs sent out"]))
-			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
-				<i class="mdi mdi-account-check"></i> Get Approval
-			</button>
-			@endif
-			@if ($request->status == "Approval Complete" && $isInventoryProcurement)
-			<?php $approvalStatus = $request->approvals(); ?>
-			<button class="btn btn-default text-dark float-right btn-sm" data-target="#create-po-confirmation-modal"
-				data-toggle="modal">
-				<i class="mdi mdi-file-move"></i> Create Purchase Order
-			</button>
-			@if (isset($request->status) && $isInventoryProcurement)
-			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
-				data-alert="Are you sure you want to proceed?">
-				<i class="mdi mdi-content-save"></i> Mark as Complete
-			</button>
-			@endif
 			@endif
 			@endif
 			@if (in_array($request->status, ["Approval Complete", "Items Issued Out", "Completed"]) && $stage === "Request to Store")
@@ -1105,7 +1078,10 @@
 											<?php
 												$readonly = isset($request->status) && $request->status == "In Preparation" || !isset($request->status) ? false : true;
 											?>
-											<select name="items[item_id][]" style="min-width: 200px; font-size: 12px"
+											@if($readonly && (int) ($request->in_ammendment ?? 0) === 0)
+											<input type="hidden" name="items[item_id][]" value="{{ $req_item->inventory_sub_category_id }}" />
+											@endif
+											<select @if(!($readonly && (int) ($request->in_ammendment ?? 0) === 0)) name="items[item_id][]" @endif style="min-width: 200px; font-size: 12px"
 												class="form-control selected-item" data-selected="{{ $req_item->inventory_sub_category_id }}"
 												data-account="{{ $req_item->item_account_id }}" placeholder="Please select inventory item..." {{
 												$readonly ? "disabled" : "" }}>

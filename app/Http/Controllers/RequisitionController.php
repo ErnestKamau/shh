@@ -3280,7 +3280,10 @@ class RequisitionController extends Controller
 
 		$req->currency = $request->currency;
 
-		$updateDueDate = \Carbon\Carbon::parse($req->due_date) != \Carbon\Carbon::parse($request->valid_until ?? $request->delivery_date);
+		$submittedDueDate = $request->valid_until ?? $request->delivery_date ?? null;
+		$updateDueDate = filled($submittedDueDate)
+			&& filled($req->due_date)
+			&& \Carbon\Carbon::parse($req->due_date)->ne(\Carbon\Carbon::parse($submittedDueDate));
 
 		if (in_array($stage, ["Goods Receipt", "Goods Return", "Material Issuance", "Gate Pass"])) {
 			$req->gate_pass = $request->gate_pass ?? null;
@@ -3448,10 +3451,18 @@ class RequisitionController extends Controller
 				// 	$entityItem->save();
 				// }
 
-				$subCatID = $request->items['item_id'][$i];
-				$account_id = isset($request->items['item_account_id']) ? $request->items['item_account_id'][$i] : null;
+				$subCatID = $request->items['item_id'][$i] ?? $entityItem?->inventory_sub_category_id;
+				$account_id = $request->items['item_account_id'][$i] ?? $entityItem?->item_account_id ?? null;
+
+				if (blank($subCatID)) {
+					continue;
+				}
 
 				$subCat = \App\InventorySubCategories::find($subCatID);
+				if ($subCat === null) {
+					return redirect()->back()->with('error', 'Inventory item not found for line '.($i + 1).'.');
+				}
+
 				$itemCat = \App\InventoryCategories::find($subCat->inventory_category_id);
 
 				if(isset($request->items['quantity_change_reason']) && (isset($request->items['quantity_change_reason'][$i]) && trim($request->items['quantity_change_reason'][$i])!="")){
@@ -3467,7 +3478,7 @@ class RequisitionController extends Controller
 
 				$defaultStoreId = $defaultStore['store'] ?? null;
 				$defaultSlotId = $defaultStore['slot'] ?? null;
-				if (filled($itemCat->default_store_id) && Str::isUuid((string) $itemCat->default_store_id)) {
+				if ($itemCat !== null && filled($itemCat->default_store_id) && Str::isUuid((string) $itemCat->default_store_id)) {
 					$defaultStoreId = $itemCat->default_store_id;
 				}
 
@@ -3647,7 +3658,10 @@ class RequisitionController extends Controller
 			}
 			$req->net_value = $totalValue;
 
-			$req->inventory_location_id = getCurrentUserLocation()->id;
+			$currentLocation = getCurrentUserLocation();
+			if ($currentLocation !== null) {
+				$req->inventory_location_id = $currentLocation->id;
+			}
 
 			$req->save();
 		}
