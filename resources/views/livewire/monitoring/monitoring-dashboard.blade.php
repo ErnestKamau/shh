@@ -536,7 +536,7 @@
                                           placeholder="Optional note for this reading"></textarea>
                             </div>
 
-                            <div class="row">
+                            <div class="row exec-monitoring-fields">
                                 @foreach($activeTemplate->fields as $field)
                                     @if($field->field_type === 'metadata' || $field->field_key === '__meta_scope_items')
                                         @continue
@@ -552,24 +552,30 @@
                                         }
                                         $resolvedInputConfig = $this->resolveFieldInputConfig($field, $execEquipmentId);
                                     @endphp
-                                    <div class="col-md-{{ in_array($type, ['textarea', 'table'], true) ? '12' : '6' }} mb-3">
-                                        <label class="font-weight-bold">
-                                            {{ $field->label }}
-                                            @if($field->is_required)
-                                                <span class="text-danger">*</span>
-                                            @endif
+                                    <div class="col-md-{{ in_array($type, ['textarea', 'table'], true) ? '12' : '6' }} exec-monitoring-field">
+                                        <div class="exec-monitoring-field__header">
+                                            <label class="exec-monitoring-field__label mb-0">
+                                                {{ $field->label }}
+                                                @if($field->is_required)
+                                                    <span class="text-danger">*</span>
+                                                @endif
+                                            </label>
                                             @if(!empty($cfg['variable_slug']))
                                                 @php
                                                     $isDynamic = in_array($cfg['variable_slug'], ['correction_factor', 'uncertainty_of_measure'], true);
                                                 @endphp
-                                                <span class="badge {{ $isDynamic ? 'badge-primary' : 'badge-success' }} ml-1 px-2 py-1"
-                                                    style="font-size: 0.75rem; color: #fff;">
-                                                    <i class="mdi {{ $isDynamic ? 'mdi-sine-wave' : 'mdi-lock' }} mr-1"></i>
-                                                    {{ $isDynamic ? 'Dynamic: ' : 'Constant: ' }}{{ $cfg['variable_slug'] }}
+                                                <span @class([
+                                                    'exec-monitoring-field__badge',
+                                                    'exec-monitoring-field__badge--dynamic' => $isDynamic,
+                                                    'exec-monitoring-field__badge--constant' => ! $isDynamic,
+                                                ])>
+                                                    <i class="mdi {{ $isDynamic ? 'mdi-sine-wave' : 'mdi-lock' }}"></i>
+                                                    <span>{{ $isDynamic ? 'Dynamic' : 'Constant' }}: {{ $cfg['variable_slug'] }}</span>
                                                 </span>
                                             @endif
-                                        </label>
+                                        </div>
 
+                                        <div class="exec-monitoring-field__control">
                                         @if($type === 'textarea')
                                             <textarea class="form-control" rows="3"
                                                 wire:model.defer="executionInputs.{{ $field->field_key }}"></textarea>
@@ -646,6 +652,7 @@
                                         @error('executionInputs.' . $field->field_key)
                                             <div class="text-danger small mt-1">{{ $message }}</div>
                                         @enderror
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>
@@ -940,6 +947,71 @@
         }
 
         /* Action button styling for monitoring tables */
+        /* Execute Monitoring modal field layout */
+        .exec-monitoring-field {
+            margin-bottom: 1rem;
+        }
+
+        .exec-monitoring-fields {
+            align-items: flex-start;
+        }
+
+        .exec-monitoring-field__header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.3rem;
+            min-height: 3.1rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .exec-monitoring-field__header:not(:has(.exec-monitoring-field__badge)) {
+            min-height: auto;
+        }
+
+        .exec-monitoring-field__label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            line-height: 1.35;
+            color: #1e293b;
+        }
+
+        .exec-monitoring-field__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            max-width: 100%;
+            padding: 0.12rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .exec-monitoring-field__badge .mdi {
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .exec-monitoring-field__badge--constant {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .exec-monitoring-field__badge--dynamic {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        .exec-monitoring-field__control .form-control {
+            min-height: 38px;
+        }
+
         /* Computed formula field display in Execute Monitoring modal */
         .exec-formula-display {
             display: flex;
