@@ -1241,14 +1241,18 @@
 									<td>
 										@php($notifyQuantityChange = in_array($stage,["Request for Quotation", "Purchase Orders"]) ?
 										'notify-item-change' : '')
+										@php($quantityReadonly = isset($request->status) && $request->status != "In Preparation" && isset($request->status))
 										<div class="form-group">
+											@if($quantityReadonly)
+											<input type="hidden" name="items[quantity][]" value="{{ $req_item->quantity }}" />
+											@endif
 											<input type="number" min="0.00" data-item="{{ $req_item->sub_category->name }}"
-												name="items[quantity][]" data-value="{{ $req_item->quantity }}"
+												@if(!$quantityReadonly) name="items[quantity][]" @endif
+												data-value="{{ $req_item->quantity }}"
 												value="{{ $req_item->quantity }}" step="any" style="min-width: 70px; max-width: 90px"
 												class="form-control user-quantity {{ $notifyQuantityChange }}" placeholder="Quantity..." {!!
-												isset($request->status) && $request->status == "In Preparation" || !isset($request->status)
-											? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!}
-											required />
+												!$quantityReadonly ? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!}
+											@if(!$quantityReadonly) required @endif />
 										</div>
 										<div class="mt-1 item-change-reason-div form-group">
 											<textarea class="form-control form-control-sm" name="items[quantity_change_reason][]"

@@ -3502,7 +3502,9 @@ class RequisitionController extends Controller
 				}
 
 				$item->comments = $request->items['comments'][$i] ?? null;
-				$item->quantity = isset($request->items['quantity'][$i]) ? $request->items['quantity'][$i] : $request->items['received_quantity'][$i];
+				$item->quantity = filled($request->items['quantity'][$i] ?? null)
+					? $request->items['quantity'][$i]
+					: ($request->items['received_quantity'][$i] ?? $entityItem?->quantity ?? 0);
 				$netValue = $request->items['net_value'][$i] ?? 0;
 				$item->net_value = is_numeric($netValue) ? $netValue : 0;
 				$item->currency = is_numeric($request->items['currency'][$i] ?? null)
@@ -3557,7 +3559,10 @@ class RequisitionController extends Controller
 				$item->save();
 
 				$itemsArrIds[] = $item->id;
-				$itemsCatNames[] = $subCat->name . "(" . (isset($request->items['quantity'][$i]) ? $request->items['quantity'][$i] : $request->items['received_quantity'][$i]) . ")";
+				$lineQuantity = filled($request->items['quantity'][$i] ?? null)
+					? $request->items['quantity'][$i]
+					: ($request->items['received_quantity'][$i] ?? $item->quantity ?? 0);
+				$itemsCatNames[] = $subCat->name . "(" . $lineQuantity . ")";
 
 				// $totalValue += convert_currency(floatval($item->net_value), $item->currency, $request->currency);
 				$totalValue += floatval($item->net_value);
