@@ -4,7 +4,6 @@ namespace App\Imports\Inventory;
 
 use App\Imports\BaseImporter;
 use App\InventoryCategories;
-use App\Zone;
 
 class InventoryCategoryImporter extends BaseImporter
 {
@@ -22,19 +21,11 @@ class InventoryCategoryImporter extends BaseImporter
     protected function transformRow(array $row): mixed
     {
         $locationId = null;
-        if ($this->selectedZoneId) {
-            $zone = Zone::find($this->selectedZoneId);
-            if ($zone && $zone->inventory_location_id) {
-                $locationId = $zone->inventory_location_id;
+        try {
+            if (function_exists('getCurrentUserLocation')) {
+                $locationId = getCurrentUserLocation()?->id;
             }
-        }
-
-        if (!$locationId) {
-            try {
-                if (function_exists('getCurrentUserLocation')) {
-                    $locationId = getCurrentUserLocation()->id ?? null;
-                }
-            } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
         }
 
         return [
