@@ -2161,18 +2161,6 @@ function getCurrentUserLocation()
 		}
 	}
 
-	if (!empty($user->zone_id)) {
-		$zone = App\Zone::find($user->zone_id);
-		if ($zone?->inventory_location_id) {
-			$location = App\InventoryLocation::find($zone->inventory_location_id);
-			if ($location) {
-				Session::put('current_user_location', $location);
-
-				return $location;
-			}
-		}
-	}
-
 	$userLocationIds = getUserLocations();
 	if ($userLocationIds !== []) {
 		$location = App\InventoryLocation::find($userLocationIds[0]);
@@ -2733,9 +2721,20 @@ function getShippingMode()
 
 function getCostCenter()
 {
-	return App\InventoryDepartment::where('company_id', getUserCompany())
-	->where('location_id', getCurrentUserLocation()->id)->where('module', 'organizational')
-	->orderBy('name', 'asc')->get()->pluck('name')->toArray();
+	$query = App\InventoryDepartment::query()
+		->where('module', 'organizational')
+		->where('active', 1)
+		->orderBy('name');
+
+	$companyId = getUserCompany();
+	if ($companyId) {
+		$query->where(function ($builder) use ($companyId): void {
+			$builder->where('company_id', $companyId)
+				->orWhereNull('company_id');
+		});
+	}
+
+	return $query->pluck('name')->toArray();
 }
 
 function isUserSomebody($USER)

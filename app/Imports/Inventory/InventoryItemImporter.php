@@ -6,7 +6,6 @@ use App\Imports\BaseImporter;
 use App\InventoryCategories;
 use App\InventorySubCategories;
 use App\InventoryItem;
-use App\Zone;
 
 class InventoryItemImporter extends BaseImporter
 {
@@ -46,21 +45,12 @@ class InventoryItemImporter extends BaseImporter
         $description = $this->fuzzyGet($row, ['description', 'desc']) ?? $name;
         $qty = floatval($this->fuzzyGet($row, ['qty', 'quantity', 'stock_in', 'initial_quantity']) ?? 0);
 
-        // Resolve location
         $locationId = null;
-        if ($this->selectedZoneId) {
-            $zone = Zone::find($this->selectedZoneId);
-            if ($zone && $zone->inventory_location_id) {
-                $locationId = $zone->inventory_location_id;
+        try {
+            if (function_exists('getCurrentUserLocation')) {
+                $locationId = getCurrentUserLocation()?->id;
             }
-        }
-
-        if (!$locationId) {
-            try {
-                if (function_exists('getCurrentUserLocation')) {
-                    $locationId = getCurrentUserLocation()->id ?? null;
-                }
-            } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
         }
 
         // Auto-resolve or create Category
