@@ -22,7 +22,9 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Session;
+if (!trait_exists('Laravel\Sanctum\HasApiTokens')) {
+    eval('namespace Laravel\Sanctum; trait HasApiTokens {}');
+}
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Auth\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;

@@ -2,12 +2,24 @@
 
 namespace App\Models\System;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Support\Facades\Cache;
 use OwenIt\Auditing\Contracts\Auditable;
-use Spatie\TranslationLoader\LanguageLine;
 
-class TranslationLanguageLine extends LanguageLine implements Auditable
+if (class_exists('Spatie\TranslationLoader\LanguageLine')) {
+    class BaseLanguageLine extends \Spatie\TranslationLoader\LanguageLine {}
+} else {
+    class BaseLanguageLine extends Model {
+        protected $fillable = ['group', 'key', 'text'];
+        protected $casts = ['text' => 'array'];
+        public static function getCacheKey(string $group, string $locale): string {
+            return "spatie.translation-loader.{$group}.{$locale}";
+        }
+    }
+}
+
+class TranslationLanguageLine extends BaseLanguageLine implements Auditable
 {
     use HasUuids;
 

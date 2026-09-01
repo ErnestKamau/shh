@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'default' => env('DB__PSQL_CONNECTION', 'mysql'),
+    'default' => env('DB__PSQL_CONNECTION', env('DB_CONNECTION', 'pgsql')),
 
     /*
     |--------------------------------------------------------------------------
@@ -66,11 +66,11 @@ return [
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DATABASE_URL'),
-            'host' => env('DB__PSQL_HOST', '127.0.0.1'),
-            'port' => env('DB__PSQL_PORT', '5432'),
-            'database' => env('DB__PSQL_DATABASE', 'forge'),
-            'username' => env('DB__PSQL_USERNAME', 'forge'),
-            'password' => env('DB__PSQL_PASSWORD', ''),
+            'host' => env('DB__PSQL_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB__PSQL_PORT', env('DB_PORT', '5432')),
+            'database' => env('DB__PSQL_DATABASE', env('DB_DATABASE', 'forge')),
+            'username' => env('DB__PSQL_USERNAME', env('DB_USERNAME', 'forge')),
+            'password' => env('DB__PSQL_PASSWORD', env('DB_PASSWORD', '')),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
@@ -81,11 +81,11 @@ return [
         'pgsql_ai' => [
             'driver' => 'pgsql',
             'url' => env('AI_DATABASE_URL'),
-            'host' => env('AI_DB_HOST', env('DB__PSQL_HOST', '127.0.0.1')),
-            'port' => env('AI_DB_PORT', env('DB__PSQL_PORT', '5432')),
-            'database' => env('AI_DB_DATABASE', env('DB__PSQL_DATABASE', 'forge')),
-            'username' => env('AI_DB_USERNAME', env('DB__PSQL_USERNAME', 'forge')),
-            'password' => env('AI_DB_PASSWORD', env('DB__PSQL_PASSWORD', '')),
+            'host' => env('AI_DB_HOST', env('DB__PSQL_HOST', env('DB_HOST', '127.0.0.1'))),
+            'port' => env('AI_DB_PORT', env('DB__PSQL_PORT', env('DB_PORT', '5432'))),
+            'database' => env('AI_DB_DATABASE', env('DB__PSQL_DATABASE', env('DB_DATABASE', 'forge'))),
+            'username' => env('AI_DB_USERNAME', env('DB__PSQL_USERNAME', env('DB_USERNAME', 'forge'))),
+            'password' => env('AI_DB_PASSWORD', env('DB__PSQL_PASSWORD', env('DB_PASSWORD', ''))),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,

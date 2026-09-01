@@ -4,12 +4,14 @@ namespace App\Models\CRM;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Complaint extends Model implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
     use HasUuids;
+    use SoftDeletes;
 
     protected $fillable = [
         'complaint_id',

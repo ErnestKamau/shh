@@ -81,7 +81,7 @@ class SystemConfigPermissionsSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $count = count($permissionNames);
-        $this->command->info("System config permissions ensured: {$count}");
-        $this->command->info('System User role ensured with settings.module.access');
+        $this->command?->info("System config permissions ensured: {$count}");
+        $this->command?->info('System User role ensured with settings.module.access');
     }
 }
