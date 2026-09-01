@@ -290,6 +290,17 @@ class ReceiveSampleRequest extends Component
         return $form->loadMissing(['sections.elementHolders.elements']);
     }
 
+    private function limsCompanyId(): ?string
+    {
+        $companyId = function_exists('getUserCompany') ? getUserCompany() : null;
+
+        if ($companyId === null || $companyId === '') {
+            return null;
+        }
+
+        return (string) $companyId;
+    }
+
     private function resolveSubmissionFormForSampleTypeCategory(string $categoryId): ?SubmissionForm
     {
         if (! \Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories')) {
@@ -297,6 +308,7 @@ class ReceiveSampleRequest extends Component
         }
 
         return SubmissionForm::query()
+            ->forCompany($this->limsCompanyId())
             ->where('is_active', true)
             ->where('is_published', true)
             ->where('form_type', 'template')
@@ -464,6 +476,7 @@ class ReceiveSampleRequest extends Component
         $categoryBoundCards = collect();
         if (\Illuminate\Support\Facades\Schema::hasTable('submission_form_sample_type_categories')) {
             $categoryBoundForms = SubmissionForm::query()
+                ->forCompany($this->limsCompanyId())
                 ->where('is_active', true)
                 ->where('is_published', true)
                 ->where('form_type', 'template')
@@ -519,6 +532,7 @@ class ReceiveSampleRequest extends Component
         }
 
         $unlinkedCards = SubmissionForm::query()
+            ->forCompany($this->limsCompanyId())
             ->where('is_active', true)
             ->where('is_published', true)
             ->where('form_type', 'template')
@@ -610,6 +624,7 @@ class ReceiveSampleRequest extends Component
         }
 
         return SubmissionForm::query()
+            ->forCompany($this->limsCompanyId())
             ->where('is_active', true)
             ->where('is_published', true)
             ->where('form_type', 'template')

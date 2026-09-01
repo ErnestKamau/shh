@@ -76,6 +76,7 @@ class Header extends Component
         'batchUpdated' => '$refresh',
         // Analysis Parameters modal saves dispatch this so Send for Verification readiness updates without a full page reload.
         'resultsUpdated' => '$refresh',
+        'openApprovalModal' => 'openApprovalModal',
     ];
 
     public function mount(SampleHeader $batch, $workflows = [], $workflowstages = [], $status = null, $defaultClient = false, $clientPortal = false)

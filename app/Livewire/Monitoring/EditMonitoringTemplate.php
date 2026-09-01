@@ -79,9 +79,11 @@ class EditMonitoringTemplate extends Component
 
         $meta = is_array($metaField?->field_config) ? $metaField->field_config : [];
 
-        $this->selectedLabIds = ! empty($meta['labs'])
+        $assignmentService = app(MonitoringAssignmentService::class);
+        $rawLabIds = ! empty($meta['labs'])
             ? array_values(array_map('strval', (array) $meta['labs']))
             : ($template->lab_id ? [(string) $template->lab_id] : []);
+        $this->selectedLabIds = $assignmentService->filterExistingLabIds($rawLabIds);
         $this->selectedSectionIds = array_values(array_map('strval', (array) ($meta['sections'] ?? [])));
         $this->selectedEquipmentIds = array_values(array_map('strval', (array) ($meta['equipment'] ?? [])));
 
@@ -145,7 +147,11 @@ class EditMonitoringTemplate extends Component
 
     public function nextStep(): void
     {
-        $this->validate($this->getStepValidationRules());
+        if ($this->currentStep === 2) {
+            $this->normalizeSelectedLabIds();
+        }
+
+        $this->validate($this->getStepValidationRules(), $this->getStepValidationMessages());
 
         if ($this->currentStep < 5) {
             $this->currentStep++;
@@ -173,10 +179,7 @@ class EditMonitoringTemplate extends Component
 
     protected function normalizeSelectedLabIds(): void
     {
-        $this->selectedLabIds = array_values(array_unique(array_map(
-            fn ($id) => (string) $id,
-            $this->selectedLabIds
-        )));
+        $this->selectedLabIds = $this->normalizedSelectedLabIds();
 
         $this->selectedSectionIds = [];
         $this->selectedEquipmentIds = [];
@@ -382,10 +385,7 @@ class EditMonitoringTemplate extends Component
 
     protected function normalizedSelectedLabIds(): array
     {
-        return array_values(array_unique(array_map(
-            fn ($id) => (string) $id,
-            $this->selectedLabIds,
-        )));
+        return app(MonitoringAssignmentService::class)->filterExistingLabIds($this->selectedLabIds);
     }
 
     /**
@@ -410,6 +410,18 @@ class EditMonitoringTemplate extends Component
         )));
     }
 
+    /**
+     * @return array<string, string>
+     */
+    protected function getStepValidationMessages(): array
+    {
+        return [
+            'selectedLabIds.required' => 'Select at least one lab before continuing.',
+            'selectedLabIds.min' => 'Select at least one lab before continuing.',
+            'selectedLabIds.*.exists' => 'One or more selected labs are invalid.',
+        ];
+    }
+
     protected function getStepValidationRules(): array
     {
         return match ($this->currentStep) {
@@ -421,7 +433,7 @@ class EditMonitoringTemplate extends Component
             ],
             2 => [
                 'selectedLabIds' => ['required', 'array', 'min:1'],
-                'selectedLabIds.*' => ['required', 'string', 'exists:labs,id'],
+                'selectedLabIds.*' => ['required', 'uuid', 'exists:labs,id'],
             ],
             3 => $this->templateType === 'environmental' ?
                 ['selectedSectionIds' => 'nullable'] :

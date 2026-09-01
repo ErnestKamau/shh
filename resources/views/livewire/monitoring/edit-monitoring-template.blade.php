@@ -158,7 +158,7 @@
                             <div class="row">
                                 @forelse($this->assignedLabs as $lab)
                                     @php $labSelected = in_array((string) $lab->id, $selectedLabIds, true); @endphp
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-6 mb-3" wire:key="monitoring-template-lab-{{ $lab->id }}">
                                         <label for="lab_{{ $lab->id }}" class="lab-selector-card mb-0 {{ $labSelected ? 'selected' : '' }}">
                                             <div class="form-check mb-0">
                                                 <input type="checkbox"
@@ -186,6 +186,7 @@
                             </div>
 
                             @error('selectedLabIds') <div class="text-danger small mt-2">{{ $message }}</div> @enderror
+                            @error('selectedLabIds.*') <div class="text-danger small mt-2">{{ $message }}</div> @enderror
                         </div>
                     @endif
 

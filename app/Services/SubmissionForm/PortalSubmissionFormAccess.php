@@ -3,6 +3,7 @@
 namespace App\Services\SubmissionForm;
 
 use App\Exceptions\Api\Portal\PortalApiException;
+use App\Models\CRM\CRMCustomer;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
@@ -51,6 +52,34 @@ class PortalSubmissionFormAccess
         return (string) $userId;
     }
 
+    public function companyIdFromCustomer(?string $crmCustomerId): ?string
+    {
+        if ($crmCustomerId !== null && $crmCustomerId !== '') {
+            if (! Schema::hasColumn('crm_customers', 'company_id')) {
+                return null;
+            }
+
+            $companyId = CRMCustomer::query()
+                ->whereKey($crmCustomerId)
+                ->value('company_id');
+
+            if ($companyId === null || $companyId === '') {
+                return null;
+            }
+
+            return (string) $companyId;
+        }
+
+        if (function_exists('getUserCompany') && auth()->check()) {
+            $companyId = getUserCompany();
+            if ($companyId !== null && $companyId !== '') {
+                return (string) $companyId;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Portal submission instances for a customer (all accounts under that customer).
      */
@@ -72,7 +101,8 @@ class PortalSubmissionFormAccess
             ->where(function (Builder $builder): void {
                 $builder->whereNull('placement_slot')
                     ->orWhereJsonContains('placement_slot', 'customer_portal');
-            });
+            })
+            ->forCompany($this->companyIdFromCustomer($crmCustomerId), true);
 
         if ($crmCustomerId !== null && Schema::hasTable('submission_form_customers')) {
             $query->where(function (Builder $builder) use ($crmCustomerId): void {
@@ -116,6 +146,11 @@ class PortalSubmissionFormAccess
             if ($hasCustomerRestrictions && ! $form->customers()->where('crm_customers.id', $crmCustomerId)->exists()) {
                 throw PortalApiException::formCustomerNotAllowed();
             }
+        }
+
+        $companyId = $this->companyIdFromCustomer($crmCustomerId);
+        if ($companyId !== null && filled($form->company_id) && (string) $form->company_id !== $companyId) {
+            throw PortalApiException::formNotFound();
         }
 
         return $form;
@@ -258,7 +293,7 @@ class PortalSubmissionFormAccess
 
     private function findTestRequestFormForSampleType(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
     {
-        $byDocumentCode = $this->findTestRequestFormBySampleTypeDocumentCode($sampleTypeId);
+        $byDocumentCode = $this->findTestRequestFormBySampleTypeDocumentCode($sampleTypeId, $crmCustomerId);
         if ($byDocumentCode !== null) {
             return $byDocumentCode;
         }
@@ -281,7 +316,7 @@ class PortalSubmissionFormAccess
         return null;
     }
 
-    private function findTestRequestFormBySampleTypeDocumentCode(string $sampleTypeId): ?SubmissionForm
+    private function findTestRequestFormBySampleTypeDocumentCode(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
     {
         $sampleType = SampleType::query()->find($sampleTypeId);
         $documentCode = app(TrfDocumentCodeForSampleType::class)->resolve($sampleType);
@@ -294,6 +329,7 @@ class PortalSubmissionFormAccess
             ->where('document_code', $documentCode)
             ->where('is_active', true)
             ->where('form_type', 'template')
+            ->forCompany($this->companyIdFromCustomer($crmCustomerId), true)
             ->first();
     }
 

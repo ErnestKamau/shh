@@ -29,6 +29,25 @@
         <div class="workflow-board-panel-header">
             <h5><i class="mdi mdi-account-check-outline"></i> {{ $approversHeading }}</h5>
             <div class="d-flex align-items-center gap-2">
+                @if($this->canMoveToApproval())
+                    @if($this->hasPendingDataCapture())
+                        <button type="button"
+                            class="btn btn-sm btn-action-sm"
+                            disabled
+                            title="Capture all results before moving to approval">
+                            <i class="mdi mdi-subdirectory-arrow-right"></i> Move to Approval
+                        </button>
+                    @else
+                        <button type="button"
+                            class="btn btn-danger btn-sm btn-action-sm text-white"
+                            wire:click="openMoveToApproval"
+                            wire:loading.attr="disabled"
+                            wire:target="openMoveToApproval"
+                            title="Move this batch to Sample Approval">
+                            <i class="mdi mdi-subdirectory-arrow-right"></i> Move to Approval
+                        </button>
+                    @endif
+                @endif
                 <label for="perPage" class="form-label mb-0 me-2 text-muted small">Show</label>
                 <select wire:model.live="perPage" id="perPage" class="form-control form-control-sm" style="width: auto; min-width: 4.5rem; border-radius: 6px;">
                     <option value="10">10</option>
