@@ -3331,15 +3331,23 @@ class RequisitionController extends Controller
 			&& \Carbon\Carbon::parse($req->due_date)->ne(\Carbon\Carbon::parse($submittedDueDate));
 
 		if (in_array($stage, ["Goods Receipt", "Goods Return", "Material Issuance", "Gate Pass"])) {
-			$req->gate_pass = $request->gate_pass ?? null;
-			$req->destination = $request->destination ?? null;
-			$req->note_bearer = $request->note_bearer ?? null;
-			$req->time_out = $request->time_out ?? null;
-			$req->remarks = $request->remarks ?? null;
-			$req->moisture_contents = $request->moisture_contents ?? null;
-			$req->delivery_note_number = $request->delivery_note_number ?? null;
-			$req->supplier_invoice_number = $request->supplier_invoice_number ?? null;
-			$req->vehicle_no = $request->vehicle_no ?? null;
+			$gatePassFields = [
+				'gate_pass' => $request->gate_pass ?? null,
+				'destination' => $request->destination ?? null,
+				'note_bearer' => $request->note_bearer ?? null,
+				'time_out' => $request->time_out ?? null,
+				'remarks' => $request->remarks ?? null,
+				'moisture_contents' => $request->moisture_contents ?? null,
+				'delivery_note_number' => $request->delivery_note_number ?? null,
+				'supplier_invoice_number' => $request->supplier_invoice_number ?? null,
+				'vehicle_no' => $request->vehicle_no ?? null,
+			];
+
+			foreach ($gatePassFields as $column => $value) {
+				if (Schema::hasColumn('request_entities', $column)) {
+					$req->{$column} = $value;
+				}
+			}
 		}
 
 		if ($stage == "Request for Quotation") {
