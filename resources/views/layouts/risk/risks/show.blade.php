@@ -980,12 +980,18 @@
         $likelihoodScore = $risk->likelihoodScale->score ?? $risk->likelihood_score ?? null;
         $severityScore = $risk->severityScale->score ?? $risk->severity_score ?? null;
         $hasAssessment = $likelihoodScore && $severityScore;
+        $hasEvaluation = ! empty($risk->evaluation_result);
         $canEditAssessment = ! $isClosed
             && auth()->user()->can('risk-management.components.risks.edit')
             && (
                 in_array((int) $currentStep, [2, 3, 4], true)
                 || ($hasAssessment && (int) $currentStep < 8)
             );
+        $canEditEvaluation = ! $isClosed
+            && auth()->user()->can('risk-management.components.risks.edit')
+            && $hasAssessment
+            && (int) $currentStep >= 4
+            && (int) $currentStep < 8;
     @endphp
     @php
         // Breadcrumbs render escaped text, so keep the label plain.
@@ -2014,13 +2020,11 @@
                         <h6 class="section-header mb-0">
                             <i class="mdi mdi-scale-balance text-primary"></i> {{ __('Risk Evaluation') }}
                         </h6>
-                        @if($currentStep == 4 && !$isClosed)
-                    @if(auth()->user()->can('risk-management.components.risks.edit'))
+                        @if($canEditEvaluation)
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#evaluationModal">
-                            <i class="mdi mdi-{{ $risk->evaluation_result ? 'pencil' : 'plus' }}"></i> 
-                            {{ $risk->evaluation_result ? __('Edit Evaluation') : __('Add Evaluation') }}
+                            <i class="mdi mdi-{{ $hasEvaluation ? 'pencil' : 'plus' }}"></i> 
+                            {{ $hasEvaluation ? __('Edit Evaluation') : __('Add Evaluation') }}
                         </button>
-                        @endif
                         @endif
                         </div>
                     
@@ -2180,7 +2184,14 @@
                     @else
                     <div class="alert alert-info text-center" style="border-radius: var(--border-radius-sm);">
                         <i class="mdi mdi-information-outline" style="font-size: 3rem; color: #cbd5e1;"></i>
-                        <p style="margin: 1rem 0 0 0; color: #64748b; font-size: 0.9375rem;">{{ __('No evaluation recorded yet. Click "Add Evaluation" to complete the risk evaluation.') }}</p>
+                        <p style="margin: 1rem 0 0 0; color: #64748b; font-size: 0.9375rem;">
+                            {{ __('No evaluation recorded yet.') }}
+                            @if(!empty($canEditEvaluation))
+                                {{ __('Click "Add Evaluation" to complete the risk evaluation.') }}
+                            @else
+                                {{ __('Complete the evaluation when this risk reaches the evaluation workflow step.') }}
+                            @endif
+                        </p>
                             </div>
                             @endif
                 </div>
