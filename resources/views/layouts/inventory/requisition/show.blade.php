@@ -528,7 +528,7 @@
 				$pendingEntityApprovalsCount = isset($request->id)
 					? \App\EntityApproval::where('model', $stage)->where('model_id', $request->id)->where('status', 'Pending')->count()
 					: 0;
-				$canSendForApproval = in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend"])
+				$canSendForApproval = in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend", "Goods Receipt"])
 					&& (
 						$request->status == "In Preparation"
 						|| (in_array($request->status, ["Awaiting Approval", "Partially Approved"]) && $pendingEntityApprovalsCount === 0)
