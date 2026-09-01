@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
 
+use App\Company;
 use App\User;
 use App\CertificateTemplate;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class SubmissionForm extends Model implements Auditable
 {
@@ -44,7 +47,8 @@ class SubmissionForm extends Model implements Auditable
         'display_mode',
         'placement_slot',
         'trigger_button_ids',
-        'created_by'
+        'created_by',
+        'company_id',
     ];
 
     protected $casts = [
@@ -90,6 +94,31 @@ class SubmissionForm extends Model implements Auditable
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    /**
+     * Restrict forms to a LIMS company. When $includeUnassigned is true, rows
+     * with a null company_id remain visible (portal / legacy shared templates).
+     */
+    public function scopeForCompany(Builder $query, ?string $companyId, bool $includeUnassigned = false): Builder
+    {
+        if ($companyId === null || $companyId === '' || ! Schema::hasColumn($this->getTable(), 'company_id')) {
+            return $query;
+        }
+
+        if ($includeUnassigned) {
+            return $query->where(function (Builder $builder) use ($companyId): void {
+                $builder->whereNull('company_id')
+                    ->orWhere('company_id', $companyId);
+            });
+        }
+
+        return $query->where('company_id', $companyId);
     }
 
     /**

@@ -162,6 +162,52 @@ class Approvals extends Component
             || in_array($prelimStatus, ['Sample Verification', 'Sample Approval'], true);
     }
 
+    public function canMoveToApproval(): bool
+    {
+        if ((string) ($this->batch->status ?? '') !== 'Sample Verification') {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user === null || (int) ($user->is_client ?? 0) === 1) {
+            return false;
+        }
+
+        if ($user->checkVerifyLabSampleRole()) {
+            return true;
+        }
+
+        return BatchLabSectionApprover::query()
+            ->where('batch_id', $this->batch->id)
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    public function hasPendingDataCapture(): bool
+    {
+        return CapturedResult::query()
+            ->where('sample_header_id', $this->batch->id)
+            ->whereNull('result')
+            ->exists();
+    }
+
+    public function openMoveToApproval(): void
+    {
+        if (! $this->canMoveToApproval()) {
+            session()->flash('error', 'You do not have permission to move this batch to approval.');
+
+            return;
+        }
+
+        if ($this->hasPendingDataCapture()) {
+            session()->flash('error', 'Capture all results before moving this batch to approval.');
+
+            return;
+        }
+
+        $this->dispatch('openApprovalModal')->to(\App\Livewire\Batch\Header::class);
+    }
+
     /**
      * @return Collection<int, CapturedResult>
      */

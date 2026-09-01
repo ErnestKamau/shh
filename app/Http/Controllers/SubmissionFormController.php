@@ -46,6 +46,7 @@ class SubmissionFormController extends Controller
         $templateForms = SubmissionForm::query()
             ->where('form_type', 'template')
             ->where('is_active', true)
+            ->forCompany($this->currentCompanyId())
             ->orderBy('name')
             ->get(['id', 'name']);
         $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
@@ -91,7 +92,7 @@ class SubmissionFormController extends Controller
         $availablePageNames = $this->getAvailablePlacementPageNames();
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:submission_forms,name'],
+            'name' => ['required', 'string', 'max:255', $this->uniqueFormNameRule()],
             'document_code' => ['required', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
@@ -141,6 +142,7 @@ class SubmissionFormController extends Controller
             : [];
 
         $validated['created_by'] = Auth::id();
+        $validated['company_id'] = $this->currentCompanyId();
         $validated['is_published'] = false; // New forms start as drafts
         $validated['version'] = '1.0';
 
@@ -236,6 +238,7 @@ class SubmissionFormController extends Controller
             ->where('form_type', 'template')
             ->where('is_active', true)
             ->where('id', '!=', $submissionForm->id)
+            ->forCompany($this->currentCompanyId())
             ->orderBy('name')
             ->get(['id', 'name']);
         $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
@@ -283,10 +286,13 @@ class SubmissionFormController extends Controller
 
         $validated = $request->validate([
             'name' => [
-                'required', 
-                'string', 
-                'max:255', 
-                Rule::unique('submission_forms', 'name')->ignore($submissionForm->id)
+                'required',
+                'string',
+                'max:255',
+                $this->uniqueFormNameRule(
+                    $submissionForm->id,
+                    filled($submissionForm->company_id) ? (string) $submissionForm->company_id : null,
+                ),
             ],
             'document_code' => ['required', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -616,6 +622,33 @@ class SubmissionFormController extends Controller
         return Schema::hasTable('submission_form_sample_type_categories');
     }
 
+    private function currentCompanyId(): ?string
+    {
+        $companyId = function_exists('getUserCompany') ? getUserCompany() : null;
+
+        if ($companyId === null || $companyId === '') {
+            return null;
+        }
+
+        return (string) $companyId;
+    }
+
+    private function uniqueFormNameRule(?string $ignoreId = null, ?string $companyId = null): \Illuminate\Validation\Rules\Unique
+    {
+        $rule = Rule::unique('submission_forms', 'name');
+
+        if ($ignoreId !== null && $ignoreId !== '') {
+            $rule->ignore($ignoreId);
+        }
+
+        $companyId = $companyId ?: $this->currentCompanyId();
+        if ($companyId !== null && $companyId !== '') {
+            return $rule->where('company_id', $companyId);
+        }
+
+        return $rule->whereNull('company_id');
+    }
+
     /**
      * Return slots and trigger-buttons for the given route names.
      * Called via AJAX from the create/edit form when the admin selects target pages.
@@ -719,6 +752,7 @@ class SubmissionFormController extends Controller
 
         $clonedForm->name = $submissionForm->name . ' (Copy)';
         $clonedForm->created_by = Auth::id();
+        $clonedForm->company_id = $this->currentCompanyId() ?? $submissionForm->company_id;
         $clonedForm->is_published = false;
         $clonedForm->save();
 

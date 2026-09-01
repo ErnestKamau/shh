@@ -4,6 +4,7 @@ namespace App\Services\SubmissionForm;
 
 use App\Models\SubmissionForm;
 use App\SampleType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -25,9 +26,9 @@ class PortalTestRequestFormSampleTypeResolver
         if ($categoryIds !== []) {
             $byCategory = SampleType::query()
                 ->where('active', true)
-                ->whereIn('sample_type_category', $categoryIds)
-                ->orderBy('name')
-                ->get();
+                ->whereIn('sample_type_category', $categoryIds);
+            $this->scopeSampleTypesToFormCompany($byCategory, $form);
+            $byCategory = $byCategory->orderBy('name')->get();
 
             if ($byCategory->isNotEmpty()) {
                 return $byCategory;
@@ -49,11 +50,12 @@ class PortalTestRequestFormSampleTypeResolver
             return collect();
         }
 
-        return SampleType::query()
+        $query = SampleType::query()
             ->where('active', true)
-            ->whereIn('sample_type_category', $categoryIds)
-            ->orderBy('name')
-            ->get();
+            ->whereIn('sample_type_category', $categoryIds);
+        $this->scopeSampleTypesToFormCompany($query, $form);
+
+        return $query->orderBy('name')->get();
     }
 
     /**
@@ -88,9 +90,10 @@ class PortalTestRequestFormSampleTypeResolver
             return $this->mapCollection($resolved);
         }
 
-        return $this->mapCollection(
-            SampleType::query()->where('active', true)->orderBy('name')->get()
-        );
+        $query = SampleType::query()->where('active', true);
+        $this->scopeSampleTypesToFormCompany($query, $form);
+
+        return $this->mapCollection($query->orderBy('name')->get());
     }
 
     /**
@@ -111,6 +114,18 @@ class PortalTestRequestFormSampleTypeResolver
         return $categories->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
+    private function scopeSampleTypesToFormCompany(Builder $query, SubmissionForm $form): void
+    {
+        if (! Schema::hasColumn('sample_types', 'company_id') || ! filled($form->company_id)) {
+            return;
+        }
+
+        $query->where(function (Builder $builder) use ($form): void {
+            $builder->whereNull('company_id')
+                ->orWhere('company_id', $form->company_id);
+        });
+    }
+
     /**
      * Heuristic: match form document code / name keywords to sample type families.
      *
@@ -122,6 +137,7 @@ class PortalTestRequestFormSampleTypeResolver
         $formName = strtoupper((string) $form->name);
 
         $query = SampleType::query()->where('active', true);
+        $this->scopeSampleTypesToFormCompany($query, $form);
 
         if (str_contains($documentCode, 'FOOD') || str_contains($formName, 'FOOD')) {
             $query->where(function ($builder): void {

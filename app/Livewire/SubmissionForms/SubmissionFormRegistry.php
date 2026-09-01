@@ -60,7 +60,8 @@ class SubmissionFormRegistry extends Component
     {
         $query = SubmissionForm::query()
             ->with(['creator', 'sections', 'sampleAnalysisStages'])
-            ->withCount(['sections', 'instances']);
+            ->withCount(['sections', 'instances'])
+            ->forCompany($this->currentCompanyId());
 
         if ($this->search !== '') {
             $search = $this->search;
@@ -97,6 +98,7 @@ class SubmissionFormRegistry extends Component
     public function getCreatorOptionsProperty(): Collection
     {
         $ids = SubmissionForm::query()
+            ->forCompany($this->currentCompanyId())
             ->whereNotNull('created_by')
             ->distinct()
             ->pluck('created_by');
@@ -105,6 +107,17 @@ class SubmissionFormRegistry extends Component
             ->whereIn('id', $ids)
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    private function currentCompanyId(): ?string
+    {
+        $companyId = function_exists('getUserCompany') ? getUserCompany() : null;
+
+        if ($companyId === null || $companyId === '') {
+            return null;
+        }
+
+        return (string) $companyId;
     }
 
     public function render(): View

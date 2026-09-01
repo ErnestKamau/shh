@@ -10,6 +10,7 @@ use App\Models\SubmissionFormSection;
 use App\SampleType;
 use App\SampleTypeCategory;
 use App\Services\SubmissionForm\SubmissionFormSchemaHelper;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 trait BuildsSubmissionFormTrfSections
@@ -20,8 +21,17 @@ trait BuildsSubmissionFormTrfSections
     protected function createOrRefreshTrfSubmissionForm(array $attributes): SubmissionForm
     {
         $targetCode = (string) $attributes['document_code'];
+        $companyId = isset($attributes['company_id']) && filled($attributes['company_id'])
+            ? (string) $attributes['company_id']
+            : AmSpecSeedData::DUBAI_COMPANY_ID;
 
-        $form = SubmissionForm::query()->firstOrNew(['document_code' => $targetCode]);
+        $lookup = ['document_code' => $targetCode];
+        if (Schema::hasColumn('submission_forms', 'company_id')) {
+            $lookup['company_id'] = $companyId;
+            $attributes['company_id'] = $companyId;
+        }
+
+        $form = SubmissionForm::query()->firstOrNew($lookup);
         $hasStructure = $form->exists && $form->sections()->exists();
         $hasInstances = $form->exists && $form->instances()->exists();
 
