@@ -5285,16 +5285,27 @@
 				});
 			});
 
+			var buildGetItemDetailsUrl = function(itemId) {
+				var path = '/get_item_details/' + encodeURIComponent(itemId);
+				var reqId = @json($request->id ?? null);
+				if (reqId) {
+					path += '/' + encodeURIComponent(reqId);
+				}
+
+				return window.location.origin + path;
+			};
+
 			$('#req-items').on('change', 'tr .selected-item', function(){
 				var itemID = $(this).val();
 				var $this = $(this);
 				$.ajax({
-					url: '/get_item_details/'+itemID+'/{{ $request->id }}',
-					beforeSend: function(){
-
-					},
+					url: buildGetItemDetailsUrl(itemID),
+					dataType: 'json',
 					success: function(js){
 						sortOutSelectedItem(js, $this, itemID);
+					},
+					error: function(xhr) {
+						console.error('Failed to load item details for UOM dropdown.', xhr);
 					}
 				});
 			});

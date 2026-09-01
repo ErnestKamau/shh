@@ -222,10 +222,8 @@
 
 				var $this = $(this);
 				$.ajax({
-					url: '/get_item_details/'+itemID,
-					beforeSend: function(){
-
-					},
+					url: window.location.origin + '/get_item_details/' + encodeURIComponent(itemID),
+					dataType: 'json',
 					success: function(js){
 						var uonSel = $row.find('.uom[data-type="'+typ+'"]');
 						uonSel.html(`<option value="${js.uom}" selected>${js.uom}</option>`);

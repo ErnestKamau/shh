@@ -467,12 +467,13 @@
 
 			var $this = $(this);
 			$.ajax({
-				url: '/get_item_details/'+itemID,
-				beforeSend: function(){
-
-				},
+				url: window.location.origin + '/get_item_details/' + encodeURIComponent(itemID),
+				dataType: 'json',
 				success: function(js){
 					$row.find('.unit_type').text(js.uom);
+				},
+				error: function(xhr) {
+					console.error('Failed to load item details.', xhr);
 				}
 			});
 		});
