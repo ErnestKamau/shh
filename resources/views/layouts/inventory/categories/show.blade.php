@@ -74,29 +74,47 @@
 			$userCanDelete = \Auth::user()->can('inventory.components.categories.delete');
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-		<h3 class="p-4">
-			<i class="mdi mdi-format-list-bulleted"></i> Inventory Items
-			@if($userCanEdit)
-				<div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#edit-category-modal" data-toggle="modal"><i class="mdi mdi-share"></i> Edit</div>
-			@endif
-			@if($userCanAdd)
-				<div class="btn btn-sm btn-transparent text-success float-right m-2" data-target="#add-sub-category" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Item</div>
-			@endif
-		</h3>
-		<div class="p-4">
-			@if($userCanEdit)
-			<small data-target="#toggle-default-location-modal" data-toggle="modal" style="cursor: pointer">
-				<i class="mdi mdi-pencil text-success"></i> Default Location:
-				@if(trim($category->default_store_id) != "")
-					<i class="mdi mdi-package-variant-closed"></i> {{ $category->store }} -
-					<i class="mdi mdi-grid-large"></i> {{ $category->slot }}
+
+		<div class="batch-header-bar mb-3">
+			<div class="batch-header-top">
+				<div class="batch-title-group">
+					<span class="batch-code-label">{{ $category->name }}</span>
+					<span class="batch-stage-pill">
+						<i class="mdi mdi-package-variant-closed"></i>
+						{{ $category->subcategories->count() }} {{ inventoryLabel('items', 'Items') }}
+					</span>
+					@if($userCanEdit)
+						<button type="button" class="btn btn-outline-secondary btn-sm" data-target="#toggle-default-location-modal" data-toggle="modal" title="Change default store and slot">
+							<i class="mdi mdi-map-marker text-primary"></i>
+							<small class="font-weight-bold">
+								@if(trim($category->default_store_id) != "")
+									{{ $category->store }} &middot; {{ $category->slot }}
+								@else
+									Set Default Location
+								@endif
+							</small>
+						</button>
+					@endif
+				</div>
+			</div>
+			<div class="d-flex align-items-center" style="gap: 0.5rem;">
+				@if($userCanEdit)
+					<button class="btn btn-outline-primary btn-sm" data-target="#edit-category-modal" data-toggle="modal">
+						<i class="mdi mdi-pencil"></i> {{ inventoryLabel('edit_category', 'Edit Category') }}
+					</button>
 				@endif
-			</small>
-			@endif
+				@if($userCanAdd)
+					<button class="btn btn-primary btn-sm workflow-header-receive-btn" data-target="#add-sub-category" data-toggle="modal">
+						<i class="mdi mdi-plus"></i> {{ inventoryLabel('add_item', 'Add Item') }}
+					</button>
+				@endif
+			</div>
 		</div>
-		<div class="p-4 bg-light">
+
+		<div class="workflow-board-panel">
+			<div class="workflow-board-panel-body p-0">
 			<div class="table-responsive">
-				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm mb-0">
 					<thead class="bg-light p-2">
 						<tr>
 							<th>No</th>

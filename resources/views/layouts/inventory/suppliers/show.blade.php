@@ -178,10 +178,21 @@
 			$isInventoryProcurement = \Auth::user()->hasAnyRole($inventoryProcurementRoles);
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-		<h2 class="p-4">
-			<i class="mdi mdi-mdi-user"></i> {{ $supplier->name }} <small class="badge {{ $supplier->average_rating() < 60 ? 'badge-warning' : 'badge-success' }}">{{ $supplier->average_rating() }}%<i class="mdi mdi-star"></i> </small> <small class="text-muted"> | Suppliers</small>
 
-		</h2>
+		<div class="batch-header-bar mb-3">
+			<div class="batch-header-top">
+				<div class="batch-title-group">
+					<span class="batch-code-label">{{ $supplier->name }}</span>
+					<span class="batch-stage-pill">
+						<i class="mdi mdi-account-group"></i>
+						{{ inventoryLabel('supplier_profile', 'Supplier Profile') }}
+					</span>
+					<span class="badge {{ $supplier->average_rating() < 60 ? 'badge-warning' : 'badge-success' }} badge-pill px-3 py-1 font-weight-bold">
+						<i class="mdi mdi-star mr-1"></i> {{ $supplier->average_rating() }}% Rating
+					</span>
+				</div>
+			</div>
+		</div>
 		<div class="row no-gutters">
 			<div class="col-md-4 p-2">
 				<div class="card">

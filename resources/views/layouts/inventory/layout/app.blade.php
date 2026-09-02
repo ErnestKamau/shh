@@ -170,6 +170,8 @@
 	}
 </style>
 @include('layouts.lab.partials.lab-panel-theme-styles')
+@include('layouts.lab.partials.lab-surface-theme-styles')
+@include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
 @include('layouts.inventory.partials.theme-overrides')
 @include('layouts.inventory.partials.responsive-styles')
 @yield('title2')
@@ -217,7 +219,6 @@
 				<span class="text-lg text-bold">{{ inventoryLabel('module_name', 'Inventory Management') }}</span>
 			</div>
 
-			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_operations', 'Operations') }}</span></div>
 			<a href="{{ route('inventory-home') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-home') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-desktop-mac-dashboard fa-fw mr-3"></span>
@@ -299,7 +300,6 @@
 				</div>
 			@endif
 
-			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_catalog', 'Catalog') }}</span></div>
 			<a href="{{ route('inventory-categories') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-categories', 'show-inventory-category', 'show-inventory-items') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-format-list-bulleted-type fa-fw mr-3"></span>
@@ -331,7 +331,6 @@
 				</div>
 			</a>
 
-			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_warehouse', 'Warehouse') }}</span></div>
 			<a href="{{ route('inventory-stores') }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-stores', 'inventory-store-slots', 'inventory-slot-contents') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-package-variant-closed fa-fw mr-3"></span>
@@ -357,7 +356,6 @@
 				</div>
 			</a>
 
-			<div class="inventory-nav-section"><span>{{ inventoryLabel('nav_setup', 'Setup') }}</span></div>
 			<a href="{{ route('inventory-reporting-units', ['module'=>'inventory']) }}" class="list-group-item list-group-item-action {{ request()->routeIs('inventory-reporting-units') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
@@ -424,7 +422,7 @@
 				@endif
 			@endif
 		</div>
-		<div class="container-fluid inventory-page lab-surface-theme ls-admin-page lab-panel-theme workflow-theme" data-ls-type="plex">
+		<div class="container-fluid inventory-page lab-surface-theme ls-admin-page lab-panel-theme workflow-theme ls-ui-kit" data-ls-type="plex">
 			@yield('content2')
 		</div>
 	</div>

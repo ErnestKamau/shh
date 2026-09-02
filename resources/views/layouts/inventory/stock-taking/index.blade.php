@@ -20,13 +20,28 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h2 class="p-4">
-      <i class="mdi mdi-format-list-bulleted-type"></i> Stock Taking
-      <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-stock-taking"><i class="mdi mdi-plus"></i> Add</button>
-    </h2>
-    <br>
-    <div class="table-responsive bg-light p-4">
-      <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+
+    <div class="batch-header-bar mb-3">
+      <div class="batch-header-top">
+        <div class="batch-title-group">
+          <span class="batch-code-label">{{ inventoryLabel('stock_taking', 'Stock Taking') }}</span>
+          <span class="batch-stage-pill">
+            <i class="mdi mdi-clipboard-check-outline"></i>
+            {{ count($takings) }} {{ inventoryLabel('audits', 'Audits') }}
+          </span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center" style="gap: 0.5rem;">
+        <button class="btn btn-primary btn-sm workflow-header-receive-btn" data-toggle="modal" data-target="#add-stock-taking">
+          <i class="mdi mdi-plus"></i> {{ inventoryLabel('new_stock_taking', 'New Stock Taking') }}
+        </button>
+      </div>
+    </div>
+
+    <div class="workflow-board-panel">
+			<div class="workflow-board-panel-body p-0">
+      <div class="table-responsive">
+        <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm mb-0">
         <thead class="bg-light p-2">
           <tr>
 						<th>#</th>

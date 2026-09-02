@@ -29,39 +29,55 @@
 		);
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-	<h4 class="p-4">
-		<i class="mdi mdi-format-list-bulleted-type"></i>Stock Taking - {{ $taking->code }} <small class="text-muted"><i class="mdi mdi-warehouse"></i> {{ $taking->store_names }}</small>
-		@if(isset($taking->status) && !in_array($taking->status, array("Rejected", "Completed")))
-			<small class="btn bg-white text-info badge-pill btn-sm" data-target="#store-freeze-modal" data-toggle="modal">{!! $taking->stores_frozen == "0" ? '<i class="mdi mdi-home-lock"></i> Freeze' : '<i class="mdi mdi-home-lock-open"></i> Un-Freeze' !!}</small>
-			<a target="_blank" href="{{ route('stock-taking-sheet', ['id'=>$taking->id, 'print'=>'print']) }}" class="btn btn-sm btn-default  text-primary float-right"><i class="mdi mdi-printer"></i> Print Sheet</a>
-			@if(isset($taking->status) && in_array($taking->status, array("Awaiting Adjustment Approval")))
-				<button class="btn btn-default text-success btn-sm float-right save-capture-btn" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}><i class="mdi mdi-backup-restore"></i> Return to Capture</button>
-			@else
-				<button class="btn btn-default text-success btn-sm float-right save-capture-btn" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}><i class="mdi mdi-content-save"></i> Save Capture</button>
+
+	<div class="batch-header-bar mb-3">
+		<div class="batch-header-top">
+			<div class="batch-title-group">
+				<span class="batch-code-label">Stock Taking &middot; {{ $taking->code }}</span>
+				<span class="batch-stage-pill">
+					<i class="mdi mdi-warehouse"></i>
+					{{ $taking->store_names }}
+				</span>
+				<span class="badge badge-pill badge-light border font-weight-bold px-3 py-1">
+					<i class="mdi mdi-information-outline mr-1"></i> {{ $taking->status }}
+				</span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center flex-wrap" style="gap: 0.5rem;">
+			@if(isset($taking->status) && !in_array($taking->status, array("Rejected", "Completed")))
+				<button type="button" class="btn btn-outline-secondary btn-sm" data-target="#store-freeze-modal" data-toggle="modal">
+					{!! $taking->stores_frozen == "0" ? '<i class="mdi mdi-home-lock text-danger"></i> Freeze Stores' : '<i class="mdi mdi-home-lock-open text-success"></i> Un-Freeze Stores' !!}
+				</button>
+				<a target="_blank" href="{{ route('stock-taking-sheet', ['id'=>$taking->id, 'print'=>'print']) }}" class="btn btn-sm btn-outline-primary">
+					<i class="mdi mdi-printer"></i> Print Sheet
+				</a>
+				@if(isset($taking->status) && in_array($taking->status, array("Awaiting Adjustment Approval")))
+					<button class="btn btn-primary btn-sm workflow-header-receive-btn save-capture-btn" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
+						<i class="mdi mdi-backup-restore"></i> Return to Capture
+					</button>
+				@else
+					<button class="btn btn-primary btn-sm workflow-header-receive-btn save-capture-btn" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
+						<i class="mdi mdi-content-save"></i> Save Capture
+					</button>
+				@endif
 			@endif
-		@endif
-	</h4>
-	<div class="pl-4 pb-4">
-		<span class="badge badge-pill bg-white pl-4 p-2 pr-4" style="font-weight: 500; font-size: 13px"><i class="mdi mdi-information"></i> {{ $taking->status }} </span>
-		@if(isset($taking->status) && in_array($taking->status, array("In Quantity Capture")))
-			@if ($isInventoryProcurement)
-				<button class="ml-2 btn badge-pill btn-outline-danger btn-sm save-capture-btn" data-type="request_adjustment" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
-					<i class="mdi mdi-check-decagram"></i> Request Adjustment Approval
+
+			@if(isset($taking->status) && in_array($taking->status, array("In Quantity Capture")) && $isInventoryProcurement)
+				<button class="btn btn-danger btn-sm save-capture-btn" data-type="request_adjustment" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
+					<i class="mdi mdi-check-decagram"></i> Request Adjustment
 				</button>
 			@endif
-		@endif
-		@if(isset($taking->status) && $taking->status == "Awaiting Adjustment Approval")
-			@if ($isInventoryProcurement)
-				<span class="ml-2 badge-pill badge-success pl-4 pt-2 pr-4 pb-2" style="cursor: pointer" data-type="approve" data-target="#approve-deny-adjustment-modal" data-toggle="modal" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
+			@if(isset($taking->status) && $taking->status == "Awaiting Adjustment Approval" && $isInventoryProcurement)
+				<button type="button" class="btn btn-success btn-sm" data-type="approve" data-target="#approve-deny-adjustment-modal" data-toggle="modal" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
 					<i class="mdi mdi-check-bold"></i> Approve Adjustment
-				</span>
-				<span class="ml-2 badge-pill badge-danger pl-4 pt-2 pr-4 pb-2" style="cursor: pointer" data-type="deny" data-target="#approve-deny-adjustment-modal" data-toggle="modal" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
+				</button>
+				<button type="button" class="btn btn-danger btn-sm" data-type="deny" data-target="#approve-deny-adjustment-modal" data-toggle="modal" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
 					<i class="mdi mdi-window-close"></i> Reject Adjustment
-				</span>
+				</button>
 			@endif
-		@endif
+		</div>
 	</div>
-	<br>
+
 	<div class="card tab-card">
 		<div class="card-header tab-card-header">
 			<ul class="nav nav-tabs card-header-tabs" style="font-size: 14px" id="Request-tabs" role="tablist">
