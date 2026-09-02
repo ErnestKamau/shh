@@ -250,6 +250,51 @@ class QuotationPricingResolver
 
         $pricelist = $this->resolveBoundPricelist($header);
 
+        if ($sampleTypeId !== null && $sampleTypeId !== '') {
+            $panelMatch = $this->acceptanceFormPricingService->findSampleTypePanelPackage(
+                $header->crm_customer_id,
+                $sampleTypeId,
+                $pricelist,
+            );
+
+            if ($panelMatch !== null) {
+                $elementIds = $panelMatch['covered_element_ids'];
+                $analysisTypeIdsFromElements = AnalysisElements::query()
+                    ->whereIn('id', $elementIds)
+                    ->pluck('analysis_type_id')
+                    ->unique()
+                    ->map(fn ($id): string => (string) $id)
+                    ->values()
+                    ->all();
+
+                $suggestion = $this->suggestManualLinePricing(
+                    $header,
+                    $sampleTypeId,
+                    implode(',', $analysisTypeIdsFromElements),
+                    $elementIds,
+                    self::PRICING_MODE_AUTO,
+                );
+
+                $accreditedIds = $this->accreditedElementIds($elementIds);
+                $defaultIds = array_values(array_diff($elementIds, $accreditedIds));
+
+                return [
+                    'found' => true,
+                    'element_ids' => $elementIds,
+                    'accredited_ids' => $accreditedIds,
+                    'default_ids' => $defaultIds,
+                    'parameters' => $this->parameterDisplayRows($elementIds, $accreditedIds),
+                    'unit_price' => (float) $suggestion['unit_price'],
+                    'tax' => (float) $suggestion['tax'],
+                    'source' => (string) $suggestion['source'],
+                    'hint' => (string) $suggestion['hint'],
+                    'is_package' => (bool) $suggestion['is_package'],
+                    'pricing_mode' => (string) $suggestion['pricing_mode'],
+                    'max_tat' => $suggestion['max_tat'],
+                ];
+            }
+        }
+
         $elementIds = [];
         $foundAny = false;
 
@@ -916,6 +961,19 @@ class QuotationPricingResolver
     ): ?array {
         $analysisTypeIds = array_values(array_filter(array_map('trim', explode(',', $analysisTypeIdsCsv))));
         $pricelist = $this->resolvePricelist($header->crm_customer_id, $header);
+
+        if ($sampleTypeId !== null && $sampleTypeId !== '' && $elementIds !== []) {
+            $panelMatch = $this->acceptanceFormPricingService->resolveSampleTypePanelForGroup(
+                $header->crm_customer_id,
+                $sampleTypeId,
+                $elementIds,
+                $pricelist,
+            );
+
+            if ($panelMatch !== null) {
+                return $panelMatch;
+            }
+        }
 
         foreach ($analysisTypeIds as $analysisTypeId) {
             $match = $this->acceptanceFormPricingService->resolvePackageForGroup(

@@ -184,6 +184,61 @@ class PricelistPackagePricingTest extends TestCase
         $this->assertSame(400.0, (float) $match['item']->selling_price);
     }
 
+    public function test_sample_type_panel_collapses_cross_analysis_type_lines(): void
+    {
+        [$pricelist, $sampleTypeId, $elementIds, $customerId] = $this->seedSampleTypePanelPricelist(
+            packagePrice: 700.0,
+            parameterPrice: 40.0,
+        );
+
+        $chemicalTypeId = (string) AnalysisType::query()->where('sample_type_id', $sampleTypeId)->orderBy('name')->value('id');
+        $microTypeId = (string) AnalysisType::query()->where('sample_type_id', $sampleTypeId)->orderByDesc('name')->value('id');
+
+        $chemicalElementIds = AnalysisElements::query()
+            ->where('analysis_type_id', $chemicalTypeId)
+            ->pluck('id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+        $microElementIds = AnalysisElements::query()
+            ->where('analysis_type_id', $microTypeId)
+            ->pluck('id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        $lines = array_merge(
+            $this->buildElementLines($sampleTypeId, $chemicalTypeId, $chemicalElementIds, 40.0),
+            $this->buildElementLines($sampleTypeId, $microTypeId, $microElementIds, 40.0),
+        );
+
+        $result = app(AcceptanceFormPricingService::class)
+            ->applyPackagePricingToLines($lines, $customerId, $pricelist);
+
+        $this->assertCount(1, $result);
+        $this->assertTrue((bool) ($result[0]['is_package'] ?? false));
+        $this->assertSame(700.0, (float) $result[0]['unit_price']);
+        $this->assertEqualsCanonicalizing($elementIds, $result[0]['package_element_ids']);
+    }
+
+    public function test_resolve_sample_type_panel_prefers_full_panel_match(): void
+    {
+        [$pricelist, $sampleTypeId, $elementIds, $customerId] = $this->seedSampleTypePanelPricelist(
+            packagePrice: 700.0,
+            parameterPrice: 40.0,
+        );
+
+        $match = app(AcceptanceFormPricingService::class)->resolveSampleTypePanelForGroup(
+            $customerId,
+            $sampleTypeId,
+            $elementIds,
+            $pricelist,
+        );
+
+        $this->assertNotNull($match);
+        $this->assertNull($match['item']->analysis_id);
+        $this->assertEqualsCanonicalizing($elementIds, $match['covered_element_ids']);
+        $this->assertSame(700.0, (float) $match['item']->selling_price);
+    }
+
     public function test_package_line_persists_and_reloads_as_package(): void
     {
         $header = QuotationHeader::query()->create([
@@ -497,6 +552,93 @@ class PricelistPackagePricingTest extends TestCase
         }
 
         return [$pricelist, (string) $sampleType->id, (string) $analysisType->id, $elementIds];
+    }
+
+    /**
+     * @return array{0: Pricelist, 1: string, 2: list<string>, 3: string}
+     */
+    private function seedSampleTypePanelPricelist(
+        float $packagePrice,
+        float $parameterPrice,
+    ): array {
+        $pricelist = $this->createActivePricelist(true);
+        $sampleType = SampleType::query()->create(['name' => 'Fresh Water Panel '.Str::random(5)]);
+
+        $chemicalType = AnalysisType::query()->create([
+            'name' => 'Chemical Panel',
+            'sample_type_id' => $sampleType->id,
+        ]);
+        $microType = AnalysisType::query()->create([
+            'name' => 'Micro Panel',
+            'sample_type_id' => $sampleType->id,
+        ]);
+
+        $chemicalElements = collect(range(1, 3))->map(fn (int $level) => AnalysisElements::query()->create([
+            'analysis_type_id' => $chemicalType->id,
+            'analyte_id' => null,
+            'method' => 'Chem '.$level,
+            'level' => $level,
+            'active' => true,
+        ]));
+        $microElements = collect(range(1, 2))->map(fn (int $level) => AnalysisElements::query()->create([
+            'analysis_type_id' => $microType->id,
+            'analyte_id' => null,
+            'method' => 'Micro '.$level,
+            'level' => $level,
+            'active' => true,
+        ]));
+
+        $elementIds = $chemicalElements->merge($microElements)
+            ->pluck('id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        $item = PricelistItem::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'sample_type_id' => $sampleType->id,
+            'analysis_id' => null,
+            'analysis_element_id' => null,
+            'selling_price' => $packagePrice,
+            'changed_price' => $packagePrice,
+            'cost_price' => 0,
+            'vat' => false,
+            'active' => true,
+            'is_package' => true,
+            'internal_use' => false,
+            'external_view' => true,
+        ]);
+
+        foreach ($elementIds as $elementId) {
+            PricelistItemElement::query()->create([
+                'id' => (string) Str::uuid(),
+                'pricelist_item_id' => $item->id,
+                'analysis_element_id' => $elementId,
+            ]);
+        }
+
+        foreach ($elementIds as $elementId) {
+            PricelistItem::query()->create([
+                'id' => (string) Str::uuid(),
+                'pricelist_id' => $pricelist->id,
+                'sample_type_id' => $sampleType->id,
+                'analysis_id' => AnalysisElements::query()->whereKey($elementId)->value('analysis_type_id'),
+                'analysis_element_id' => $elementId,
+                'selling_price' => $parameterPrice,
+                'changed_price' => $parameterPrice,
+                'active' => true,
+                'is_package' => false,
+            ]);
+        }
+
+        $customerId = (string) Str::uuid();
+        PricelistCustomer::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'customer_id' => $customerId,
+        ]);
+
+        return [$pricelist, (string) $sampleType->id, $elementIds, $customerId];
     }
 
     private function createActivePricelist(bool $isMaster): Pricelist

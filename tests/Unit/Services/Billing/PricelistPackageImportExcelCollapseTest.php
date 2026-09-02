@@ -93,6 +93,51 @@ class PricelistPackageImportExcelCollapseTest extends TestCase
         }
     }
 
+    public function test_excel_merges_repeated_sample_type_labels_into_one_package(): void
+    {
+        $parameters = [
+            'pH',
+            'Electrical Conductivity @25°C',
+            'Total Dissolved Solids',
+            'HPC',
+            'Legionella',
+        ];
+
+        $matrix = [
+            ['Sample', 'Test', 'Cost Price (AED)', 'Unit Price (AED)', 'Tax %'],
+        ];
+
+        foreach ($parameters as $index => $parameter) {
+            $matrix[] = [
+                'Fresh Water',
+                $parameter,
+                $index === 0 ? 500 : '',
+                $index === 0 ? 700 : '',
+                $index === 0 ? 5 : '',
+            ];
+        }
+
+        $path = $this->writeTempWorkbook($matrix);
+
+        try {
+            $file = new UploadedFile($path, 'fresh-water.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+            $rows = $this->service()->parseExcelRows($file);
+
+            $this->assertCount(1, $rows);
+            $this->assertSame('Fresh Water', $rows[0]['sample_type']);
+            $this->assertSame(500.0, (float) $rows[0]['cost_price']);
+            $this->assertSame(700.0, (float) $rows[0]['selling_price']);
+            $this->assertSame('5', (string) $rows[0]['tax']);
+            $this->assertTrue((bool) $rows[0]['is_package']);
+            $this->assertSame(
+                implode('; ', $parameters),
+                $rows[0]['parameters']
+            );
+        } finally {
+            @unlink($path);
+        }
+    }
+
     private function service(): PricelistPackageImportService
     {
         return new PricelistPackageImportService(

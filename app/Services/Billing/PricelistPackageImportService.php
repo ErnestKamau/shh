@@ -175,9 +175,9 @@ class PricelistPackageImportService
             $mode = strtolower(trim((string) ($row['pricing_mode'] ?? $defaultPricingMode)));
             $isPackage = ($mode === 'per_package' || $mode === 'package' || $mode === '1' || $mode === 'yes')
                 || ((bool) ($row['is_package'] ?? false));
-            // Default tax true per Scope 3.
+            // Default tax true per Scope 3 when the tax column is omitted.
             $vat = array_key_exists('tax', $row)
-                ? $this->truthy($row['tax'])
+                ? $this->resolveVatFromImportTax($row['tax'])
                 : true;
             $sellingPrice = (float) ($row['selling_price'] ?? $row['unit_price'] ?? 0);
             $costPrice = array_key_exists('cost_price', $row) && $row['cost_price'] !== null && $row['cost_price'] !== ''
@@ -185,19 +185,18 @@ class PricelistPackageImportService
                 : 0.0;
 
             if ($isPackage) {
-                $analysisTypeId = (string) ($elements[0]->analysis_type_id ?? '');
                 $item = PricelistItem::query()
                     ->where('pricelist_id', $pricelist->id)
                     ->where('sample_type_id', $sampleType->id)
                     ->where('is_package', true)
-                    ->where('analysis_id', $analysisTypeId !== '' ? $analysisTypeId : null)
+                    ->whereNull('analysis_id')
                     ->first();
 
                 if ($item === null) {
                     $item = new PricelistItem();
                     $item->pricelist_id = $pricelist->id;
                     $item->sample_type_id = $sampleType->id;
-                    $item->analysis_id = $analysisTypeId !== '' ? $analysisTypeId : null;
+                    $item->analysis_id = null;
                     $item->is_package = true;
                     $item->active = true;
                     $item->internal_use = false;
@@ -446,6 +445,15 @@ class PricelistPackageImportService
             }
 
             if ($sample !== '') {
+                if ($open !== null && $this->sameImportSampleTypeLabel($sample, (string) ($open['sample_type'] ?? ''))) {
+                    if ($params !== '') {
+                        $open['_tests'][] = $params;
+                    }
+                    $this->mergeExcelPackagePricingFields($open, $row, $sellingPrice, $costPrice);
+
+                    continue;
+                }
+
                 if ($open !== null) {
                     $packages[] = $this->finalizeExcelPackage($open);
                 }
@@ -464,12 +472,7 @@ class PricelistPackageImportService
             }
 
             $open['_tests'][] = $params;
-            if ($sellingPrice > 0 && (float) ($open['selling_price'] ?? 0) <= 0) {
-                $open['selling_price'] = $sellingPrice;
-            }
-            if ($costPrice > 0 && (float) ($open['cost_price'] ?? 0) <= 0) {
-                $open['cost_price'] = $costPrice;
-            }
+            $this->mergeExcelPackagePricingFields($open, $row, $sellingPrice, $costPrice);
         }
 
         if ($open !== null) {
@@ -516,6 +519,44 @@ class PricelistPackageImportService
         ], true);
     }
 
+    private function sameImportSampleTypeLabel(string $left, string $right): bool
+    {
+        $left = trim($left);
+        $right = trim($right);
+
+        if ($left === '' || $right === '') {
+            return false;
+        }
+
+        if (strcasecmp($left, $right) === 0) {
+            return true;
+        }
+
+        return $this->labelMatcher->matches($left, $right);
+    }
+
+    /**
+     * @param  array<string, mixed>  $open
+     * @param  array<string, mixed>  $row
+     */
+    private function mergeExcelPackagePricingFields(
+        array &$open,
+        array $row,
+        float $sellingPrice,
+        float $costPrice,
+    ): void {
+        if ($sellingPrice > 0 && (float) ($open['selling_price'] ?? 0) <= 0) {
+            $open['selling_price'] = $sellingPrice;
+        }
+        if ($costPrice > 0 && (float) ($open['cost_price'] ?? 0) <= 0) {
+            $open['cost_price'] = $costPrice;
+        }
+        if (array_key_exists('tax', $row) && $row['tax'] !== null && $row['tax'] !== ''
+            && (! array_key_exists('tax', $open) || $open['tax'] === null || $open['tax'] === '')) {
+            $open['tax'] = $row['tax'];
+        }
+    }
+
     private function resolveSampleType(string $name): ?SampleType
     {
         $name = trim($name);
@@ -558,7 +599,7 @@ class PricelistPackageImportService
         $seenElementIds = [];
 
         foreach ($tokens as $token) {
-            $analyte = $this->resolveAnalyte($token);
+            $analyte = $this->resolveAnalyte($token, $sampleType);
             if ($analyte === null) {
                 $unmatched[] = $token;
                 continue;
@@ -591,16 +632,42 @@ class PricelistPackageImportService
         ];
     }
 
-    private function resolveAnalyte(string $token): ?Analyte
+    /**
+     * Resolve an import label to a catalogue analyte scoped to the target sample type.
+     *
+     * When several analytes match the same fuzzy label (e.g. generic «Electrical conductivity»
+     * vs «Electrical Conductivity @25°C»), prefer the one linked to an analysis element under
+     * $sampleType — never return a match that only exists on other sample types.
+     */
+    private function resolveAnalyte(string $token, SampleType $sampleType): ?Analyte
     {
         $token = trim($token);
         if ($token === '') {
             return null;
         }
 
+        $candidates = [];
+
         foreach ($this->analyteCatalog() as $analyte) {
             if ($this->labelMatcher->matches($token, (string) ($analyte->name ?? ''))
                 || $this->labelMatcher->matches($token, (string) ($analyte->code ?? ''))) {
+                $candidates[] = $analyte;
+            }
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        foreach ($candidates as $analyte) {
+            $hasElementUnderSampleType = AnalysisElements::query()
+                ->where('analyte_id', $analyte->id)
+                ->whereHas('analysis_type', function ($query) use ($sampleType) {
+                    $query->where('sample_type_id', $sampleType->id);
+                })
+                ->exists();
+
+            if ($hasElementUnderSampleType) {
                 return $analyte;
             }
         }
@@ -634,6 +701,33 @@ class PricelistPackageImportService
         $raw = strtolower(trim((string) $value));
 
         return in_array($raw, ['1', 'true', 'yes', 'y', 'vat', 'on'], true);
+    }
+
+    private function resolveVatFromImportTax(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if ($value === null) {
+            return false;
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return false;
+        }
+
+        if (is_numeric($raw)) {
+            return (float) $raw > 0;
+        }
+
+        $normalized = strtolower($raw);
+        if (in_array($normalized, ['0', 'false', 'no', 'n', 'off'], true)) {
+            return false;
+        }
+
+        return $this->truthy($value);
     }
 
     private function cleanNumber(mixed $value): float

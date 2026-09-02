@@ -106,6 +106,37 @@ class QuotationPackageDefaultsTest extends TestCase
         $this->assertSame(0.0, (float) $defaults['unit_price']);
     }
 
+    public function test_resolve_package_defaults_uses_sample_type_panel_when_analysis_id_is_null(): void
+    {
+        TaxRegime::query()->create([
+            'id' => (string) Str::uuid(),
+            'value' => 5,
+            'active' => true,
+        ]);
+
+        [$pricelist, $sampleTypeId, $elementIds, $customerId] = $this->seedSampleTypePanel(
+            packagePrice: 700.0,
+        );
+
+        $header = new QuotationHeader([
+            'id' => (string) Str::uuid(),
+            'crm_customer_id' => $customerId,
+            'pricelist_id' => $pricelist->id,
+        ]);
+
+        $defaults = app(QuotationPricingResolver::class)->resolvePackageDefaults(
+            $header,
+            $sampleTypeId,
+            '',
+        );
+
+        $this->assertTrue($defaults['found']);
+        $this->assertEqualsCanonicalizing($elementIds, $defaults['element_ids']);
+        $this->assertSame(700.0, (float) $defaults['unit_price']);
+        $this->assertSame(5.0, (float) $defaults['tax']);
+        $this->assertTrue($defaults['is_package']);
+    }
+
     /**
      * @return array{0: Pricelist, 1: string, 2: string, 3: list<string>, 4: string}
      */
@@ -173,6 +204,92 @@ class QuotationPackageDefaultsTest extends TestCase
             $pricelist,
             (string) $sampleType->id,
             (string) $analysisType->id,
+            $elementIds,
+            $customerId,
+        ];
+    }
+
+    /**
+     * @return array{0: Pricelist, 1: string, 2: list<string>, 3: string}
+     */
+    private function seedSampleTypePanel(float $packagePrice): array
+    {
+        $pricelist = Pricelist::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'PL-'.Str::upper(Str::random(6)),
+            'description' => 'Sample type panel defaults test',
+            'active' => true,
+            'is_master' => false,
+            'status' => 'no-changes',
+            'revision_number' => '1',
+            'document_no' => 'DOC-',
+        ]);
+
+        $customerId = (string) Str::uuid();
+        PricelistCustomer::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'customer_id' => $customerId,
+        ]);
+
+        $sampleType = SampleType::query()->create(['name' => 'Fresh Water Defaults '.Str::random(4)]);
+        $chemicalType = AnalysisType::query()->create([
+            'name' => 'Chemical Defaults',
+            'sample_type_id' => $sampleType->id,
+        ]);
+        $microType = AnalysisType::query()->create([
+            'name' => 'Micro Defaults',
+            'sample_type_id' => $sampleType->id,
+        ]);
+
+        $elements = collect([
+            AnalysisElements::query()->create([
+                'analysis_type_id' => $chemicalType->id,
+                'analyte_id' => null,
+                'method' => 'pH',
+                'level' => 1,
+                'active' => true,
+                'non_accredited' => false,
+            ]),
+            AnalysisElements::query()->create([
+                'analysis_type_id' => $microType->id,
+                'analyte_id' => null,
+                'method' => 'HPC',
+                'level' => 1,
+                'active' => true,
+                'non_accredited' => false,
+            ]),
+        ]);
+
+        $elementIds = $elements->pluck('id')->map(fn ($id): string => (string) $id)->all();
+
+        $item = PricelistItem::query()->create([
+            'id' => (string) Str::uuid(),
+            'pricelist_id' => $pricelist->id,
+            'sample_type_id' => $sampleType->id,
+            'analysis_id' => null,
+            'analysis_element_id' => null,
+            'selling_price' => $packagePrice,
+            'changed_price' => $packagePrice,
+            'cost_price' => 500,
+            'vat' => true,
+            'active' => true,
+            'is_package' => true,
+            'internal_use' => false,
+            'external_view' => true,
+        ]);
+
+        foreach ($elementIds as $elementId) {
+            PricelistItemElement::query()->create([
+                'id' => (string) Str::uuid(),
+                'pricelist_item_id' => $item->id,
+                'analysis_element_id' => $elementId,
+            ]);
+        }
+
+        return [
+            $pricelist,
+            (string) $sampleType->id,
             $elementIds,
             $customerId,
         ];
