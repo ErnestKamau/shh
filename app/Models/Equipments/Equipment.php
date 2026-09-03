@@ -325,9 +325,36 @@ class Equipment extends Model implements Auditable
 		);
 	}
 
+	public function assetType(): BelongsTo
+	{
+		return $this->belongsTo(\App\Models\Assets\AssetType::class, 'asset_type_id');
+	}
+
 	public function assetLocation(): BelongsTo
 	{
 		return $this->belongsTo(\App\Models\Assets\AssetLocation::class, 'asset_location_id');
+	}
+
+	public function assetTypeLabel(): string
+	{
+		$assetType = $this->relationLoaded('assetType')
+			? $this->assetType
+			: ($this->asset_type_id ? $this->assetType()->first() : null);
+
+		if ($assetType) {
+			$code = trim((string) ($assetType->asset_code ?? ''));
+			$description = trim((string) ($assetType->descripton ?? ''));
+
+			if ($code !== '' && $description !== '') {
+				return $code.' ('.$description.')';
+			}
+
+			return $description !== '' ? $description : ($code !== '' ? $code : '-');
+		}
+
+		$fallback = trim((string) ($this->asset_description ?? $this->asset_code ?? ''));
+
+		return $fallback !== '' ? $fallback : '-';
 	}
 
 	public function logbookColumns(): \Illuminate\Database\Eloquent\Relations\HasMany

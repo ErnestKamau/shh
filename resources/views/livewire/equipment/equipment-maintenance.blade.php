@@ -8,7 +8,7 @@
                             <h3 class="mb-0 text-primary font-weight-bold">
                                 <i class="mdi mdi-calendar-clock mr-2"></i> Equipment Maintenance Program
                             </h3>
-                            <p class="text-muted mb-0">Manage and track GCLA annual, preventive, and service maintenance
+                            <p class="text-muted mb-0">Manage and track annual, preventive, and service maintenance
                                 records.</p>
                             @if($maintenancePeriodLabel)
                                 <span class="badge badge-light border mt-1" style="font-size: 0.85rem;">
@@ -18,7 +18,7 @@
                             @endif
                         </div>
                         <div class="col-md-6 col-sm-12 text-md-right mt-3 mt-md-0">
-                            @can('equipment.maintenance.view')
+                            @if($this->canMaintain('view'))
                                 @if($activeTab === 'annual')
                                     <button wire:click="exportAnnual" class="btn btn-success shadow-sm rounded-pill px-4">
                                         <i class="mdi mdi-file-excel mr-1"></i> Export Annual Program
@@ -36,7 +36,7 @@
                                         <i class="mdi mdi-file-excel mr-1"></i> Export Replacement Plan
                                     </button>
                                 @endif
-                            @endcan
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -109,7 +109,7 @@
                                 <div class="col">
                                     <h6 class="text-secondary font-weight-bold mb-0" style="font-size: 0.9rem;"><i class="mdi mdi-filter-variant text-primary mr-1"></i> Advanced Filters</h6>
                                 </div>
-                                @if($filterDateStart || $filterDateEnd || $filterMaintenanceStatus || $filterServiceType || $filterServiceProvider || $filterZone)
+                                @if($filterDateStart || $filterDateEnd || $filterMaintenanceStatus || $filterServiceType || $filterServiceProvider)
                                 <div class="col-auto">
                                     <button wire:click="resetFilters" class="btn btn-sm btn-light text-danger font-weight-bold shadow-sm" style="border-radius: 12px; font-size: 0.75rem;">
                                         <i class="mdi mdi-close"></i> Clear Filters
@@ -118,17 +118,6 @@
                                 @endif
                             </div>
                             <div class="row">
-                                <!-- Zone Filter -->
-                                <div class="col-md-3 mb-2">
-                                    <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Zone (Location)</label>
-                                    <select wire:model.live="filterZone" class="custom-select custom-select-sm shadow-sm" style="border-radius: 8px;">
-                                        <option value="">-- All Zones --</option>
-                                        @foreach($zones as $z)
-                                            <option value="{{ $z->id }}">{{ $z->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                
                                 <!-- Date Filters -->
                                 <div class="col-md-2 mb-2">
                                     <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Start Date</label>
@@ -191,29 +180,35 @@
                                                     - {{ ucfirst($program->status) }}</option>
                                             @endforeach
                                         </select>
-                                        @can('equipment.maintenance.add')
-                                            <button wire:click="openCreateProgramModal"
-                                                class="btn btn-outline-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold">
-                                                <i class="mdi mdi-plus"></i> Create Annual Program
+                                        @if($this->canMaintain('add'))
+                                            <button type="button"
+                                                wire:click="openCreateProgramModal"
+                                                wire:loading.attr="disabled"
+                                                wire:target="openCreateProgramModal"
+                                                class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold">
+                                                <span wire:loading.remove wire:target="openCreateProgramModal">
+                                                    <i class="mdi mdi-plus"></i> Create Annual Program
+                                                </span>
+                                                <span wire:loading wire:target="openCreateProgramModal">Opening...</span>
                                             </button>
-                                        @endcan
+                                        @endif
                                         @if($activeAnnualProgramId)
-                                            @can('equipment.maintenance.edit')
+                                            @if($this->canMaintain('edit'))
                                                 <button wire:click="editProgram('{{ $activeAnnualProgramId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Program">
                                                     <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.delete')
+                                            @endif
+                                            @if($this->canMaintain('delete'))
                                                 <button onclick="confirm('CAUTION: Are you sure you want to delete this program? All equipment maintenance records within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deleteProgram('{{ $activeAnnualProgramId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Program">
                                                     <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.add')
+                                            @endif
+                                            @if($this->canMaintain('add'))
                                                 <button wire:click="openAddProgramEquipmentModal"
                                                     class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
                                                     <i class="mdi mdi-plus mr-1"></i> Add Equipment to Program
                                                 </button>
-                                            @endcan
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -242,7 +237,6 @@
                                         <tr>
                                             <th class="pl-4 py-3 font-weight-bold">Equipment Name</th>
                                             <th class="py-3 font-weight-bold">Serial Number</th>
-                                            <th class="py-3 font-weight-bold">Location (Zones)</th>
                                             <th class="py-3 font-weight-bold">Serviced Date</th>
                                             <th class="py-3 font-weight-bold">Status</th>
                                             <th class="py-3 font-weight-bold">Next Service</th>
@@ -262,9 +256,6 @@
                                                     </a>
                                                 </td>
                                                 <td class="py-3 text-muted">{{ $equipment->serial_number ?? '—' }}</td>
-                                                <td class="py-3"><span
-                                                        class="badge badge-info px-2.5 py-1 text-xs font-weight-semibold">{{ $equipment->zone_name }}</span>
-                                                </td>
                                                 <td class="py-3 font-weight-bold">
                                                     {{ $latest && $latest->serviced_date ? $latest->serviced_date->format('M d, Y') : '—' }}
                                                 </td>
@@ -299,7 +290,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="8" class="text-center py-5 text-muted">
+                                                <td colspan="7" class="text-center py-5 text-muted">
                                                     <i class="mdi mdi-wrench-outline display-4 d-block mb-2 text-light"></i>
                                                     No equipment records found.
                                                 </td>
@@ -307,8 +298,6 @@
                                         @endforelse
                                     </tbody>
                                 </table>
-                            </div>
-
                             </div>
 
                             @if($equipments->hasPages())
@@ -340,29 +329,30 @@
                                                     - {{ ucfirst($program->status) }}</option>
                                             @endforeach
                                         </select>
-                                        @can('equipment.maintenance.add')
-                                            <button wire:click="openCreateProgramModal"
+                                        @if($this->canMaintain('add'))
+                                            <button type="button" wire:click="openCreateProgramModal"
+                                                wire:loading.attr="disabled" wire:target="openCreateProgramModal"
                                                 class="btn btn-outline-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold">
                                                 <i class="mdi mdi-plus"></i> Create Preventive Program
                                             </button>
-                                        @endcan
+                                        @endif
                                         @if($activePreventiveProgramId)
-                                            @can('equipment.maintenance.edit')
+                                            @if($this->canMaintain('edit'))
                                                 <button wire:click="editProgram('{{ $activePreventiveProgramId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Program">
                                                     <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.delete')
+                                            @endif
+                                            @if($this->canMaintain('delete'))
                                                 <button onclick="confirm('CAUTION: Are you sure you want to delete this program? All equipment maintenance records within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deleteProgram('{{ $activePreventiveProgramId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Program">
                                                     <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.add')
+                                            @endif
+                                            @if($this->canMaintain('add'))
                                                 <button wire:click="openAddProgramEquipmentModal"
                                                     class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
                                                     <i class="mdi mdi-plus mr-1"></i> Add Equipment to Program
                                                 </button>
-                                            @endcan
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -385,7 +375,7 @@
                             </div>
 
                             {{-- ── Bulk Scheduler ───────────────────────────────────────────── --}}
-                            @can('equipment.maintenance.edit')
+                            @if($this->canMaintain('edit'))
                                 <div class="m-3 p-3 border rounded bg-white shadow-sm">
                                     <div class="d-flex align-items-center flex-wrap" style="gap:12px;">
                                         <span class="font-weight-bold text-secondary" style="font-size:.9rem; white-space:nowrap;">
@@ -409,7 +399,7 @@
                                         </span>
                                     </div>
                                 </div>
-                            @endcan
+                            @endif
                         @endif
 
                             {{-- ── Legend ──────────────────────────────────────────────────── --}}
@@ -454,10 +444,8 @@
                                             </th>
                                             <th class="py-2 align-middle" style="min-width:130px; font-weight: bold;">Serial
                                                 No.</th>
-                                            <th class="py-2 align-middle" style="min-width:120px; font-weight: bold;">GCLA
+                                            <th class="py-2 align-middle" style="min-width:120px; font-weight: bold;">Equipment
                                                 code</th>
-                                            <th class="py-2 align-middle" style="min-width:140px; font-weight: bold;">
-                                                Location(Zone)</th>
                                             @foreach($quarters as $q)
                                                 <th colspan="{{ count($q['months']) }}" class="py-2 text-center align-middle"
                                                     style="font-weight: bold;">
@@ -469,7 +457,6 @@
                                         </tr>
                                         {{-- Header row 2: individual month labels --}}
                                         <tr>
-                                            <th class="py-2"></th>
                                             <th class="py-2"></th>
                                             <th class="py-2"></th>
                                             <th class="py-2"></th>
@@ -519,15 +506,10 @@
                                                 <td class="py-2 align-middle text-dark" style="font-size:.82rem;">
                                                     {{ $equipment->serial_number ?? '—' }}
                                                 </td>
-                                                {{-- GCLA code --}}
+                                                {{-- Equipment code --}}
                                                 <td class="py-2 align-middle text-dark" style="font-size:.82rem;">
                                                     {{ $equipment->equipment_number ?? '—' }}
                                                 </td>
-                                                {{-- Location --}}
-                                                <td class="py-2 align-middle text-dark" style="font-size:.82rem;">
-                                                    {{ $equipment->zone_name ?: '—' }}
-                                                </td>
-
                                                 {{-- Month cells --}}
                                                 @foreach($quarters as $qIdx => $q)
                                                     @foreach($q['months'] as $mIdx => $m)
@@ -552,7 +534,7 @@
                                                         @endphp
                                                         <td class="align-middle text-center p-0"
                                                             style="height:48px; vertical-align:middle; background: {{ $cellBg }};">
-                                                            @can('equipment.maintenance.edit')
+                                                            @if($this->canMaintain('edit'))
                                                                 @if($isScheduled)
                                                                     {{-- Scheduled or serviced: clicking goes to maintenance log --}}
                                                                     <a href="{{ $detailUrl }}" title="{{ $cellTitle }}" style="display:block; width:100%; height:100%; margin:0 auto;
@@ -580,7 +562,7 @@
                                                                                  text-align:center;">
                                                                     {{ $cellContent }}
                                                                 </span>
-                                                            @endcan
+                                                            @endif
                                                         </td>
                                                     @endforeach
                                                 @endforeach
@@ -589,14 +571,14 @@
                                                 <td class="py-2 text-center align-middle"
                                                     style="padding-right: 8px; padding-left: 8px;">
                                                     @if($scheduledMonth && !$isServiced)
-                                                        @can('equipment.maintenance.edit')
+                                                        @if($this->canMaintain('edit'))
                                                             <button wire:click="markServiced('{{ $equipment->id }}')"
                                                                 class="btn btn-sm btn-success px-2 py-1 d-block w-100 mb-1"
                                                                 style="border-radius:6px; font-size:.76rem; font-weight:600;"
                                                                 title="Mark as serviced/maintained">
                                                                 <i class="mdi mdi-check-circle mr-1"></i> Mark Done
                                                             </button>
-                                                        @endcan
+                                                        @endif
                                                     @endif
                                                     <a href="{{ $detailUrl }}"
                                                         class="btn btn-sm btn-outline-primary px-2 py-1 d-block w-100"
@@ -618,8 +600,6 @@
                                     </tbody>
                                     </table>
                                 </div>
-                            </div>
-
                             </div>
 
                             @if($equipments->hasPages())
@@ -647,29 +627,29 @@
                                                     - {{ ucfirst($program->status) }}</option>
                                             @endforeach
                                         </select>
-                                        @can('equipment.maintenance.add')
-                                            <button wire:click="openCreateProgramModal"
+                                        @if($this->canMaintain('add'))
+                                            <button type="button" wire:click="openCreateProgramModal"
                                                 class="btn btn-outline-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold">
                                                 <i class="mdi mdi-plus"></i> Create Maintenance Register
                                             </button>
-                                        @endcan
+                                        @endif
                                         @if($activeRegisterProgramId)
-                                            @can('equipment.maintenance.edit')
+                                            @if($this->canMaintain('edit'))
                                                 <button wire:click="editProgram('{{ $activeRegisterProgramId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Register">
                                                     <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.delete')
+                                            @endif
+                                            @if($this->canMaintain('delete'))
                                                 <button onclick="confirm('CAUTION: Are you sure you want to delete this register? All equipment maintenance records within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deleteProgram('{{ $activeRegisterProgramId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Register">
                                                     <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.add')
+                                            @endif
+                                            @if($this->canMaintain('add'))
                                                 <button wire:click="openAddProgramEquipmentModal"
                                                     class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
                                                     <i class="mdi mdi-plus mr-1"></i> Add Equipment to Register
                                                 </button>
-                                            @endcan
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -760,8 +740,6 @@
                                 </table>
                             </div>
 
-                            </div>
-
                             @if($equipments->hasPages())
                                 <div class="px-3 pb-2 d-flex justify-content-end">
                                     {{ $equipments->links() }}
@@ -785,29 +763,29 @@
                                                     {{ $p->end_year }}/{{ $p->end_year + 1 }})</option>
                                             @endforeach
                                         </select>
-                                        @can('equipment.maintenance.add')
+                                        @if($this->canMaintain('add'))
                                             <button wire:click="openCreatePlanModal"
                                                 class="btn btn-outline-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold">
                                                 <i class="mdi mdi-plus"></i> Create Plan
                                             </button>
-                                        @endcan
+                                        @endif
                                         @if($activePlanId)
-                                            @can('equipment.maintenance.edit')
+                                            @if($this->canMaintain('edit'))
                                                 <button wire:click="editPlan('{{ $activePlanId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Plan">
                                                     <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.delete')
+                                            @endif
+                                            @if($this->canMaintain('delete'))
                                                 <button onclick="confirm('CAUTION: Are you sure you want to delete this plan? All scheduled replacements within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deletePlan('{{ $activePlanId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Plan">
                                                     <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
                                                 </button>
-                                            @endcan
-                                            @can('equipment.maintenance.add')
+                                            @endif
+                                            @if($this->canMaintain('add'))
                                                 <button wire:click="openAddPlanItemModal"
                                                     class="btn btn-primary rounded-pill px-4 shadow-sm font-weight-bold py-2 ml-2">
                                                     <i class="mdi mdi-plus mr-1"></i> Add Equipment to Plan
                                                 </button>
-                                            @endcan
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -827,7 +805,7 @@
                                         <thead class="bg-light text-secondary">
                                             <tr>
                                                 <th class="pl-4 py-3 font-weight-bold">Equipment Name</th>
-                                                <th class="py-3 font-weight-bold">Location (Zone)</th>
+                                                <th class="py-3 font-weight-bold">Location</th>
                                                 @foreach($planYears as $year)
                                                     <th class="py-3 text-center font-weight-bold" style="min-width: 110px;">
                                                         {{ $year }}</th>
@@ -867,15 +845,15 @@
                                                     <td class="py-3 text-muted text-truncate" style="max-width: 200px;"
                                                         title="{{ $item->remark ?? '' }}">{{ $item->remark ?? '—' }}</td>
                                                     <td class="py-3 text-center pr-4">
-                                                        @can('equipment.maintenance.edit')
+                                                        @if($this->canMaintain('edit'))
                                                             <button wire:click="editPlanItem('{{ $item->id }}')"
                                                                 class="btn btn-outline-secondary btn-sm rounded-circle p-2 mr-2"
                                                                 title="Edit">
                                                                 <i class="mdi mdi-pencil"
                                                                     style="font-size: 1.05rem; line-height: 1;"></i>
                                                             </button>
-                                                        @endcan
-                                                        @can('equipment.maintenance.delete')
+                                                        @endif
+                                                        @if($this->canMaintain('delete'))
                                                             <button
                                                                 onclick="confirm('Are you sure you want to remove this equipment from the plan?') || event.stopImmediatePropagation()"
                                                                 wire:click="deletePlanItem('{{ $item->id }}')"
@@ -883,7 +861,7 @@
                                                                 <i class="mdi mdi-trash-can"
                                                                     style="font-size: 1.05rem; line-height: 1;"></i>
                                                             </button>
-                                                        @endcan
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @empty
@@ -907,7 +885,6 @@
                                         <tr>
                                             <th class="pl-4 py-3 font-weight-bold">Equipment Name</th>
                                             <th class="py-3 font-weight-bold">Serial Number</th>
-                                            <th class="py-3 font-weight-bold">Location (Zone)</th>
                                             <th class="py-3 font-weight-bold text-center">Planned Replacement Year</th>
                                             <th class="py-3 text-center font-weight-bold pr-4" style="width: 150px;">Actions</th>
                                         </tr>
@@ -921,7 +898,6 @@
                                                     </a>
                                                 </td>
                                                 <td class="py-3 text-muted">{{ $equipment->serial_number ?? '—' }}</td>
-                                                <td class="py-3 text-muted">{{ $equipment->assetLocation?->lab?->zone?->name ?? '—' }}</td>
                                                 <td class="py-3 text-center text-muted">
                                                     @php
                                                         $latestPlan = \App\Models\Equipments\EquipmentReplacementPlanItem::where('equipment_id', $equipment->id)->orderBy('scheduled_year', 'desc')->first();
@@ -942,7 +918,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="5" class="text-center py-5 text-muted">
+                                                <td colspan="4" class="text-center py-5 text-muted">
                                                     <i class="mdi mdi-flask-empty-outline display-4 d-block mb-2 text-light"></i>
                                                     No equipment found matching your search.
                                                 </td>
@@ -959,80 +935,86 @@
     </div>
 
     <!-- CREATE / EDIT MAINTENANCE PROGRAM MODAL (Annual / Preventive / Register) -->
-    @if($showCreateProgramModal)
-        @php
-            $programTitle = $activeTab === 'annual'
-                ? 'Annual Program'
-                : ($activeTab === 'preventive'
-                    ? 'Preventive Program'
-                    : 'Maintenance Register');
-            $actionWord = $editingProgramId ? 'Edit' : 'Create';
-        @endphp
-        <div class="modal fade show d-block" tabindex="-1" role="dialog"
-            style="background-color: rgba(0, 0, 0, 0.5); z-index: 1050; overflow-y: auto;">
-            <div class="modal-dialog modal-dialog-centered" role="document">
-                <div class="modal-content shadow-lg border-0 rounded-lg">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title font-weight-bold">
-                            <i class="mdi mdi-file-plus-outline mr-1"></i> {{ $actionWord }} {{ $programTitle }}
-                        </h5>
-                        <button type="button" wire:click="$set('showCreateProgramModal', false)" class="close text-white"
-                            aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
+    @php
+        $programTitle = $activeTab === 'annual'
+            ? 'Annual Program'
+            : ($activeTab === 'preventive'
+                ? 'Preventive Program'
+                : 'Maintenance Register');
+        $actionWord = $editingProgramId ? 'Edit' : 'Create';
+    @endphp
+    <div
+        class="{{ $showCreateProgramModal ? 'd-block' : 'd-none' }}"
+        style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10050; overflow-y: auto;"
+        wire:keydown.escape.window="closeCreateProgramModal"
+        wire:click.self="closeCreateProgramModal"
+    >
+        <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 520px; margin: 4rem auto;"
+            onclick="event.stopPropagation()">
+            <div class="modal-content shadow-lg border-0 rounded-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title font-weight-bold">
+                        <i class="mdi mdi-file-plus-outline mr-1"></i> {{ $actionWord }} {{ $programTitle }}
+                    </h5>
+                    <button type="button" wire:click="closeCreateProgramModal" class="close text-white" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form wire:submit.prevent="createCurrentProgram">
+                    <div class="modal-body p-4">
+                        <div class="form-group mb-3">
+                            <label class="font-weight-bold text-secondary">Name <span class="text-danger">*</span></label>
+                            <input type="text" wire:model="newProgramName"
+                                class="form-control rounded-lg @error('newProgramName') is-invalid @enderror"
+                                placeholder="Enter program/register name">
+                            @error('newProgramName') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label class="font-weight-bold text-secondary">Date <span class="text-danger">*</span></label>
+                            <input type="date" wire:model="newProgramDate"
+                                class="form-control rounded-lg @error('newProgramDate') is-invalid @enderror">
+                            @error('newProgramDate') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label class="font-weight-bold text-secondary">Description</label>
+                            <textarea wire:model="newProgramDescription"
+                                class="form-control rounded-lg @error('newProgramDescription') is-invalid @enderror"
+                                rows="3" placeholder="Write brief details for this program/register..."></textarea>
+                            @error('newProgramDescription') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="form-group mb-1">
+                            <label class="font-weight-bold text-secondary d-block">Status <span class="text-danger">*</span></label>
+                            <div class="d-flex flex-wrap" style="gap: 14px;">
+                                <label class="mb-0 d-inline-flex align-items-center" style="gap: 6px;">
+                                    <input type="radio" wire:model="newProgramStatus" value="active">
+                                    <span>Active</span>
+                                </label>
+                                <label class="mb-0 d-inline-flex align-items-center" style="gap: 6px;">
+                                    <input type="radio" wire:model="newProgramStatus" value="draft">
+                                    <span>Draft</span>
+                                </label>
+                            </div>
+                            @error('newProgramStatus') <span class="text-danger d-block mt-1">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" wire:click="closeCreateProgramModal"
+                            class="btn btn-secondary rounded-pill px-4">Cancel</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm font-weight-bold"
+                            wire:loading.attr="disabled" wire:target="createCurrentProgram">
+                            <span wire:loading.remove wire:target="createCurrentProgram">
+                                <i class="mdi mdi-content-save mr-1"></i> {{ $editingProgramId ? 'Update' : 'Save' }} Program
+                            </span>
+                            <span wire:loading wire:target="createCurrentProgram">Saving...</span>
                         </button>
                     </div>
-                    <form wire:submit.prevent="createCurrentProgram">
-                        <div class="modal-body p-4">
-                            <div class="form-group mb-3">
-                                <label class="font-weight-bold text-secondary">Name <span class="text-danger">*</span></label>
-                                <input type="text" wire:model="newProgramName"
-                                    class="form-control rounded-lg @error('newProgramName') is-invalid @enderror"
-                                    placeholder="Enter program/register name">
-                                @error('newProgramName') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                            </div>
-
-                            <div class="form-group mb-3">
-                                <label class="font-weight-bold text-secondary">Date <span class="text-danger">*</span></label>
-                                <input type="date" wire:model="newProgramDate"
-                                    class="form-control rounded-lg @error('newProgramDate') is-invalid @enderror">
-                                @error('newProgramDate') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                            </div>
-
-                            <div class="form-group mb-3">
-                                <label class="font-weight-bold text-secondary">Description</label>
-                                <textarea wire:model="newProgramDescription"
-                                    class="form-control rounded-lg @error('newProgramDescription') is-invalid @enderror"
-                                    rows="3" placeholder="Write brief details for this program/register..."></textarea>
-                                @error('newProgramDescription') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                            </div>
-
-                            <div class="form-group mb-1">
-                                <label class="font-weight-bold text-secondary d-block">Status <span class="text-danger">*</span></label>
-                                <div class="d-flex flex-wrap" style="gap: 14px;">
-                                    <label class="mb-0 d-inline-flex align-items-center" style="gap: 6px;">
-                                        <input type="radio" wire:model="newProgramStatus" value="active">
-                                        <span>Active</span>
-                                    </label>
-                                    <label class="mb-0 d-inline-flex align-items-center" style="gap: 6px;">
-                                        <input type="radio" wire:model="newProgramStatus" value="draft">
-                                        <span>Draft</span>
-                                    </label>
-                                </div>
-                                @error('newProgramStatus') <span class="text-danger d-block mt-1">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
-                        <div class="modal-footer bg-light">
-                            <button type="button" wire:click="$set('showCreateProgramModal', false)"
-                                class="btn btn-secondary rounded-pill px-4">Cancel</button>
-                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm font-weight-bold">
-                                <i class="mdi mdi-content-save mr-1"></i> {{ $editingProgramId ? 'Update' : 'Save' }} Program
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
-    @endif
+    </div>
 
     <!-- 1. CREATE / EDIT REPLACEMENT PLAN MODAL -->
     @if($showCreatePlanModal)
@@ -1168,18 +1150,10 @@
                             </div>
 
                             <div class="form-group mb-3">
-                                <label class="font-weight-bold text-secondary">Location (Zone)</label>
-                                <select wire:model="planItemLocation"
+                                <label class="font-weight-bold text-secondary">Location</label>
+                                <input type="text" wire:model="planItemLocation"
                                     class="form-control rounded-lg @error('planItemLocation') is-invalid @enderror"
-                                    style="border-radius: 8px;">
-                                    <option value="">-- Choose Location (Zone) --</option>
-                                    @foreach($zones as $z)
-                                        @php
-                                            $zVal = $z->value ?: $z->name ?: $z->key;
-                                        @endphp
-                                        <option value="{{ $zVal }}">{{ $zVal }} ({{ $z->key }})</option>
-                                    @endforeach
-                                </select>
+                                    placeholder="Optional location">
                                 @error('planItemLocation') <span class="invalid-feedback">{{ $message }}</span> @enderror
                             </div>
 

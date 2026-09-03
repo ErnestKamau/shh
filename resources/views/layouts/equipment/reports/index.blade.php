@@ -154,10 +154,32 @@
                             <div class="col-xl-4 col-sm-6">
                                 <div class="form-group">
                                     <label class="control-label">Equipment Status</label>
-                                    <select name="status" style="background-color: white;" class="form-control" id="status" aria-placeholder="Choose Sample Workflow...">
-                                        <option value="active">Active</option>
+                                    <select name="status" style="background-color: white;" class="form-control" id="status" aria-placeholder="Choose Equipment Status...">
+                                        <option value="all">All</option>
+                                        <option value="active" selected>Active</option>
                                         <option value="disposed">Disposed</option>
-
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-sm-6" id="maintainance-status">
+                                <div class="form-group">
+                                    <label class="control-label">Maintainance Due Status</label>
+                                    <select name="maintainance_status" style="background-color: white;" class="form-control">
+                                        <option value="all">All</option>
+                                        <option value="overdue">Overdue</option>
+                                        <option value="due_soon">Due Soon</option>
+                                        <option value="up_to_date">Up to Date</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-sm-6" id="calibration-status">
+                                <div class="form-group">
+                                    <label class="control-label">Calibration Due Status</label>
+                                    <select name="calibration_status" style="background-color: white;" class="form-control">
+                                        <option value="all">All</option>
+                                        <option value="overdue">Overdue</option>
+                                        <option value="due_soon">Due Soon</option>
+                                        <option value="up_to_date">Up to Date</option>
                                     </select>
                                 </div>
                             </div>
@@ -244,6 +266,10 @@
                 $($form).find('#end-date').addClass('hidden');
                 $($form).find('#start-date').addClass('hidden');
                 $($form).find('#type').addClass('hidden');
+                $($form).find('#employee').addClass('hidden');
+                $($form).find('#service-provider').addClass('hidden');
+                $($form).find('#maintainance-status').removeClass('hidden');
+                $($form).find('#calibration-status').removeClass('hidden');
                 $($form).find('select[name="group_by"]').empty();
                 var text = `
                     <option value="none">None</option>
@@ -261,6 +287,8 @@
                 $($form).find('#start-date').removeClass('hidden');
                 $($form).find('#log-type').removeClass('hidden');
                 $($form).find('#type').removeClass('hidden');
+                $($form).find('#maintainance-status').addClass('hidden');
+                $($form).find('#calibration-status').addClass('hidden');
                 
                 $($form).find('select[name="group_by"]').empty();
                 var text = `

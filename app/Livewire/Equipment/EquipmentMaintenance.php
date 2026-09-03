@@ -75,9 +75,6 @@ class EquipmentMaintenance extends Component
     public $equipmentSearch = '';
     public $equipmentSearchResults = [];
 
-    // System Zones dropdown list
-    public $zones = [];
-
     // Program headers for Annual / Preventive / Register tabs
     public $annualPrograms = [];
     public $preventivePrograms = [];
@@ -99,7 +96,6 @@ class EquipmentMaintenance extends Component
     public $filterMaintenanceStatus = '';
     public $filterServiceType = '';
     public $filterServiceProvider = '';
-    public $filterZone = '';
 
     protected $queryString = [
         'activeTab' => ['except' => 'annual'],
@@ -110,15 +106,13 @@ class EquipmentMaintenance extends Component
         'filterMaintenanceStatus' => ['except' => ''],
         'filterServiceType' => ['except' => ''],
         'filterServiceProvider' => ['except' => ''],
-        'filterZone' => ['except' => ''],
     ];
 
     public function mount()
     {
-        $this->authorizeAction('equipment.maintenance.view');
+        $this->authorizeAction('equipment.components.equipment-maintenance.view');
         $this->loadPrograms();
         $this->loadPlans();
-        $this->zones = \App\Zone::orderBy('value')->get();
         $this->loadMaintenancePeriod();
     }
 
@@ -132,7 +126,6 @@ class EquipmentMaintenance extends Component
     public function updatingFilterMaintenanceStatus(): void { $this->resetPage('equipmentPage'); }
     public function updatingFilterServiceType(): void { $this->resetPage('equipmentPage'); }
     public function updatingFilterServiceProvider(): void { $this->resetPage('equipmentPage'); }
-    public function updatingFilterZone(): void { $this->resetPage('equipmentPage'); }
 
     public function resetFilters(): void
     {
@@ -141,7 +134,6 @@ class EquipmentMaintenance extends Component
         $this->filterMaintenanceStatus = '';
         $this->filterServiceType = '';
         $this->filterServiceProvider = '';
-        $this->filterZone = '';
         $this->resetPage('equipmentPage');
     }
 
@@ -214,7 +206,7 @@ class EquipmentMaintenance extends Component
     private function getEquipmentsBaseQuery()
     {
         $query = Equipment::query()->with([
-            'assetLocation.lab.zone',
+            'assetLocation',
             'annualMaintenances' => function($q) {
                 if ($this->activeTab === 'annual' && $this->activeAnnualProgramId) {
                     $q->where('equipment_maintenance_program_id', $this->activeAnnualProgramId);
@@ -250,13 +242,8 @@ class EquipmentMaintenance extends Component
         }
 
         // --- Advanced Filters ---
-        
-        // 1. Zone
-        if (!empty($this->filterZone)) {
-            $query->inZones([$this->filterZone]);
-        }
 
-        // 2. Equipment Search
+        // Equipment Search
         if (!empty($this->search)) {
             $query->where(function ($q) {
                 $q->where('name', 'ilike', '%' . $this->search . '%')
@@ -344,19 +331,47 @@ class EquipmentMaintenance extends Component
 
     public function openCreateProgramModal(): void
     {
-        $this->authorizeAction('equipment.maintenance.add');
+        if (! $this->canMaintain('add')) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => 'You do not have permission to create maintenance programs.',
+            ]);
+
+            return;
+        }
 
         $this->editingProgramId = null;
         $this->newProgramName = '';
         $this->newProgramDate = now()->toDateString();
         $this->newProgramDescription = '';
         $this->newProgramStatus = 'draft';
+        $this->resetValidation();
         $this->showCreateProgramModal = true;
+    }
+
+    public function closeCreateProgramModal(): void
+    {
+        $this->showCreateProgramModal = false;
+        $this->editingProgramId = null;
+        $this->newProgramName = '';
+        $this->newProgramDate = '';
+        $this->newProgramDescription = '';
+        $this->newProgramStatus = 'draft';
+        $this->resetValidation();
+    }
+
+    private function resetProgramForm(): void
+    {
+        $this->closeCreateProgramModal();
     }
 
     public function createCurrentProgram(): void
     {
-        $this->authorizeAction('equipment.maintenance.add');
+        $this->authorizeAction(
+            $this->editingProgramId
+                ? 'equipment.components.equipment-maintenance.edit'
+                : 'equipment.components.equipment-maintenance.add'
+        );
 
         if (!in_array($this->activeTab, ['annual', 'preventive', 'register'], true)) {
             return;
@@ -378,7 +393,9 @@ class EquipmentMaintenance extends Component
                 ->update(['status' => 'draft']);
         }
 
-        if ($this->editingProgramId) {
+        $wasEditing = (bool) $this->editingProgramId;
+
+        if ($wasEditing) {
             $program = EquipmentMaintenanceProgram::findOrFail($this->editingProgramId);
             $program->update([
                 'name' => $this->newProgramName,
@@ -386,7 +403,7 @@ class EquipmentMaintenance extends Component
                 'description' => $this->newProgramDescription,
                 'status' => $this->newProgramStatus,
             ]);
-            session()->flash('success', 'Program updated successfully.');
+            $message = 'Program updated successfully.';
         } else {
             $program = EquipmentMaintenanceProgram::create([
                 'type' => $this->activeTab,
@@ -394,12 +411,12 @@ class EquipmentMaintenance extends Component
                 'program_date' => $this->newProgramDate,
                 'description' => $this->newProgramDescription,
                 'status' => $this->newProgramStatus,
-                'created_by' => auth()->id(),
             ]);
-            session()->flash('success', 'Program created successfully.');
+            $message = 'Program created successfully.';
         }
 
-        $this->showCreateProgramModal = false;
+        session()->flash('success', $message);
+        $this->resetProgramForm();
         $this->loadPrograms();
 
         if ($this->activeTab === 'annual') {
@@ -410,12 +427,12 @@ class EquipmentMaintenance extends Component
             $this->activeRegisterProgramId = $program->id;
         }
 
-        $this->dispatch('notify', ['type' => 'success', 'message' => $this->editingProgramId ? 'Program updated successfully.' : 'Program created successfully.']);
+        $this->dispatch('notify', ['type' => 'success', 'message' => $message]);
     }
 
     public function editProgram($id): void
     {
-        $this->authorizeAction('equipment.maintenance.edit');
+        $this->authorizeAction('equipment.components.equipment-maintenance.edit');
 
         $program = EquipmentMaintenanceProgram::findOrFail($id);
         $this->editingProgramId = $program->id;
@@ -429,7 +446,7 @@ class EquipmentMaintenance extends Component
 
     public function deleteProgram($id): void
     {
-        $this->authorizeAction('equipment.maintenance.delete');
+        $this->authorizeAction('equipment.components.equipment-maintenance.delete');
 
         $program = EquipmentMaintenanceProgram::findOrFail($id);
         
@@ -496,7 +513,7 @@ class EquipmentMaintenance extends Component
      */
     public function setScheduledMonth(string $equipmentId, string $monthKey): void
     {
-        $this->authorizeAction('equipment.maintenance.edit');
+        $this->authorizeAction('equipment.components.equipment-maintenance.edit');
 
         // monthKey = "2025-07"
         [$year, $month] = explode('-', $monthKey);
@@ -533,7 +550,7 @@ class EquipmentMaintenance extends Component
      */
     public function applyBulkScheduledMonth(): void
     {
-        $this->authorizeAction('equipment.maintenance.edit');
+        $this->authorizeAction('equipment.components.equipment-maintenance.edit');
 
         if (!$this->bulkScheduledMonth) {
             return;
@@ -568,7 +585,7 @@ class EquipmentMaintenance extends Component
      */
     public function markServiced(string $equipmentId): void
     {
-        $this->authorizeAction('equipment.maintenance.edit');
+        $this->authorizeAction('equipment.components.equipment-maintenance.edit');
 
         $record = EquipmentPreventiveMaintenance::where('equipment_id', $equipmentId)->first();
         if ($record && $record->scheduled_month) {
@@ -603,20 +620,22 @@ class EquipmentMaintenance extends Component
         $this->equipmentSearch = $name;
         $this->equipmentSearchResults = [];
 
-        $eq = Equipment::with('assetLocation.lab.zone')->find($id);
+        $eq = Equipment::with('assetLocation')->find($id);
         if ($eq) {
-            $zone = $eq->assetLocation?->lab?->zone;
-            if ($zone) {
-                $this->planItemLocation = $zone->value ?: $zone->name ?: $zone->key ?: '';
-            }
+            $this->planItemLocation = $eq->assetLocation?->name ?? '';
         }
+    }
+
+    public function selectProgramEquipment($id, $name): void
+    {
+        $this->selectEquipment($id, $name);
     }
 
     // ─── Add Equipment to Program ────────────────────────────────────────────
 
     public function openAddProgramEquipmentModal()
     {
-        $this->authorizeAction('equipment.maintenance.add');
+        $this->authorizeAction('equipment.components.equipment-maintenance.add');
         $this->resetProgramEquipmentForm();
         $this->showAddProgramEquipmentModal = true;
     }
@@ -642,7 +661,7 @@ class EquipmentMaintenance extends Component
 
     public function addProgramEquipment()
     {
-        $this->authorizeAction('equipment.maintenance.add');
+        $this->authorizeAction('equipment.components.equipment-maintenance.add');
         $this->validate([
             'programEquipmentId' => 'required',
         ], [
@@ -696,7 +715,7 @@ class EquipmentMaintenance extends Component
 
     public function openCreatePlanModal()
     {
-        $this->authorizeAction('equipment.maintenance.add');
+        $this->authorizeAction('equipment.components.equipment-maintenance.add');
         $this->editingPlanId = null;
         $this->newPlanName = '';
         $this->newPlanStartYear = now()->year;
@@ -706,7 +725,7 @@ class EquipmentMaintenance extends Component
 
     public function createPlan()
     {
-        $this->authorizeAction('equipment.maintenance.add');
+        $this->authorizeAction('equipment.components.equipment-maintenance.add');
         $this->validate([
             'newPlanName' => 'required|string|max:255',
             'newPlanStartYear' => 'required|integer|min:2000|max:2100',
@@ -739,7 +758,7 @@ class EquipmentMaintenance extends Component
 
     public function editPlan($id)
     {
-        $this->authorizeAction('equipment.maintenance.edit');
+        $this->authorizeAction('equipment.components.equipment-maintenance.edit');
         $plan = EquipmentReplacementPlan::findOrFail($id);
         $this->editingPlanId = $plan->id;
         $this->newPlanName = $plan->name;
@@ -750,7 +769,7 @@ class EquipmentMaintenance extends Component
 
     public function deletePlan($id)
     {
-        $this->authorizeAction('equipment.maintenance.delete');
+        $this->authorizeAction('equipment.components.equipment-maintenance.delete');
         $plan = EquipmentReplacementPlan::findOrFail($id);
         $plan->items()->delete();
         $plan->delete();
@@ -764,12 +783,8 @@ class EquipmentMaintenance extends Component
 
     public function openAddPlanItemModal()
     {
-        $this->authorizeAction('equipment.maintenance.add');
+        $this->authorizeAction('equipment.components.equipment-maintenance.add');
         $this->resetPlanItemForm();
-        if (auth()->check() && auth()->user()->zone) {
-            $z = auth()->user()->zone;
-            $this->planItemLocation = $z->value ?: $z->name ?: $z->key ?: '';
-        }
         $this->showAddPlanItemModal = true;
     }
 
@@ -783,7 +798,7 @@ class EquipmentMaintenance extends Component
 
     public function addPlanItem()
     {
-        $this->authorizeAction($this->editingItemId ? 'equipment.maintenance.edit' : 'equipment.maintenance.add');
+        $this->authorizeAction($this->editingItemId ? 'equipment.components.equipment-maintenance.edit' : 'equipment.components.equipment-maintenance.add');
         $this->validate([
             'planItemName' => 'required|string|max:255',
             'planItemYear' => 'required|string',
@@ -816,7 +831,7 @@ class EquipmentMaintenance extends Component
 
     public function editPlanItem($itemId)
     {
-        $this->authorizeAction('equipment.maintenance.edit');
+        $this->authorizeAction('equipment.components.equipment-maintenance.edit');
         $item = EquipmentReplacementPlanItem::find($itemId);
         if ($item) {
             $this->editingItemId = $item->id;
@@ -832,7 +847,7 @@ class EquipmentMaintenance extends Component
 
     public function deletePlanItem($itemId)
     {
-        $this->authorizeAction('equipment.maintenance.delete');
+        $this->authorizeAction('equipment.components.equipment-maintenance.delete');
         EquipmentReplacementPlanItem::find($itemId)?->delete();
         $this->dispatch('notify', ['type' => 'success', 'message' => 'Plan item removed.']);
     }
@@ -841,18 +856,18 @@ class EquipmentMaintenance extends Component
 
     public function exportAnnual()
     {
-        $this->authorizeAction('equipment.maintenance.view');
-        $data = [['GCLA ANNUAL MAINTENANCE PROGRAM']];
+        $this->authorizeAction('equipment.components.equipment-maintenance.view');
+        $data = [['ANNUAL MAINTENANCE PROGRAM']];
         if ($this->maintenancePeriodLabel)
             $data[] = ['Period: ' . $this->maintenancePeriodLabel];
         $data[] = [];
-        $data[] = ['Equipment Name', 'Serial Number', 'Location (Zones)', 'Serviced Date', 'Status', 'Next Service', 'Remark'];
+        $data[] = ['Equipment Name', 'Serial Number', 'Asset Location', 'Serviced Date', 'Status', 'Next Service', 'Remark'];
         foreach ($this->allEquipments() as $eq) {
             $l = $eq->annualMaintenances->first();
             $data[] = [
                 $eq->name,
                 $eq->serial_number ?? '—',
-                $eq->zone_name,
+                $eq->assetLocation?->name ?? '—',
                 $l && $l->serviced_date ? $l->serviced_date->format('Y-m-d') : '—',
                 $l->status ?? '—',
                 $l && $l->next_service ? $l->next_service->format('Y-m-d') : '—',
@@ -869,20 +884,20 @@ class EquipmentMaintenance extends Component
             {
                 return $this->rows; }
             },
-            'GCLA_Annual_Maintenance_' . date('Ymd_His') . '.xlsx'
+            'Annual_Maintenance_' . date('Ymd_His') . '.xlsx'
         );
     }
 
     public function exportPreventive()
     {
-        $this->authorizeAction('equipment.maintenance.view');
-        $data = [['GCLA EQUIPMENT PREVENTIVE MAINTENANCE PROGRAM']];
+        $this->authorizeAction('equipment.components.equipment-maintenance.view');
+        $data = [['EQUIPMENT PREVENTIVE MAINTENANCE PROGRAM']];
         if ($this->maintenancePeriodLabel)
             $data[] = ['Period: ' . $this->maintenancePeriodLabel];
         $data[] = [];
 
         // Build header row with months
-        $header = ['S/No', 'Equipment Name', 'Serial Number', 'Location (Zones)'];
+        $header = ['S/No', 'Equipment Name', 'Serial Number', 'Asset Location'];
         foreach ($this->maintenanceQuarters as $q) {
             $header[] = $q['label'];
             foreach ($q['months'] as $m) {
@@ -894,7 +909,7 @@ class EquipmentMaintenance extends Component
         $i = 1;
         foreach ($this->allEquipments() as $eq) {
             $pm = $eq->preventiveMaintenances->first();
-            $row = [$i++, $eq->name, $eq->serial_number ?? '—', $eq->zone_name];
+            $row = [$i++, $eq->name, $eq->serial_number ?? '—', $eq->assetLocation?->name ?? '—'];
             foreach ($this->maintenanceQuarters as $q) {
                 $row[] = ''; // quarter label spacer
                 foreach ($q['months'] as $m) {
@@ -918,14 +933,14 @@ class EquipmentMaintenance extends Component
             {
                 return $this->rows; }
             },
-            'GCLA_Preventive_Maintenance_' . date('Ymd_His') . '.xlsx'
+            'Preventive_Maintenance_' . date('Ymd_His') . '.xlsx'
         );
     }
 
     public function exportRegister()
     {
-        $this->authorizeAction('equipment.maintenance.view');
-        $data = [['GCLA DSM - EQUIPMENT MAINTENANCE REGISTER' . ($this->maintenancePeriodLabel ? ' FOR ' . $this->maintenancePeriodLabel : '')]];
+        $this->authorizeAction('equipment.components.equipment-maintenance.view');
+        $data = [['EQUIPMENT MAINTENANCE REGISTER' . ($this->maintenancePeriodLabel ? ' FOR ' . $this->maintenancePeriodLabel : '')]];
         $data[] = [];
         $data[] = ['Equipment Name', 'Service Provider', 'Type of Service', 'Cost (USD)', 'Cost (TZS)'];
         $totalUsd = $totalTzs = 0;
@@ -949,13 +964,13 @@ class EquipmentMaintenance extends Component
             {
                 return $this->rows; }
             },
-            'GCLA_Maintenance_Register_' . date('Ymd_His') . '.xlsx'
+            'Maintenance_Register_' . date('Ymd_His') . '.xlsx'
         );
     }
 
     public function exportReplacement()
     {
-        $this->authorizeAction('equipment.maintenance.view');
+        $this->authorizeAction('equipment.components.equipment-maintenance.view');
         if (!$this->activePlanId)
             return;
         $plan = EquipmentReplacementPlan::with('items')->find($this->activePlanId);
@@ -1032,13 +1047,66 @@ class EquipmentMaintenance extends Component
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private function authorizeAction(string $permission): void
+    public function canMaintain(string $action): bool
     {
         $user = auth()->user();
-        if (!$user)
-            abort(403);
-        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can($permission))
+        if (! $user) {
+            return false;
+        }
+
+        if (method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) {
+            return true;
+        }
+
+        $permission = 'equipment.components.equipment-maintenance.'.$action;
+
+        foreach ($this->permissionAliases($permission) as $candidate) {
+            try {
+                if ($user->can($candidate)) {
+                    return true;
+                }
+            } catch (\Throwable) {
+                // Ignore missing permission definitions while aliases are being migrated.
+            }
+        }
+
+        return false;
+    }
+
+    private function authorizeAction(string $permission): void
+    {
+        $action = str_replace('equipment.components.equipment-maintenance.', '', $permission);
+        if ($this->canMaintain($action)) {
             return;
+        }
+
         abort(403, 'Unauthorized.');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function permissionAliases(string $permission): array
+    {
+        $map = [
+            'equipment.components.equipment-maintenance.view' => [
+                'equipment.components.equipment-maintenance.view',
+                'equipment.maintenance.view',
+            ],
+            'equipment.components.equipment-maintenance.add' => [
+                'equipment.components.equipment-maintenance.add',
+                'equipment.maintenance.add',
+            ],
+            'equipment.components.equipment-maintenance.edit' => [
+                'equipment.components.equipment-maintenance.edit',
+                'equipment.maintenance.edit',
+            ],
+            'equipment.components.equipment-maintenance.delete' => [
+                'equipment.components.equipment-maintenance.delete',
+                'equipment.maintenance.delete',
+            ],
+        ];
+
+        return $map[$permission] ?? [$permission];
     }
 }

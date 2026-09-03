@@ -1195,7 +1195,9 @@ Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDas
 // Route::get('/equipment-checks', [EquipmentAppController::class, 'checksIndex'])->name('equipment-checks')->middleware('can:equipment.permission');
 Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('can:equipment.module.access');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('can:equipment.components.equipment-list.add');
-Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('can:equipment.components.equipment-list.view');
+Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])
+    ->name('view-equipment')
+    ->middleware('can:equipment.permission');
 Route::post('/equipment/{id}', 'Equipment\EquipmentController@edit')->name('edit-equipment')->middleware('can:equipment.components.equipment-list.edit');
 Route::post('/schedule-maintainance/{id}', 'Equipment\MaintainanceCalibrationLogController@add')->name('new-maintainance')->middleware('can:equipment.components.maintainance-log.add');
 Route::post('/edit-maintainance', 'Equipment\MaintainanceCalibrationLogController@edit')->name('edit-maintainance')->middleware('can:equipment.components.maintainance-log.edit');
