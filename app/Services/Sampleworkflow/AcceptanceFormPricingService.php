@@ -754,6 +754,136 @@ class AcceptanceFormPricingService
     }
 
     /**
+     * Find a sample-type panel package (analysis_id IS NULL) covering the requested elements.
+     *
+     * @param  list<string>  $requestedElementIds
+     * @return ?array{item: PricelistItem, pricelist: Pricelist, covered_element_ids: list<string>}
+     */
+    public function resolveSampleTypePanelForGroup(
+        ?string $customerId,
+        ?string $sampleTypeId,
+        array $requestedElementIds,
+        ?Pricelist $preferredPricelist = null,
+    ): ?array {
+        $requestedElementIds = array_values(array_unique(array_filter(array_map(
+            fn ($id): string => (string) $id,
+            $requestedElementIds
+        ))));
+
+        if ($sampleTypeId === null || $sampleTypeId === '' || $requestedElementIds === []) {
+            return null;
+        }
+
+        foreach ($this->candidatePricelistsForPricing($customerId, $preferredPricelist) as $pricelist) {
+            $match = $this->matchSampleTypePanelInPricelist($pricelist, $sampleTypeId, $requestedElementIds);
+            if ($match !== null) {
+                return [
+                    'item' => $match['item'],
+                    'pricelist' => $pricelist,
+                    'covered_element_ids' => $match['covered_element_ids'],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Locate an active sample-type panel without requiring the caller to know covered elements.
+     *
+     * @return ?array{item: PricelistItem, pricelist: Pricelist, covered_element_ids: list<string>}
+     */
+    public function findSampleTypePanelPackage(
+        ?string $customerId,
+        ?string $sampleTypeId,
+        ?Pricelist $preferredPricelist = null,
+    ): ?array {
+        if ($sampleTypeId === null || $sampleTypeId === '') {
+            return null;
+        }
+
+        foreach ($this->candidatePricelistsForPricing($customerId, $preferredPricelist) as $pricelist) {
+            $match = $this->firstSampleTypePanelInPricelist($pricelist, $sampleTypeId);
+            if ($match !== null) {
+                return [
+                    'item' => $match['item'],
+                    'pricelist' => $pricelist,
+                    'covered_element_ids' => $match['covered_element_ids'],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $requestedElementIds
+     * @return ?array{item: PricelistItem, covered_element_ids: list<string>}
+     */
+    private function matchSampleTypePanelInPricelist(
+        Pricelist $pricelist,
+        string $sampleTypeId,
+        array $requestedElementIds,
+    ): ?array {
+        foreach ($this->packagesForSampleType($pricelist, $sampleTypeId) as $package) {
+            $coveredElementIds = $package->coveredElementIds();
+
+            if ($coveredElementIds === []) {
+                continue;
+            }
+
+            if (array_diff($coveredElementIds, $requestedElementIds) === []) {
+                return [
+                    'item' => $package,
+                    'covered_element_ids' => $coveredElementIds,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return ?array{item: PricelistItem, covered_element_ids: list<string>}
+     */
+    private function firstSampleTypePanelInPricelist(
+        Pricelist $pricelist,
+        string $sampleTypeId,
+    ): ?array {
+        foreach ($this->packagesForSampleType($pricelist, $sampleTypeId) as $package) {
+            $coveredElementIds = $package->coveredElementIds();
+
+            if ($coveredElementIds === []) {
+                continue;
+            }
+
+            return [
+                'item' => $package,
+                'covered_element_ids' => $coveredElementIds,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, PricelistItem>
+     */
+    private function packagesForSampleType(
+        Pricelist $pricelist,
+        string $sampleTypeId,
+    ): Collection {
+        return PricelistItem::query()
+            ->with('packageElements')
+            ->where('pricelist_id', $pricelist->id)
+            ->where('active', 1)
+            ->where('is_package', true)
+            ->whereNull('analysis_id')
+            ->where('sample_type_id', $sampleTypeId)
+            ->get();
+    }
+
+    /**
      * Locate an active package for sample type + analysis type without requiring
      * the caller to already know which elements are covered.
      *
@@ -880,9 +1010,82 @@ class AcceptanceFormPricingService
             return [];
         }
 
-        $groups = [];
+        $removedIndexes = [];
+        $packageLineByFirstIndex = [];
+
+        $sampleGroups = [];
         foreach ($lines as $index => $line) {
             if (! empty($line['is_package'])) {
+                continue;
+            }
+
+            $elementId = (string) ($line['analysis_element_id'] ?? '');
+            $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
+            if ($elementId === '' || $sampleTypeId === '') {
+                continue;
+            }
+
+            $key = implode('::', [
+                (string) ($line['acceptance_config_key'] ?? ''),
+                $sampleTypeId,
+            ]);
+            $sampleGroups[$key][] = $index;
+        }
+
+        foreach ($sampleGroups as $indexes) {
+            $firstLine = $lines[$indexes[0]];
+            $sampleTypeId = (string) ($firstLine['sample_type_id'] ?? '');
+
+            $requestedElementIds = array_map(
+                fn (int $index): string => (string) ($lines[$index]['analysis_element_id'] ?? ''),
+                $indexes
+            );
+
+            $match = $this->resolveSampleTypePanelForGroup(
+                $customerId,
+                $sampleTypeId !== '' ? $sampleTypeId : null,
+                $requestedElementIds,
+                $preferredPricelist,
+            );
+
+            if ($match === null) {
+                continue;
+            }
+
+            $coveredElementIds = $match['covered_element_ids'];
+            $coveredIndexes = array_values(array_filter(
+                $indexes,
+                fn (int $index): bool => in_array((string) ($lines[$index]['analysis_element_id'] ?? ''), $coveredElementIds, true)
+            ));
+
+            if ($coveredIndexes === []) {
+                continue;
+            }
+
+            $quantity = max(array_map(
+                fn (int $index): int => max(1, (int) ($lines[$index]['physical_sample_count'] ?? $lines[$index]['quantity'] ?? 1)),
+                $coveredIndexes
+            ));
+
+            $templateLine = $firstLine;
+            $sampleTypeName = (string) (SampleType::query()->find($sampleTypeId)?->name ?? 'Sample type');
+            $templateLine['analysis_type_name'] = $sampleTypeName;
+
+            $packageLineByFirstIndex[min($coveredIndexes)] = $this->makePackageLine(
+                $templateLine,
+                $match['item'],
+                $coveredElementIds,
+                $quantity,
+            );
+
+            foreach ($coveredIndexes as $index) {
+                $removedIndexes[$index] = true;
+            }
+        }
+
+        $groups = [];
+        foreach ($lines as $index => $line) {
+            if (! empty($line['is_package']) || isset($removedIndexes[$index])) {
                 continue;
             }
 
@@ -899,9 +1102,6 @@ class AcceptanceFormPricingService
             ]);
             $groups[$key][] = $index;
         }
-
-        $removedIndexes = [];
-        $packageLineByFirstIndex = [];
 
         foreach ($groups as $indexes) {
             $firstLine = $lines[$indexes[0]];

@@ -20,12 +20,25 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h2 class="p-4">
-      <i class="mdi mdi-package-variant-closed"></i>Stores
-      <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-inventory-store"><i class="mdi mdi-plus"></i> Add</button>
-    </h2>
-    <br>
-    <div class="bg-light p-4">
+
+    <div class="batch-header-bar mb-3">
+      <div class="batch-header-top">
+        <div class="batch-title-group">
+          <span class="batch-code-label">{{ inventoryLabel('stores', 'Inventory Stores') }}</span>
+          <span class="batch-stage-pill">
+            <i class="mdi mdi-warehouse"></i>
+            {{ count($stores) }} {{ inventoryLabel('stores', 'Stores') }}
+          </span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center" style="gap: 0.5rem;">
+        <button class="btn btn-primary btn-sm workflow-header-receive-btn" data-toggle="modal" data-target="#add-inventory-store">
+          <i class="mdi mdi-plus"></i> {{ inventoryLabel('add_store', 'Add Store') }}
+        </button>
+      </div>
+    </div>
+
+    <div>
 			<div class="card tab-card">
 				<div class="card-header tab-card-header">
 					<ul class="nav nav-tabs card-header-tabs" id="Elements-tabs" role="tablist">

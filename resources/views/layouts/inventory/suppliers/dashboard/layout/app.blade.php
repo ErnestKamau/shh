@@ -71,6 +71,8 @@
     }
   </style>
   @include('layouts.lab.partials.lab-panel-theme-styles')
+  @include('layouts.lab.partials.lab-surface-theme-styles')
+  @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
   @include('layouts.inventory.partials.theme-overrides')
   @include('layouts.inventory.partials.responsive-styles')
   @yield('title2')
@@ -193,7 +195,7 @@
 				@endif
 			@endif
 		</div>
-		<div class="container-fluid inventory-page lab-surface-theme ls-admin-page lab-panel-theme workflow-theme" data-ls-type="plex">
+		<div class="container-fluid inventory-page lab-surface-theme ls-admin-page lab-panel-theme workflow-theme ls-ui-kit" data-ls-type="plex">
 			@yield('content2')
 		</div>
 	</div>

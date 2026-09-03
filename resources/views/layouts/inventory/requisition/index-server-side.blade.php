@@ -62,22 +62,36 @@
 
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h3 class="p-4" id="has-procurement" data-procurement="{{ $isInventoryProcurement ? 'Yes' : 'No' }}">
-			<i class="mdi mdi-format-list-checks"></i> {{ $stage }}
-			@if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend"), true) && $canCreateRequest)
-				<a class="btn btn-primary btn-sm float-right" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>'new']) }}">
-					<i class="mdi mdi-plus"></i> Add
-				</a>
-			@endif
-			@if(in_array($stage,["Purchase Request"]) && $isLabDepartmentUser)
-			<span class="btn btn-sm btn-transparent text-success float-right" data-toggle="modal"
-				data-target="#clone-this-request" data-url="{{ route('clone-request-details', ['stage'=>$stage]) }}">
-				<i class="mdi mdi-content-duplicate"></i> Clone
-			</span>
-			@endif
-			<a class="btn btn-sm btn-danger d-none float-right" id="download-items-all"><i class="mdi mdi-download"></i> Download Items PDF</a>
-		</h3>
-		<div class="bg-light">
+
+    <div class="batch-header-bar mb-3" id="has-procurement" data-procurement="{{ $isInventoryProcurement ? 'Yes' : 'No' }}">
+      <div class="batch-header-top">
+        <div class="batch-title-group">
+          <span class="batch-code-label">{{ $stage }}</span>
+          <span class="batch-stage-pill">
+            <i class="mdi mdi-format-list-checks"></i>
+            {{ inventoryLabel('requisition_workflow', 'Requisition Workflow') }}
+          </span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center" style="gap: 0.5rem;">
+        <a class="btn btn-sm btn-outline-danger d-none" id="download-items-all">
+          <i class="mdi mdi-download"></i> {{ inventoryLabel('download_pdf', 'Download Items PDF') }}
+        </a>
+        @if(in_array($stage,["Purchase Request"]) && $isLabDepartmentUser)
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="modal"
+            data-target="#clone-this-request" data-url="{{ route('clone-request-details', ['stage'=>$stage]) }}">
+            <i class="mdi mdi-content-duplicate text-success mr-1"></i> {{ inventoryLabel('clone', 'Clone') }}
+          </button>
+        @endif
+        @if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend"), true) && $canCreateRequest)
+          <a class="btn btn-primary btn-sm workflow-header-receive-btn" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>'new']) }}">
+            <i class="mdi mdi-plus"></i> {{ inventoryLabel('new_request', 'New Request') }}
+          </a>
+        @endif
+      </div>
+    </div>
+
+		<div>
 			<div class="card tab-card">
 				<div class="card-header tab-card-header">
 					<ul class="nav nav-tabs card-header-tabs" id="Requests-tabs" role="tablist">

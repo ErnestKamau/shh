@@ -35,16 +35,31 @@
 		);
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-	<h4 class="p-4">
-		<i class="mdi mdi-format-list-bulleted-type"></i> Stock Transfer - {{ $transfer->code ?? 'New Transfer' }} <small class="badge badge-light badge-pill text-muted" style="font-weight: 500"><i class="mdi mdi-information"></i> {{ $transfer->status ?? "In Preparation" }}</small>
-		@if(($transfer->inventory_location_id ?? $transfer->location_id) && $transfer->status != "Completed")
-			<button class="btn btn-default text-success btn-sm float-right save-form-btn" data-type="save_items"><i class="mdi mdi-content-save"></i> Save</button>
-			@if ($transfer->status == "Transfer Items Updated")
-				<button class="btn btn-default text-danger btn-sm float-right save-form-btn" data-type="transfer_items"><i class="mdi mdi-bank-transfer-out"></i> Transfer Items</button>
+
+	<div class="batch-header-bar mb-3">
+		<div class="batch-header-top">
+			<div class="batch-title-group">
+				<span class="batch-code-label">Stock Transfer &middot; {{ $transfer->code ?? 'New Transfer' }}</span>
+				<span class="batch-stage-pill">
+					<i class="mdi mdi-information-outline"></i>
+					{{ $transfer->status ?? "In Preparation" }}
+				</span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center" style="gap: 0.5rem;">
+			@if(($transfer->inventory_location_id ?? $transfer->location_id) && $transfer->status != "Completed")
+				<button class="btn btn-primary btn-sm workflow-header-receive-btn save-form-btn" data-type="save_items">
+					<i class="mdi mdi-content-save"></i> Save Items
+				</button>
+				@if ($transfer->status == "Transfer Items Updated")
+					<button class="btn btn-danger btn-sm save-form-btn" data-type="transfer_items">
+						<i class="mdi mdi-bank-transfer-out"></i> Transfer Items
+					</button>
+				@endif
 			@endif
-		@endif
-	</h4>
-	<br>
+		</div>
+	</div>
+
 	<div class="row">
 		<div class="col-sm-12">
 			<div class="card">
@@ -222,10 +237,8 @@
 
 				var $this = $(this);
 				$.ajax({
-					url: '/get_item_details/'+itemID,
-					beforeSend: function(){
-
-					},
+					url: window.location.origin + '/get_item_details/' + encodeURIComponent(itemID),
+					dataType: 'json',
 					success: function(js){
 						var uonSel = $row.find('.uom[data-type="'+typ+'"]');
 						uonSel.html(`<option value="${js.uom}" selected>${js.uom}</option>`);

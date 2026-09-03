@@ -54,6 +54,49 @@ class RequisitionController extends Controller
 		return Str::isUuid((string) $value) ? (string) $value : null;
 	}
 
+	private function resolveRequisitionLineQuantity(RequestEntityItem $item, ?RequestEntity $sourceEntity = null): float
+	{
+		if (filled($item->quantity) && floatval($item->quantity) > 0) {
+			return floatval($item->quantity);
+		}
+
+		$subCategoryId = $item->inventory_sub_category_id;
+		if (blank($subCategoryId)) {
+			return 0.0;
+		}
+
+		$candidateRequestIds = collect();
+
+		if ($sourceEntity !== null && filled($sourceEntity->id)) {
+			$candidateRequestIds->push($sourceEntity->id);
+		}
+
+		$requestEntity = RequestEntity::find($item->request_id);
+		if ($requestEntity !== null) {
+			if (filled($requestEntity->parent_request_id)) {
+				$candidateRequestIds->push($requestEntity->parent_request_id);
+			}
+			if (filled($requestEntity->parent_material_requisition)) {
+				$candidateRequestIds->push($requestEntity->parent_material_requisition);
+			}
+		}
+
+		foreach ($candidateRequestIds->unique()->filter() as $requestId) {
+			$line = RequestEntityItem::query()
+				->where('request_id', $requestId)
+				->where('inventory_sub_category_id', $subCategoryId)
+				->where('quantity', '>', 0)
+				->orderByDesc('ammendment')
+				->first();
+
+			if ($line !== null) {
+				return floatval($line->quantity);
+			}
+		}
+
+		return 0.0;
+	}
+
 	private function getFirstUserForRoleGroup($roleGroupName, array $excludedUserIds = [], $departmentId = null)
 	{
 		$excluded = array_map(static fn ($id) => (string) $id, $excludedUserIds);
@@ -1059,9 +1102,11 @@ class RequisitionController extends Controller
 				} else {
 					$iO->offsetUnset('vat_perc');
 				}
-				if ($request->has('split_items') && in_array($i->id, $split_items) && in_array($quote->supplier_id, $split_suppliers)) {
+				if ($request->has('split_items') && in_array($i->id, $split_items) && in_array($quote->supplier_id, $split_suppliers) && ! (bool) $quote->is_awarded) {
 					$iO->net_value = 0;
 					$iO->quantity = 0;
+				} elseif (! filled($iO->quantity) || floatval($iO->quantity) <= 0) {
+					$iO->quantity = $this->resolveRequisitionLineQuantity($i, $entity);
 				}
 				$iO->save();
 
@@ -3280,18 +3325,29 @@ class RequisitionController extends Controller
 
 		$req->currency = $request->currency;
 
-		$updateDueDate = \Carbon\Carbon::parse($req->due_date) != \Carbon\Carbon::parse($request->valid_until ?? $request->delivery_date);
+		$submittedDueDate = $request->valid_until ?? $request->delivery_date ?? null;
+		$updateDueDate = filled($submittedDueDate)
+			&& filled($req->due_date)
+			&& \Carbon\Carbon::parse($req->due_date)->ne(\Carbon\Carbon::parse($submittedDueDate));
 
 		if (in_array($stage, ["Goods Receipt", "Goods Return", "Material Issuance", "Gate Pass"])) {
-			$req->gate_pass = $request->gate_pass ?? null;
-			$req->destination = $request->destination ?? null;
-			$req->note_bearer = $request->note_bearer ?? null;
-			$req->time_out = $request->time_out ?? null;
-			$req->remarks = $request->remarks ?? null;
-			$req->moisture_contents = $request->moisture_contents ?? null;
-			$req->delivery_note_number = $request->delivery_note_number ?? null;
-			$req->supplier_invoice_number = $request->supplier_invoice_number ?? null;
-			$req->vehicle_no = $request->vehicle_no ?? null;
+			$gatePassFields = [
+				'gate_pass' => $request->gate_pass ?? null,
+				'destination' => $request->destination ?? null,
+				'note_bearer' => $request->note_bearer ?? null,
+				'time_out' => $request->time_out ?? null,
+				'remarks' => $request->remarks ?? null,
+				'moisture_contents' => $request->moisture_contents ?? null,
+				'delivery_note_number' => $request->delivery_note_number ?? null,
+				'supplier_invoice_number' => $request->supplier_invoice_number ?? null,
+				'vehicle_no' => $request->vehicle_no ?? null,
+			];
+
+			foreach ($gatePassFields as $column => $value) {
+				if (Schema::hasColumn('request_entities', $column)) {
+					$req->{$column} = $value;
+				}
+			}
 		}
 
 		if ($stage == "Request for Quotation") {
@@ -3448,10 +3504,18 @@ class RequisitionController extends Controller
 				// 	$entityItem->save();
 				// }
 
-				$subCatID = $request->items['item_id'][$i];
-				$account_id = isset($request->items['item_account_id']) ? $request->items['item_account_id'][$i] : null;
+				$subCatID = $request->items['item_id'][$i] ?? $entityItem?->inventory_sub_category_id;
+				$account_id = $request->items['item_account_id'][$i] ?? $entityItem?->item_account_id ?? null;
+
+				if (blank($subCatID)) {
+					continue;
+				}
 
 				$subCat = \App\InventorySubCategories::find($subCatID);
+				if ($subCat === null) {
+					return redirect()->back()->with('error', 'Inventory item not found for line '.($i + 1).'.');
+				}
+
 				$itemCat = \App\InventoryCategories::find($subCat->inventory_category_id);
 
 				if(isset($request->items['quantity_change_reason']) && (isset($request->items['quantity_change_reason'][$i]) && trim($request->items['quantity_change_reason'][$i])!="")){
@@ -3467,7 +3531,7 @@ class RequisitionController extends Controller
 
 				$defaultStoreId = $defaultStore['store'] ?? null;
 				$defaultSlotId = $defaultStore['slot'] ?? null;
-				if (filled($itemCat->default_store_id) && Str::isUuid((string) $itemCat->default_store_id)) {
+				if ($itemCat !== null && filled($itemCat->default_store_id) && Str::isUuid((string) $itemCat->default_store_id)) {
 					$defaultStoreId = $itemCat->default_store_id;
 				}
 
@@ -3491,7 +3555,16 @@ class RequisitionController extends Controller
 				}
 
 				$item->comments = $request->items['comments'][$i] ?? null;
-				$item->quantity = isset($request->items['quantity'][$i]) ? $request->items['quantity'][$i] : $request->items['received_quantity'][$i];
+				$item->quantity = filled($request->items['quantity'][$i] ?? null)
+					? $request->items['quantity'][$i]
+					: ($request->items['received_quantity'][$i] ?? $entityItem?->quantity ?? 0);
+
+				if ($req->request_type === 'Purchase Orders' && (! filled($item->quantity) || floatval($item->quantity) <= 0)) {
+					$item->quantity = $this->resolveRequisitionLineQuantity(
+						$entityItem ?? $item,
+						RequestEntity::find($req->parent_request_id)
+					);
+				}
 				$netValue = $request->items['net_value'][$i] ?? 0;
 				$item->net_value = is_numeric($netValue) ? $netValue : 0;
 				$item->currency = is_numeric($request->items['currency'][$i] ?? null)
@@ -3546,7 +3619,10 @@ class RequisitionController extends Controller
 				$item->save();
 
 				$itemsArrIds[] = $item->id;
-				$itemsCatNames[] = $subCat->name . "(" . (isset($request->items['quantity'][$i]) ? $request->items['quantity'][$i] : $request->items['received_quantity'][$i]) . ")";
+				$lineQuantity = filled($request->items['quantity'][$i] ?? null)
+					? $request->items['quantity'][$i]
+					: ($request->items['received_quantity'][$i] ?? $item->quantity ?? 0);
+				$itemsCatNames[] = $subCat->name . "(" . $lineQuantity . ")";
 
 				// $totalValue += convert_currency(floatval($item->net_value), $item->currency, $request->currency);
 				$totalValue += floatval($item->net_value);
@@ -3647,7 +3723,10 @@ class RequisitionController extends Controller
 			}
 			$req->net_value = $totalValue;
 
-			$req->inventory_location_id = getCurrentUserLocation()->id;
+			$currentLocation = getCurrentUserLocation();
+			if ($currentLocation !== null) {
+				$req->inventory_location_id = $currentLocation->id;
+			}
 
 			$req->save();
 		}

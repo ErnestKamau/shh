@@ -261,54 +261,48 @@
 
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-	<?php $approvals = getStageApprovals('Requisition', $stage); ?>
-	<h3 class="p-4">
-		<i class="mdi mdi-text-box-plus"></i> {{ !isset($request->status) ? 'Create' : '' }} {{ $stage }} {{
-		$request->request_code ?? '' }}
-		<span class="btn-group" role="group">
-			<button id="btnGroupDrop1" type="button" class="btn-sm btn btn-transparent dropdown-toggle" data-toggle="dropdown"
-				aria-haspopup="true" aria-expanded="false">
-				v{{ $ammendment }}
-			</button>
-			<div class="dropdown-menu" aria-labelledby="btnGroupDrop1">
-				@for ($a = $ammendment_count; $a >=1; $a--)
-				<a class="dropdown-item save-details-form" data-type="save-details"
-					href="{{ route('view-request-details', ['stage'=>$request->request_type, 'id'=>$request->request_code, 'ammendement'=>$a]) }}">
-					<i class="mdi mdi-chevron-double-right"></i> v{{ $a }}
-				</a>
-				@endfor
-			</div>
-		</span>
-		<small style="cursor: pointer" class="badge badge-pill bg-white my-small-text" {!! in_array($stage, ["Purchase Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
-			? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
-			<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
-			@if ($stage == "Purchase Orders" )
-			{{-- Zoho Books integration disabled — not in use.
-			@if (trim($request->zoho_status) != "")
-			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
-				ZOHO Status: {{ $request->zoho_status }}
-			</small>
-			@endif
-			--}}
-			@else
-			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
-				{{ in_array($request->status, ["Goods Accepted",
-				"Items Issued Out"]) ? (in_array($request->approval_status, ['Fully', 'Partially']) ? $request->approval_status
-				: '' ) : '' }}
-			</small>
-			@endif
+	@php $approvals = getStageApprovals('Requisition', $stage); @endphp
 
-		</small>
-		@if ((isset($request->status) && $request->status == "In Preparation" || !isset($request->status)))
-		<button class="btn btn-default text-primary float-right save-details-form btn-sm" data-type="save-details">
-			<i class="mdi mdi-content-save"></i> Save
-		</button>
-		@else
-		<button class="btn btn-default text-primary float-right save-details-form hidden btn-sm" id="save-other-changes"
-			data-type="save-details">
-			<i class="mdi mdi-content-save"></i> Save
-		</button>
-		@endif
+	<div class="batch-header-bar mb-3">
+		<div class="batch-header-top">
+			<div class="batch-title-group">
+				<span class="batch-code-label">
+					{{ !isset($request->status) ? 'Create' : '' }} {{ $stage }} {{ $request->request_code ?? '' }}
+				</span>
+				<div class="btn-group" role="group">
+					<button id="btnGroupDrop1" type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="dropdown"
+						aria-haspopup="true" aria-expanded="false">
+						v{{ $ammendment }}
+					</button>
+					<div class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+						@for ($a = $ammendment_count; $a >=1; $a--)
+						<a class="dropdown-item save-details-form" data-type="save-details"
+							href="{{ route('view-request-details', ['stage'=>$request->request_type, 'id'=>$request->request_code, 'ammendement'=>$a]) }}">
+							<i class="mdi mdi-chevron-double-right"></i> v{{ $a }}
+						</a>
+						@endfor
+					</div>
+				</div>
+				<span style="cursor: pointer" class="batch-stage-pill" {!! in_array($stage, ["Purchase Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
+					? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
+					<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
+					@if ($stage != "Purchase Orders" && in_array($request->status, ["Goods Accepted", "Items Issued Out"]) && in_array($request->approval_status, ['Fully', 'Partially']))
+						<small class="text-muted ml-1">&middot; {{ $request->approval_status }}</small>
+					@endif
+				</span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center flex-wrap" style="gap: 0.5rem;">
+			@if ((isset($request->status) && $request->status == "In Preparation" || !isset($request->status)))
+				<button class="btn btn-primary btn-sm workflow-header-receive-btn save-details-form" data-type="save-details">
+					<i class="mdi mdi-content-save"></i> Save
+				</button>
+			@else
+				<button class="btn btn-primary btn-sm workflow-header-receive-btn save-details-form hidden" id="save-other-changes"
+					data-type="save-details">
+					<i class="mdi mdi-content-save"></i> Save
+				</button>
+			@endif
 
 		@if (isset($request->status) && (in_array($request->request_type, ["Gate Pass"])))
 		@if(trim($request->note_bearer!="") && trim($request->time_out!=""))
@@ -528,7 +522,7 @@
 				$pendingEntityApprovalsCount = isset($request->id)
 					? \App\EntityApproval::where('model', $stage)->where('model_id', $request->id)->where('status', 'Pending')->count()
 					: 0;
-				$canSendForApproval = in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend"])
+				$canSendForApproval = in_array($stage, ["Purchase Request", "Request to Store", "Purchase Orders", "Gate Pass", "Loan", "Lend", "Goods Receipt"])
 					&& (
 						$request->status == "In Preparation"
 						|| (in_array($request->status, ["Awaiting Approval", "Partially Approved"]) && $pendingEntityApprovalsCount === 0)
@@ -554,7 +548,7 @@
 				$rfqHasEmailBody = trim($request->email_body ?? '') !== '';
 			@endphp
 
-			@if ($request->status == "Approval Complete" && $isInventoryProcurement && $rfqHasAwardedQuotes)
+			@if ($request->status == "Approval Complete" && $isInventoryProcurement)
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
 				data-alert="Are you sure you want to proceed?">
 				<i class="mdi mdi-content-save"></i> Mark as Complete
@@ -585,33 +579,6 @@
 			<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
 				<i class="fas fa-plus"></i> Add Email Body
 			</span>
-			@endif
-			@endif
-
-			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
-			@if (!in_array($request->status, ["Approval Complete", "Rejected"]) &&
-			$isInventoryProcurement && trim($request->email_body) != "")
-			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
-				<i class="mdi mdi-email-send"></i> Send Out RFQS
-			</button>
-			@endif
-			@if (in_array($request->status, ["Awarded", "RFQs sent out"]))
-			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
-				<i class="mdi mdi-account-check"></i> Get Approval
-			</button>
-			@endif
-			@if ($request->status == "Approval Complete" && $isInventoryProcurement)
-			<?php $approvalStatus = $request->approvals(); ?>
-			<button class="btn btn-default text-dark float-right btn-sm" data-target="#create-po-confirmation-modal"
-				data-toggle="modal">
-				<i class="mdi mdi-file-move"></i> Create Purchase Order
-			</button>
-			@if (isset($request->status) && $isInventoryProcurement)
-			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
-				data-alert="Are you sure you want to proceed?">
-				<i class="mdi mdi-content-save"></i> Mark as Complete
-			</button>
-			@endif
 			@endif
 			@endif
 			@if (in_array($request->status, ["Approval Complete", "Items Issued Out", "Completed"]) && $stage === "Request to Store")
@@ -1105,7 +1072,10 @@
 											<?php
 												$readonly = isset($request->status) && $request->status == "In Preparation" || !isset($request->status) ? false : true;
 											?>
-											<select name="items[item_id][]" style="min-width: 200px; font-size: 12px"
+											@if($readonly && (int) ($request->in_ammendment ?? 0) === 0)
+											<input type="hidden" name="items[item_id][]" value="{{ $req_item->inventory_sub_category_id }}" />
+											@endif
+											<select @if(!($readonly && (int) ($request->in_ammendment ?? 0) === 0)) name="items[item_id][]" @endif style="min-width: 200px; font-size: 12px"
 												class="form-control selected-item" data-selected="{{ $req_item->inventory_sub_category_id }}"
 												data-account="{{ $req_item->item_account_id }}" placeholder="Please select inventory item..." {{
 												$readonly ? "disabled" : "" }}>
@@ -1265,14 +1235,18 @@
 									<td>
 										@php($notifyQuantityChange = in_array($stage,["Request for Quotation", "Purchase Orders"]) ?
 										'notify-item-change' : '')
+										@php($quantityReadonly = isset($request->status) && $request->status != "In Preparation" && isset($request->status))
 										<div class="form-group">
+											@if($quantityReadonly)
+											<input type="hidden" name="items[quantity][]" value="{{ $req_item->quantity }}" />
+											@endif
 											<input type="number" min="0.00" data-item="{{ $req_item->sub_category->name }}"
-												name="items[quantity][]" data-value="{{ $req_item->quantity }}"
+												@if(!$quantityReadonly) name="items[quantity][]" @endif
+												data-value="{{ $req_item->quantity }}"
 												value="{{ $req_item->quantity }}" step="any" style="min-width: 70px; max-width: 90px"
 												class="form-control user-quantity {{ $notifyQuantityChange }}" placeholder="Quantity..." {!!
-												isset($request->status) && $request->status == "In Preparation" || !isset($request->status)
-											? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!}
-											required />
+												!$quantityReadonly ? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!}
+											@if(!$quantityReadonly) required @endif />
 										</div>
 										<div class="mt-1 item-change-reason-div form-group">
 											<textarea class="form-control form-control-sm" name="items[quantity_change_reason][]"
@@ -5285,16 +5259,27 @@
 				});
 			});
 
+			var buildGetItemDetailsUrl = function(itemId) {
+				var path = '/get_item_details/' + encodeURIComponent(itemId);
+				var reqId = @json($request->id ?? null);
+				if (reqId) {
+					path += '/' + encodeURIComponent(reqId);
+				}
+
+				return window.location.origin + path;
+			};
+
 			$('#req-items').on('change', 'tr .selected-item', function(){
 				var itemID = $(this).val();
 				var $this = $(this);
 				$.ajax({
-					url: '/get_item_details/'+itemID+'/{{ $request->id }}',
-					beforeSend: function(){
-
-					},
+					url: buildGetItemDetailsUrl(itemID),
+					dataType: 'json',
 					success: function(js){
 						sortOutSelectedItem(js, $this, itemID);
+					},
+					error: function(xhr) {
+						console.error('Failed to load item details for UOM dropdown.', xhr);
 					}
 				});
 			});
