@@ -25,20 +25,11 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-
-    <div class="batch-header-bar mb-3">
-      <div class="batch-header-top">
-        <div class="batch-title-group">
-          <span class="batch-code-label">{{ $store->name }}</span>
-          <span class="batch-stage-pill">
-            <i class="mdi mdi-grid-large"></i>
-            {{ inventoryLabel('store_details', 'Store Details') }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <div>
+    <h2 class="p-4">
+      <i class="mdi mdi-grid-large"></i> Store Details
+    </h2>
+    <br>
+    <div class="table-responsive bg-light p-4">
 			<div class="card tab-card">
 				<div class="card-header tab-card-header">
 					<ul class="nav nav-tabs card-header-tabs" id="Data-tabs" role="tablist">

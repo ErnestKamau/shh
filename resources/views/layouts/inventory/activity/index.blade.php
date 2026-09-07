@@ -6,133 +6,127 @@
 @section('content2')
 
 <main>
-	@php
-		$iitems = [
-			['link' => route('inventory-home'), 'name' => inventoryLabel('module_name', 'Inventory Management'), 'icon' => null],
-			['link' => route('inventory-activity'), 'name' => inventoryLabel('inventory_movement', 'Inventory Movement'), 'icon' => null],
-		];
-	@endphp
+	<?php
+		$iitems = array(
+			array(
+				'link' => route('inventory-home'),
+				'name' => 'Inventory Management',
+				'icon' => null
+			),
+			array(
+				'link' => route('inventory-activity'),
+				'name' => 'Inventory Movement',
+				'icon' => null
+			)
+		);
+	?>
 	<x-bread-crumb :items="$iitems"></x-bread-crumb>
-
-	<div class="batch-header-bar mb-3">
-		<div class="batch-header-top">
-			<div class="batch-title-group">
-				<span class="batch-code-label">{{ inventoryLabel('inventory_movement', 'Inventory Movement') }}</span>
-				<span class="batch-stage-pill">
-					<i class="mdi mdi-chart-areaspline"></i>
-					{{ inventoryLabel('movement_logs', 'Movement Logs') }}
-				</span>
+	<h2 class="p-4">
+		<i class="mdi mdi-format-list-bulleted-type"></i>Inventory Movement
+	</h2>
+	<div class="p-4">
+		<div class="row">
+			<div class="col-md-2">
+				<div class="form-group">
+					<label class="control-label">Cost Centers</label>
+					<select class="form-control" id="change-department">
+						<option value="">All Cost Centers</option>
+						@foreach (getCostCenter() as $dp)
+							<option value="{{ $dp }}" {{ $term['department']==$dp ? 'selected' : '' }}>{{ $dp }}</option>
+						@endforeach
+					</select>
+				</div>
 			</div>
-		</div>
-	</div>
-
-	<div class="card mb-4">
-		<div class="card-header bg-light d-flex align-items-center justify-content-between py-2 px-3">
-			<span class="font-weight-bold text-sm text-dark"><i class="mdi mdi-filter-variant mr-1 text-primary"></i> {{ inventoryLabel('filters', 'Filter Movement Records') }}</span>
-		</div>
-		<div class="card-body p-3">
-			<div class="row align-items-end" style="row-gap: 0.75rem;">
-				<div class="col-lg-2 col-md-4 col-sm-6">
-					<div class="form-group mb-0">
-						<label class="control-label text-xs font-weight-bold">{{ inventoryLabel('cost_center', 'Cost Center') }}</label>
-						<select class="form-control form-control-sm" id="change-department">
-							<option value="">{{ inventoryLabel('all_cost_centers', 'All Cost Centers') }}</option>
-							@foreach (getCostCenter() as $dp)
-								<option value="{{ $dp }}" {{ ($term['department'] ?? '') == $dp ? 'selected' : '' }}>{{ $dp }}</option>
-							@endforeach
-						</select>
-					</div>
+			<div class="col-md-2">
+				<div class="form-group">
+					<label class="control-label">Classification</label>
+					<select class="form-control" id="change-classification" style="width: 100%">
+						<option value="">All Classification</option>
+						@foreach (getInventoryItemClassification() as $in=>$css)
+							<option value="{{ $in }}" {{ $term['classification']==$in ? 'selected' : '' }}>{{ $css }}</option>
+						@endforeach
+					</select>
 				</div>
-				<div class="col-lg-2 col-md-4 col-sm-6">
-					<div class="form-group mb-0">
-						<label class="control-label text-xs font-weight-bold">{{ inventoryLabel('classification', 'Classification') }}</label>
-						<select class="form-control form-control-sm" id="change-classification" style="width: 100%">
-							<option value="">{{ inventoryLabel('all_classifications', 'All Classifications') }}</option>
-							@foreach (getInventoryItemClassification() as $in=>$css)
-								<option value="{{ $in }}" {{ ($term['classification'] ?? '') == (string)$in ? 'selected' : '' }}>{{ $css }}</option>
-							@endforeach
-						</select>
-					</div>
+			</div>
+			<div class="col-md-2">
+				<div class="form-group" style="margin-right: 10px;">
+					<label class="control-label">Categories</label>
+					<select class="form-control" id="change-category" style="width: 100%">
+						<option value="">All Categories</option>
+						@foreach (getInventoryCategories() as $cat)
+							<option value="{{ $cat->id }}" {{ $cat->id==$term['category'] ? 'selected' : '' }}>{{ ucfirst($cat->name) }}</option>
+						@endforeach
+					</select>
 				</div>
-				<div class="col-lg-2 col-md-4 col-sm-6">
-					<div class="form-group mb-0">
-						<label class="control-label text-xs font-weight-bold">{{ inventoryLabel('categories', 'Categories') }}</label>
-						<select class="form-control form-control-sm" id="change-category" style="width: 100%">
-							<option value="">{{ inventoryLabel('all_categories', 'All Categories') }}</option>
-							@foreach (getInventoryCategories() as $cat)
-								<option value="{{ $cat->id }}" {{ ($cat->id == ($term['category'] ?? '')) ? 'selected' : '' }}>{{ ucfirst($cat->name) }}</option>
-							@endforeach
-						</select>
-					</div>
+			</div>
+			<div class="col-md-2">
+				<div class="form-group" style="margin-right: 10px">
+					<label class="control-label">Start Date</label>
+					<input class="form-control" value="{{ $term['range'][0] ?? '' }}" type="date" id="change-start-date" />
 				</div>
-				<div class="col-lg-2 col-md-4 col-sm-6">
-					<div class="form-group mb-0">
-						<label class="control-label text-xs font-weight-bold">{{ inventoryLabel('start_date', 'Start Date') }}</label>
-						<input class="form-control form-control-sm" value="{{ $term['range'][0] ?? '' }}" type="date" id="change-start-date" />
-					</div>
+			</div>
+			<div class="col-md-2">
+				<div class="form-group" style="margin-right: 10px">
+					<label class="control-label">End Date</label>
+					<input class="form-control" value="{{ $term['range'][1] ?? '' }}" type="date" id="change-end-date" />
 				</div>
-				<div class="col-lg-2 col-md-4 col-sm-6">
-					<div class="form-group mb-0">
-						<label class="control-label text-xs font-weight-bold">{{ inventoryLabel('end_date', 'End Date') }}</label>
-						<input class="form-control form-control-sm" value="{{ $term['range'][1] ?? '' }}" type="date" id="change-end-date" />
-					</div>
-				</div>
-				<div class="col-lg-2 col-md-4 col-sm-6">
-					<button type="button" class="btn btn-primary btn-sm btn-block" id="filter-movement">
-						<i class="mdi mdi-magnify"></i> {{ inventoryLabel('filter', 'Filter') }}
-					</button>
+			</div>
+			<div class="col-md-2">
+				<div class="form-group" style="margin-right: 10px">
+					<label class="control-label">&nbsp;&nbsp;</label>
+					<span class="btn btn-primary btn-sm" id="filter-movement" style="width:100%">
+						<i class="mdi mdi-magnify"></i> Filter
+					</span>
 				</div>
 			</div>
 		</div>
 	</div>
-
-	<div class="workflow-board-panel">
-		<div class="table-responsive p-0">
-			<table id="inventory-movement" data-url="{{ route('get-stock-movement') }}" class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm mb-0">
-				<thead>
+	<br>
+	<div class="table-responsive bg-light p-4">
+		<table id="inventory-movement" data-url="{{ route('get-stock-movement') }}" class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+			<thead class="bg-light p-2">
+				<tr>
+					<th>No</th>
+					<th>Date</th>
+					<th>SAP Code</th>
+					<th>Item</th>
+					<th>Code</th>
+					<th>{{ __('inventory.stock_in') }}</th>
+					<th>{{ __('inventory.stock_out') }}</th>
+					<th>UoM</th>
+					<th>Cost Center</th>
+					<th>Store</th>
+					<th>Slot</th>
+					<th>Category</th>
+					<th>Request Code</th>
+					<th>Brand</th>
+					<th>Purpose</th>
+					<th>Line Comment</th>
+				</tr>
+			</thead>
+			<tbody>
+				@foreach ($items as $item)
 					<tr>
-						<th>#</th>
-						<th nowrap>{{ inventoryLabel('date', 'Date') }}</th>
-						<th nowrap>SAP Code</th>
-						<th nowrap>{{ inventoryLabel('item', 'Item') }}</th>
-						<th nowrap>{{ inventoryLabel('code', 'Code') }}</th>
-						<th nowrap>{{ __('inventory.stock_in') }}</th>
-						<th nowrap>{{ __('inventory.stock_out') }}</th>
-						<th nowrap>{{ inventoryLabel('uom', 'UoM') }}</th>
-						<th nowrap>{{ inventoryLabel('cost_center', 'Cost Center') }}</th>
-						<th nowrap>{{ inventoryLabel('store', 'Store') }}</th>
-						<th nowrap>{{ inventoryLabel('slot', 'Slot') }}</th>
-						<th nowrap>{{ inventoryLabel('category', 'Category') }}</th>
-						<th nowrap>{{ inventoryLabel('request_code', 'Request Code') }}</th>
-						<th nowrap>{{ inventoryLabel('brand', 'Brand') }}</th>
-						<th nowrap>{{ inventoryLabel('purpose', 'Purpose') }}</th>
-						<th nowrap>{{ inventoryLabel('line_comment', 'Line Comment') }}</th>
+						<td>{{ $loop->iteration }}</td>
+						<td nowrap>{{ $item->req_date ?? $item->created_at }}</td>
+						<td nowrap>{{ $item->sap_code }}</td>
+						<td nowrap>{{ $item->sub_category }}</td>
+						<td nowrap>{{ $item->code }}</td>
+						<td nowrap>{{ number_format($item->stock_in ?? 0, 3) }}</td>
+						<td nowrap>{{ number_format($item->stock_out ?? 0, 3) }}</td>
+						<td nowrap>{{ $item->unit_type }}</td>
+						<td nowrap>{{ $item->cost_center }}</td>
+						<td nowrap>{{ $item->store }}</td>
+						<td nowrap>{{ $item->slot }}</td>
+						<td nowrap>{{ $item->category }}</td>
+						<td nowrap>{{ $item->entity_code }}</td>
+						<td nowrap>{{ $item->brand }}</td>
+						<td nowrap>{{ $item->description ?? '-' }}</td>
+						<td nowrap>{{ $item->comments ?? '-' }}</td>
 					</tr>
-				</thead>
-				<tbody>
-					@foreach ($items as $item)
-						<tr>
-							<td>{{ $loop->iteration }}</td>
-							<td nowrap>{{ $item->req_date ?? $item->created_at }}</td>
-							<td nowrap><code>{{ $item->sap_code }}</code></td>
-							<td nowrap><strong>{{ $item->sub_category }}</strong></td>
-							<td nowrap><code>{{ $item->code }}</code></td>
-							<td nowrap class="text-success font-weight-bold">{{ number_format($item->stock_in ?? 0, 3) }}</td>
-							<td nowrap class="text-danger font-weight-bold">{{ number_format($item->stock_out ?? 0, 3) }}</td>
-							<td nowrap>{{ $item->unit_type }}</td>
-							<td nowrap>{{ $item->cost_center }}</td>
-							<td nowrap>{{ $item->store }}</td>
-							<td nowrap>{{ $item->slot }}</td>
-							<td nowrap>{{ $item->category }}</td>
-							<td nowrap><code>{{ $item->entity_code }}</code></td>
-							<td nowrap>{{ $item->brand }}</td>
-							<td nowrap>{{ $item->description ?? '-' }}</td>
-							<td nowrap>{{ $item->comments ?? '-' }}</td>
-						</tr>
-					@endforeach
-				</tbody>
-			</table>
-		</div>
+				@endforeach
+			</tbody>
+		</table>
 	</div>
 </main>
 @endsection

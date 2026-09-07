@@ -48,32 +48,20 @@
 		);
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-
-	<div class="batch-header-bar mb-3">
-		<div class="batch-header-top">
-			<div class="batch-title-group">
-				<span class="batch-code-label">{{ inventoryLabel('reports', 'Inventory Reports') }}</span>
-				<span class="batch-stage-pill">
-					<i class="mdi mdi-chart-box-outline"></i>
-					{{ count($configurations) }} {{ inventoryLabel('configured_reports', 'Configured Reports') }}
-				</span>
-			</div>
-		</div>
-		<div class="d-flex align-items-center" style="gap: 0.5rem;">
-			<button class="btn btn-sm btn-outline-info hidden" data-toggle="modal" data-target="#filter-configurations-modla" id="unsaved-query">
-				<i class="fa fa-info-circle"></i> Unsaved Report Query
+	<h4 class="p-4">
+		<i class="mdi mdi-format-list-bulleted-type"></i>Reports
+		<small class="badge badge-pill bg-white my-small-text"><i class="mdi mdi-hammer-wrench"></i> In Development</small>
+		<button class="btn bg-white text-info badge-pill btn-sm hidden" data-toggle="modal" data-target="#filter-configurations-modla" id="unsaved-query"><i class="fa fa-info-circle"></i> Unsaved Report Query</button>
+		@if(Request::get('edit') == 'true')
+			<button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#filter-configurations-modla">
+				<i class="md md-plus"></i> Create Report
 			</button>
-			<a class="btn btn-outline-primary btn-sm" href="{{ route('consumption-reports') }}">
-				<i class="mdi mdi-chart-bell-curve-cumulative"></i> {{ inventoryLabel('consumption_reports', 'Consumption Reports') }}
-			</a>
-			@if(Request::get('edit') == 'true')
-				<button class="btn btn-primary btn-sm workflow-header-receive-btn" data-toggle="modal" data-target="#filter-configurations-modla">
-					<i class="mdi mdi-plus"></i> {{ inventoryLabel('create_report', 'Create Report') }}
-				</button>
-			@endif
-		</div>
-	</div>
-
+		@endif
+		<a class="btn btn-transparent text-success btn-sm float-right mr-1 ml-1" href="{{ route('consumption-reports') }}">
+			<i class="md md-file-compare"></i> Consumption Reports
+		</a>
+	</h4>
+	<br>
 	<div class="section-body">
 		<div class="panel-group" id="accordion1">
 			<div class="card panel">

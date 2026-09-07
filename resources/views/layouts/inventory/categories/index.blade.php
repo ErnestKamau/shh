@@ -24,33 +24,21 @@
 			$userCanDelete = \Auth::user()->can('inventory.components.categories.delete');
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
+    <h3 class="px-0 pt-2 pb-3 inventory-page-header">
+      <i class="mdi mdi-format-list-bulleted-type"></i> Categories
 
-    <div class="batch-header-bar mb-3">
-      <div class="batch-header-top">
-        <div class="batch-title-group">
-          <span class="batch-code-label">{{ inventoryLabel('categories', 'Inventory Categories') }}</span>
-          <span class="batch-stage-pill">
-            <i class="mdi mdi-shape-outline"></i>
-            {{ count($categories) }} {{ inventoryLabel('categories', 'Categories') }}
-          </span>
-        </div>
-      </div>
-      <div class="d-flex align-items-center" style="gap: 0.5rem;">
-        <button class="btn btn-outline-primary btn-sm" data-toggle="modal" data-target="#jump-to-item-modal">
-          <i class="mdi mdi-magnify"></i> {{ inventoryLabel('find_item', 'Find Item') }}
-        </button>
-        @if($userCanAdd)
-          <button class="btn btn-primary btn-sm workflow-header-receive-btn" data-toggle="modal" data-target="#add-inventory-category">
-            <i class="mdi mdi-plus"></i> {{ inventoryLabel('add_category', 'Add Category') }}
-          </button>
-        @endif
-      </div>
-    </div>
-
+			@if($userCanAdd)
+      	<button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-inventory-category"><i class="mdi mdi-plus"></i> Add</button>
+			@endif
+			<span class="btn btn-transparent btn-sm float-right" data-toggle="modal" data-target="#jump-to-item-modal">
+				<i class="mdi mdi-home-search"></i>
+				Find Item
+			</span>
+		</h3>
 		<div class="workflow-board-panel">
 			<div class="workflow-board-panel-body p-0">
 			<div class="table-responsive">
-				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm mb-0">
+				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
 					<thead class="bg-light p-2">
 						<tr>
 							<th>No</th>

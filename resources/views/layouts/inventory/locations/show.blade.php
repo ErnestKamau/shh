@@ -71,28 +71,13 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-
-		<div class="batch-header-bar mb-3">
-			<div class="batch-header-top">
-				<div class="batch-title-group">
-					<span class="batch-code-label">{{ $location->name }}</span>
-					<span class="batch-stage-pill">
-						<i class="mdi mdi-map-marker"></i>
-						{{ inventoryLabel('location_access', 'Location Access') }}
-					</span>
-				</div>
-			</div>
-			<div class="d-flex align-items-center" style="gap: 0.5rem;">
-				<button class="btn btn-primary btn-sm workflow-header-receive-btn" data-target="#add-user-access" data-toggle="modal">
-					<i class="mdi mdi-account-plus"></i> {{ inventoryLabel('user_access', 'Add User Access') }}
-				</button>
-			</div>
-		</div>
-
-		<div class="workflow-board-panel">
-			<div class="workflow-board-panel-body p-0">
+		<h3 class="p-4">
+			<i class="mdi mdi-microscope"></i> {{ $location->name }} <small class="text-muted"> | Location</small>
+			<div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#add-user-access" data-toggle="modal"><i class="mdi mdi-account-key"></i> User Access</div>
+		</h3>
+		<div class="bg-light p-4">
 			<div class="table-responsive">
-				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm mb-0">
+				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
 					<thead class="bg-light p-2">
 						<tr>
 							<th>No</th>

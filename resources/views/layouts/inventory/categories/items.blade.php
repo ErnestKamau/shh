@@ -100,36 +100,27 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-
-		<div class="batch-header-bar mb-3">
-			<div class="batch-header-top">
-				<div class="batch-title-group">
-					<span class="batch-code-label">{{ $subcategory->name }}</span>
-					<span class="batch-stage-pill">
-						<i class="mdi mdi-shape-outline"></i>
-						{{ $category->name }}
+		<h3 class="p-4">
+			<i class="mdi mdi-package-variant"></i> {{ $category->name }}
+			<small class="text-muted"> | Item
+				@if($subcategory->requires_reorder==1)
+					<span class="badge badge-pill badge-danger">
+						<i class="mdi mdi-information-triangle"></i> Restock Required
 					</span>
-					@if($subcategory->requires_reorder==1)
-						<span class="badge badge-pill badge-danger px-2 py-1">
-							<i class="mdi mdi-alert mr-1"></i> {{ inventoryLabel('restock_required', 'Restock Required') }}
-						</span>
-					@endif
-				</div>
-			</div>
-			<div class="d-flex align-items-center flex-wrap" style="gap: 0.5rem;">
-				<div class="d-inline-flex align-items-center bg-white border rounded px-2 py-1" style="gap: 0.4rem;">
-					<span class="barcode">{!! DNS1D::getBarcodeSVG($itemBarcodeNo, 'C128', 1.6, 32, 'black', true) !!}</span>
-					<button type="button" class="btn btn-transparent btn-sm print-barcode text-primary p-1" title="Print Barcode">
-						<i class="mdi mdi-printer fa-lg"></i>
-					</button>
-				</div>
-			</div>
-		</div>
+				@endif
+			</small>
+			{{-- <div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#transfer-inventory-items" data-toggle="modal"><i class="mdi mdi-share"></i> Issuing</div>
+			<div class="btn btn-sm btn-transparent text-success float-right m-2" data-target="#add-inventory-items" data-toggle="modal"><i class="mdi mdi-plus"></i> Receiving</div>
+			<div class="btn btn-sm btn-transparent text-info float-right m-2" data-target="#stock-keeping-modal" data-toggle="modal"><i class="mdi mdi-clipboard-arrow-left"></i> Stock Taking</div> --}}
+			{{-- <div class="btn btn-sm btn-transparent text-danger float-right m-2" data-target="#item-disposal-modal" data-toggle="modal"><i class="mdi mdi-trash-can"></i> Item Disposal</div> --}}
+			{{-- <div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#item-return-modal" data-toggle="modal"><i class="mdi mdi-keyboard-return"></i> Item Return</div> --}}
+			<br>
+			<div class="p-2"><span class="barcode">{!! DNS1D::getBarcodeSVG($itemBarcodeNo, 'C128', 2, 50, 'black', true) !!}</span> <span class="btn btn-sm btn-transparent print-barcode"><i class="mdi mdi-printer text-info"></i></span></div>
+		</h3>
 
-		@php
-			$sorteddata = $subcategory->sorted_items();
-			$excludedKeys = ["Returned 2 Store", "Item Disposal", "Stock Taking", "items"];
-		@endphp
+		{{-- <pre>{{ json_encode($subcategory->sorted_items(), JSON_PRETTY_PRINT) }}</pre> --}}
+		<?php $sorteddata = $subcategory->sorted_items(); ?>
+		<?php $excludedKeys = array("Returned 2 Store", "Item Disposal", "Stock Taking", "items"); ?>
 		<div class="row no-gutters">
 			<div class="col-sm-4 p-2">
 				<div class="card">

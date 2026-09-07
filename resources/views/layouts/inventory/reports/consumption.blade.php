@@ -59,20 +59,10 @@
 		$startYear = 2021;
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-
-	<div class="batch-header-bar mb-3">
-		<div class="batch-header-top">
-			<div class="batch-title-group">
-				<span class="batch-code-label">{{ $title }} Reports</span>
-				<span class="batch-stage-pill">
-					<i class="mdi mdi-chart-bell-curve-cumulative"></i>
-					{{ inventoryLabel('consumption_analytics', 'Consumption Analytics') }}
-				</span>
-			</div>
-		</div>
-	</div>
-
-	<form class="card p-3 mb-3">
+	<h4 class="p-4">
+		<i class="mdi mdi-format-list-bulleted-type"></i> {{ $title }} Reports
+	</h4>
+	<form class="m-2">
 		<h5><i class="mdi mdi-filter"></i> Filters</h5>
 		<div class="row no-gutters">
 			<div class="col-md-4">
