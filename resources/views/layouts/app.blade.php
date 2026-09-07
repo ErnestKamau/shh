@@ -1354,22 +1354,106 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Modern Navigation Styles */
+        /* Modern Navigation Styles — lab slate chrome */
         #main-app-header {
-            background: white !important;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --nav-ink: var(--workflow-secondary, #1e293b);
+            --nav-muted: var(--workflow-muted, #64748b);
+            --nav-border: var(--workflow-border, #e2e8f0);
+            --nav-surface: #f8fafc;
+            --nav-accent: var(--workflow-accent, var(--color-primary, #8b1e2d));
+            --nav-chip-size: 2.25rem;
+            --nav-chip-radius: 9px;
+            background: #f8fafcee !important;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
             border: none;
+            border-bottom: 1px solid var(--nav-border);
         }
 
         #main-app-header .navbar-brand img {
-            transition: all 0.3s ease;
+            transition: opacity 0.2s ease;
         }
 
         #main-app-header .navbar-brand img:hover {
-            transform: scale(1.05);
+            opacity: 0.88;
         }
 
-        /* Enhanced Search Form */
+        /* Shared icon chip (menu, bell, language, attachments, calendar) */
+        #main-app-header .nav-chip {
+            width: var(--nav-chip-size);
+            height: var(--nav-chip-size);
+            min-width: var(--nav-chip-size);
+            min-height: var(--nav-chip-size);
+            padding: 0 !important;
+            margin: 0 2px;
+            border-radius: var(--nav-chip-radius) !important;
+            border: 1px solid var(--nav-border) !important;
+            background: #fff !important;
+            color: var(--nav-muted) !important;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+            text-decoration: none !important;
+            line-height: 1;
+            cursor: pointer;
+            position: relative;
+        }
+
+        #main-app-header .nav-chip:hover,
+        #main-app-header .nav-chip:focus {
+            background: color-mix(in srgb, var(--nav-accent) 8%, #fff) !important;
+            border-color: color-mix(in srgb, var(--nav-accent) 28%, var(--nav-border)) !important;
+            color: var(--nav-ink) !important;
+            outline: none;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        #main-app-header .nav-chip .mdi,
+        #main-app-header .nav-chip .fa {
+            font-size: 1.15rem;
+            line-height: 1;
+        }
+
+        #main-app-header .nav-chip--wide {
+            width: auto;
+            min-width: var(--nav-chip-size);
+            padding: 0 0.65rem !important;
+            gap: 0.35rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--nav-ink) !important;
+        }
+
+        #main-app-header .nav-chip--wide .mdi {
+            font-size: 1.05rem;
+            color: var(--nav-muted);
+        }
+
+        #main-app-header .nav-chip--user {
+            width: auto;
+            min-width: 0;
+            height: auto;
+            min-height: var(--nav-chip-size);
+            padding: 0.2rem 0.55rem 0.2rem 0.25rem !important;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--nav-ink) !important;
+        }
+
+        #main-app-header .nav-chip.dropdown-toggle::after {
+            margin-left: 0.15rem;
+            border-top-color: var(--nav-muted);
+            vertical-align: 0.15em;
+        }
+
+        #main-app-header .navbar-nav.ml-auto {
+            align-items: center;
+            gap: 0.15rem;
+        }
+
+        /* Search — quiet lab field */
         .search-form-container {
             position: relative;
             max-width: 400px;
@@ -1392,57 +1476,31 @@
 
         .search-input-group {
             position: relative;
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 25px;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1);
+            background: #fff;
+            border: 1px solid var(--nav-border, #e2e8f0);
+            border-radius: 10px;
+            box-shadow: none;
             overflow: hidden;
-            transition: all 0.3s ease;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
             display: flex;
             align-items: center;
-            position: relative;
-        }
-
-        .search-input-group::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover), var(--color-primary-tint));
-            background-size: 300% 300%;
-            border-radius: 27px;
-            z-index: -1;
-            opacity: 0;
-            animation: gradientShift 4s ease infinite;
-            transition: opacity 0.3s ease;
         }
 
         .search-input-group:hover {
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-            border-color: var(--color-primary);
-        }
-
-        .search-input-group:hover::before {
-            opacity: 0.6;
+            border-color: color-mix(in srgb, var(--nav-muted, #64748b) 40%, var(--nav-border, #e2e8f0));
         }
 
         .search-input-group:focus-within {
-            box-shadow: 0 4px 20px var(--color-primary-shadow);
-            border-color: var(--color-primary);
-        }
-
-        .search-input-group:focus-within::before {
-            opacity: 0.8;
+            border-color: color-mix(in srgb, var(--nav-accent, var(--color-primary)) 45%, var(--nav-border, #e2e8f0));
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--nav-accent, var(--color-primary)) 14%, transparent);
         }
 
         .search-input {
             border: none !important;
             background: transparent !important;
-            padding: 12px 20px !important;
-            font-size: 14px !important;
-            color: #333 !important;
+            padding: 0.55rem 0.85rem !important;
+            font-size: 0.875rem !important;
+            color: var(--nav-ink, #1e293b) !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             width: 275px;
@@ -1455,49 +1513,32 @@
         }
 
         .search-input::placeholder {
-            color: #999 !important;
+            color: var(--nav-muted, #64748b) !important;
             font-weight: 400;
         }
-
 
         .search-btn {
             background: transparent !important;
             border: none !important;
-            border-radius: 0 25px 25px 0 !important;
-            padding: 12px 20px !important;
-            color: #6c757d !important;
-            transition: all 0.3s ease;
+            border-radius: 0 10px 10px 0 !important;
+            padding: 0.55rem 0.9rem !important;
+            color: var(--nav-muted, #64748b) !important;
+            transition: color 0.15s ease, background 0.15s ease;
             position: relative;
-            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .search-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, var(--color-primary-soft-10), transparent);
-            transition: left 0.5s ease;
-        }
-
         .search-btn:hover {
-            background: var(--color-primary-soft-10) !important;
-            color: var(--color-primary) !important;
-            transform: scale(1.05);
-        }
-
-        .search-btn:hover::before {
-            left: 100%;
+            background: #f1f5f9 !important;
+            color: var(--nav-ink, #1e293b) !important;
+            transform: none;
         }
 
         .search-btn:active {
-            transform: scale(0.98);
-            background: var(--color-primary-shadow) !important;
+            transform: none;
+            background: #e2e8f0 !important;
         }
 
         .search-btn:focus {
@@ -1505,161 +1546,169 @@
             box-shadow: none !important;
         }
 
-        /* Subtle divider between input and button */
         .search-btn::after {
             content: '';
             position: absolute;
             left: 0;
-            top: 20%;
-            bottom: 20%;
+            top: 22%;
+            bottom: 22%;
             width: 1px;
-            background: #e9ecef;
-            transition: all 0.3s ease;
+            background: var(--nav-border, #e2e8f0);
         }
 
-        .search-input-group:focus-within .search-btn::after {
-            background: var(--color-primary);
-        }
-
-        /* Toggle Button Enhancement */
+        /* Sidebar toggle — chip */
         #toggle-main-sidebar {
-            background: transparent !important;
-            border: 2px solid #e9ecef !important;
-            border-radius: 8px !important;
-            color: var(--color-primary) !important;
-            transition: all 0.3s ease;
-            min-width: 44px;
-            min-height: 44px;
+            background: #fff !important;
+            border: 1px solid var(--nav-border, #e2e8f0) !important;
+            border-radius: var(--nav-chip-radius, 9px) !important;
+            color: var(--nav-muted, #64748b) !important;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+            width: var(--nav-chip-size, 2.25rem);
+            height: var(--nav-chip-size, 2.25rem);
+            min-width: var(--nav-chip-size, 2.25rem);
+            min-height: var(--nav-chip-size, 2.25rem);
+            padding: 0 !important;
             display: inline-flex;
             align-items: center;
             justify-content: center;
         }
 
         #toggle-main-sidebar:hover {
-            background: #f8f9fa !important;
-            border-color: var(--color-primary) !important;
-            transform: scale(1.05);
-            box-shadow: 0 2px 8px var(--color-primary-shadow);
+            background: color-mix(in srgb, var(--nav-accent, var(--color-primary)) 8%, #fff) !important;
+            border-color: color-mix(in srgb, var(--nav-accent, var(--color-primary)) 28%, var(--nav-border, #e2e8f0)) !important;
+            color: var(--nav-ink, #1e293b) !important;
+            transform: none;
+            box-shadow: none;
         }
 
-        /* Navbar Toggler Enhancement */
         .navbar-toggler {
-            border: 2px solid #e9ecef !important;
-            border-radius: 8px !important;
-            background: transparent !important;
+            border: 1px solid var(--nav-border, #e2e8f0) !important;
+            border-radius: var(--nav-chip-radius, 9px) !important;
+            background: #fff !important;
+            width: var(--nav-chip-size, 2.25rem);
+            height: var(--nav-chip-size, 2.25rem);
+            padding: 0 !important;
         }
 
         .navbar-toggler:focus {
-            box-shadow: 0 0 0 0.2rem var(--color-primary-focus) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--nav-accent, var(--color-primary)) 14%, transparent) !important;
         }
 
         .navbar-toggler-icon {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 167, 223, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28100, 116, 139, 0.95%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
         }
 
-        /* Right Side Navigation Enhancement */
-        #main-app-header .navbar-nav .nav-link {
-            color: #333 !important;
+        /* Right-side nav links (non-chip fallbacks) */
+        #main-app-header .navbar-nav .nav-link:not(.nav-chip) {
+            color: var(--nav-ink, #1e293b) !important;
             font-weight: 500;
-            transition: all 0.3s ease;
-            padding: 8px 16px !important;
-            border-radius: 8px;
+            transition: background 0.15s ease, color 0.15s ease;
+            padding: 8px 12px !important;
+            border-radius: 9px;
             margin: 0 2px;
         }
 
-        #main-app-header .navbar-nav .nav-link:hover {
-            color: var(--color-primary) !important;
-            background: #f8f9fa;
-            transform: translateY(-2px);
+        #main-app-header .navbar-nav .nav-link:not(.nav-chip):hover {
+            color: var(--nav-ink, #1e293b) !important;
+            background: #f1f5f9;
+            transform: none;
         }
 
         #main-app-header .navbar-nav .dropdown-menu {
-            background: white;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 20px rgba(0, 0, 0, 0.15);
+            background: #fff;
+            border: 1px solid var(--nav-border, #e2e8f0);
+            border-radius: 14px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
             margin-top: 8px;
             max-width: 250px;
             right: 0;
             left: auto;
+            padding: 0.4rem;
         }
 
         #main-app-header .navbar-nav .dropdown-item {
-            color: #333 !important;
-            padding: 10px 20px;
-            transition: all 0.3s ease;
-            border-radius: 6px;
-            margin: 2px 8px;
+            color: var(--nav-ink, #1e293b) !important;
+            padding: 0.55rem 0.85rem;
+            transition: background 0.15s ease, color 0.15s ease;
+            border-radius: 8px;
+            margin: 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         #main-app-header .navbar-nav .dropdown-item:hover {
-            background: var(--color-primary);
-            color: white !important;
-            transform: translateX(5px);
+            background: #f1f5f9;
+            color: var(--nav-ink, #1e293b) !important;
+            transform: none;
         }
 
-        /* Floating Badge Enhancement */
+        /* Floating badge on chips */
         .has-floating-badge {
             position: relative;
+            display: inline-flex;
         }
 
         .floating-badge {
-            font-size: 11px;
+            font-size: 0.68rem;
             position: absolute;
-            top: -8px;
-            right: -8px;
+            top: -6px;
+            right: -6px;
             z-index: 10;
-            border-radius: 12px;
-            padding: 2px 6px;
-            background: #dc3545;
+            border-radius: 999px;
+            min-width: 1.15rem;
+            height: 1.15rem;
+            padding: 0 0.3rem;
+            line-height: 1.15rem;
+            text-align: center;
+            background: var(--nav-accent, #c41e3a);
             color: white;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
-
-            100% {
-                transform: scale(1);
-            }
+            font-weight: 700;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+            animation: none;
         }
 
         /* Module Name Styling */
         .module-name {
-            color: #333 !important;
-            font-size: 20px !important;
+            color: var(--nav-ink, #1e293b) !important;
+            font-size: 1.05rem !important;
             font-weight: 600 !important;
         }
 
         /* User Avatar Styling */
         .user-avatar {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            margin-right: 8px;
-            border: 2px solid #e9ecef;
-            transition: all 0.3s ease;
+            margin-right: 0;
+            border: 1px solid var(--nav-border, #e2e8f0);
+            transition: border-color 0.15s ease;
         }
 
-        .user-avatar:hover {
-            border-color: var(--color-primary);
-            transform: scale(1.1);
+        #main-app-header .nav-chip--user:hover .user-avatar {
+            border-color: color-mix(in srgb, var(--nav-accent, var(--color-primary)) 35%, var(--nav-border, #e2e8f0));
+            transform: none;
         }
 
         .navbar-nav .nav-link .user-avatar {
             display: inline-block;
             vertical-align: middle;
+        }
+
+        /* Home soft mode — translucent bar over module picker photo */
+        body.nav-home-soft #main-app-header {
+            background: rgba(248, 250, 252, 0.72) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom-color: rgba(226, 232, 240, 0.65);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+
+        body.nav-home-soft #main-app-header .nav-chip,
+        body.nav-home-soft #toggle-main-sidebar,
+        body.nav-home-soft .search-input-group {
+            background: rgba(255, 255, 255, 0.82) !important;
         }
 
         /* Enhanced Breadcrumb Styles */
@@ -1906,12 +1955,21 @@
     ?>
 </head>
 
-<body @if($__showPasswordExpiryBanner) class="has-password-expiry-banner" @endif>
-    <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm fixed-top" id="main-app-header">
+@php
+    $__navBodyClasses = [];
+    if ($__showPasswordExpiryBanner) {
+        $__navBodyClasses[] = 'has-password-expiry-banner';
+    }
+    if (request()->routeIs('home') || request()->is('home')) {
+        $__navBodyClasses[] = 'nav-home-soft';
+    }
+@endphp
+<body @if(count($__navBodyClasses)) class="{{ implode(' ', $__navBodyClasses) }}" @endif>
+    <nav class="navbar navbar-expand-md navbar-light fixed-top" id="main-app-header">
         <div class="container-fluid">
-            <button class="btn btn-transparent btn-lg" id="toggle-main-sidebar"
+            <button class="btn btn-transparent" id="toggle-main-sidebar"
                 type="button"
-                style="margin-left: -10px; margin-right: 5px"
+                style="margin-left: -6px; margin-right: 8px"
                 aria-label="Toggle sidebar navigation"
                 aria-controls="sidebar-container"
                 aria-expanded="false">
@@ -1962,40 +2020,39 @@
                     @endif
                     @else
                     @yield('alerts')
-                    <li class="nav-item d-flex align-items-center mr-2">
+                    <li class="nav-item d-flex align-items-center mr-1">
                         @livewire('lab.system-notifications-bell', key('lab-system-notifications-bell'))
                     </li>
                     @if(config('localization.enable_switcher'))
-                    <li class="nav-item dropdown mr-2">
-                        <a id="languageDropdown" class="nav-link dropdown-toggle d-flex align-items-center text-secondary font-weight-bold" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="cursor: pointer; font-size: 0.95rem;">
-                            <i class="mdi mdi-translate mr-1" style="font-size: 1.2rem;"></i>
+                    <li class="nav-item dropdown mr-1">
+                        <a id="languageDropdown" class="nav-link nav-chip nav-chip--wide dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Language">
+                            <i class="mdi mdi-translate" aria-hidden="true"></i>
                             <span class="text-uppercase">{{ app()->getLocale() }}</span>
                         </a>
-                        <div class="dropdown-menu dropdown-menu-right border-0 shadow-lg rounded-lg mt-2 p-2" aria-labelledby="languageDropdown" style="min-width: 180px;">
+                        <div class="dropdown-menu dropdown-menu-right mt-2" aria-labelledby="languageDropdown" style="min-width: 180px;">
                             @foreach(\App\Models\System\Language::where('is_active', 1)->get() as $lang)
                                 @php
                                     $flags = ['en' => '🇺🇸', 'sw' => '🇹🇿', 'fr' => '🇫🇷', 'es' => '🇪🇸', 'de' => '🇩🇪', 'pt' => '🇵🇹', 'ar' => '🇦🇪', 'zh' => '🇨🇳', 'ja' => '🇯🇵'];
                                     $flag = $flags[strtolower($lang->code)] ?? '🌍';
                                     $isActive = app()->getLocale() === strtolower($lang->code);
                                 @endphp
-                                <a class="dropdown-item d-flex align-items-center rounded px-3 py-2 mb-1 {{ $isActive ? 'bg-primary text-white font-weight-bold shadow-sm' : 'text-dark' }}" 
-                                   href="{{ route('set-locale', strtolower($lang->code)) }}"
-                                   style="transition: all 0.2s;">
-                                    <span class="mr-3" style="font-size: 1.2rem;">{{ $flag }}</span>
-                                    <span style="font-size: 0.95rem;">{{ $lang->name }}</span>
+                                <a class="dropdown-item d-flex align-items-center {{ $isActive ? 'font-weight-bold' : '' }}"
+                                   href="{{ route('set-locale', strtolower($lang->code)) }}">
+                                    <span class="mr-2" style="font-size: 1.05rem;">{{ $flag }}</span>
+                                    <span>{{ $lang->name }}</span>
                                 </a>
                             @endforeach
                         </div>
                     </li>
                     @endif
-                    <li class="nav-item dropdown">
-                        <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
+                    <li class="nav-item dropdown mr-1">
+                        <a id="navbarDropdown" class="nav-link nav-chip nav-chip--user dropdown-toggle" href="#" role="button"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&color=7F9CF5&background=EBF4FF"
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&color=475569&background=F1F5F9"
                                 alt="{{ Auth::user()->name }}" class="user-avatar">
-                            {{ Auth::user()->name }} <span class="caret"></span>
+                            <span class="d-none d-md-inline">{{ Auth::user()->name }}</span>
                         </a>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton"
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown"
                             style="width: 230px">
                             @if (Auth::user()->is_client == 0 && Auth::user()->supplier_id == 0)
                             <a class="dropdown-item" href="{{ route('user_profile') }}"><i
@@ -2006,7 +2063,7 @@
                                 data-toggle="modal"><i class="mdi mdi-domain text-info"></i> &nbsp;&nbsp;Select
                                 Default Company</a>
                             @endif
-                            <a class="dropdown-item" href="http://127.0.0.1:8000/logout"
+                            <a class="dropdown-item" href="#"
                                 onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                 <i class="text-danger mdi mdi-power"></i> &nbsp;&nbsp;Sign-Out
                             </a>
@@ -2016,23 +2073,25 @@
                             </form>
                         </div>
                     </li>
-                    <li class="nav-item">
-                        <span data-target="#attachments-on-this-page-modal" data-toggle="modal" class="nav-link"
-                            href="#page-attachments"
-                            style="cursor:pointer; font-size: 22px; margin-top: -4px !important">
-                            <b class="has-floating-badge">
-                                <i class="mdi mdi-paperclip fa-1x"></i>
-                                @if ($PageAttachments->count() > 0)
-                                <small class="floating-badge">{{ $PageAttachments->count() }}</small>
-                                @endif
-                            </b>
-                        </span>
+                    <li class="nav-item mr-1">
+                        <button type="button"
+                            data-target="#attachments-on-this-page-modal"
+                            data-toggle="modal"
+                            class="nav-chip has-floating-badge"
+                            title="Page attachments"
+                            aria-label="Page attachments">
+                            <i class="mdi mdi-paperclip" aria-hidden="true"></i>
+                            @if ($PageAttachments->count() > 0)
+                            <small class="floating-badge">{{ $PageAttachments->count() }}</small>
+                            @endif
+                        </button>
                     </li>
                     @if (Auth::user()->is_client == 0)
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ route('full-calendar') }}"
-                            style="cursor:pointer; font-size: 22px; margin-top: -4px !important">
-                            <i class="mdi mdi-calendar text-primary"></i>
+                        <a class="nav-chip" href="{{ route('full-calendar') }}"
+                            title="Calendar"
+                            aria-label="Calendar">
+                            <i class="mdi mdi-calendar" aria-hidden="true"></i>
                         </a>
                     </li>
                     {{-- <li class="nav-item">

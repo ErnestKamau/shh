@@ -593,7 +593,9 @@ class TestRequestFormReportDataBuilder
             'sampling_date_raw' => $this->formatDate($formData['sampling_date'] ?? ''),
             'sampling_time' => (string) ($formData['sampling_time'] ?? ''),
             'sampling_location' => $this->resolveSamplePointDisplayLabel((string) ($formData['sampling_location'] ?? '')),
-            'thermometer_id' => (string) ($formData['thermometer_id'] ?? ''),
+            'thermometer_id' => $variant === 'waste_water'
+                ? (string) ($formData['thermometer_id'] ?? '')
+                : app(TrfSamplingEquipmentResolver::class)->formatForPdf($formData['thermometer_id'] ?? ''),
             'sampling_apparatus' => self::normalizeCheckboxGroup($formData['sampling_apparatus'] ?? [], $options['sampling_apparatus']),
             'method_of_sampling' => self::normalizeCheckboxGroup($formData['method_of_sampling'] ?? [], $options['method_of_sampling']),
             'reason_of_collection' => self::normalizeCheckboxGroup($formData['reason_of_collection'] ?? [], $options['reason_of_collection']),

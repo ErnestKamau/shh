@@ -10,8 +10,8 @@
     $collectionExtras = $grid['collection_extras'] ?? [];
     $hasCollectionExtras = (bool) ($grid['has_collection_extras'] ?? false);
     $thermometerHtml = $thermometerId !== ''
-        ? '<span class="trf-check trf-check-on"></span> THERMOMETER ID ' . e($thermometerId)
-        : '<span class="trf-check trf-check-off"></span> THERMOMETER ID <span class="trf-dotted-leader">................</span>';
+        ? '<span class="trf-check trf-check-on"></span> EQUIPMENT ID: ' . e($thermometerId)
+        : '<span class="trf-check trf-check-off"></span> EQUIPMENT ID: <span class="trf-dotted-leader">................</span>';
 @endphp
 <tr class="trf-water-collection-block">
     <th colspan="{{ $detailsColspan }}" class="trf-collection-section-header">SAMPLE DETAILS</th>

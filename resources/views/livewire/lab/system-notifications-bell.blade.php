@@ -13,59 +13,56 @@
             position: relative;
             width: 2.25rem;
             height: 2.25rem;
-            border-radius: 8px;
-            border: 1px solid #dbe5f0;
+            border-radius: 9px;
+            border: 1px solid var(--ls-border);
             background: #fff;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: #475569;
+            color: var(--ls-muted);
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        .imara-system-bell .imara-system-bell__btn:hover {
+            background: color-mix(in srgb, var(--ls-accent) 8%, #fff);
+            border-color: color-mix(in srgb, var(--ls-accent) 28%, var(--ls-border));
+            color: var(--ls-ink);
+        }
+        .imara-system-bell .imara-system-bell__btn .mdi {
+            font-size: 1.15rem;
+            line-height: 1;
         }
         .imara-system-bell .imara-system-bell__btn.is-alerting {
-            border-color: color-mix(in srgb, var(--workflow-accent, #c41e3a) 35%, #dbe5f0);
-            background: color-mix(in srgb, var(--workflow-accent, #c41e3a) 8%, #fff);
+            border-color: color-mix(in srgb, var(--ls-accent) 35%, var(--ls-border));
+            background: color-mix(in srgb, var(--ls-accent) 8%, #fff);
+            color: var(--ls-accent);
         }
         .imara-system-bell .imara-system-bell__btn.is-alerting .mdi {
-            color: var(--workflow-accent, #c41e3a);
-            animation: imara-system-bell-ring 1.1s ease-in-out infinite;
-            transform-origin: top center;
-        }
-        @keyframes imara-system-bell-ring {
-            0%, 100% { transform: rotate(0deg); }
-            10% { transform: rotate(14deg); }
-            20% { transform: rotate(-12deg); }
-            30% { transform: rotate(10deg); }
-            40% { transform: rotate(-8deg); }
-            50% { transform: rotate(4deg); }
-            60% { transform: rotate(0deg); }
-        }
-        @keyframes imara-system-bell-badge-vibrate {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            15% { transform: translate(-1px, -1px) scale(1.08); }
-            30% { transform: translate(1px, 1px) scale(1.12); }
-            45% { transform: translate(-1px, 1px) scale(1.08); }
-            60% { transform: translate(1px, -1px) scale(1.1); }
-            75% { transform: translate(0, 0) scale(1.05); }
+            color: var(--ls-accent);
+            animation: none;
         }
         .imara-system-bell .imara-system-bell__badge {
             position: absolute;
-            top: -6px;
-            right: -6px;
-            min-width: 1.2rem;
-            height: 1.2rem;
-            padding: 0 0.32rem;
+            top: -5px;
+            right: -5px;
+            min-width: 1.15rem;
+            height: 1.15rem;
+            padding: 0 0.3rem;
             border-radius: 999px;
-            background: var(--workflow-accent, #c41e3a);
+            background: var(--ls-accent);
             color: #fff;
             font-size: 0.68rem;
             font-weight: 700;
-            line-height: 1.2rem;
+            line-height: 1.15rem;
             text-align: center;
             border: 2px solid #fff;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
         }
         .imara-system-bell .imara-system-bell__btn.is-alerting .imara-system-bell__badge {
-            animation: imara-system-bell-badge-vibrate 0.9s ease-in-out infinite;
+            animation: imara-system-bell-badge-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes imara-system-bell-badge-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.06); opacity: 0.92; }
         }
         .imara-system-bell .imara-system-bell__menu {
             position: absolute;
@@ -217,6 +214,9 @@
         }
         .imara-system-bell [x-cloak] {
             display: none !important;
+        }
+        body.nav-home-soft .imara-system-bell .imara-system-bell__btn {
+            background: rgba(255, 255, 255, 0.82);
         }
     </style>
 

@@ -3042,6 +3042,7 @@
 		column-gap: clamp(1.75rem, 7vw, 3.75rem);
 		align-items: start;
 		margin-bottom: 1.75rem;
+		overflow: visible;
 	}
 
 	.request-view-page .rv-trf-edit-modal .rv-trf-collection-trio > *,
@@ -3049,6 +3050,27 @@
 	.request-view-page .rv-trf-edit-modal .rv-trf-collection-col--mid,
 	.request-view-page .rv-trf-edit-modal .rv-trf-collection-col--right {
 		min-width: 0;
+		overflow: visible;
+	}
+
+	/* Equipment ID near bottom of Collection — open list upward to avoid modal/card clipping. */
+	.request-view-page .trf-sampling-equipment-ids {
+		overflow: visible;
+		position: relative;
+		z-index: 30;
+	}
+
+	.request-view-page .trf-sampling-equipment-ids .searchable-dropdown-wrapper {
+		overflow: visible;
+		z-index: 20;
+	}
+
+	.request-view-page .trf-sampling-equipment-ids .dropdown-list {
+		top: auto;
+		bottom: 100%;
+		margin-top: 0;
+		margin-bottom: 4px;
+		z-index: 2060;
 	}
 
 	/* Left column: +15% padding-left (base gutter 1.1rem) */

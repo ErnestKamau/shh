@@ -1223,7 +1223,7 @@ trait BuildsSubmissionFormTrfSections
             ['time', 'Sampling time', 'sampling_time', 2],
             ['customer_sample_point_select', 'Sampling location', 'sampling_location', 3],
             ['checkbox', 'Sampling apparatus', 'sampling_apparatus', 4, $apparatusOptions],
-            ['text', 'Thermometer ID', 'thermometer_id', 5],
+            ['text', 'Equipment ID', 'thermometer_id', 5],
             ['checkbox', 'Method of sampling', 'method_of_sampling', 6, [
                 ['value' => 'apha', 'label' => 'APHA'],
                 ['value' => 'saso', 'label' => 'SASO'],

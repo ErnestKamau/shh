@@ -93,7 +93,11 @@
         $html = trim(strip_tags((string) ($value ?? ''), '<p><br><ul><ol><li><strong><em>'));
         $textDisplay = $html !== '' ? $html : '—';
     } elseif ($isDate || $isTime || in_array($fieldName, ['thermometer_id', 'ph_meter_id', 'chlorine_meter_id'], true) || (! $isCheckbox && ! $isRadio)) {
-        if (is_array($value)) {
+        if ($fieldName === 'thermometer_id' && ($this->usesTrfEditSamplingEquipmentIdPicker() ?? false)) {
+            $textDisplay = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+                ->formatForDisplay($value);
+            $textDisplay = $textDisplay !== '' ? $textDisplay : '—';
+        } elseif (is_array($value)) {
             $textDisplay = '—';
         } else {
             $string = trim((string) ($value ?? ''));

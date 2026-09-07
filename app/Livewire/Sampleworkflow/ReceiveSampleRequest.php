@@ -275,6 +275,8 @@ class ReceiveSampleRequest extends Component
             );
         }
 
+        $this->hydrateSamplingEquipmentIdRows();
+
         if ($instance->crmCustomer) {
             $this->applyCustomerPrefillFromCrm($instance->crmCustomer, onlyEmpty: true);
         }
@@ -354,6 +356,7 @@ class ReceiveSampleRequest extends Component
 
         $this->ensureWaterTrfSyntheticFormFields($submissionForm);
         $this->ensureWasteWaterTrfSyntheticFormFields($submissionForm);
+        $this->hydrateSamplingEquipmentIdRows();
     }
 
     public function getWalkInSectionsProperty(): Collection
@@ -1771,15 +1774,29 @@ class ReceiveSampleRequest extends Component
         ];
     }
 
+    /**
+     * Whether the active walk-in TRF uses the Water collection field pairing layout.
+     */
+    public function usesWaterCollectionLayout(): bool
+    {
+        return $this->usesWaterSampleCardLayout();
+    }
+
     private function usesWaterSampleCardLayout(): bool
     {
         if ($this->isWater) {
             return true;
         }
 
-        $documentCode = trim((string) ($this->submissionForm?->document_code ?? ''));
+        $documentCode = strtoupper(trim((string) ($this->submissionForm?->document_code ?? '')));
 
-        return $documentCode === TrfDocumentCodeForSampleType::WATER;
+        if ($documentCode === strtoupper(TrfDocumentCodeForSampleType::WATER)) {
+            return true;
+        }
+
+        return $documentCode !== ''
+            && str_contains($documentCode, 'WATER')
+            && ! str_contains($documentCode, 'WASTE');
     }
 
     private function usesFoodSampleCardLayout(): bool
@@ -1941,6 +1958,114 @@ class ReceiveSampleRequest extends Component
             || str_contains($documentCode, 'WASTEWATER')
             || str_contains($documentCode, 'WASTE-WATER')
             || (str_contains($documentCode, 'WASTE') && str_contains($documentCode, '036'));
+    }
+
+    /**
+     * Food/Water (not Waste Water): Equipment ID multi-select from equipment master.
+     */
+    public function usesSamplingEquipmentIdPicker(): bool
+    {
+        if ($this->usesWasteWaterCollectionLayout()) {
+            return false;
+        }
+
+        if ($this->usesFoodSampleCardLayout() || $this->usesWaterSampleCardLayout()) {
+            return true;
+        }
+
+        $documentCode = strtoupper(trim((string) ($this->submissionForm?->document_code ?? '')));
+        if ($documentCode !== '' && str_contains($documentCode, 'WATER') && ! str_contains($documentCode, 'WASTE')) {
+            return true;
+        }
+
+        // Any non-WW TRF that still has the thermometer/equipment collection field.
+        return array_key_exists('thermometer_id', $this->formData)
+            || array_key_exists('Equipment_ID', $this->formData)
+            || array_key_exists('equipment_id', $this->formData);
+    }
+
+    public function addSamplingEquipmentIdRow(): void
+    {
+        if (! $this->usesSamplingEquipmentIdPicker()) {
+            return;
+        }
+
+        $this->normalizeSamplingEquipmentFormKey();
+        $rows = $this->samplingEquipmentIdRows();
+        $rows[] = '';
+        $this->formData['thermometer_id'] = $rows;
+    }
+
+    public function removeSamplingEquipmentIdRow(int $index): void
+    {
+        if (! $this->usesSamplingEquipmentIdPicker()) {
+            return;
+        }
+
+        $this->normalizeSamplingEquipmentFormKey();
+        $rows = $this->samplingEquipmentIdRows();
+        if (! isset($rows[$index]) || count($rows) <= 1) {
+            return;
+        }
+
+        unset($rows[$index]);
+        $this->formData['thermometer_id'] = array_values($rows);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function samplingEquipmentIdRows(): array
+    {
+        $this->normalizeSamplingEquipmentFormKey();
+        $resolver = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class);
+
+        if (is_array($this->formData['thermometer_id'] ?? null)) {
+            $rows = array_map(
+                static fn ($id): string => trim((string) $id),
+                array_values($this->formData['thermometer_id'])
+            );
+
+            return $rows === [] ? [''] : $rows;
+        }
+
+        return $resolver->rowsForForm($this->formData['thermometer_id'] ?? null);
+    }
+
+    private function hydrateSamplingEquipmentIdRows(): void
+    {
+        if (! $this->usesSamplingEquipmentIdPicker()) {
+            return;
+        }
+
+        $this->normalizeSamplingEquipmentFormKey();
+
+        if (! array_key_exists('thermometer_id', $this->formData)) {
+            return;
+        }
+
+        $this->formData['thermometer_id'] = $this->samplingEquipmentIdRows();
+    }
+
+    /**
+     * Canonicalize legacy Equipment_ID / equipment_id form keys onto thermometer_id.
+     */
+    private function normalizeSamplingEquipmentFormKey(): void
+    {
+        foreach (['Equipment_ID', 'equipment_id', 'Equipment ID'] as $alias) {
+            if (! array_key_exists($alias, $this->formData)) {
+                continue;
+            }
+
+            if (! array_key_exists('thermometer_id', $this->formData)
+                || $this->formData['thermometer_id'] === null
+                || $this->formData['thermometer_id'] === ''
+                || $this->formData['thermometer_id'] === []) {
+                $this->formData['thermometer_id'] = $this->formData[$alias];
+            }
+
+            unset($this->formData[$alias]);
+        }
     }
 
     public function addExtraSamplingEquipmentRow(): void
@@ -4292,6 +4417,17 @@ class ReceiveSampleRequest extends Component
                         || trim((string) ($row['id'] ?? '')) !== '';
                 }
             )));
+        }
+
+        if ($this->usesSamplingEquipmentIdPicker()) {
+            $this->normalizeSamplingEquipmentFormKey();
+            if (array_key_exists('thermometer_id', $payload) || array_key_exists('thermometer_id', $this->formData)) {
+                $raw = $payload['thermometer_id'] ?? $this->formData['thermometer_id'] ?? null;
+                $encoded = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+                    ->encodeIds(is_array($raw) ? $raw : [$raw]);
+                $payload['thermometer_id'] = $encoded ?? '';
+                unset($payload['Equipment_ID'], $payload['equipment_id'], $payload['Equipment ID']);
+            }
         }
 
         return $payload;

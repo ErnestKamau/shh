@@ -303,10 +303,16 @@
                     })
                     ->values();
                 $thermometerElement = $isCollectionSection
-                    ? $regularElements->first(fn ($el) => (string) ($el->name ?? '') === 'thermometer_id')
+                    ? $regularElements->first(function ($el): bool {
+                        $name = strtolower(str_replace([' ', '-'], '_', (string) ($el->name ?? '')));
+
+                        return in_array($name, ['thermometer_id', 'equipment_id'], true);
+                    })
                     : null;
                 $usesFoodCollectionLayout = $isCollectionSection && $this->usesFoodCollectionLayout();
+                $usesWaterCollectionLayout = $isCollectionSection && $this->usesWaterCollectionLayout();
                 $usesWasteWaterCollectionLayout = $isCollectionSection && $this->usesWasteWaterCollectionLayout();
+                $usesFoodOrWaterCollectionLayout = $usesFoodCollectionLayout || $usesWaterCollectionLayout;
             @endphp
             @if($usesWasteWaterCollectionLayout)
                 @php
@@ -318,7 +324,7 @@
                     'collectionField' => $collectionField,
                     'fieldMapper' => $fieldMapper,
                 ])
-            @elseif($usesFoodCollectionLayout)
+            @elseif($usesFoodOrWaterCollectionLayout)
                 @php
                     $collectionField = function (string $name) use ($regularElements) {
                         return $this->walkInCollectionElementByName($regularElements, $name);
@@ -375,9 +381,13 @@
                             ])
                             @if($thermometerElement)
                                 <div class="mt-3" wire:key="field-{{ $thermometerElement->id }}-nested">
-                                    @include('livewire.sampleworkflow.test-request-field-render', [
-                                        'field' => $fieldMapper->toField($thermometerElement),
-                                    ])
+                                    @if($this->usesSamplingEquipmentIdPicker())
+                                        @include('livewire.partials.walk-in-trf-equipment-id-rows')
+                                    @else
+                                        @include('livewire.sampleworkflow.test-request-field-render', [
+                                            'field' => $fieldMapper->toField($thermometerElement),
+                                        ])
+                                    @endif
                                 </div>
                             @endif
                         @endif
@@ -398,7 +408,8 @@
                 @foreach($regularElements as $element)
                     @php
                         $elementName = (string) ($element->name ?? '');
-                        if ($isCollectionSection && $elementName === 'thermometer_id') {
+                        $normalizedName = strtolower(str_replace([' ', '-'], '_', $elementName));
+                        if ($isCollectionSection && in_array($normalizedName, ['thermometer_id', 'equipment_id'], true)) {
                             continue;
                         }
                     @endphp
@@ -409,9 +420,13 @@
                             ])
                             @if($isCollectionSection && $elementName === 'sampling_apparatus' && $thermometerElement)
                                 <div class="mt-2" wire:key="field-{{ $thermometerElement->id }}-nested">
-                                    @include('livewire.sampleworkflow.test-request-field-render', [
-                                        'field' => $fieldMapper->toField($thermometerElement),
-                                    ])
+                                    @if($this->usesSamplingEquipmentIdPicker())
+                                        @include('livewire.partials.walk-in-trf-equipment-id-rows')
+                                    @else
+                                        @include('livewire.sampleworkflow.test-request-field-render', [
+                                            'field' => $fieldMapper->toField($thermometerElement),
+                                        ])
+                                    @endif
                                 </div>
                             @endif
                         </div>

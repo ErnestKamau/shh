@@ -19,7 +19,7 @@ final class EnquiryReviewDisplayService
         'sampling_time' => 'Sampling time',
         'sampling_location' => 'Sampling location',
         'sampling_apparatus' => 'Sampling apparatus',
-        'thermometer_id' => 'Thermometer ID',
+        'thermometer_id' => 'Equipment ID',
         'method_of_sampling' => 'Method of sampling',
         'reason_of_collection' => 'Reason of collection',
         'transport_condition' => 'Transport condition',

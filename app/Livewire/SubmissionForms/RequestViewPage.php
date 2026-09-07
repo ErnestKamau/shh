@@ -2054,6 +2054,70 @@ class RequestViewPage extends Component
         $this->trfEditCollectionFields['extra_sampling_equipment'] = array_values($rows);
     }
 
+    public function usesTrfEditSamplingEquipmentIdPicker(): bool
+    {
+        if ($this->isWasteWaterTrf()) {
+            return false;
+        }
+
+        $documentCode = strtoupper(trim((string) ($this->submissionForm->document_code ?? '')));
+
+        if (in_array($documentCode, [
+            strtoupper(TrfDocumentCodeForSampleType::FOOD),
+            strtoupper(TrfDocumentCodeForSampleType::FOOD_AND_FEED),
+            strtoupper(TrfDocumentCodeForSampleType::WATER),
+        ], true)) {
+            return true;
+        }
+
+        return $documentCode !== ''
+            && str_contains($documentCode, 'WATER')
+            && ! str_contains($documentCode, 'WASTE');
+    }
+
+    public function addTrfEditSamplingEquipmentIdRow(): void
+    {
+        if (! $this->usesTrfEditSamplingEquipmentIdPicker()) {
+            return;
+        }
+
+        $rows = $this->trfEditSamplingEquipmentIdRows();
+        $rows[] = '';
+        $this->trfEditCollectionFields['thermometer_id'] = $rows;
+    }
+
+    public function removeTrfEditSamplingEquipmentIdRow(int $index): void
+    {
+        if (! $this->usesTrfEditSamplingEquipmentIdPicker()) {
+            return;
+        }
+
+        $rows = $this->trfEditSamplingEquipmentIdRows();
+        if (! isset($rows[$index]) || count($rows) <= 1) {
+            return;
+        }
+
+        unset($rows[$index]);
+        $this->trfEditCollectionFields['thermometer_id'] = array_values($rows);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function trfEditSamplingEquipmentIdRows(): array
+    {
+        $resolver = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class);
+        $value = $this->trfEditCollectionFields['thermometer_id'] ?? null;
+
+        if (is_array($value)) {
+            $rows = array_map(static fn ($id): string => trim((string) $id), array_values($value));
+
+            return $rows === [] ? [''] : $rows;
+        }
+
+        return $resolver->rowsForForm($value);
+    }
+
     /**
      * @return Collection<int, \App\ReportingUnit>
      */

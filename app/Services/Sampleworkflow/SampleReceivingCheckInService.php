@@ -2,7 +2,6 @@
 
 namespace App\Services\Sampleworkflow;
 
-use App\Models\Equipments\Equipment;
 use App\Models\CRM\SamplePoint;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
@@ -263,23 +262,7 @@ final class SampleReceivingCheckInService
 
     private function resolveThermometerLabel(mixed $thermometerId): string
     {
-        if ($thermometerId === null || $thermometerId === '') {
-            return '';
-        }
-
-        if (is_string($thermometerId) && ! preg_match('/^[0-9a-f-]{36}$/i', $thermometerId)) {
-            return (string) $thermometerId;
-        }
-
-        $equipment = Equipment::query()->find($thermometerId);
-
-        if ($equipment === null) {
-            return (string) $thermometerId;
-        }
-
-        $number = trim((string) ($equipment->equipment_number ?? ''));
-
-        return $number !== '' ? $number : (string) ($equipment->name ?? $thermometerId);
+        return app(TrfSamplingEquipmentResolver::class)->formatForDisplay($thermometerId);
     }
 
     private function formatRichTextPlain(mixed $value): string

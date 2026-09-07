@@ -429,10 +429,12 @@
 		column-gap: clamp(1rem, 4vw, 2rem);
 		align-items: start;
 		margin-bottom: 1.25rem;
+		overflow: visible;
 	}
 
 	.trf-ls-theme .trf-collection-trio > * {
 		min-width: 0;
+		overflow: visible;
 	}
 
 	.trf-ls-theme .trf-ww-collection-row3 {
@@ -628,7 +630,7 @@
 		border: 1px solid var(--ls-blue-soft-border);
 		border-radius: var(--ls-radius-lg);
 		background: color-mix(in srgb, var(--ls-blue-soft) 28%, #fff);
-		overflow: hidden;
+		overflow: visible;
 		box-shadow: none;
 		margin-bottom: 0.65rem;
 	}
@@ -638,6 +640,32 @@
 		border-color: var(--ls-blue-soft-border);
 		background: color-mix(in srgb, var(--ls-blue-soft) 38%, #fff);
 		box-shadow: 0 0 0 1px color-mix(in srgb, var(--ls-blue-soft-ring) 55%, transparent);
+		overflow: visible;
+	}
+
+	.trf-ls-theme .rft-sample-row-card__body,
+	.trf-ls-theme .rft-trf-step-card .rft-sample-row-card__body {
+		overflow: visible;
+	}
+
+	/* Equipment ID sits at the bottom of the Collection card — open upward so the list is not clipped. */
+	.trf-ls-theme .trf-sampling-equipment-ids {
+		overflow: visible;
+		position: relative;
+		z-index: 30;
+	}
+
+	.trf-ls-theme .trf-sampling-equipment-ids .searchable-dropdown-wrapper {
+		z-index: 20;
+		overflow: visible;
+	}
+
+	.trf-ls-theme .trf-sampling-equipment-ids .dropdown-list {
+		top: auto;
+		bottom: 100%;
+		margin-top: 0;
+		margin-bottom: 4px;
+		z-index: 2060;
 	}
 
 	.trf-ls-theme .rft-sample-row-card__header,

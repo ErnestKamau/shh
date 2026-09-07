@@ -18,7 +18,7 @@
             <span class="trf-field-label">Sampling Location:</span> {{ $collection['sampling_location'] }}
         </td>
         <td style="width: 50%;">
-            <span class="trf-field-label">Thermometer ID:</span> {{ $collection['thermometer_id'] }}
+            <span class="trf-field-label">Equipment ID:</span> {{ $collection['thermometer_id'] }}
         </td>
     </tr>
     <tr>

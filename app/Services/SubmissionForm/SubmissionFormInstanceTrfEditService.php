@@ -266,6 +266,13 @@ final class SubmissionFormInstanceTrfEditService
                 continue;
             }
 
+            if ($name === 'thermometer_id' && $this->formUsesSamplingEquipmentPicker($instance)) {
+                $draft[$name] = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+                    ->rowsForForm($raw);
+
+                continue;
+            }
+
             $draft[$name] = $raw;
         }
 
@@ -425,6 +432,10 @@ final class SubmissionFormInstanceTrfEditService
             return $rows === [] ? null : json_encode($rows);
         }
 
+        if ($fieldName === 'thermometer_id' && is_array($value)) {
+            return app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)->encodeIds($value);
+        }
+
         if (is_array($value)) {
             if ($value !== [] && array_keys($value) !== range(0, count($value) - 1)) {
                 $selected = [];
@@ -472,6 +483,30 @@ final class SubmissionFormInstanceTrfEditService
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function formUsesSamplingEquipmentPicker(SubmissionFormInstance $instance): bool
+    {
+        $documentCode = strtoupper(trim((string) ($instance->submissionForm?->document_code ?? '')));
+
+        if ($documentCode === strtoupper(TrfDocumentCodeForSampleType::WASTE_WATER)
+            || $documentCode === strtoupper(TrfDocumentCodeForSampleType::WASTE_WATER_LEGACY)
+            || str_contains($documentCode, 'WASTEWATER')
+            || (str_contains($documentCode, 'WASTE') && str_contains($documentCode, '036'))) {
+            return false;
+        }
+
+        if (in_array($documentCode, [
+            strtoupper(TrfDocumentCodeForSampleType::FOOD),
+            strtoupper(TrfDocumentCodeForSampleType::FOOD_AND_FEED),
+            strtoupper(TrfDocumentCodeForSampleType::WATER),
+        ], true)) {
+            return true;
+        }
+
+        return $documentCode !== ''
+            && str_contains($documentCode, 'WATER')
+            && ! str_contains($documentCode, 'WASTE');
     }
 
     /**

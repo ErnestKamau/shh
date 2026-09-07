@@ -105,6 +105,45 @@
             @if(($trfEditCompanyUnitId ?? '') === '')
                 <p class="ls-field__hint mt-1 mb-0">Select a company unit on the Customer step first.</p>
             @endif
+        @elseif($fieldName === 'thermometer_id' && ($this->usesTrfEditSamplingEquipmentIdPicker() ?? false))
+            @php
+                $equipmentOptions = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+                    ->activeEquipmentSelectOptions();
+                $equipmentRows = is_array($trfEditCollectionFields['thermometer_id'] ?? null)
+                    ? array_values($trfEditCollectionFields['thermometer_id'])
+                    : [''];
+                if ($equipmentRows === []) {
+                    $equipmentRows = [''];
+                }
+            @endphp
+            <div class="trf-sampling-equipment-ids">
+                @foreach($equipmentRows as $rowIndex => $selectedId)
+                    <div class="d-flex align-items-start gap-2 mb-2" wire:key="trf-edit-equipment-{{ $rowIndex }}">
+                        <div class="flex-grow-1">
+                            <x-searchable-select
+                                wire:model="trfEditCollectionFields.thermometer_id.{{ $rowIndex }}"
+                                :options="$equipmentOptions"
+                                placeholder="Search equipment..."
+                                empty-label="-- Select equipment --"
+                                size="sm"
+                            />
+                        </div>
+                        @if($rowIndex === 0)
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                wire:click="addTrfEditSamplingEquipmentIdRow"
+                                title="Add equipment ID">
+                                <i class="mdi mdi-plus" aria-hidden="true"></i>
+                            </button>
+                        @else
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                wire:click="removeTrfEditSamplingEquipmentIdRow({{ $rowIndex }})"
+                                title="Remove">
+                                <i class="mdi mdi-close" aria-hidden="true"></i>
+                            </button>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
         @elseif($fieldName === 'thermometer_id' || $fieldName === 'ph_meter_id' || $fieldName === 'chlorine_meter_id')
             <div class="ls-field__control">
                 <input id="trf-edit-{{ $fieldName }}"
