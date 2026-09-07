@@ -53,17 +53,20 @@ class PortalSubmissionFormAccess
     }
 
     /**
-     * Portal TRFs are scoped to the System Settings default company
-     * (Companies → set as default → companies.active = 1 / getActiveCompany()).
+     * Portal TRFs are scoped to the LIMS company the CRM customer was created under.
+     * Falls back to System Settings default company, then X-Company-Id.
      */
     public function companyIdFromCustomer(?string $crmCustomerId): ?string
     {
-        $systemCompanyId = $this->systemSettingsCompanyId();
+        if ($crmCustomerId !== null && $crmCustomerId !== ''
+            && Schema::hasColumn('crm_customers', 'company_id')) {
+            $companyId = CRMCustomer::query()
+                ->whereKey($crmCustomerId)
+                ->value('company_id');
 
-        if ($systemCompanyId !== null) {
-            // Always scope portal catalogs to System Settings default company.
-            // Customer/header IDs are advisory only — mismatch no longer blanks the catalog.
-            return $systemCompanyId;
+            if ($companyId !== null && $companyId !== '') {
+                return (string) $companyId;
+            }
         }
 
         $headerCompanyId = request()?->header('X-Company-Id');
@@ -71,20 +74,9 @@ class PortalSubmissionFormAccess
             return trim($headerCompanyId);
         }
 
-        if ($crmCustomerId !== null && $crmCustomerId !== '') {
-            if (! Schema::hasColumn('crm_customers', 'company_id')) {
-                return null;
-            }
-
-            $companyId = CRMCustomer::query()
-                ->whereKey($crmCustomerId)
-                ->value('company_id');
-
-            if ($companyId === null || $companyId === '') {
-                return null;
-            }
-
-            return (string) $companyId;
+        $systemCompanyId = $this->systemSettingsCompanyId();
+        if ($systemCompanyId !== null) {
+            return $systemCompanyId;
         }
 
         if (function_exists('getUserCompany') && auth()->check()) {
@@ -136,14 +128,15 @@ class PortalSubmissionFormAccess
 
         $companyId = $this->companyIdFromCustomer($crmCustomerId);
 
-        // Multi-tenant: only return TRFs for the System Settings default company.
-        // Do not include unassigned (null company_id) rows — those leak across portals.
+        // Scope to the CRM customer's LIMS company. Include null company_id rows as
+        // legacy shared templates until every form is backfilled — otherwise Brazil
+        // (and other installs) show an empty Requests catalog after the company_id column lands.
         if (Schema::hasColumn('submission_forms', 'company_id')) {
             if ($companyId === null || $companyId === '') {
                 return $query->whereRaw('0 = 1');
             }
 
-            $query->forCompany($companyId, false);
+            $query->forCompany($companyId, true);
         }
 
         if ($crmCustomerId !== null && Schema::hasTable('submission_form_customers')) {
@@ -196,7 +189,8 @@ class PortalSubmissionFormAccess
                 throw PortalApiException::formNotFound();
             }
 
-            if (! filled($form->company_id) || (string) $form->company_id !== $companyId) {
+            // Allow legacy unassigned forms; reject forms owned by another company.
+            if (filled($form->company_id) && (string) $form->company_id !== $companyId) {
                 throw PortalApiException::formNotFound();
             }
         }
@@ -377,7 +371,7 @@ class PortalSubmissionFormAccess
             ->where('document_code', $documentCode)
             ->where('is_active', true)
             ->where('form_type', 'template')
-            ->forCompany($this->companyIdFromCustomer($crmCustomerId), false)
+            ->forCompany($this->companyIdFromCustomer($crmCustomerId), true)
             ->first();
     }
 
