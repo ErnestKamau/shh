@@ -6,27 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private const DUBAI_COMPANY_ID = '019dde3f-07d3-73d0-a0f2-a01ac58346b4';
-
-    /**
-     * @var list<string>
-     */
-    private const DUBAI_TRF_DOCUMENT_CODES = [
-        'TRF-FOOD-019',
-        'TRF-WATER-020',
-        'TRF-WASTEWATER-036',
-        'TRF-WASTE-036',
-        'TRF-FOOD-FEED-021',
-        'TRF-SWAB-022',
-        'TRF-AMSPEC-001',
-    ];
-
     public function up(): void
     {
         if (! Schema::hasTable('submission_forms') || ! Schema::hasColumn('submission_forms', 'company_id')) {
             return;
         }
 
+        // 1) Prefer the creator's company when available.
         if (Schema::hasTable('users') && Schema::hasColumn('users', 'company_id')) {
             $forms = DB::table('submission_forms')
                 ->whereNull('company_id')
@@ -52,22 +38,45 @@ return new class extends Migration
             return;
         }
 
-        $dubaiExists = DB::table('companies')->where('id', self::DUBAI_COMPANY_ID)->exists();
-        if (! $dubaiExists) {
+        // 2) Remaining rows: System Settings default company (companies.active = 1).
+        $defaultCompanyId = $this->resolveSystemSettingsCompanyId();
+        if ($defaultCompanyId === null) {
             return;
         }
 
         DB::table('submission_forms')
             ->whereNull('company_id')
-            ->where(function ($query): void {
-                $query->where('document_code', 'like', 'TRF-%')
-                    ->orWhereIn('document_code', self::DUBAI_TRF_DOCUMENT_CODES);
-            })
-            ->update(['company_id' => self::DUBAI_COMPANY_ID]);
+            ->update(['company_id' => $defaultCompanyId]);
     }
 
     public function down(): void
     {
         // Backfill is not reversed; company_id remains assigned.
+    }
+
+    private function resolveSystemSettingsCompanyId(): ?string
+    {
+        $activeId = DB::table('companies')->where('active', 1)->value('id');
+        if ($activeId !== null && $activeId !== '') {
+            return (string) $activeId;
+        }
+
+        if (Schema::hasTable('system_configurations')) {
+            $configured = DB::table('system_configurations')
+                ->where('key', 'active_company')
+                ->value('value');
+
+            if ($configured !== null && $configured !== ''
+                && DB::table('companies')->where('id', $configured)->exists()) {
+                return (string) $configured;
+            }
+        }
+
+        $companyIds = DB::table('companies')->orderBy('id')->limit(2)->pluck('id');
+        if ($companyIds->count() === 1) {
+            return (string) $companyIds->first();
+        }
+
+        return null;
     }
 };

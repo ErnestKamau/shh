@@ -32,6 +32,8 @@ class StandardManager extends Component
         'is_qc_standard' => false,
         'qc_type_id' => null,
         'qc_scheme_ids' => '',
+        'pass_comment' => '',
+        'fail_comment' => '',
         'status' => true
     ];
 
@@ -61,8 +63,6 @@ class StandardManager extends Component
         'high' => '',
         'standard_is_value' => '',
         'comments' => '',
-        'pass_comment' => '',
-        'fail_comment' => '',
         'recommendations' => '',
         'expected_value' => '',
         'absolute_tolerance' => false,
@@ -169,6 +169,8 @@ class StandardManager extends Component
             'is_qc_standard' => $standard->is_qc_standard,
             'qc_type_id' => $standard->qc_type_id,
             'qc_scheme_ids' => $standard->qcSchemes->pluck('id')->implode(','),
+            'pass_comment' => $standard->pass_comment ?? '',
+            'fail_comment' => $standard->fail_comment ?? '',
             'status' => $standard->status
         ];
         $this->editingStandard = $id;
@@ -209,6 +211,8 @@ class StandardManager extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
+                    'pass_comment' => $this->standardForm['pass_comment'] ?: null,
+                    'fail_comment' => $this->standardForm['fail_comment'] ?: null,
                     'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
@@ -226,6 +230,8 @@ class StandardManager extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
+                    'pass_comment' => $this->standardForm['pass_comment'] ?: null,
+                    'fail_comment' => $this->standardForm['fail_comment'] ?: null,
                     'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
@@ -290,6 +296,8 @@ class StandardManager extends Component
             'is_qc_standard' => false,
             'qc_type_id' => null,
             'qc_scheme_ids' => '',
+            'pass_comment' => '',
+            'fail_comment' => '',
             'status' => true
         ];
         $this->editingStandard = null;
@@ -418,8 +426,6 @@ class StandardManager extends Component
             'high' => $standardAnalyte->high,
             'standard_is_value' => $standardAnalyte->standard_is_value,
             'comments' => $standardAnalyte->comments,
-            'pass_comment' => $standardAnalyte->pass_comment ?? '',
-            'fail_comment' => $standardAnalyte->fail_comment ?? '',
             'recommendations' => $standardAnalyte->recommendations,
             'expected_value' => $standardAnalyte->expected_value,
             'absolute_tolerance' => $standardAnalyte->absolute_tolerance,
@@ -454,8 +460,6 @@ class StandardManager extends Component
                     'high' => $this->standardAnalyteForm['high'],
                     'standard_is_value' => $this->standardAnalyteForm['standard_is_value'],
                     'comments' => $this->standardAnalyteForm['comments'],
-                    'pass_comment' => $this->standardAnalyteForm['pass_comment'] ?: null,
-                    'fail_comment' => $this->standardAnalyteForm['fail_comment'] ?: null,
                     'recommendations' => $this->standardAnalyteForm['recommendations'],
                     'expected_value' => $this->standardAnalyteForm['expected_value'],
                     'absolute_tolerance' => $this->standardAnalyteForm['absolute_tolerance'],
@@ -477,8 +481,6 @@ class StandardManager extends Component
                     'high' => $this->standardAnalyteForm['high'],
                     'standard_is_value' => $this->standardAnalyteForm['standard_is_value'],
                     'comments' => $this->standardAnalyteForm['comments'],
-                    'pass_comment' => $this->standardAnalyteForm['pass_comment'] ?: null,
-                    'fail_comment' => $this->standardAnalyteForm['fail_comment'] ?: null,
                     'recommendations' => $this->standardAnalyteForm['recommendations'],
                     'expected_value' => $this->standardAnalyteForm['expected_value'],
                     'absolute_tolerance' => $this->standardAnalyteForm['absolute_tolerance'],
@@ -534,8 +536,6 @@ class StandardManager extends Component
             'high' => '',
             'standard_is_value' => '',
             'comments' => '',
-            'pass_comment' => '',
-            'fail_comment' => '',
             'recommendations' => '',
             'expected_value' => '',
             'absolute_tolerance' => false,

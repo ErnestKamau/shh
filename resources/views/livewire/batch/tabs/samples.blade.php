@@ -2394,18 +2394,6 @@
                         @endif
                         @endif
 
-                        <div class="form-group mb-3 mt-3">
-                            <label class="text-muted" for="spec_pass_comment">Pass comment</label>
-                            <textarea id="spec_pass_comment" class="form-control grey-input" rows="2"
-                                wire:model.defer="editingStandardData.pass_comment"
-                                placeholder="Applied when this result is conforming"></textarea>
-                        </div>
-                        <div class="form-group mb-0">
-                            <label class="text-muted" for="spec_fail_comment">Fail comment</label>
-                            <textarea id="spec_fail_comment" class="form-control grey-input" rows="2"
-                                wire:model.defer="editingStandardData.fail_comment"
-                                placeholder="Applied when this result is non-conforming"></textarea>
-                        </div>
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-secondary"

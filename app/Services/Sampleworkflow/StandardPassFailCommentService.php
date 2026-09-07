@@ -3,16 +3,29 @@
 namespace App\Services\Sampleworkflow;
 
 use App\StandardAnalytes;
+use App\Standards;
 
 class StandardPassFailCommentService
 {
     public function commentFor(?string $standardId, ?string $analyteId, ?string $remark): string
     {
-        if ($standardId === null || $standardId === '' || $analyteId === null || $analyteId === '') {
+        if ($standardId === null || $standardId === '' || ! in_array($remark, ['PASS', 'FAIL'], true)) {
             return '';
         }
 
-        if (! in_array($remark, ['PASS', 'FAIL'], true)) {
+        $standard = Standards::query()->find($standardId);
+        if ($standard !== null) {
+            $comment = $remark === 'PASS'
+                ? (string) ($standard->pass_comment ?? '')
+                : (string) ($standard->fail_comment ?? '');
+            $comment = trim($comment);
+            if ($comment !== '') {
+                return $comment;
+            }
+        }
+
+        // Fallback for legacy data still stored on standards_analytes.
+        if ($analyteId === null || $analyteId === '') {
             return '';
         }
 

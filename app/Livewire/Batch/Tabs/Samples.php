@@ -3399,8 +3399,6 @@ class Samples extends Component
             'standard_valuetype' => $stdAnalyte->standard_value_id,
             'limit_measure' => $stdAnalyte->value_type,
             'value' => $stdAnalyte->standard_is_value,
-            'pass_comment' => $stdAnalyte->pass_comment ?? '',
-            'fail_comment' => $stdAnalyte->fail_comment ?? '',
         ];
 
         $this->showEditStandardModal = true;
@@ -3464,8 +3462,6 @@ class Samples extends Component
         $stdAnalyte->value_type = $data['limit_measure'];
         $stdAnalyte->standard_is_value = $data['value'];
         $stdAnalyte->standard_value_type = $data['standard_value_type'] == 1 ? 'is_range' : 'is_standard_value';
-        $stdAnalyte->pass_comment = trim((string) ($data['pass_comment'] ?? '')) ?: null;
-        $stdAnalyte->fail_comment = trim((string) ($data['fail_comment'] ?? '')) ?: null;
         $stdAnalyte->is_active = 1;
         $stdAnalyte->save();
 

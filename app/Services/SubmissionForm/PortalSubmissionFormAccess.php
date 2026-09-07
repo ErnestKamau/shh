@@ -52,8 +52,25 @@ class PortalSubmissionFormAccess
         return (string) $userId;
     }
 
+    /**
+     * Portal TRFs are scoped to the System Settings default company
+     * (Companies → set as default → companies.active = 1 / getActiveCompany()).
+     */
     public function companyIdFromCustomer(?string $crmCustomerId): ?string
     {
+        $systemCompanyId = $this->systemSettingsCompanyId();
+
+        if ($systemCompanyId !== null) {
+            // Always scope portal catalogs to System Settings default company.
+            // Customer/header IDs are advisory only — mismatch no longer blanks the catalog.
+            return $systemCompanyId;
+        }
+
+        $headerCompanyId = request()?->header('X-Company-Id');
+        if (is_string($headerCompanyId) && trim($headerCompanyId) !== '') {
+            return trim($headerCompanyId);
+        }
+
         if ($crmCustomerId !== null && $crmCustomerId !== '') {
             if (! Schema::hasColumn('crm_customers', 'company_id')) {
                 return null;
@@ -80,6 +97,20 @@ class PortalSubmissionFormAccess
         return null;
     }
 
+    private function systemSettingsCompanyId(): ?string
+    {
+        if (! function_exists('getActiveCompany')) {
+            return null;
+        }
+
+        $company = getActiveCompany();
+        if ($company === null || ! filled($company->id ?? null)) {
+            return null;
+        }
+
+        return (string) $company->id;
+    }
+
     /**
      * Portal submission instances for a customer (all accounts under that customer).
      */
@@ -101,8 +132,19 @@ class PortalSubmissionFormAccess
             ->where(function (Builder $builder): void {
                 $builder->whereNull('placement_slot')
                     ->orWhereJsonContains('placement_slot', 'customer_portal');
-            })
-            ->forCompany($this->companyIdFromCustomer($crmCustomerId), true);
+            });
+
+        $companyId = $this->companyIdFromCustomer($crmCustomerId);
+
+        // Multi-tenant: only return TRFs for the System Settings default company.
+        // Do not include unassigned (null company_id) rows — those leak across portals.
+        if (Schema::hasColumn('submission_forms', 'company_id')) {
+            if ($companyId === null || $companyId === '') {
+                return $query->whereRaw('0 = 1');
+            }
+
+            $query->forCompany($companyId, false);
+        }
 
         if ($crmCustomerId !== null && Schema::hasTable('submission_form_customers')) {
             $query->where(function (Builder $builder) use ($crmCustomerId): void {
@@ -149,8 +191,14 @@ class PortalSubmissionFormAccess
         }
 
         $companyId = $this->companyIdFromCustomer($crmCustomerId);
-        if ($companyId !== null && filled($form->company_id) && (string) $form->company_id !== $companyId) {
-            throw PortalApiException::formNotFound();
+        if (Schema::hasColumn('submission_forms', 'company_id')) {
+            if ($companyId === null || $companyId === '') {
+                throw PortalApiException::formNotFound();
+            }
+
+            if (! filled($form->company_id) || (string) $form->company_id !== $companyId) {
+                throw PortalApiException::formNotFound();
+            }
         }
 
         return $form;
@@ -329,7 +377,7 @@ class PortalSubmissionFormAccess
             ->where('document_code', $documentCode)
             ->where('is_active', true)
             ->where('form_type', 'template')
-            ->forCompany($this->companyIdFromCustomer($crmCustomerId), true)
+            ->forCompany($this->companyIdFromCustomer($crmCustomerId), false)
             ->first();
     }
 
