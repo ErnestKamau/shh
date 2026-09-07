@@ -77,6 +77,12 @@ class EquipmentPermissionsSeeder extends Seeder
             'equipment.components.disposal-workflow.edit',
             'equipment.components.disposal-workflow.delete',
 
+            // Equipment maintenance programs (annual / preventive / register / replacement).
+            'equipment.components.equipment-maintenance.view',
+            'equipment.components.equipment-maintenance.add',
+            'equipment.components.equipment-maintenance.edit',
+            'equipment.components.equipment-maintenance.delete',
+
             // Asset depreciation.
             'equipment.components.depreciation.view',
             'equipment.components.depreciation.configure',
@@ -131,6 +137,7 @@ class EquipmentPermissionsSeeder extends Seeder
 
         $this->command?->info('Equipment permissions ensured: ' . count($permissionNames));
 
+        $this->call(\Database\Seeders\EquipmentMaintenancePermissionsSeeder::class);
         $this->call(DepreciationMethodsSeeder::class);
     }
 }

@@ -25,9 +25,11 @@ use App\SampleHeader;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardRepository
 {
@@ -39,17 +41,78 @@ class DashboardRepository
     {
         $limit = (int) config('dashboard.recent_items_limit', 5);
 
-        $summary = $this->buildSummary($customerId);
-
         return new DashboardDTO(
             customerId: $customerId,
-            summary: $summary,
-            recentSubmissions: $this->fetchRecentSubmissions($customerId, $limit),
-            recentReports: $this->fetchRecentReports($customerId, $limit),
-            notifications: $this->fetchRecentNotifications($customerId, $limit),
-            recentComplaints: $this->fetchRecentComplaints($customerId, $limit),
-            recentFeedback: $this->fetchRecentFeedback($customerId, $limit),
+            summary: $this->safeSummary($customerId),
+            recentSubmissions: $this->safeList(
+                fn (): array => $this->fetchRecentSubmissions($customerId, $limit),
+                'recent_submissions',
+                $customerId,
+            ),
+            recentReports: $this->safeList(
+                fn (): array => $this->fetchRecentReports($customerId, $limit),
+                'recent_reports',
+                $customerId,
+            ),
+            notifications: $this->safeList(
+                fn (): array => $this->fetchRecentNotifications($customerId, $limit),
+                'notifications',
+                $customerId,
+            ),
+            recentComplaints: $this->safeList(
+                fn (): array => $this->fetchRecentComplaints($customerId, $limit),
+                'recent_complaints',
+                $customerId,
+            ),
+            recentFeedback: $this->safeList(
+                fn (): array => $this->fetchRecentFeedback($customerId, $limit),
+                'recent_feedback',
+                $customerId,
+            ),
         );
+    }
+
+    private function safeSummary(string $customerId): DashboardSummaryDTO
+    {
+        try {
+            return $this->buildSummary($customerId);
+        } catch (\Throwable $exception) {
+            Log::error('portal.dashboard.summary_failed', [
+                'customer_id' => $customerId,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return new DashboardSummaryDTO(
+                submissions: new SubmissionSummaryDTO(0, 0, 0, 0, 0),
+                invoices: new InvoiceSummaryDTO(0, 0, 0, 0, 0.0, 0.0, 0.0),
+                feedback: new FeedbackSummaryDTO(0, null, null),
+                counts: [
+                    'notifications_unread' => 0,
+                    'open_complaints' => 0,
+                    'amendments_in_progress' => 0,
+                ],
+            );
+        }
+    }
+
+    /**
+     * @template T
+     * @param  callable(): list<T>  $callback
+     * @return list<T>
+     */
+    private function safeList(callable $callback, string $section, string $customerId): array
+    {
+        try {
+            return $callback();
+        } catch (\Throwable $exception) {
+            Log::error('portal.dashboard.section_failed', [
+                'section' => $section,
+                'customer_id' => $customerId,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 
     public function buildSummary(string $customerId): DashboardSummaryDTO
@@ -86,11 +149,26 @@ class DashboardRepository
 
     public function paginateNotifications(string $customerId, int $perPage): LengthAwarePaginator
     {
-        return CustomerNotification::query()
-            ->where('customer_id', $customerId)
-            ->orderByDesc('created_at')
-            ->paginate($perPage)
-            ->through(fn (CustomerNotification $row) => $this->mapNotification($row));
+        $perPage = max(1, min(100, $perPage));
+
+        if (! Schema::hasTable('customer_notifications')) {
+            return new Paginator([], 0, $perPage);
+        }
+
+        try {
+            return CustomerNotification::query()
+                ->where('customer_id', $customerId)
+                ->orderByDesc('created_at')
+                ->paginate($perPage)
+                ->through(fn (CustomerNotification $row) => $this->mapNotification($row));
+        } catch (\Throwable $exception) {
+            Log::error('portal.dashboard.notifications_failed', [
+                'customer_id' => $customerId,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return new Paginator([], 0, $perPage);
+        }
     }
 
     public function paginateReports(string $customerId, int $perPage): LengthAwarePaginator
@@ -501,10 +579,18 @@ class DashboardRepository
 
     private function countUnreadNotifications(string $customerId): int
     {
-        return CustomerNotification::query()
-            ->where('customer_id', $customerId)
-            ->whereNull('read_at')
-            ->count();
+        if (! Schema::hasTable('customer_notifications')) {
+            return 0;
+        }
+
+        try {
+            return CustomerNotification::query()
+                ->where('customer_id', $customerId)
+                ->whereNull('read_at')
+                ->count();
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     private function countOpenComplaints(string $customerId): int

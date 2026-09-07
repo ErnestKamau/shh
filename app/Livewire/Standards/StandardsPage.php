@@ -33,6 +33,8 @@ class StandardsPage extends Component
         'is_qc_standard' => false,
         'qc_type_id' => null,
         'qc_scheme_ids' => '',
+        'pass_comment' => '',
+        'fail_comment' => '',
         'status' => true
     ];
 
@@ -170,6 +172,8 @@ class StandardsPage extends Component
             'is_qc_standard' => $standard->is_qc_standard,
             'qc_type_id' => $standard->qc_type_id,
             'qc_scheme_ids' => $standard->qcSchemes->pluck('id')->implode(','),
+            'pass_comment' => $standard->pass_comment ?? '',
+            'fail_comment' => $standard->fail_comment ?? '',
             'status' => $standard->status
         ];
         $this->editingStandard = $id;
@@ -204,6 +208,8 @@ class StandardsPage extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
+                    'pass_comment' => $this->standardForm['pass_comment'] ?: null,
+                    'fail_comment' => $this->standardForm['fail_comment'] ?: null,
                     'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
@@ -216,6 +222,8 @@ class StandardsPage extends Component
                     'main_standard' => $this->standardForm['main_standard'],
                     'is_qc_standard' => $this->standardForm['is_qc_standard'],
                     'qc_type_id' => $this->standardForm['qc_type_id'],
+                    'pass_comment' => $this->standardForm['pass_comment'] ?: null,
+                    'fail_comment' => $this->standardForm['fail_comment'] ?: null,
                     'status' => $this->standardForm['status'] ?? true,
                     'edited_by' => auth()->user()->id,
                 ]);
@@ -262,6 +270,8 @@ class StandardsPage extends Component
             'is_qc_standard' => false,
             'qc_type_id' => null,
             'qc_scheme_ids' => '',
+            'pass_comment' => '',
+            'fail_comment' => '',
             'status' => true
         ];
         $this->editingStandard = null;

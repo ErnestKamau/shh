@@ -26,7 +26,7 @@ class Standards extends Model implements Auditable
 
     protected $fillable = [
         'name', 'code', 'main_standard', 'is_qc_standard',
-        'qc_type_id', 'qc_scheme_ids', 'status', 'edited_by',
+        'qc_type_id', 'qc_scheme_ids', 'pass_comment', 'fail_comment', 'status', 'edited_by',
     ];
 
     protected $appends = ['qcschemeidsarr', 'qcschemenames'];

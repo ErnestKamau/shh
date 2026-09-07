@@ -73,12 +73,16 @@ class DashboardService
 
     private function logAccess(string $action, string $customerId, ?string $portalAccountId): void
     {
-        Log::channel('daily')->info('portal.dashboard.access', [
-            'action' => $action,
-            'customer_id' => $customerId,
-            'portal_account_id' => $portalAccountId,
-            'ip' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
+        try {
+            Log::info('portal.dashboard.access', [
+                'action' => $action,
+                'customer_id' => $customerId,
+                'portal_account_id' => $portalAccountId,
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable) {
+            // Never fail the dashboard endpoint because audit logging is unavailable.
+        }
     }
 }

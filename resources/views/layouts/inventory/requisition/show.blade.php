@@ -261,54 +261,48 @@
 
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-	<?php $approvals = getStageApprovals('Requisition', $stage); ?>
-	<h3 class="p-4">
-		<i class="mdi mdi-text-box-plus"></i> {{ !isset($request->status) ? 'Create' : '' }} {{ $stage }} {{
-		$request->request_code ?? '' }}
-		<span class="btn-group" role="group">
-			<button id="btnGroupDrop1" type="button" class="btn-sm btn btn-transparent dropdown-toggle" data-toggle="dropdown"
-				aria-haspopup="true" aria-expanded="false">
-				v{{ $ammendment }}
-			</button>
-			<div class="dropdown-menu" aria-labelledby="btnGroupDrop1">
-				@for ($a = $ammendment_count; $a >=1; $a--)
-				<a class="dropdown-item save-details-form" data-type="save-details"
-					href="{{ route('view-request-details', ['stage'=>$request->request_type, 'id'=>$request->request_code, 'ammendement'=>$a]) }}">
-					<i class="mdi mdi-chevron-double-right"></i> v{{ $a }}
-				</a>
-				@endfor
-			</div>
-		</span>
-		<small style="cursor: pointer" class="badge badge-pill bg-white my-small-text" {!! in_array($stage, ["Purchase Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
-			? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
-			<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
-			@if ($stage == "Purchase Orders" )
-			{{-- Zoho Books integration disabled — not in use.
-			@if (trim($request->zoho_status) != "")
-			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
-				ZOHO Status: {{ $request->zoho_status }}
-			</small>
-			@endif
-			--}}
-			@else
-			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
-				{{ in_array($request->status, ["Goods Accepted",
-				"Items Issued Out"]) ? (in_array($request->approval_status, ['Fully', 'Partially']) ? $request->approval_status
-				: '' ) : '' }}
-			</small>
-			@endif
+	@php $approvals = getStageApprovals('Requisition', $stage); @endphp
 
-		</small>
-		@if ((isset($request->status) && $request->status == "In Preparation" || !isset($request->status)))
-		<button class="btn btn-default text-primary float-right save-details-form btn-sm" data-type="save-details">
-			<i class="mdi mdi-content-save"></i> Save
-		</button>
-		@else
-		<button class="btn btn-default text-primary float-right save-details-form hidden btn-sm" id="save-other-changes"
-			data-type="save-details">
-			<i class="mdi mdi-content-save"></i> Save
-		</button>
-		@endif
+	<div class="batch-header-bar mb-3">
+		<div class="batch-header-top">
+			<div class="batch-title-group">
+				<span class="batch-code-label">
+					{{ !isset($request->status) ? 'Create' : '' }} {{ $stage }} {{ $request->request_code ?? '' }}
+				</span>
+				<div class="btn-group" role="group">
+					<button id="btnGroupDrop1" type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="dropdown"
+						aria-haspopup="true" aria-expanded="false">
+						v{{ $ammendment }}
+					</button>
+					<div class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+						@for ($a = $ammendment_count; $a >=1; $a--)
+						<a class="dropdown-item save-details-form" data-type="save-details"
+							href="{{ route('view-request-details', ['stage'=>$request->request_type, 'id'=>$request->request_code, 'ammendement'=>$a]) }}">
+							<i class="mdi mdi-chevron-double-right"></i> v{{ $a }}
+						</a>
+						@endfor
+					</div>
+				</div>
+				<span style="cursor: pointer" class="batch-stage-pill" {!! in_array($stage, ["Purchase Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
+					? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
+					<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
+					@if ($stage != "Purchase Orders" && in_array($request->status, ["Goods Accepted", "Items Issued Out"]) && in_array($request->approval_status, ['Fully', 'Partially']))
+						<small class="text-muted ml-1">&middot; {{ $request->approval_status }}</small>
+					@endif
+				</span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center flex-wrap" style="gap: 0.5rem;">
+			@if ((isset($request->status) && $request->status == "In Preparation" || !isset($request->status)))
+				<button class="btn btn-primary btn-sm workflow-header-receive-btn save-details-form" data-type="save-details">
+					<i class="mdi mdi-content-save"></i> Save
+				</button>
+			@else
+				<button class="btn btn-primary btn-sm workflow-header-receive-btn save-details-form hidden" id="save-other-changes"
+					data-type="save-details">
+					<i class="mdi mdi-content-save"></i> Save
+				</button>
+			@endif
 
 		@if (isset($request->status) && (in_array($request->request_type, ["Gate Pass"])))
 		@if(trim($request->note_bearer!="") && trim($request->time_out!=""))

@@ -16,11 +16,11 @@ class ReportingUnitController extends Controller
 	 *
 	 * @return \Illuminate\Http\Response
 	 */
-	public function index()
+	public function index($module = null)
 	{
 		$reporting_units = ReportingUnit::orderBy('name', 'asc')->get();
 
-		return view('layouts.lab.reporting-units.index', compact('reporting_units'));
+		return view('layouts.lab.reporting-units.index', compact('reporting_units', 'module'));
 	}
 
 	/**
