@@ -592,6 +592,11 @@
 		align-items: center;
 	}
 
+	/* Food/Water Equipment ID: free-text rows (ID only, no type column). */
+	.trf-ls-theme .trf-sampling-equipment-ids .trf-ww-extra-equipment-row {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
 	.trf-ls-theme .trf-ww-description-cell .ls-rich-text {
 		width: 100%;
 	}

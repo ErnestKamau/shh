@@ -21,8 +21,8 @@
 				<p class="um-hero__kicker">IMARA LIMS handbook</p>
 				<h1>User Manual</h1>
 				<p>
-					Plain-language guides for quotations, inventory, receiving samples,
-					direct registration, and the request view.
+					Plain-language guides for quotations, inventory, equipment,
+					receiving samples, direct registration, and the request view.
 					Pick a manual from the sidebar or open a card below.
 				</p>
 			</div>

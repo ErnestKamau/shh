@@ -269,6 +269,14 @@ final class BatchResultsExcelImportService
                 );
             }
 
+            $sampleDetailIds = collect($pending)
+                ->map(static fn (array $item) => $item['captured']->sample_detail_id ?? null)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            app(StatementOfConformityService::class)->ensureForSampleIds($sampleDetailIds, $batch);
+
             if ($worksheetContext !== null) {
                 $worksheetContext->forceFill([
                     'imported_at' => now(),

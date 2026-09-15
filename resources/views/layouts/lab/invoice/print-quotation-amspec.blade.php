@@ -50,7 +50,7 @@
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .subcontract { font-style: italic; font-size: 7px; }
-        .legal-footer { font-size: 7.5px; line-height: 1.35; color: #444; }
+        .legal-footer { font-size: 6px; line-height: 1.35; color: #444; }
         .page-break { page-break-before: always; }
         .terms-title { font-size: 11px; font-weight: bold; margin: 0 0 10px; }
         .terms-list { margin: 0; padding-left: 16px; font-size: 8.5px; line-height: 1.45; }

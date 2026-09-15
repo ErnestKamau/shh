@@ -259,7 +259,7 @@
                             aria-labelledby="batchActionsDropdownToggle"
                             @click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { open = false; }">
 
-                                @if(isset($batch->status) && in_array($batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection'], true) && Auth::user()->is_client == 0)
+                                @if(isset($batch->status) && in_array($batch->status, ['Samples In Lab', 'Reports In Payment', 'Reports for Collection'], true) && Auth::user()->is_client == 0)
                                     <li>
                                         <a href="{{ route('batch.request-test-worksheet-pdf', ['batch' => $batch->id]) }}"
                                            class="dropdown-item" target="_blank">
@@ -272,7 +272,7 @@
                                             <i class="mdi mdi-printer mr-2"></i> Print tests PDF
                                         </a>
                                     </li>
-                                    @if(in_array($batch->status, ['Sample Verification', 'Sample Approval', 'Samples In Lab'], true))
+                                    @if($batch->status === 'Samples In Lab')
                                         <li>
                                             <a href="#raw-results"
                                                class="dropdown-item"
@@ -462,7 +462,7 @@
                                         </li>
                                         @endif
                                         @endcan
-                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" data-next-modal="#process-test-request-report-modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Report</span></li>
+                                        <li><span class="btn btn-sm dropdown-item" data-target="#process-test-request-report-modal" data-toggle="modal"><i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Report</span></li>
                                         @if(!empty($batch->is_shelf_life))
                                         <li>
                                             <form action="{{ route('processShelfLifeStudyReport') }}" method="POST" class="d-inline">

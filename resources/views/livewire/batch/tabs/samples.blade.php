@@ -337,8 +337,7 @@
                                     class="btn btn-sm btn-icon btn-light text-success mx-1"
                                     title="Comments & Interpretations">
                                     <i class="mdi mdi-comment-text"></i>
-                                    @if(trim(strip_tags($sampleForm['header_body'] ?? '')) !== ''
-                                        || trim(strip_tags($sampleForm['main_body'] ?? '')) !== ''
+                                    @if(trim(strip_tags($sampleForm['main_body'] ?? '')) !== ''
                                         || trim(strip_tags($sampleForm['notes_body'] ?? '')) !== '')
                                         <span class="badge badge-success interpretation-badge">!</span>
                                     @endif
@@ -1655,7 +1654,7 @@
     </style>
     @endif
 
-    {{-- Comments & Interpretations Modal --}}
+    {{-- Comments & Interpretations Modal (Recommendations + Notes only; Remarks/SoC are auto from specifications) --}}
     @if($showCommentsModal)
     <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog"
         wire:key="comments-modal-{{ $editingCommentsSampleId }}">
@@ -1686,7 +1685,6 @@
                         });
                     },
                     initAll() {
-                        this.initEditor('#comments-header-editor', 'header_body', @js($commentsForm['header_body']));
                         this.initEditor('#comments-main-editor', 'main_body', @js($commentsForm['main_body']));
                         this.initEditor('#comments-notes-editor', 'notes_body', @js($commentsForm['notes_body']));
                     },
@@ -1695,7 +1693,6 @@
                             return;
                         }
                         tinymce.triggerSave();
-                        $wire.set('commentsForm.header_body', tinymce.get('comments-header-editor')?.getContent() ?? '');
                         $wire.set('commentsForm.main_body', tinymce.get('comments-main-editor')?.getContent() ?? '');
                         $wire.set('commentsForm.notes_body', tinymce.get('comments-notes-editor')?.getContent() ?? '');
                     },
@@ -1712,16 +1709,15 @@
                     },
                     applyDefaults() {
                         this.syncToWire();
-                        const hasContent = !this.isEditorEmpty('comments-header-editor')
-                            || !this.isEditorEmpty('comments-notes-editor');
-                        if (hasContent && !confirm('Replace current Remarks and Notes with generated defaults? Recommendations will not be changed.')) {
+                        const hasContent = !this.isEditorEmpty('comments-notes-editor');
+                        if (hasContent && !confirm('Replace current Notes with generated defaults? Recommendations will not be changed.')) {
                             return;
                         }
                         $wire.applyCommentDefaults();
                     },
                     destroyEditors() {
                         if (typeof tinymce !== 'undefined') {
-                            tinymce.remove('#comments-header-editor, #comments-main-editor, #comments-notes-editor');
+                            tinymce.remove('#comments-main-editor, #comments-notes-editor');
                         }
                     },
                     saveComments() {
@@ -1740,9 +1736,7 @@
                         if (typeof tinymce === 'undefined') {
                             return;
                         }
-                        tinymce.get('comments-header-editor')?.setContent(data.headerBody ?? '');
                         tinymce.get('comments-notes-editor')?.setContent(data.notesBody ?? '');
-                        $wire.set('commentsForm.header_body', data.headerBody ?? '');
                         $wire.set('commentsForm.notes_body', data.notesBody ?? '');
                     });
                     return () => {
@@ -1767,12 +1761,10 @@
                             border: 1px solid #e2e8f0 !important;
                         }
                     </style>
+                    <p class="text-muted small mb-3">
+                        Report Remarks (statement of conformity) are generated automatically from the sample specification pass/fail statements.
+                    </p>
                     <div class="comments-interpretations-modal" wire:ignore>
-                        <div class="form-group">
-                            <label>Remarks</label>
-                            <textarea id="comments-header-editor" class="form-control" rows="3"
-                                placeholder="Remarks..."></textarea>
-                        </div>
                         <div class="form-group">
                             <label>Recommendations / Interpretations</label>
                             <textarea id="comments-main-editor" class="form-control" rows="4"
@@ -1790,7 +1782,7 @@
                         wire:target="applyCommentDefaults"
                         @click="applyDefaults()">
                         <span wire:loading.remove wire:target="applyCommentDefaults">
-                            <i class="mdi mdi-auto-fix"></i> Apply defaults
+                            <i class="mdi mdi-auto-fix"></i> Apply default notes
                         </span>
                         <span wire:loading wire:target="applyCommentDefaults">
                             <i class="mdi mdi-loading mdi-spin"></i> Applying...

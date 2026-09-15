@@ -5,6 +5,7 @@ namespace App\Services\Billing;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -63,11 +64,30 @@ class AmspecImportTemplateService
         $import = $spreadsheet->getActiveSheet();
         $import->setTitle('Import');
 
-        $this->writeImportSheet(
+        $this->writePackageLayoutSheet(
             $import,
-            ['sample_type', 'parameters', 'cost_price', 'selling_price', 'tax'],
-            ['Hand Swab', 'TPC;Yeast & Mould;E.coli', 50, 85, 5],
-            [22, 36, 14, 16, 8],
+            ['Sample', 'Test', 'Method', 'cost_price', 'selling_price', 'tax'],
+            [
+                [
+                    'sample' => 'Hand Swab',
+                    'values' => [null, null, null, 50, 85, 5],
+                    'tests' => [
+                        ['TPC', 'AMS/M/SOP/046'],
+                        ['Yeast & Mould', 'AMS/M/SOP/046'],
+                        ['E.coli', 'AMS/M/SOP/050'],
+                    ],
+                ],
+                [
+                    'sample' => 'AIR',
+                    'values' => [null, null, null, 20, 20, 5],
+                    'tests' => [
+                        ['Heterotopic plate count', 'AMS/M/SOP/038'],
+                        ['Enumeration Of Legionella', 'AMS/M/SOP/045'],
+                    ],
+                ],
+            ],
+            [22, 36, 20, 14, 16, 8],
+            [1, 4, 5, 6],
         );
 
         $instructions = $spreadsheet->createSheet();
@@ -75,19 +95,24 @@ class AmspecImportTemplateService
         $this->writeInstructionLines($instructions, [
             'Amspec LIMS pricelist import template',
             '',
-            'Required columns (row 1 on the Import sheet):',
-            '• sample_type — sample type name in LIMS (must match Sample Types).',
-            '• parameters — tests in this package, separated by semicolons (e.g. TPC;E.coli).',
-            '• cost_price — the cost the lab incurs to perform this test or package.',
-            '• selling_price — the price charged to clients on quotations.',
-            '• tax — optional VAT % (e.g. 5). Leave blank to apply default VAT.',
+            'Layout (row 1 headers on the Import sheet):',
+            '• Sample — sample type name in LIMS (must match Sample Types). Write it once per package.',
+            '• Test — one analysis / parameter name per row (must match LIMS).',
+            '• Method — existing LIMS method code for that test (e.g. AMS/M/SOP/046). Used to pick the correct analysis element; methods are not created.',
+            '• cost_price — lab cost for the whole package (enter on the first row of the package).',
+            '• selling_price — client price for the whole package (enter on the first row of the package).',
+            '• tax — optional VAT % (e.g. 5). Leave blank on continuation rows.',
+            '',
+            'How to arrange rows (see the example):',
+            '• One package = one Sample block spanning several Test rows (merged Sample / price cells in the example).',
+            '• Put cost_price, selling_price, and tax on the first row of each Sample block only.',
+            '• Leave Sample and price cells blank on follow-on Test rows (or keep them merged like the example).',
+            '• Do not put every test on one cell with semicolons — use one Test (+ Method) per row.',
             '',
             'Pricing rules:',
-            '• Enter cost_price and selling_price on every row. Do not use one price for both.',
-            '• cost_price is saved as the lab cost on the pricelist.',
-            '• selling_price is saved as the client price on the pricelist and on quotations.',
+            '• Enter cost_price and selling_price on the package (first) row. Do not use one price for both.',
             '• For packages: quotation line total = number of samples × selling_price (once), not × number of tests.',
-            '• Sample type and test names must match LIMS. Rows that do not match are skipped with a warning.',
+            '• Sample type, test, and method codes must match LIMS. Unmatched rows are skipped with a warning.',
         ]);
 
         $spreadsheet->setActiveSheetIndex(0);
@@ -101,11 +126,30 @@ class AmspecImportTemplateService
         $import = $spreadsheet->getActiveSheet();
         $import->setTitle('Import');
 
-        $this->writeImportSheet(
+        $this->writePackageLayoutSheet(
             $import,
-            ['sample_type', 'parameters', 'quantity_required', 'quantity', 'unit_price', 'tax'],
-            ['Hand Swab', 'TPC;Yeast & Mould;E.coli', 'Per sample swab', 1, 85, 5],
-            [22, 36, 22, 12, 14, 8],
+            ['Sample', 'Test', 'Method', 'quantity_required', 'quantity', 'unit_price', 'tax'],
+            [
+                [
+                    'sample' => 'Hand Swab',
+                    'values' => [null, null, null, 'Per sample swab', 1, 85, 5],
+                    'tests' => [
+                        ['TPC', 'AMS/M/SOP/046'],
+                        ['Yeast & Mould', 'AMS/M/SOP/046'],
+                        ['E.coli', 'AMS/M/SOP/050'],
+                    ],
+                ],
+                [
+                    'sample' => 'AIR',
+                    'values' => [null, null, null, 'Per Plate Sample', 4, 20, 5],
+                    'tests' => [
+                        ['Heterotopic plate count', 'AMS/M/SOP/038'],
+                        ['Enumeration Of Legionella', 'AMS/M/SOP/045'],
+                    ],
+                ],
+            ],
+            [22, 36, 20, 22, 12, 14, 8],
+            [1, 4, 5, 6, 7],
         );
 
         $instructions = $spreadsheet->createSheet();
@@ -113,13 +157,20 @@ class AmspecImportTemplateService
         $this->writeInstructionLines($instructions, [
             'Amspec LIMS quotation prep import template',
             '',
-            'Required columns (row 1 on the Import sheet):',
-            '• sample_type — LIMS sample type name.',
-            '• parameters — semicolon-separated test/parameter names.',
-            '• quantity_required — free text (e.g. Per sample swab).',
-            '• quantity — number of samples for this package line.',
-            '• unit_price — selling unit price for the package.',
+            'Layout (row 1 headers on the Import sheet):',
+            '• Sample — LIMS sample type name. Write it once per package.',
+            '• Test — one analysis / parameter name per row.',
+            '• Method — existing LIMS method code for that test (used to pick the correct analysis element).',
+            '• quantity_required — free text (e.g. Per sample swab). Enter on the first row of the package.',
+            '• quantity — number of samples for this package line. Enter on the first row.',
+            '• unit_price — selling unit price for the package. Enter on the first row.',
             '• tax — optional VAT %.',
+            '',
+            'How to arrange rows (see the example):',
+            '• One package = one Sample block with several Test rows (merged Sample / commercial cells in the example).',
+            '• Put quantity_required, quantity, unit_price, and tax on the first row of each Sample block only.',
+            '• Leave Sample and commercial cells blank on follow-on Test rows.',
+            '• Do not list all tests in one cell with semicolons — one Test (+ Method) per row.',
             '',
             'Package total = quantity × unit_price (once per package), not × number of tests.',
         ]);
@@ -130,23 +181,30 @@ class AmspecImportTemplateService
     }
 
     /**
+     * Write AmSpec-style package blocks: Sample (+ commercial columns) merge across tests.
+     *
      * @param  list<string>  $headers
-     * @param  list<mixed>  $example
+     * @param  list<array{sample: string, values: list<mixed>, tests: list<array{0: string, 1: string}>}>  $packages
      * @param  list<int>  $widths
+     * @param  list<int>  $mergeColumnIndexes  1-based column indexes to merge within each package block
      */
-    private function writeImportSheet(Worksheet $sheet, array $headers, array $example, array $widths): void
-    {
+    private function writePackageLayoutSheet(
+        Worksheet $sheet,
+        array $headers,
+        array $packages,
+        array $widths,
+        array $mergeColumnIndexes,
+    ): void {
+        $lastColumn = count($headers);
+        $lastColumnLetter = Coordinate::stringFromColumnIndex($lastColumn);
+
         foreach ($headers as $index => $header) {
             $column = $index + 1;
             $sheet->setCellValue([$column, 1], $header);
-            $sheet->setCellValue([$column, 2], $example[$index] ?? '');
             $sheet->getColumnDimensionByColumn($column)->setWidth($widths[$index] ?? 18);
         }
 
-        $lastColumn = count($headers);
-        $lastColumnLetter = Coordinate::stringFromColumnIndex($lastColumn);
-        $headerRange = 'A1:'.$lastColumnLetter.'1';
-        $sheet->getStyle($headerRange)->applyFromArray([
+        $sheet->getStyle('A1:'.$lastColumnLetter.'1')->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '8B1E2D'],
@@ -161,6 +219,79 @@ class AmspecImportTemplateService
                 'wrapText' => true,
             ],
         ]);
+
+        $row = 2;
+        /** @var list<array{start: int, end: int}> $packageRanges */
+        $packageRanges = [];
+
+        foreach ($packages as $package) {
+            $tests = $package['tests'];
+            if ($tests === []) {
+                continue;
+            }
+
+            $startRow = $row;
+            $endRow = $row + count($tests) - 1;
+            $values = $package['values'];
+            $packageRanges[] = ['start' => $startRow, 'end' => $endRow];
+
+            foreach ($tests as $testIndex => $test) {
+                $sheet->setCellValue([1, $row], $testIndex === 0 ? $package['sample'] : '');
+                $sheet->setCellValue([2, $row], $test[0]);
+                $sheet->setCellValue([3, $row], $test[1]);
+
+                foreach ($values as $valueIndex => $value) {
+                    $column = $valueIndex + 1;
+                    if ($column <= 3) {
+                        continue;
+                    }
+                    $sheet->setCellValue([$column, $row], $testIndex === 0 ? ($value ?? '') : '');
+                }
+
+                $row++;
+            }
+
+            if ($endRow > $startRow) {
+                foreach ($mergeColumnIndexes as $columnIndex) {
+                    $letter = Coordinate::stringFromColumnIndex($columnIndex);
+                    $sheet->mergeCells($letter.$startRow.':'.$letter.$endRow);
+                    $sheet->getStyle($letter.$startRow)->getAlignment()
+                        ->setVertical(Alignment::VERTICAL_CENTER)
+                        ->setHorizontal(
+                            $columnIndex === 1
+                                ? Alignment::HORIZONTAL_LEFT
+                                : Alignment::HORIZONTAL_CENTER
+                        );
+                }
+            }
+        }
+
+        $dataEnd = max(2, $row - 1);
+        $sheet->getStyle('A2:'.$lastColumnLetter.$dataEnd)->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'D0D5DD'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        // Dark outer outline per Sample package so blocks read clearly apart.
+        foreach ($packageRanges as $range) {
+            $block = 'A'.$range['start'].':'.$lastColumnLetter.$range['end'];
+            $sheet->getStyle($block)->applyFromArray([
+                'borders' => [
+                    'outline' => [
+                        'borderStyle' => Border::BORDER_MEDIUM,
+                        'color' => ['rgb' => '1F2937'],
+                    ],
+                ],
+            ]);
+        }
+
         $sheet->freezePane('A2');
     }
 

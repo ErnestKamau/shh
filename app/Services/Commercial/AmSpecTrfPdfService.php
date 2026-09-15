@@ -83,11 +83,7 @@ final class AmSpecTrfPdfService
             'form' => $instance->submissionForm,
             'company' => $company,
             'form_number' => $instance->getDocumentControlNumber() ?? $instance->form_number ?? '',
-            'document_title' => match (true) {
-                $isFood => 'TEST REQUEST FORM - FOOD',
-                $isWater => 'TEST REQUEST FORM - WATER',
-                default => 'TEST REQUEST FORM',
-            },
+            'document_title' => 'TEST REQUEST FORM',
             'document_code' => match (true) {
                 $isFood => 'AMS/QMS/LWS/019',
                 $isWater => 'AMS/QMS/LWS/020',

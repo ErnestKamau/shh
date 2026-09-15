@@ -547,21 +547,12 @@
         vertical-align: top;
         padding: 0;
     }
-    .page-disclaimer .disclaimer-page,
-    .pdf-footer-legal .pdf-footer-page {
-        width: 72px;
-        font-size: 8pt;
-        font-weight: bold;
-        color: #111;
-        padding-right: 8px;
-        white-space: nowrap;
-    }
     .page-disclaimer .disclaimer-text,
     .pdf-footer-legal .pdf-footer-disclaimer {
-        font-size: 7.5pt;
+        font-size: 6pt;
         color: #222;
         line-height: 1.35;
-        text-align: justify;
+        text-align: left;
         padding-right: 8px;
     }
     .page-disclaimer .disclaimer-qr,
@@ -679,15 +670,11 @@
         border-top: 1px solid #999;
         padding-top: 3px;
     }
-    .pdf-doc-footer .pdf-footer-page {
-        width: 78px;
-        font-size: 8pt;
-        padding-top: 2px;
-    }
     .pdf-doc-footer .pdf-footer-disclaimer {
-        font-size: 6.5pt;
+        font-size: 6pt;
         line-height: 1.3;
         font-weight: normal;
+        text-align: left;
     }
     .pdf-doc-footer .pdf-footer-qr {
         width: 48px;
@@ -1083,9 +1070,9 @@
         $pageText = {!! var_export($pageNumberText, true) !!};
         $size = 8;
         $font = $fontMetrics->getFont("DejaVu Sans");
-        // Match @page left margin (12mm ≈ 34pt) and the slim footer band.
+        // Match @page left margin (12mm ≈ 34pt). Sit above the disclaimer band.
         $x = 34;
-        $y = $pdf->get_height() - 62;
+        $y = $pdf->get_height() - 78;
         $pdf->page_text($x, $y, $pageText, $font, $size);
     }
 </script>

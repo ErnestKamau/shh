@@ -198,18 +198,20 @@ class AmSpecSeedData
     public static function dubaiCompanyAttributes(string $countryId): array
     {
         return [
-            'name' => 'AmSpec Middle East Inspection & Testing Services',
+            'name' => 'AmSpec Middle East Inspection and Testing LLC – Branch',
             'code' => 'uae',
             'logo' => '/images/no-logo.png',
             'report_logo' => null,
-            'location' => 'Dubai, United Arab Emirates',
-            'address' => '3801 U-bora office tower, Marasi Drive, Business Bay, Dubai',
+            'location' => 'UAE - Dubai',
+            'address' => 'Warehouse Phase 2, Block D Premises No. D05, Dubai Science Park, Al Barsha South, Dubai, United Arab Emirates',
             'country_id' => $countryId,
-            'website' => 'https://www.amspecgroup.com',
-            'email' => 'info@amspecgroup.com',
-            'cell_phone' => '+971 4 323 0399',
-            'telephone' => '+971 4 323 0399',
-            'street' => 'Marasi Drive, Business Bay',
+            'website' => 'www.amspecgroup.com',
+            'email' => 'AgriFood.UAE.Commercial@amspecgroup.com',
+            'cell_phone' => null,
+            'telephone' => '+971 45576370',
+            'street' => '3801 U-bora office tower, Marasi Drive,',
+            'fax' => '',
+            'po_box' => '500767',
             'active' => true,
             'show_on_reports' => true,
         ];

@@ -105,7 +105,8 @@ class TestRequestReportPdfService
         $customerName = trim($customerName, '_') ?: 'customer';
         $filename = 'TRR_'.$reportNumber.'-'.$language.'.pdf';
         $relativePath = '/reports/'.$customerName.'/'.$filename;
-        $absoluteDir = storage_path('app/reports/'.$customerName);
+        // Must live under app/public so /storage/... (public/storage symlink) can serve it.
+        $absoluteDir = storage_path('app/public/reports/'.$customerName);
 
         if (! is_dir($absoluteDir)) {
             mkdir($absoluteDir, 0755, true);

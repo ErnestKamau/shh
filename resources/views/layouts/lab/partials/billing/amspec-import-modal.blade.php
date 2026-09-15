@@ -137,9 +137,9 @@
 							<p class="ls-amspec-fmt-explain ls-amspec-fmt-explain--excel mb-0" @if($format === 'pdf') hidden @endif>
 								Upload a filled spreadsheet from the Excel template.
 								@if($isPricelist)
-									Use <code>sample_type</code>, <code>parameters</code>, <code>cost_price</code> (lab cost to perform the test), <code>selling_price</code> (price charged to clients), and optional <code>tax</code>.
+									Use one row per <code>Test</code> under a shared <code>Sample</code> block, with <code>Method</code> (existing LIMS method code), plus <code>cost_price</code> / <code>selling_price</code> / optional <code>tax</code> on the first row of each package.
 								@else
-									Use columns <code>sample_type</code>, <code>parameters</code>, <code>quantity_required</code>, <code>quantity</code>, and <code>unit_price</code>.
+									Use one row per <code>Test</code> under a shared <code>Sample</code> block, with <code>Method</code>, plus <code>quantity_required</code>, <code>quantity</code>, and <code>unit_price</code> on the first row of each package.
 								@endif
 							</p>
 							<p class="ls-amspec-fmt-explain ls-amspec-fmt-explain--pdf mb-0" @if($format !== 'pdf') hidden @endif>

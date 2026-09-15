@@ -544,7 +544,7 @@
     .amspec-footer-disclaimer {
         margin: 0;
         font-family: var(--amspec-font-footer);
-        font-size: 6.25pt;
+        font-size: 5pt;
         line-height: 1.28;
         color: var(--amspec-text);
         text-align: left;

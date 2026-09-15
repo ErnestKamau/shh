@@ -107,34 +107,30 @@
             @endif
         @elseif($fieldName === 'thermometer_id' && ($this->usesTrfEditSamplingEquipmentIdPicker() ?? false))
             @php
-                $equipmentOptions = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
-                    ->activeEquipmentSelectOptions();
                 $equipmentRows = is_array($trfEditCollectionFields['thermometer_id'] ?? null)
                     ? array_values($trfEditCollectionFields['thermometer_id'])
-                    : [''];
+                    : app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+                        ->rowsForForm($trfEditCollectionFields['thermometer_id'] ?? null);
                 if ($equipmentRows === []) {
                     $equipmentRows = [''];
                 }
             @endphp
             <div class="trf-sampling-equipment-ids">
-                @foreach($equipmentRows as $rowIndex => $selectedId)
-                    <div class="d-flex align-items-start gap-2 mb-2" wire:key="trf-edit-equipment-{{ $rowIndex }}">
-                        <div class="flex-grow-1">
-                            <x-searchable-select
-                                wire:model="trfEditCollectionFields.thermometer_id.{{ $rowIndex }}"
-                                :options="$equipmentOptions"
-                                placeholder="Search equipment..."
-                                empty-label="-- Select equipment --"
-                                size="sm"
-                            />
-                        </div>
-                        @if($rowIndex === 0)
-                            <button type="button" class="btn btn-sm btn-outline-primary"
-                                wire:click="addTrfEditSamplingEquipmentIdRow"
-                                title="Add equipment ID">
-                                <i class="mdi mdi-plus" aria-hidden="true"></i>
-                            </button>
-                        @else
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                        wire:click="addTrfEditSamplingEquipmentIdRow"
+                        title="Add equipment ID">
+                        <i class="mdi mdi-plus" aria-hidden="true"></i> Add
+                    </button>
+                </div>
+                @foreach($equipmentRows as $rowIndex => $equipmentId)
+                    <div class="trf-ww-extra-equipment-row mb-2" wire:key="trf-edit-equipment-{{ $rowIndex }}">
+                        <input type="text"
+                            class="form-control form-control-sm"
+                            wire:model.defer="trfEditCollectionFields.thermometer_id.{{ $rowIndex }}"
+                            placeholder="Equipment ID"
+                            aria-label="Equipment ID">
+                        @if(count($equipmentRows) > 1)
                             <button type="button" class="btn btn-sm btn-outline-danger"
                                 wire:click="removeTrfEditSamplingEquipmentIdRow({{ $rowIndex }})"
                                 title="Remove">

@@ -2384,6 +2384,20 @@ class FormulaWorksheet extends Component
                 $sibling->save();
             }
 
+            $sampleDetailIds = $this->capturedResults
+                ->pluck('sample_detail_id')
+                ->merge(
+                    CapturedResult::query()
+                        ->whereIn('id', $parameterPostedIds)
+                        ->pluck('sample_detail_id')
+                )
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            app(\App\Services\Sampleworkflow\StatementOfConformityService::class)
+                ->ensureForSampleIds($sampleDetailIds, $this->batch);
+
             // Update worksheet posting metadata
             $worksheet = SampleCapturedWorksheetFormula::where('sample_header_id', $this->batch->id)
                 ->where('formular_id', $this->formula->id)

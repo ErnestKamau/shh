@@ -82,6 +82,26 @@ final class AmspecImportLabelMatcher
         return trim($value);
     }
 
+    /**
+     * Whether an import method code refers to the same LIMS method
+     * (AMS/C/SOP/054 ≡ AMS-C-SOP-054 ≡ AMS_C_SOP_054).
+     */
+    public function methodCodesMatch(string $importCode, string $limsCode): bool
+    {
+        $importKey = $this->normalizeMethodCode($importCode);
+        $limsKey = $this->normalizeMethodCode($limsCode);
+
+        return $importKey !== '' && $importKey === $limsKey;
+    }
+
+    public function normalizeMethodCode(string $code): string
+    {
+        $value = html_entity_decode($code, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = mb_strtolower(trim($value));
+
+        return preg_replace('/[^a-z0-9]+/', '', $value) ?? '';
+    }
+
     private function applyAliases(string $key): string
     {
         $replacements = [

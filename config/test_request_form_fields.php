@@ -105,7 +105,7 @@ return [
                 ['value' => 'air_sampler', 'label' => 'Air sampler'],
             ],
         ],
-        ['name' => 'thermometer_id', 'label' => 'Equipment ID', 'type' => 'text', 'placeholder' => 'Select equipment'],
+        ['name' => 'thermometer_id', 'label' => 'Equipment ID', 'type' => 'text', 'placeholder' => 'Equipment ID'],
         [
             'name' => 'method_of_sampling',
             'label' => 'Method of sampling',

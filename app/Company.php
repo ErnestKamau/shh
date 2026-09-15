@@ -39,6 +39,7 @@ class Company extends Model implements Auditable
         'telephone',
         'street',
         'fax',
+        'po_box',
         'show_on_reports',
         'maintenance_start_year',
         'maintenance_start_month',
@@ -58,6 +59,7 @@ class Company extends Model implements Auditable
         'cell_phone' => SafeEncrypted::class,
         'street' => SafeEncrypted::class,
         'fax' => SafeEncrypted::class,
+        'po_box' => SafeEncrypted::class,
     ];
 
     /**

@@ -43,4 +43,24 @@ class AmspecImportLabelMatcherTest extends TestCase
     {
         $this->assertSame($expected, $this->matcher->matches($import, $lims));
     }
+
+    /**
+     * @return list<array{0: string, 1: string, 2: bool}>
+     */
+    public static function methodCodeCases(): array
+    {
+        return [
+            ['AMS/C/SOP/054', 'AMS-C-SOP-054', true],
+            ['AMS/C/SOP/054', 'AMS_C_SOP_054', true],
+            ['AMS/M/SOP/038', 'AMS/M/SOP/038', true],
+            ['AMS/C/SOP/054', 'AMS/C/SOP/055', false],
+            ['', 'AMS/C/SOP/054', false],
+        ];
+    }
+
+    #[DataProvider('methodCodeCases')]
+    public function test_method_codes_match_slash_and_hyphen_variants(string $import, string $lims, bool $expected): void
+    {
+        $this->assertSame($expected, $this->matcher->methodCodesMatch($import, $lims));
+    }
 }

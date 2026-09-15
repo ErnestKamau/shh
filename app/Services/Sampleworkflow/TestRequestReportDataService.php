@@ -14,6 +14,7 @@ use App\SampleDetails;
 use App\SampleHeader;
 use App\SamplesCategory;
 use App\Services\Lab\UncertaintyBudgetResolver;
+use App\Services\Sampleworkflow\StatementOfConformityService;
 use App\User;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,6 +32,8 @@ class TestRequestReportDataService
     public function build(SampleHeader $batch, string $reportNumber, array $options = []): array
     {
         $batch->loadMissing(['customer', 'sample_type', 'samples', 'receivingofficer']);
+
+        app(StatementOfConformityService::class)->ensureForBatch($batch);
 
         $sfi = $this->resolveSubmissionFormInstance($batch);
         $trfPayload = $sfi !== null ? $this->trfReportBuilder->buildFromSubmissionFormInstance($sfi) : null;
@@ -1627,74 +1630,18 @@ class TestRequestReportDataService
      */
     private function buildCompanyLetterhead(?object $company): array
     {
-        if ($company === null) {
-            return [
-                'name' => 'AmSpec',
-                'lines' => [],
-            ];
-        }
-
-        $lines = [];
-        $haystack = '';
-
-        $pushLine = function (string $line) use (&$lines, &$haystack): void {
-            $line = trim($line);
-            if ($line === '') {
-                return;
-            }
-
-            $key = mb_strtolower($line);
-            if (str_contains($haystack, $key)) {
-                return;
-            }
-
-            $lines[] = $line;
-            $haystack .= ' '.$key;
-        };
-
-        $postalAddress = html_entity_decode(
-            strip_tags(str_replace(['<br>', '<br/>', '<br />', '<BR>'], "\n", (string) ($company->address ?? ''))),
-            ENT_QUOTES | ENT_HTML5,
-            'UTF-8'
-        );
-        $postalAddress = trim($postalAddress);
-        if ($postalAddress !== '') {
-            foreach (preg_split('/\r\n|\r|\n/', $postalAddress) ?: [] as $line) {
-                $pushLine((string) $line);
-            }
-        }
-
-        $pushLine(trim((string) ($company->street ?? '')));
-        $pushLine(trim((string) ($company->location ?? '')));
-
-        $countryId = $company->country_id ?? null;
-        if (filled($countryId)) {
-            $countryName = trim((string) (Country::query()->where('id', $countryId)->value('name') ?? ''));
-            $pushLine($countryName);
-        }
-
-        $phone = trim((string) ($company->telephone ?? ''));
-        if ($phone === '') {
-            $phone = trim((string) ($company->cell_phone ?? ''));
-        }
-        if ($phone !== '') {
-            $pushLine('T: '.$phone);
-        }
-
-        $website = trim((string) ($company->website ?? ''));
-        if ($website !== '') {
-            $host = preg_replace('#^https?://#i', '', $website) ?? $website;
-            $host = rtrim((string) $host, '/');
-            if ($host !== '') {
-                $pushLine('W: '.$host);
-            }
-        }
-
         $name = trim((string) ($company->name ?? ''));
 
+        // Test Request Report letterhead only (not company record / quotations).
         return [
             'name' => $name !== '' ? $name : 'AmSpec',
-            'lines' => $lines,
+            'lines' => [
+                'Warehouse Phase 2, Block D Premises No. D05,',
+                'Dubai Science Park, Al Barsha South,',
+                'Dubai, United Arab Emirates',
+                'T: +971 45576370',
+                'W: www.amspeccgroup.com',
+            ],
         ];
     }
 

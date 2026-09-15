@@ -148,11 +148,7 @@ class TestRequestFormReportDataBuilder
             ? $this->resolveFoodSampleTypeColumns($formData)
             : [];
 
-        $formTitle = match ($variant) {
-            'food' => 'TEST REQUEST FORM - FOOD',
-            'waste_water' => 'TEST REQUEST FORM - WASTE WATER',
-            default => 'TEST REQUEST FORM - WATER',
-        };
+        $formTitle = 'TEST REQUEST FORM';
 
         $documentRef = match ($variant) {
             'food' => 'AMS/QMS/LWS/019 - Test Request Form - Food - V0',
@@ -1200,6 +1196,9 @@ class TestRequestFormReportDataBuilder
     }
 
     /**
+     * TRF header from company letterhead fields only.
+     * Uses postal address — never concatenates street / location.
+     *
      * @param  object|null  $company
      * @return array<string, string>
      */
@@ -1217,26 +1216,12 @@ class TestRequestFormReportDataBuilder
             ];
         }
 
-        $addressParts = array_filter([
-            $company->address ?? null,
-            $company->street ?? null,
-            $company->location ?? null,
-        ]);
-
-        $poBox = '';
-        foreach (['po_box', 'postal_address', 'postal_box'] as $field) {
-            if (! empty($company->{$field})) {
-                $poBox = (string) $company->{$field};
-                break;
-            }
-        }
-
         return [
             'name' => (string) ($company->name ?? ''),
             'telephone' => (string) ($company->telephone ?? $company->telephone1 ?? ''),
             'email' => (string) ($company->email ?? ''),
-            'address' => implode(', ', $addressParts),
-            'po_box' => $poBox,
+            'address' => (string) ($company->address ?? ''),
+            'po_box' => (string) ($company->po_box ?? ''),
             'fax' => (string) ($company->fax ?? ''),
             'website' => (string) ($company->website ?? ''),
         ];

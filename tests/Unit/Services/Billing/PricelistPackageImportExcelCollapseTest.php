@@ -37,12 +37,20 @@ class PricelistPackageImportExcelCollapseTest extends TestCase
                 'Mesophilic Aerobic plate count; Enumeration of Yeast and Moulds; Detection of Salmonella',
                 $rows[0]['parameters']
             );
+            $this->assertSame(
+                ['CMMEF 5', 'CMMEF 5', 'CMMEF 5'],
+                $rows[0]['method_hints']
+            );
             $this->assertTrue((bool) $rows[0]['is_package']);
 
             $this->assertSame('Water', $rows[1]['sample_type']);
             $this->assertSame(
                 'Heterotopic plate count; Enumeration of E. coli',
                 $rows[1]['parameters']
+            );
+            $this->assertSame(
+                ['APHA', 'APHA'],
+                $rows[1]['method_hints']
             );
         } finally {
             @unlink($path);

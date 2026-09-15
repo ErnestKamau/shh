@@ -455,7 +455,7 @@
     }
 
     body.amspec-download-body .amspec-footer-disclaimer {
-        font-size: 6pt;
+        font-size: 5pt;
         line-height: 1.25;
         word-wrap: break-word;
         overflow-wrap: break-word;

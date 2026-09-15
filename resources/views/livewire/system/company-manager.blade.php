@@ -423,10 +423,21 @@
                                 </div>
                             </div>
 
-                            <div class="form-group mb-3">
-                                <label class="form-label">{{ __('system.company_postal_address') }}</label>
-                                <textarea wire:model="address" rows="3" class="form-control @error('address') is-invalid @enderror"></textarea>
-                                @error('address') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">{{ __('system.company_postal_address') }}</label>
+                                        <textarea wire:model="address" rows="3" class="form-control @error('address') is-invalid @enderror"></textarea>
+                                        @error('address') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">{{ __('system.po_box') }}</label>
+                                        <input type="text" wire:model="po_box" class="form-control @error('po_box') is-invalid @enderror">
+                                        @error('po_box') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
                             </div>
 
                             {{-- Equipment Maintenance Period --}}

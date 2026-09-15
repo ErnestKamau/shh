@@ -129,10 +129,10 @@
     .trf-company-logo-cell { width: 10%; vertical-align: middle; text-align: left; padding-right: 15px !important; }
     .trf-company-col-left { width: 50%; padding-right: 20px; text-align: left; }
     .trf-company-col-right { width: 40%; padding-left: 20px; text-align: left; }
-    .trf-company-address-cell { width: 100%; padding: 2px 4px; text-align: left; white-space: nowrap; font-size: 6.8pt; }
+    .trf-company-address-cell { width: 100%; padding: 2px 4px; text-align: left; white-space: normal; font-size: 6.8pt; line-height: 1.25; }
     .trf-company-address-cell .trf-field-label,
     .trf-company-address-cell .trf-field-value { font-size: 6.8pt; }
-    .trf-company-name-cell { font-weight: bold; font-size: 10pt; padding-bottom: 2px; }
+    .trf-company-name-cell { font-weight: bold; font-size: 9pt; padding-bottom: 2px; white-space: normal; line-height: 1.2; }
     .trf-logo { max-height: 48px; max-width: 100px; margin-right: 15px; }
     .trf-title-row td { border: none; padding: 0 0 3px; }
     .trf-title {

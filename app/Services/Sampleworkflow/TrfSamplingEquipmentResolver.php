@@ -2,12 +2,9 @@
 
 namespace App\Services\Sampleworkflow;
 
-use App\Models\Equipments\Equipment;
-use Illuminate\Support\Collection;
-
 /**
- * Food/Water TRF: thermometer_id stores one or more equipment UUIDs (JSON array).
- * Legacy free-text values remain displayable on PDFs.
+ * Food/Water TRF: thermometer_id stores one or more free-text Equipment ID values
+ * (JSON array of strings). Values are printed on PDFs as entered.
  */
 final class TrfSamplingEquipmentResolver
 {
@@ -86,95 +83,14 @@ final class TrfSamplingEquipmentResolver
 
     public function formatForDisplay(mixed $value): string
     {
-        $ids = $this->decodeIds($value);
-        if ($ids === []) {
-            return '';
-        }
-
-        $equipment = Equipment::query()
-            ->whereIn('id', $ids)
-            ->get(['id', 'name', 'equipment_number'])
-            ->keyBy(fn (Equipment $row): string => (string) $row->id);
-
-        $labels = [];
-        foreach ($ids as $id) {
-            $match = $equipment->get($id);
-            if ($match === null) {
-                $labels[] = $id;
-
-                continue;
-            }
-
-            $number = trim((string) ($match->equipment_number ?? ''));
-            $name = trim((string) ($match->name ?? ''));
-            if ($number !== '' && $name !== '') {
-                $labels[] = $name.' ('.$number.')';
-            } elseif ($number !== '') {
-                $labels[] = $number;
-            } else {
-                $labels[] = $name !== '' ? $name : $id;
-            }
-        }
-
-        return implode(', ', $labels);
+        return implode(', ', $this->decodeIds($value));
     }
 
     /**
-     * Compact PDF line: prefer equipment_number only.
+     * PDF line: print free-text Equipment IDs as entered.
      */
     public function formatForPdf(mixed $value): string
     {
-        $ids = $this->decodeIds($value);
-        if ($ids === []) {
-            return '';
-        }
-
-        $equipment = Equipment::query()
-            ->whereIn('id', $ids)
-            ->get(['id', 'equipment_number'])
-            ->keyBy(fn (Equipment $row): string => (string) $row->id);
-
-        $labels = [];
-        foreach ($ids as $id) {
-            $match = $equipment->get($id);
-            if ($match === null) {
-                // Legacy free-text equipment id (already a number / code).
-                $labels[] = $id;
-
-                continue;
-            }
-
-            $number = trim((string) ($match->equipment_number ?? ''));
-            if ($number !== '') {
-                $labels[] = $number;
-            }
-        }
-
-        return implode(', ', $labels);
-    }
-
-    /**
-     * @return Collection<int, array{id: string, name: string}>
-     */
-    public function activeEquipmentSelectOptions(): Collection
-    {
-        return Equipment::query()
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get(['id', 'name', 'equipment_number'])
-            ->map(static function (Equipment $equipment): array {
-                $number = trim((string) ($equipment->equipment_number ?? ''));
-                $name = trim((string) ($equipment->name ?? ''));
-                $label = $name;
-                if ($number !== '') {
-                    $label = $name !== '' ? $name.' ('.$number.')' : $number;
-                }
-
-                return [
-                    'id' => (string) $equipment->id,
-                    'name' => $label !== '' ? $label : (string) $equipment->id,
-                ];
-            })
-            ->values();
+        return $this->formatForDisplay($value);
     }
 }

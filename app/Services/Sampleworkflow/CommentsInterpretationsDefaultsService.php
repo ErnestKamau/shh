@@ -55,10 +55,16 @@ class CommentsInterpretationsDefaultsService
 
         $outcomes = [];
         foreach ($standards as $index => $standard) {
+            $passed = $this->standardPassed($results, $index);
             $outcomes[] = [
                 'name' => $standard['name'],
-                'passed' => $this->standardPassed($results, $index),
-                'comment' => $this->standardOutcomeComment($results, (string) $standard['id'], $index),
+                'passed' => $passed,
+                // One statement per specification from the standard pass/fail set (not per analyte).
+                'comment' => $this->passFailComments->commentFor(
+                    (string) $standard['id'],
+                    null,
+                    $passed ? 'PASS' : 'FAIL',
+                ),
             ];
         }
 
@@ -119,33 +125,6 @@ class CommentsInterpretationsDefaultsService
     }
 
     /**
-     * @param  Collection<int, CapturedResult>  $results
-     */
-    private function standardOutcomeComment(Collection $results, string $standardId, int $index): string
-    {
-        $remarkColumn = match ($index) {
-            0 => 'remark',
-            1 => 'sec_remark',
-            default => 'third_remark',
-        };
-
-        $comments = [];
-        foreach ($results as $result) {
-            $remark = (string) ($result->{$remarkColumn} ?? '');
-            $comment = $this->passFailComments->commentFor(
-                $standardId,
-                (string) ($result->analyte_id ?? ''),
-                $remark,
-            );
-            if ($comment !== '') {
-                $comments[$comment] = $comment;
-            }
-        }
-
-        return implode(' ', array_values($comments));
-    }
-
-    /**
      * @param  list<array{name: string, passed: bool, comment?: string}>  $outcomes
      */
     private function formatConformityRemark(array $outcomes): string
@@ -177,26 +156,26 @@ class CommentsInterpretationsDefaultsService
             $second = $outcomes[1];
 
             if ($first['passed'] && $second['passed']) {
-                return 'The above test result is conforming to "'.$first['name'].'" & "'.$second['name'].'"';
+                return 'The above test results conform to "'.$first['name'].'" & "'.$second['name'].'"';
             }
 
             if (! $first['passed'] && ! $second['passed']) {
-                return 'The above test result is non-conforming to "'.$first['name'].'" & "'.$second['name'].'"';
+                return 'The above test results do not conform to "'.$first['name'].'" & "'.$second['name'].'"';
             }
 
             if ($first['passed'] && ! $second['passed']) {
-                return 'The above test result is conforming to "'.$first['name'].'" & non-conforming to "'.$second['name'].'"';
+                return 'The above test results conform to "'.$first['name'].'" & do not conform to "'.$second['name'].'"';
             }
 
-            return 'The above test result is non-conforming to "'.$first['name'].'" & conforming to "'.$second['name'].'"';
+            return 'The above test results do not conform to "'.$first['name'].'" & conform to "'.$second['name'].'"';
         }
 
         $parts = [];
         foreach ($outcomes as $outcome) {
-            $parts[] = ($outcome['passed'] ? 'conforming to' : 'non-conforming to').' "'.$outcome['name'].'"';
+            $parts[] = ($outcome['passed'] ? 'conform to' : 'do not conform to').' "'.$outcome['name'].'"';
         }
 
-        return 'The above test result is '.implode(' & ', $parts);
+        return 'The above test results '.implode(' & ', $parts);
     }
 
     /**
@@ -206,10 +185,10 @@ class CommentsInterpretationsDefaultsService
     {
         $name = $outcome['name'];
         if ($outcome['passed']) {
-            return 'The above test result is conforming to "'.$name.'"';
+            return 'The above test results conform to "'.$name.'"';
         }
 
-        return 'The above test result is non-conforming to "'.$name.'"';
+        return 'The above test results do not conform to "'.$name.'"';
     }
 
     /**

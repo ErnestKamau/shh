@@ -34,6 +34,7 @@ class CompanyManager extends Component
     public ?string $telephone = null;
     public ?string $street = null;
     public ?string $fax = null;
+    public ?string $po_box = null;
     public $logoFile = null;
     public ?string $existingLogo = null;
     public $faviconFile = null;
@@ -114,6 +115,7 @@ class CompanyManager extends Component
         $this->telephone = $company->telephone;
         $this->street = $company->street;
         $this->fax = $company->fax;
+        $this->po_box = $company->po_box;
         $this->logoFile = null;
         $this->existingLogo = $company->logo;
         $this->faviconFile = null;
@@ -184,6 +186,7 @@ class CompanyManager extends Component
             'telephone' => ['nullable', 'string', 'max:255'],
             'street' => ['nullable', 'string', 'max:255'],
             'fax' => ['nullable', 'string', 'max:255'],
+            'po_box' => ['nullable', 'string', 'max:255'],
             'logoFile' => ['nullable', 'image', 'max:5120'],
             'faviconFile' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,ico,gif,webp', 'max:2048'],
             'watermarkFile' => ['nullable', 'image', 'max:5120'],
@@ -214,6 +217,7 @@ class CompanyManager extends Component
         $company->telephone = $validated['telephone'];
         $company->street = $validated['street'];
         $company->fax = $validated['fax'];
+        $company->po_box = $validated['po_box'];
         $company->maintenance_start_year = $validated['maintenanceStartYear'];
         $company->maintenance_start_month = $validated['maintenanceStartMonth'];
         $company->maintenance_end_year = $validated['maintenanceEndYear'];
@@ -395,6 +399,7 @@ class CompanyManager extends Component
         $this->telephone = null;
         $this->street = null;
         $this->fax = null;
+        $this->po_box = null;
         $this->logoFile = null;
         $this->existingLogo = null;
         $this->faviconFile = null;

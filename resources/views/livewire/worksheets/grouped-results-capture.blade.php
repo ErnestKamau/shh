@@ -202,6 +202,9 @@
                 <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 
                 <div class="gw-results-capture__comments" wire:key="comments-{{ $activeSampleDetailId }}-{{ $commentsEditorKey }}">
+                    <p class="text-muted small mb-2">
+                        Report Remarks (statement of conformity) are generated automatically from the sample specification.
+                    </p>
                     <div wire:ignore
                         x-data="{
                             sampleId: @js($activeSampleDetailId),
@@ -227,7 +230,7 @@
                                         editor.on('change blur', () => {
                                             editor.save();
                                             const comments = {
-                                                header_body: tinymce.get('grc-header-' + sampleId)?.getContent() ?? '',
+                                                header_body: '',
                                                 main_body: tinymce.get('grc-main-' + sampleId)?.getContent() ?? '',
                                                 notes_body: tinymce.get('grc-notes-' + sampleId)?.getContent() ?? '',
                                             };
@@ -238,17 +241,11 @@
                                 });
                             },
                             initAll() {
-                                this.initEditor('#grc-header-' + this.sampleId, 'header_body', this.initialComments.header_body || '');
                                 this.initEditor('#grc-main-' + this.sampleId, 'main_body', this.initialComments.main_body || '');
                                 this.initEditor('#grc-notes-' + this.sampleId, 'notes_body', this.initialComments.notes_body || '');
                             }
                         }"
                         x-init="setTimeout(() => initAll(), 150)">
-                        <div class="form-group">
-                            <label class="font-weight-semibold">Comments</label>
-                            <textarea id="grc-header-{{ $activeSampleDetailId }}" class="form-control">{!! $activeComments['header_body'] !!}</textarea>
-                        </div>
-
                         <div class="form-group">
                             <label class="font-weight-semibold">Recommendations / Interpretation</label>
                             <textarea id="grc-main-{{ $activeSampleDetailId }}" class="form-control">{!! $activeComments['main_body'] !!}</textarea>
@@ -296,7 +293,6 @@
                 };
 
                 [
-                    { editorId: 'grc-header-' + sampleId, field: 'header_body' },
                     { editorId: 'grc-main-' + sampleId, field: 'main_body' },
                     { editorId: 'grc-notes-' + sampleId, field: 'notes_body' },
                 ].forEach(({ editorId, field }) => {

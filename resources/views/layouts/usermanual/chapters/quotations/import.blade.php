@@ -34,6 +34,7 @@
 <p>
 	Both modals point at the <strong>Amspec quotation-preparation template</strong> (Excel and PDF downloads).
 	Layout columns: Sample / Test / Method / Quantity Required / TAT / No. of Samples / Unit Price / Total.
+	Excel templates use one <strong>Test</strong> (+ <strong>Method</strong>) per row under a shared Sample package block.
 </p>
 <ul>
 	<li><strong>Package math (default):</strong> Package total = <strong>No. of samples × Unit price (once)</strong> — not × number of tests.</li>
@@ -47,7 +48,7 @@
 ])
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/quotations/pricelist-import-modal.png',
-	'caption' => 'Import into pricelist — same template family; Excel columns include sample_type, parameters, unit_price, optional tax.',
+	'caption' => 'Import into pricelist — same template family; Excel uses Sample / Test / Method with package prices on the first row.',
 ])
 
 <h2>Quotation import — step by step</h2>
@@ -56,7 +57,7 @@
 	<li>Press <strong>Import</strong> to open <strong>Import quotation lines</strong>.</li>
 	<li>Choose <strong>File type</strong>: Excel or PDF.
 		<ul>
-			<li>Excel columns: <code>sample_type</code>, <code>parameters</code>, <code>quantity_required</code>, <code>quantity</code>, <code>unit_price</code>.</li>
+			<li>Excel columns: <code>Sample</code>, <code>Test</code>, <code>Method</code>, <code>quantity_required</code>, <code>quantity</code>, <code>unit_price</code> — one Test row per line under a shared Sample package; Method picks the existing LIMS analysis element.</li>
 			<li>PDF: upload the filled Amspec quotation-preparation PDF; packages and prices are read from the layout.</li>
 		</ul>
 	</li>
@@ -82,7 +83,7 @@
 	<li>Press <strong>Import</strong> to open <strong>Import into pricelist</strong>.</li>
 	<li>Choose <strong>File type</strong>: Excel or PDF.
 		<ul>
-			<li>Excel columns: <code>sample_type</code>, <code>parameters</code>, <code>unit_price</code>, and optional <code>tax</code>.</li>
+			<li>Excel columns: <code>Sample</code>, <code>Test</code>, <code>Method</code>, <code>cost_price</code>, <code>selling_price</code>, and optional <code>tax</code> — one Test row per line under a shared Sample package.</li>
 			<li>PDF: package rows are imported from the Amspec quotation-preparation PDF.</li>
 		</ul>
 	</li>

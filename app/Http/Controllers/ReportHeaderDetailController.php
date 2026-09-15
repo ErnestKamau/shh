@@ -57,9 +57,10 @@ class ReportHeaderDetailController extends Controller
 		}
 
 		$detail->main_body = $request->main_body;
-		$detail->header_body = $request->header_body;
 		$detail->notes_body = $request->notes_body;
 		$detail->save();
+
+		app(\App\Services\Sampleworkflow\StatementOfConformityService::class)->ensureForSample($detail);
 
 		return \redirect()->back()->with('success', 'Sample Comments and Interpretations have been saved');
 	}
@@ -282,6 +283,8 @@ class ReportHeaderDetailController extends Controller
 		$batch->processing_date = getTodayDate();
 		$batch->in_ammendment_proccess = 0;
 		$batch->save();
+
+		app(\App\Services\Sampleworkflow\StatementOfConformityService::class)->ensureForBatch($batch);
 
 		$ammendment = BatchAmmendment::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
 		$report_type = '';

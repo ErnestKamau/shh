@@ -22,8 +22,9 @@ use RuntimeException;
  * quantity_required is free text (e.g. "Per Sample Swab"), not a multiplier.
  *
  * Expected Excel columns (flexible headers):
- *   sample_type | parameters | quantity_required | quantity | unit_price | tax | pricing_mode
- * parameters = comma/semicolon separated analyte or element names.
+ *   Sample | Test | Method | quantity_required | quantity | unit_price | tax | pricing_mode
+ * Legacy: sample_type | parameters (semicolon-separated)
+ * Method selects the existing LIMS analysis element; it does not create methods.
  *
  * PDF uses pdftotext (poppler-utils); when missing, use Excel.
  */
@@ -109,7 +110,7 @@ class QuotationPrepImportService
             }
         }
 
-        return $rows;
+        return $this->collapseExcelPackageContinuations($rows);
     }
 
     /**
@@ -144,7 +145,8 @@ class QuotationPrepImportService
             }
 
             $paramTokens = $this->splitParameters((string) ($raw['parameters'] ?? ''));
-            $elementIds = $this->resolveElementIdsForSampleType((string) $sampleType->id, $paramTokens);
+            $methodHints = $this->methodHintsForTokens($raw, $paramTokens);
+            $elementIds = $this->resolveElementIdsForSampleType((string) $sampleType->id, $paramTokens, $methodHints);
             if ($paramTokens !== [] && $elementIds === []) {
                 $warnings[] = 'Row '.($index + 1).': no matching parameters for "'.implode(', ', $paramTokens).'"';
             }
@@ -266,7 +268,8 @@ class QuotationPrepImportService
         return match (true) {
             str_contains($key, 'sample') && str_contains($key, 'type') => 'sample_type',
             $key === 'sample' || $key === 'sample_description' => 'sample_type',
-            str_contains($key, 'parameter') || str_contains($key, 'test') && ! str_contains($key, 'method') => 'parameters',
+            str_contains($key, 'method') => 'method',
+            str_contains($key, 'parameter') || (str_contains($key, 'test') && ! str_contains($key, 'method')) => 'parameters',
             str_contains($key, 'quantity_required') || (str_contains($key, 'quantity') && str_contains($key, 'required')) => 'quantity_required',
             str_contains($key, 'no_of_sample') || $key === 'quantity' || $key === 'samples' => 'quantity',
             str_contains($key, 'unit_price') || $key === 'price' => 'unit_price',
@@ -288,6 +291,9 @@ class QuotationPrepImportService
             if ($key === '') {
                 continue;
             }
+            if (array_key_exists($key, $mapped) && trim((string) ($mapped[$key] ?? '')) !== '') {
+                continue;
+            }
             $mapped[$key] = $line[$col] ?? null;
         }
 
@@ -302,6 +308,220 @@ class QuotationPrepImportService
         }
 
         return $mapped;
+    }
+
+    /**
+     * Amspec Excel package layout: Sample / commercial columns on the first row;
+     * follow-on rows only have Test (+ Method).
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function collapseExcelPackageContinuations(array $rows): array
+    {
+        $packages = [];
+        /** @var array<string, mixed>|null $open */
+        $open = null;
+
+        foreach ($rows as $row) {
+            $sample = trim((string) ($row['sample_type'] ?? ''));
+            $params = trim((string) ($row['parameters'] ?? ''));
+            $method = $this->rowMethodHint($row);
+            $unitPrice = (float) ($row['unit_price'] ?? 0);
+
+            if ($this->isExcelFooterLabel($sample) || $this->isExcelFooterLabel($params)) {
+                if ($open !== null) {
+                    $packages[] = $this->finalizeExcelPackage($open);
+                    $open = null;
+                }
+
+                continue;
+            }
+
+            if ($sample !== '') {
+                if ($open !== null && $this->sameImportSampleTypeLabel($sample, (string) ($open['sample_type'] ?? ''))) {
+                    if ($params !== '') {
+                        $open['_tests'][] = ['name' => $params, 'method' => $method];
+                    }
+                    $this->mergeExcelPackageCommercialFields($open, $row, $unitPrice);
+
+                    continue;
+                }
+
+                if ($open !== null) {
+                    $packages[] = $this->finalizeExcelPackage($open);
+                }
+
+                $open = $row;
+                $open['sample_type'] = $sample;
+                $open['_tests'] = $params !== '' ? [['name' => $params, 'method' => $method]] : [];
+                $open['unit_price'] = $unitPrice;
+
+                continue;
+            }
+
+            if ($params === '' || $open === null) {
+                continue;
+            }
+
+            $open['_tests'][] = ['name' => $params, 'method' => $method];
+            $this->mergeExcelPackageCommercialFields($open, $row, $unitPrice);
+        }
+
+        if ($open !== null) {
+            $packages[] = $this->finalizeExcelPackage($open);
+        }
+
+        return $packages;
+    }
+
+    /**
+     * @param  array<string, mixed>  $open
+     * @return array<string, mixed>
+     */
+    private function finalizeExcelPackage(array $open): array
+    {
+        /** @var list<array{name: string, method: string}|string> $rawTests */
+        $rawTests = is_array($open['_tests'] ?? null) ? $open['_tests'] : [];
+        $names = [];
+        $methods = [];
+
+        foreach ($rawTests as $entry) {
+            if (is_string($entry)) {
+                $name = trim($entry);
+                $method = '';
+            } else {
+                $name = trim((string) ($entry['name'] ?? ''));
+                $method = trim((string) ($entry['method'] ?? ''));
+            }
+
+            if ($name === '' || is_numeric($name)) {
+                continue;
+            }
+
+            $names[] = $name;
+            $methods[] = $method;
+        }
+        unset($open['_tests']);
+
+        $uniqueNames = [];
+        $uniqueMethods = [];
+        foreach ($names as $index => $name) {
+            if (isset($uniqueNames[$name])) {
+                if ($uniqueMethods[$name] === '' && ($methods[$index] ?? '') !== '') {
+                    $uniqueMethods[$name] = $methods[$index];
+                }
+
+                continue;
+            }
+            $uniqueNames[$name] = true;
+            $uniqueMethods[$name] = $methods[$index] ?? '';
+        }
+
+        $open['parameters'] = implode('; ', array_keys($uniqueNames));
+        $open['method_hints'] = array_values($uniqueMethods);
+        $open['pricing_mode'] = $open['pricing_mode'] ?? QuotationPricingResolver::PRICING_MODE_PER_PACKAGE;
+        $open['is_package'] = true;
+
+        return $open;
+    }
+
+    /**
+     * @param  array<string, mixed>  $open
+     * @param  array<string, mixed>  $row
+     */
+    private function mergeExcelPackageCommercialFields(array &$open, array $row, float $unitPrice): void
+    {
+        if ($unitPrice > 0 && (float) ($open['unit_price'] ?? 0) <= 0) {
+            $open['unit_price'] = $unitPrice;
+        }
+
+        foreach (['quantity_required', 'quantity', 'tax', 'pricing_mode'] as $field) {
+            if (! array_key_exists($field, $row) || $row[$field] === null || $row[$field] === '') {
+                continue;
+            }
+            if (! array_key_exists($field, $open) || $open[$field] === null || $open[$field] === '') {
+                $open[$field] = $row[$field];
+            }
+        }
+    }
+
+    private function isExcelFooterLabel(string $label): bool
+    {
+        $normalized = strtolower(trim($label));
+
+        return in_array($normalized, [
+            'net amount',
+            'net',
+            'subtotal',
+            'sub total',
+            'vat',
+            'tax',
+            'grand total',
+            'total',
+            'amount due',
+        ], true);
+    }
+
+    private function sameImportSampleTypeLabel(string $left, string $right): bool
+    {
+        $left = trim($left);
+        $right = trim($right);
+
+        if ($left === '' || $right === '') {
+            return false;
+        }
+
+        if (strcasecmp($left, $right) === 0) {
+            return true;
+        }
+
+        return $this->labelMatcher->matches($left, $right);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function rowMethodHint(array $row): string
+    {
+        return trim((string) ($row['method'] ?? $row['test_method'] ?? ''));
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $paramTokens
+     * @return list<string>
+     */
+    private function methodHintsForTokens(array $row, array $paramTokens): array
+    {
+        if (isset($row['method_hints']) && is_array($row['method_hints'])) {
+            $hints = array_values(array_map(
+                fn ($hint): string => trim((string) $hint),
+                $row['method_hints']
+            ));
+
+            while (count($hints) < count($paramTokens)) {
+                $hints[] = '';
+            }
+
+            return array_slice($hints, 0, count($paramTokens));
+        }
+
+        $single = $this->rowMethodHint($row);
+        if ($single === '') {
+            return array_fill(0, count($paramTokens), '');
+        }
+
+        $split = $this->splitParameters($single);
+        if (count($split) === count($paramTokens)) {
+            return $split;
+        }
+
+        if (count($paramTokens) === 1) {
+            return [$single];
+        }
+
+        return array_fill(0, count($paramTokens), '');
     }
 
     /**
@@ -421,21 +641,48 @@ class QuotationPrepImportService
 
     /**
      * @param  list<string>  $tokens
+     * @param  list<string>  $methodHints
      * @return list<string>
      */
-    private function resolveElementIdsForSampleType(string $sampleTypeId, array $tokens): array
+    private function resolveElementIdsForSampleType(string $sampleTypeId, array $tokens, array $methodHints = []): array
     {
         $ids = [];
-        foreach ($tokens as $token) {
+        foreach ($tokens as $index => $token) {
             $analyte = $this->resolveAnalyte($token);
             if ($analyte === null) {
                 continue;
             }
 
-            $element = AnalysisElements::query()
+            $methodHint = trim((string) ($methodHints[$index] ?? ''));
+            $query = AnalysisElements::query()
+                ->with(['mmethod:id,name,code'])
                 ->where('analyte_id', $analyte->id)
-                ->orderBy('id')
-                ->first();
+                ->whereHas('analysis_type', function ($q) use ($sampleTypeId) {
+                    $q->where('sample_type_id', $sampleTypeId);
+                })
+                ->orderBy('id');
+
+            /** @var Collection<int, AnalysisElements> $candidates */
+            $candidates = $query->get();
+            if ($candidates->isEmpty()) {
+                continue;
+            }
+
+            $element = null;
+            if ($methodHint === '') {
+                $element = $candidates->first();
+            } else {
+                $element = $candidates->first(function (AnalysisElements $candidate) use ($methodHint): bool {
+                    $code = trim((string) ($candidate->mmethod?->code ?? ''));
+                    $name = trim((string) ($candidate->mmethod?->name ?? ''));
+
+                    return ($code !== '' && $this->labelMatcher->methodCodesMatch($methodHint, $code))
+                        || ($name !== '' && (
+                            $this->labelMatcher->methodCodesMatch($methodHint, $name)
+                            || $this->labelMatcher->matches($methodHint, $name)
+                        ));
+                });
+            }
 
             if ($element !== null) {
                 $ids[] = (string) $element->id;

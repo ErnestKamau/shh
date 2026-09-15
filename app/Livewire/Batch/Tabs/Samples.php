@@ -23,6 +23,7 @@ use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Sampleworkflow\LabSectionWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use App\Services\Sampleworkflow\CommentsInterpretationsDefaultsService;
+use App\Services\Sampleworkflow\StatementOfConformityService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\LabSectionResultAccess;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
@@ -3637,6 +3638,15 @@ class Samples extends Component
                 }
             }
 
+            $sampleDetailIds = CapturedResult::query()
+                ->whereIn('id', $editableIds)
+                ->pluck('sample_detail_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            app(StatementOfConformityService::class)->ensureForSampleIds($sampleDetailIds);
+
             $this->persistSampleAnalysisDateRange();
 
             if ($this->selectedSampleCode) {
@@ -4251,14 +4261,13 @@ class Samples extends Component
     public $showCommentsModal = false;
     public $editingCommentsSampleId = null;
     public $commentsForm = [
-        'header_body' => '',
         'main_body' => '',
         'notes_body' => '',
         'batch_comment_scope' => '1', // 1=Concatenate, 2=Overwrite
     ];
 
     /**
-     * Open Comments & Interpretations modal for a sample
+     * Open Comments & Interpretations modal for a sample (Recommendations + Notes only).
      */
     public function openCommentsModal($sampleId)
     {
@@ -4266,24 +4275,16 @@ class Samples extends Component
             $sample = SampleDetails::findOrFail($sampleId);
             $defaultsService = app(CommentsInterpretationsDefaultsService::class);
 
-            $headerBody = $sample->header_body ?? '';
             $notesBody = $sample->notes_body ?? '';
 
-            if ($defaultsService->isHtmlEmpty($headerBody) || $defaultsService->isHtmlEmpty($notesBody)) {
+            if ($defaultsService->isHtmlEmpty($notesBody)) {
                 $batch = SampleHeader::find($sample->sample_header_id);
                 $defaults = $defaultsService->generate($sample, $batch);
-
-                if ($defaultsService->isHtmlEmpty($headerBody)) {
-                    $headerBody = $defaults['header_body'];
-                }
-                if ($defaultsService->isHtmlEmpty($notesBody)) {
-                    $notesBody = $defaults['notes_body'];
-                }
+                $notesBody = $defaults['notes_body'];
             }
 
             $this->editingCommentsSampleId = $sampleId;
             $this->commentsForm = [
-                'header_body' => $headerBody,
                 'main_body' => $sample->main_body ?? '',
                 'notes_body' => $notesBody,
                 'batch_comment_scope' => '1',
@@ -4297,7 +4298,8 @@ class Samples extends Component
     }
 
     /**
-     * Regenerate Remarks and Notes from current sample results (leaves Recommendations untouched).
+     * Regenerate Notes from current sample context (leaves Recommendations untouched).
+     * Statement of conformity is always auto-managed outside this modal.
      */
     public function applyCommentDefaults(): void
     {
@@ -4310,12 +4312,10 @@ class Samples extends Component
             $batch = SampleHeader::find($sample->sample_header_id);
             $defaults = app(CommentsInterpretationsDefaultsService::class)->generate($sample, $batch);
 
-            $this->commentsForm['header_body'] = $defaults['header_body'];
             $this->commentsForm['notes_body'] = $defaults['notes_body'];
 
             $this->dispatch(
                 'comments-defaults-applied',
-                headerBody: $defaults['header_body'],
                 notesBody: $defaults['notes_body'],
             );
         } catch (\Exception $e) {
@@ -4325,7 +4325,7 @@ class Samples extends Component
     }
 
     /**
-     * Save comments and interpretations
+     * Save recommendations and notes (statement of conformity is not edited here).
      */
     public function saveComments()
     {
@@ -4333,9 +4333,10 @@ class Samples extends Component
             $sample = SampleDetails::findOrFail($this->editingCommentsSampleId);
 
             $sample->main_body = $this->commentsForm['main_body'];
-            $sample->header_body = $this->commentsForm['header_body'];
             $sample->notes_body = $this->commentsForm['notes_body'];
             $sample->save();
+
+            app(StatementOfConformityService::class)->ensureForSample($sample);
 
             foreach ($this->sampleForms as $index => $form) {
                 if (($form['id'] ?? null) === $this->editingCommentsSampleId) {

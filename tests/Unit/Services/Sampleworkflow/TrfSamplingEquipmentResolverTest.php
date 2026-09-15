@@ -35,7 +35,7 @@ class TrfSamplingEquipmentResolverTest extends TestCase
         $this->assertSame(['a', 'b'], $resolver->rowsForForm('["a","b"]'));
     }
 
-    public function test_format_for_pdf_keeps_legacy_free_text(): void
+    public function test_format_for_pdf_prints_free_text_as_entered(): void
     {
         $resolver = new TrfSamplingEquipmentResolver();
 

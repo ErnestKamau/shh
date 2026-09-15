@@ -23,7 +23,9 @@ use RuntimeException;
  *   Per-test items bill separately per parameter.
  *
  * Expected Excel columns (flexible headers):
- *   sample_type | parameters | cost_price | selling_price | tax | pricing_mode
+ *   Sample | Test | Method | cost_price | selling_price | tax | pricing_mode
+ * Legacy: sample_type | parameters (semicolon-separated) | unit_price
+ * Method selects the existing LIMS analysis element; it does not create methods.
  * Legacy unit_price maps to selling_price. cost_price defaults to 0 when omitted.
  *
  * PDF uses pdftotext (poppler-utils); when missing, use Excel.
@@ -143,7 +145,8 @@ class PricelistPackageImportService
             }
 
             $paramTokens = $this->splitParameters((string) ($row['parameters'] ?? ''));
-            $resolved = $this->resolveElements($paramTokens, $sampleType);
+            $methodHints = $this->methodHintsForTokens($row, $paramTokens);
+            $resolved = $this->resolveElements($paramTokens, $sampleType, $methodHints);
             $elements = $resolved['elements'];
             $unmatchedTokens = $resolved['unmatched'];
 
@@ -371,6 +374,7 @@ class PricelistPackageImportService
             str_contains($key, 'sample') && str_contains($key, 'type') => 'sample_type',
             $key === 'sample' || $key === 'sample_description' => 'sample_type',
             str_contains($key, 'no_of_sample') || $key === 'qty' || $key === 'quantity' || $key === 'samples' => 'quantity',
+            str_contains($key, 'method') => 'method',
             str_contains($key, 'parameter') || (str_contains($key, 'test') && ! str_contains($key, 'method')) => 'parameters',
             (str_contains($key, 'cost') && str_contains($key, 'price')) || $key === 'cost' => 'cost_price',
             (str_contains($key, 'selling') && str_contains($key, 'price')) || str_contains($key, 'unit_price') || $key === 'price' => 'selling_price',
@@ -416,7 +420,7 @@ class PricelistPackageImportService
     /**
      * Amspec Excel package layout: Sample / Unit Price sit on the first row of a merged
      * block; follow-on rows only have Test (and Method). Carry sample forward and merge
-     * tests into one per-package commercial row.
+     * tests into one per-package commercial row, preserving per-test method hints.
      *
      * @param  list<array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
@@ -430,6 +434,7 @@ class PricelistPackageImportService
         foreach ($rows as $row) {
             $sample = trim((string) ($row['sample_type'] ?? ''));
             $params = trim((string) ($row['parameters'] ?? ''));
+            $method = $this->rowMethodHint($row);
             $sellingPrice = (float) ($row['selling_price'] ?? $row['unit_price'] ?? 0);
             $costPrice = array_key_exists('cost_price', $row) && $row['cost_price'] !== null && $row['cost_price'] !== ''
                 ? $this->cleanNumber($row['cost_price'])
@@ -447,7 +452,7 @@ class PricelistPackageImportService
             if ($sample !== '') {
                 if ($open !== null && $this->sameImportSampleTypeLabel($sample, (string) ($open['sample_type'] ?? ''))) {
                     if ($params !== '') {
-                        $open['_tests'][] = $params;
+                        $open['_tests'][] = ['name' => $params, 'method' => $method];
                     }
                     $this->mergeExcelPackagePricingFields($open, $row, $sellingPrice, $costPrice);
 
@@ -460,7 +465,7 @@ class PricelistPackageImportService
 
                 $open = $row;
                 $open['sample_type'] = $sample;
-                $open['_tests'] = $params !== '' ? [$params] : [];
+                $open['_tests'] = $params !== '' ? [['name' => $params, 'method' => $method]] : [];
                 $open['selling_price'] = $sellingPrice;
                 $open['cost_price'] = $costPrice;
 
@@ -471,7 +476,7 @@ class PricelistPackageImportService
                 continue;
             }
 
-            $open['_tests'][] = $params;
+            $open['_tests'][] = ['name' => $params, 'method' => $method];
             $this->mergeExcelPackagePricingFields($open, $row, $sellingPrice, $costPrice);
         }
 
@@ -488,18 +493,94 @@ class PricelistPackageImportService
      */
     private function finalizeExcelPackage(array $open): array
     {
-        /** @var list<string> $tests */
-        $tests = array_values(array_filter(
-            array_map('trim', is_array($open['_tests'] ?? null) ? $open['_tests'] : []),
-            fn (string $t): bool => $t !== '' && ! is_numeric($t)
-        ));
+        /** @var list<array{name: string, method: string}> $rawTests */
+        $rawTests = is_array($open['_tests'] ?? null) ? $open['_tests'] : [];
+        $names = [];
+        $methods = [];
+
+        foreach ($rawTests as $entry) {
+            if (is_string($entry)) {
+                $name = trim($entry);
+                $method = '';
+            } else {
+                $name = trim((string) ($entry['name'] ?? ''));
+                $method = trim((string) ($entry['method'] ?? ''));
+            }
+
+            if ($name === '' || is_numeric($name)) {
+                continue;
+            }
+
+            $names[] = $name;
+            $methods[] = $method;
+        }
         unset($open['_tests']);
 
-        $open['parameters'] = implode('; ', array_values(array_unique($tests)));
+        $uniqueNames = [];
+        $uniqueMethods = [];
+        foreach ($names as $index => $name) {
+            if (isset($uniqueNames[$name])) {
+                if ($uniqueMethods[$name] === '' && ($methods[$index] ?? '') !== '') {
+                    $uniqueMethods[$name] = $methods[$index];
+                }
+
+                continue;
+            }
+            $uniqueNames[$name] = true;
+            $uniqueMethods[$name] = $methods[$index] ?? '';
+        }
+
+        $open['parameters'] = implode('; ', array_keys($uniqueNames));
+        $open['method_hints'] = array_values($uniqueMethods);
         $open['pricing_mode'] = $open['pricing_mode'] ?? 'per_package';
         $open['is_package'] = true;
 
         return $open;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function rowMethodHint(array $row): string
+    {
+        return trim((string) ($row['method'] ?? $row['test_method'] ?? ''));
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $paramTokens
+     * @return list<string>
+     */
+    private function methodHintsForTokens(array $row, array $paramTokens): array
+    {
+        if (isset($row['method_hints']) && is_array($row['method_hints'])) {
+            $hints = array_values(array_map(
+                fn ($hint): string => trim((string) $hint),
+                $row['method_hints']
+            ));
+
+            while (count($hints) < count($paramTokens)) {
+                $hints[] = '';
+            }
+
+            return array_slice($hints, 0, count($paramTokens));
+        }
+
+        $single = $this->rowMethodHint($row);
+        if ($single === '') {
+            return array_fill(0, count($paramTokens), '');
+        }
+
+        $split = $this->splitParameters($single);
+        if (count($split) === count($paramTokens)) {
+            return $split;
+        }
+
+        if (count($paramTokens) === 1) {
+            return [$single];
+        }
+
+        return array_fill(0, count($paramTokens), '');
     }
 
     private function isExcelFooterLabel(string $label): bool
@@ -588,33 +669,32 @@ class PricelistPackageImportService
      * Resolve parameter tokens to analysis elements that belong to the given sample type.
      * Does not fall back to elements under other sample types (avoids Hand Swab packages
      * picking up E. coli / Enterobacteriaceae from unrelated catalogs).
+     * Optional method hints pick the element whose existing LIMS method matches.
      *
      * @param  list<string>  $tokens
+     * @param  list<string>  $methodHints
      * @return array{elements: list<AnalysisElements>, unmatched: list<string>}
      */
-    private function resolveElements(array $tokens, SampleType $sampleType): array
+    private function resolveElements(array $tokens, SampleType $sampleType, array $methodHints = []): array
     {
         $elements = [];
         $unmatched = [];
         $seenElementIds = [];
 
-        foreach ($tokens as $token) {
+        foreach ($tokens as $index => $token) {
             $analyte = $this->resolveAnalyte($token, $sampleType);
             if ($analyte === null) {
                 $unmatched[] = $token;
                 continue;
             }
 
-            $element = AnalysisElements::query()
-                ->where('analyte_id', $analyte->id)
-                ->whereHas('analysis_type', function ($query) use ($sampleType) {
-                    $query->where('sample_type_id', $sampleType->id);
-                })
-                ->orderBy('id')
-                ->first();
+            $methodHint = trim((string) ($methodHints[$index] ?? ''));
+            $element = $this->resolveElementForAnalyte($analyte, $sampleType, $methodHint);
 
             if ($element === null) {
-                $unmatched[] = $token;
+                $unmatched[] = $methodHint !== ''
+                    ? $token.' ['.$methodHint.']'
+                    : $token;
                 continue;
             }
 
@@ -630,6 +710,43 @@ class PricelistPackageImportService
             'elements' => $elements,
             'unmatched' => $unmatched,
         ];
+    }
+
+    private function resolveElementForAnalyte(
+        Analyte $analyte,
+        SampleType $sampleType,
+        string $methodHint = '',
+    ): ?AnalysisElements {
+        $query = AnalysisElements::query()
+            ->with(['mmethod:id,name,code'])
+            ->where('analyte_id', $analyte->id)
+            ->whereHas('analysis_type', function ($query) use ($sampleType) {
+                $query->where('sample_type_id', $sampleType->id);
+            })
+            ->orderBy('id');
+
+        /** @var Collection<int, AnalysisElements> $candidates */
+        $candidates = $query->get();
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        if ($methodHint === '') {
+            return $candidates->first();
+        }
+
+        $matched = $candidates->first(function (AnalysisElements $element) use ($methodHint): bool {
+            $code = trim((string) ($element->mmethod?->code ?? ''));
+            $name = trim((string) ($element->mmethod?->name ?? ''));
+
+            return ($code !== '' && $this->labelMatcher->methodCodesMatch($methodHint, $code))
+                || ($name !== '' && (
+                    $this->labelMatcher->methodCodesMatch($methodHint, $name)
+                    || $this->labelMatcher->matches($methodHint, $name)
+                ));
+        });
+
+        return $matched;
     }
 
     /**

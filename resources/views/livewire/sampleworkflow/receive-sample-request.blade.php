@@ -787,7 +787,7 @@
                                 @endif
                             </h5>
                             <p class="text-muted mb-0 small">
-                                {{ $submissionForm->name }}
+                                Test Request Form
                                 @if ($this->selectedSampleType?->name)
                                     · {{ $this->selectedSampleType->name }}
                                 @endif

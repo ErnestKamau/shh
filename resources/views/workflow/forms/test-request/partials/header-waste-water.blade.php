@@ -19,7 +19,7 @@
                             <img src="{{ $logoSrc }}" class="trf-logo" alt="Company Logo">
                         @endif
                     </td>
-                    <td class="trf-company-col-left trf-company-name-cell"><nobr>{{ $companyHeader['name'] ?? ($company->name ?? '') }}</nobr></td>
+                    <td class="trf-company-col-left trf-company-name-cell">{{ $companyHeader['name'] ?? ($company->name ?? '') }}</td>
                     <td class="trf-company-col-right"><nobr><span class="trf-field-label">PO Box:</span>&nbsp;<span class="trf-field-value">{{ $companyHeader['po_box'] ?? '' }}</span></nobr></td>
                 </tr>
                 <tr>
@@ -31,7 +31,7 @@
                     <td class="trf-company-col-right"><nobr><span class="trf-field-label">Website:</span>&nbsp;<span class="trf-field-value">{{ $companyHeader['website'] ?? '' }}</span></nobr></td>
                 </tr>
                 <tr>
-                    <td colspan="2" class="trf-company-address-cell"><nobr><span class="trf-field-label">Address:</span>&nbsp;<span class="trf-field-value">{{ $companyHeader['address'] ?? '' }}</span></nobr></td>
+                    <td colspan="2" class="trf-company-address-cell"><span class="trf-field-label">Address:</span>&nbsp;<span class="trf-field-value">{{ $companyHeader['address'] ?? '' }}</span></td>
                 </tr>
             </table>
         </td>

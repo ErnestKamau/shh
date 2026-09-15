@@ -3267,6 +3267,11 @@
 		align-items: center;
 	}
 
+	.request-view-page .rv-trf-edit-modal .trf-sampling-equipment-ids .trf-ww-extra-equipment-row,
+	.request-view-page .rv-trf-view-modal .trf-sampling-equipment-ids .trf-ww-extra-equipment-row {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
 	.request-view-page .rv-trf-edit-modal .trf-option-grid--ww-reason,
 	.request-view-page .rv-trf-view-modal .trf-option-grid--ww-reason {
 		grid-template-columns: repeat(2, minmax(0, 1fr));

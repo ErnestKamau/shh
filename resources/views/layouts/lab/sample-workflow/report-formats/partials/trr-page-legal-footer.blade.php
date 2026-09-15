@@ -1,12 +1,9 @@
-{{-- Page X of Y (PDF overlay) + T&C disclaimer + QR --}}
+{{-- T&C disclaimer + QR; PDF page numbers are drawn via DomPDF canvas above this band --}}
 @php
     $legalTableClass = !empty($isPdfMode) ? 'pdf-footer-legal' : 'page-disclaimer';
 @endphp
 <table class="{{ $legalTableClass }}">
     <tr>
-        @if(!empty($isPdfMode))
-        <td class="pdf-footer-page">&nbsp;</td>
-        @endif
         <td class="{{ !empty($isPdfMode) ? 'pdf-footer-disclaimer' : 'disclaimer-text' }}">
             This document is issued by the Company subject to the Terms and Conditions at
             https://www.amspecgroup.com/terms-conditions. Any holder of this document is advised that

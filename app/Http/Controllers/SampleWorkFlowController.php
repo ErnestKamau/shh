@@ -6410,7 +6410,8 @@ class SampleWorkFlowController extends Controller
                 $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
                 $customerName = trim((string) $customerName, '_') ?: 'customer';
                 $relativePath = '/reports/'.$customerName.'/'.$filename;
-                $absoluteDir = storage_path('app/reports/'.$customerName);
+                // Must live under app/public so /storage/... (public/storage symlink) can serve it.
+                $absoluteDir = storage_path('app/public/reports/'.$customerName);
 
                 if (! is_dir($absoluteDir)) {
                     mkdir($absoluteDir, 0755, true);
@@ -6979,7 +6980,8 @@ class SampleWorkFlowController extends Controller
                 $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
                 $customerName = trim($customerName, '_') ?: 'customer';
                 $relativePath = '/reports/' . $customerName . '/' . $filename;
-                $absoluteDir = storage_path('app/reports/' . $customerName);
+                // Must live under app/public so /storage/... (public/storage symlink) can serve it.
+                $absoluteDir = storage_path('app/public/reports/' . $customerName);
 
                 if (!is_dir($absoluteDir)) {
                     mkdir($absoluteDir, 0755, true);

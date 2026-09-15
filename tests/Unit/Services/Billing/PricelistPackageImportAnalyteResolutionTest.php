@@ -330,4 +330,100 @@ class PricelistPackageImportAnalyteResolutionTest extends TestCase
 
         $this->assertTrue((bool) $withVat->fresh()->vat);
     }
+
+    public function test_import_prefers_analysis_element_matching_method_hint(): void
+    {
+        $sampleType = SampleType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Condensate Water Method Test',
+            'code' => 'CW-METHOD-TEST',
+            'active' => 1,
+        ]);
+
+        $analysisType = AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Condensate Chemical Method Test',
+            'sample_type_id' => $sampleType->id,
+            'active' => 1,
+        ]);
+
+        $analyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Bromate',
+            'code' => 'AMS_BROMATE',
+            'active' => 1,
+        ]);
+
+        $wrongMethod = \App\AnalysisMethod::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Wrong Method',
+            'code' => 'AMS/C/SOP/999',
+            'active' => 1,
+        ]);
+
+        $correctMethod = \App\AnalysisMethod::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Bromate Method',
+            'code' => 'AMS/C/SOP/054',
+            'active' => 1,
+        ]);
+
+        $wrongElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'method' => $wrongMethod->id,
+            'active' => 1,
+        ]);
+
+        $correctElement = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'method' => $correctMethod->id,
+            'active' => 1,
+        ]);
+
+        $pricelist = Pricelist::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'PL-METHOD-HINT',
+            'description' => 'Method hint import test',
+            'active' => true,
+            'is_master' => false,
+            'status' => 'no-changes',
+            'revision_number' => '1',
+            'document_no' => 'DOC-METHOD',
+        ]);
+
+        $result = app(PricelistPackageImportService::class)->persistRows($pricelist, [
+            [
+                'sample_type' => 'Condensate Water Method Test',
+                'parameters' => 'Bromate',
+                'method_hints' => ['AMS-C-SOP-054'],
+                'selling_price' => 5.0,
+                'cost_price' => 5.0,
+                'pricing_mode' => 'per_package',
+                'is_package' => true,
+            ],
+        ]);
+
+        $this->assertSame(0, $result['skipped']);
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame(1, $result['created']);
+
+        $item = PricelistItem::query()
+            ->where('pricelist_id', $pricelist->id)
+            ->where('sample_type_id', $sampleType->id)
+            ->where('is_package', true)
+            ->first();
+
+        $this->assertNotNull($item);
+        $linkedIds = $item->fresh('packageElements')->packageElements
+            ->pluck('analysis_element_id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $this->assertSame([(string) $correctElement->id], $linkedIds);
+        $this->assertNotContains((string) $wrongElement->id, $linkedIds);
+    }
 }

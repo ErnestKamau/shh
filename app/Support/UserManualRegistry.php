@@ -82,6 +82,30 @@ class UserManualRegistry
                     ['slug' => 'request-to-store', 'title' => 'Request to Store', 'summary' => 'Ask the store for stock already on hand (coming next).'],
                 ],
             ],
+            'equipment' => [
+                'title' => 'Equipment',
+                'subtitle' => 'Assets, logs, monitoring, maintenance, disposal, and depreciation',
+                'icon' => 'mdi-tools',
+                'lottie' => 'https://assets9.lottiefiles.com/packages/lf20_w51pcehl.json',
+                'chapters' => [
+                    ['slug' => 'overview', 'title' => 'Welcome', 'summary' => 'What Equipment covers and how this guide is organised.'],
+                    ['slug' => 'dashboard', 'title' => 'Equipment Dashboard', 'summary' => 'Summary cards, due alerts, and shortcuts into the module.'],
+                    ['slug' => 'equipment-list', 'title' => 'Equipment List', 'summary' => 'Search, filter, import, add, edit, view, and request disposal.'],
+                    ['slug' => 'create-edit', 'title' => 'Create & edit equipment', 'summary' => 'The five-step wizard: Basic Info, Assignment, Monitoring, Maintenance, Depreciation.'],
+                    ['slug' => 'equipment-detail', 'title' => 'Equipment detail page', 'summary' => 'Profile tabs for details, logs, operators, attachments, and more.'],
+                    ['slug' => 'calibration-log', 'title' => 'Calibration Log', 'summary' => 'Record calibrations, certificates, correction factors, and notes.'],
+                    ['slug' => 'verification-log', 'title' => 'Verification Log', 'summary' => 'Record intermediate checks against reference standards.'],
+                    ['slug' => 'maintenance-log', 'title' => 'Maintenance Log (per asset)', 'summary' => 'Service history on a single piece of equipment.'],
+                    ['slug' => 'operators-attachments-notifications', 'title' => 'Operators, attachments & reminders', 'summary' => 'Who can use the asset, files, and chase reminders.'],
+                    ['slug' => 'monitoring', 'title' => 'Equipment Monitoring', 'summary' => 'Environmental and equipment checks, execute runs, and LWS-011 export.'],
+                    ['slug' => 'monitoring-templates', 'title' => 'Monitoring Template Engine', 'summary' => 'Create and manage monitoring templates, fields, and formulas.'],
+                    ['slug' => 'maintenance-programs', 'title' => 'Equipment Maintenance', 'summary' => 'Annual, preventive, register, and replacement programmes.'],
+                    ['slug' => 'daily-log', 'title' => 'Equipment Daily Log', 'summary' => 'Day-to-day usage logging for equipment that requires it.'],
+                    ['slug' => 'asset-types-locations', 'title' => 'Asset Types & Locations', 'summary' => 'Master data used when assigning equipment.'],
+                    ['slug' => 'disposal', 'title' => 'Equipment Disposal', 'summary' => 'Request disposal, evaluation, decommissioning, and approvals.'],
+                    ['slug' => 'depreciation-and-reports', 'title' => 'Depreciation & Reports', 'summary' => 'Asset depreciation setup and equipment reports and exports.'],
+                ],
+            ],
         ];
     }
 

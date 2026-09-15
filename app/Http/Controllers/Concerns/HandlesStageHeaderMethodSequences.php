@@ -2389,6 +2389,25 @@ trait HandlesStageHeaderMethodSequences
                         $analysisDate->end_analysis_date = $endAnalysisDate;
                         $analysisDate->save();
                     }
+
+                    app(\App\Services\Sampleworkflow\StatementOfConformityService::class)
+                        ->ensureForSampleIds(array_values(array_unique($sampleDetailIds)));
+                } else {
+                    $sampleDetailIds = [];
+                    foreach ($trackingData as $data) {
+                        $trackId = $data['track_id'] ?? null;
+                        if (! $trackId) {
+                            continue;
+                        }
+                        $track = \App\Models\SampleCapturedTestStagesTrack::find($trackId);
+                        if ($track && $track->sample_detail_id) {
+                            $sampleDetailIds[] = $track->sample_detail_id;
+                        }
+                    }
+                    if ($sampleDetailIds !== []) {
+                        app(\App\Services\Sampleworkflow\StatementOfConformityService::class)
+                            ->ensureForSampleIds(array_values(array_unique($sampleDetailIds)));
+                    }
                 }
             });
 

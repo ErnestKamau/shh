@@ -369,12 +369,14 @@
                                 </div>
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label" for="standards_page_pass_comment">Pass comment</label>
-                                <textarea id="standards_page_pass_comment" wire:model="standardForm.pass_comment" class="form-control" rows="3" placeholder="Applied when the result is conforming to this specification"></textarea>
+                                <label class="form-label" for="standards_page_pass_comment">Pass statement of conformity</label>
+                                <textarea id="standards_page_pass_comment" wire:model="standardForm.pass_comment" class="form-control" rows="3" placeholder="e.g. The above test results conform to GSO 2538:2021"></textarea>
+                                <small class="text-muted">Used automatically on the report Remarks when results pass this specification.</small>
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label" for="standards_page_fail_comment">Fail comment</label>
-                                <textarea id="standards_page_fail_comment" wire:model="standardForm.fail_comment" class="form-control" rows="3" placeholder="Applied when the result is non-conforming to this specification"></textarea>
+                                <label class="form-label" for="standards_page_fail_comment">Fail statement of conformity</label>
+                                <textarea id="standards_page_fail_comment" wire:model="standardForm.fail_comment" class="form-control" rows="3" placeholder="e.g. The above test results do not conform to GSO 2538:2021"></textarea>
+                                <small class="text-muted">Used automatically on the report Remarks when results fail this specification.</small>
                             </div>
                         </form>
                     </div>

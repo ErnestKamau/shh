@@ -119,13 +119,16 @@ class TestRequestFormReportDataBuilderTest extends TestCase
     {
         Company::query()->create([
             'id' => (string) Str::uuid7(),
-            'name' => 'AmSpec Middle East Inspection & Testing Services L.L.C',
+            'name' => 'AmSpec Middle East Inspection and Testing LLC – Branch',
             'active' => 1,
-            'telephone' => '+971 4 123 4567',
-            'email' => 'info@example.test',
-            'address' => 'Dubai Industrial City',
-            'fax' => '+971 4 123 4568',
-            'website' => 'www.amspec.test',
+            'telephone' => '+971 45576370',
+            'email' => 'AgriFood.UAE.Commercial@amspecgroup.com',
+            'address' => 'Warehouse Phase 2, Block D Premises No. D05, Dubai Science Park, Al Barsha South, Dubai, United Arab Emirates',
+            'street' => '3801 U-bora office tower, Marasi Drive,',
+            'location' => 'UAE - Dubai',
+            'po_box' => '500767',
+            'fax' => '',
+            'website' => 'www.amspecgroup.com',
         ]);
 
         $sampleType = SampleType::query()->create([
@@ -159,11 +162,22 @@ class TestRequestFormReportDataBuilderTest extends TestCase
         );
 
         $this->assertSame('food', $data['variant']);
-        $this->assertSame('TEST REQUEST FORM - FOOD', $data['formTitle']);
+        $this->assertSame('TEST REQUEST FORM', $data['formTitle']);
         $this->assertSame('ABC COMPANY', $data['customer']['customer_name']);
         $this->assertNotEmpty($data['company']);
         $this->assertArrayHasKey('companyHeader', $data);
-        $this->assertSame('+971 4 123 4567', $data['companyHeader']['telephone']);
+        $this->assertSame('AmSpec Middle East Inspection and Testing LLC – Branch', $data['companyHeader']['name']);
+        $this->assertSame('+971 45576370', $data['companyHeader']['telephone']);
+        $this->assertSame('AgriFood.UAE.Commercial@amspecgroup.com', $data['companyHeader']['email']);
+        $this->assertSame(
+            'Warehouse Phase 2, Block D Premises No. D05, Dubai Science Park, Al Barsha South, Dubai, United Arab Emirates',
+            $data['companyHeader']['address']
+        );
+        $this->assertStringNotContainsString('U-bora', $data['companyHeader']['address']);
+        $this->assertStringNotContainsString('UAE - Dubai', $data['companyHeader']['address']);
+        $this->assertSame('500767', $data['companyHeader']['po_box']);
+        $this->assertSame('', $data['companyHeader']['fax']);
+        $this->assertSame('www.amspecgroup.com', $data['companyHeader']['website']);
         $this->assertArrayNotHasKey('hexClusterSrc', $data);
         $this->assertTrue($data['sampleRows'][0]['state_of_sample']['SS']);
         $this->assertTrue($data['sampleRows'][0]['sample_type_checks']['Ready To Eat']);

@@ -63,6 +63,7 @@ class SystemTranslationsSeeder extends Seeder
             'country'                       => ['en' => 'Country',                       'sw' => 'Nchi'],
             'address'                       => ['en' => 'Address',                       'sw' => 'Anwani'],
             'street'                        => ['en' => 'Street',                        'sw' => 'Mtaa'],
+            'po_box'                        => ['en' => 'PO Box',                         'sw' => 'Sanduku la Posta'],
             'website'                       => ['en' => 'Website',                       'sw' => 'Tovuti'],
             'activate'                      => ['en' => 'Activate',                      'sw' => 'Washa'],
             'deactivate'                    => ['en' => 'Deactivate',                    'sw' => 'Zima'],

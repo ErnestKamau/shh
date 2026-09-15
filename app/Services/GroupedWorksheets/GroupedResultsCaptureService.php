@@ -414,10 +414,47 @@ class GroupedResultsCaptureService
                     continue;
                 }
 
-                $sample->header_body = $comments['header_body'] ?? null;
+                // Statement of conformity (header_body) is always auto-managed.
                 $sample->main_body = $comments['main_body'] ?? null;
                 $sample->notes_body = $comments['notes_body'] ?? null;
                 $sample->save();
+
+                GroupedWorksheetResultsCaptureSampleDraft::query()->updateOrCreate(
+                    [
+                        'sample_header_id' => $batch->id,
+                        'grouped_worksheet_holder_id' => $holder->id,
+                        'sample_detail_id' => (string) $sampleDetailId,
+                    ],
+                    [
+                        'header_body' => $sample->header_body,
+                        'main_body' => $sample->main_body,
+                        'notes_body' => $sample->notes_body,
+                    ]
+                );
+            }
+
+            $affectedSampleIds = collect($cellPayload)
+                ->keys()
+                ->map(function ($capturedResultId) {
+                    return CapturedResult::query()->whereKey($capturedResultId)->value('sample_detail_id');
+                })
+                ->merge(array_keys($sampleCommentsPayload))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($affectedSampleIds !== []) {
+                app(\App\Services\Sampleworkflow\StatementOfConformityService::class)
+                    ->ensureForSampleIds($affectedSampleIds, $batch);
+            }
+
+            // Refresh draft header_body after auto SoC for samples we touched via comments.
+            foreach (array_keys($sampleCommentsPayload) as $sampleDetailId) {
+                $sample = SampleDetails::query()->find($sampleDetailId);
+                if (! $sample) {
+                    continue;
+                }
 
                 GroupedWorksheetResultsCaptureSampleDraft::query()->updateOrCreate(
                     [
