@@ -49,4 +49,34 @@ class TestRequestReportDataServiceTest extends TestCase
         $this->assertSame('-', resolveReportingUnitLabel(null));
         $this->assertSame('-', resolveReportingUnitLabel(''));
     }
+
+    public function test_build_company_letterhead_uses_three_line_address_without_po_box_or_email(): void
+    {
+        $service = new TestRequestReportDataService(
+            new TestRequestFormReportDataBuilder(),
+            new TrfSampleFieldMapper(),
+        );
+
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('buildCompanyLetterhead');
+        $method->setAccessible(true);
+
+        $letterhead = $method->invoke($service, (object) [
+            'name' => 'AmSpec Middle East Inspection and Testing LLC – Branch',
+            'address' => 'Warehouse Phase 2, Block D Premises No. D05, Dubai Science Park, Al Barsha South, Dubai, United Arab Emirates',
+            'po_box' => '500767',
+            'telephone' => '+971 45576370',
+            'email' => 'AgriFood.UAE.Commercial@amspecgroup.com',
+            'website' => 'www.amspecgroup.com',
+            'fax' => '',
+        ]);
+
+        $this->assertSame([
+            'Warehouse Phase 2, Block D Premises No. D05,',
+            'Dubai Science Park, Al Barsha South,',
+            'Dubai, United Arab Emirates',
+            'T: +971 45576370',
+            'W: www.amspecgroup.com',
+        ], $letterhead['lines']);
+    }
 }

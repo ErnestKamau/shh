@@ -1626,23 +1626,64 @@ class TestRequestReportDataService
     }
 
     /**
+     * Test Request Report letterhead: 3-line postal address, T and W only.
+     *
      * @return array{name: string, lines: list<string>}
      */
     private function buildCompanyLetterhead(?object $company): array
     {
         $name = trim((string) ($company->name ?? ''));
+        $lines = [];
 
-        // Test Request Report letterhead only (not company record / quotations).
+        $address = trim((string) ($company->address ?? ''));
+        if ($address !== '') {
+            array_push($lines, ...$this->formatReportLetterheadAddressLines($address));
+        }
+
+        $telephone = trim((string) ($company->telephone ?? $company->telephone1 ?? ''));
+        if ($telephone !== '') {
+            $lines[] = 'T: '.$telephone;
+        }
+
+        $website = trim((string) ($company->website ?? ''));
+        if ($website !== '') {
+            $lines[] = 'W: '.$website;
+        }
+
         return [
             'name' => $name !== '' ? $name : 'AmSpec',
-            'lines' => [
-                'Warehouse Phase 2, Block D Premises No. D05,',
-                'Dubai Science Park, Al Barsha South,',
-                'Dubai, United Arab Emirates',
-                'T: +971 45576370',
-                'W: www.amspeccgroup.com',
-            ],
+            'lines' => $lines,
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function formatReportLetterheadAddressLines(string $address): array
+    {
+        $address = trim($address);
+        if ($address === '') {
+            return [];
+        }
+
+        $parts = array_values(array_filter(
+            array_map('trim', explode(',', $address)),
+            static fn (string $part): bool => $part !== '',
+        ));
+
+        if (count($parts) === 6) {
+            return [
+                $parts[0].', '.$parts[1].',',
+                $parts[2].', '.$parts[3].',',
+                $parts[4].', '.$parts[5],
+            ];
+        }
+
+        if (count($parts) === 3) {
+            return $parts;
+        }
+
+        return [$address];
     }
 
     /**

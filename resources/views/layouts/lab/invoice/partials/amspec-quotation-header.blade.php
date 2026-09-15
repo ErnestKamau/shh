@@ -19,14 +19,14 @@
         <td class="company-block">
             <div class="company-name">{{ $company->name ?? 'AmSpec Middle East' }}</div>
             @if(!empty($company->address)){{ $company->address }}<br>@endif
-            @if(!empty($company->street)){{ $company->street }}<br>@endif
-            @if(!empty($company->location)){{ $company->location }}@endif
+            @if(!empty($company->po_box))PO Box: {{ $company->po_box }}@endif
         </td>
         <td class="contact-block">
             Tel: {{ $company->telephone ?? '' }}<br>
             Fax: {{ $company->fax ?? '' }}<br>
             Mobile: {{ $company->cell_phone ?? '' }}<br>
-            Email: {{ $company->email ?? '' }}
+            Email: {{ $company->email ?? '' }}<br>
+            @if(!empty($company->website))Website: {{ $company->website }}@endif
         </td>
     </tr>
 </table>

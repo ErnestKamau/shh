@@ -74,7 +74,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('certificate-templates/{certificateTemplate}/modern-builder', 'ModernTemplateBuilderController@builder')->name('certificate-templates.modern-builder');
     Route::post('certificate-templates/{certificateTemplate}/save-layout', 'ModernTemplateBuilderController@saveLayout')->name('certificate-templates.save-layout');
     Route::get('certificate-templates/{certificateTemplate}/load-layout', 'ModernTemplateBuilderController@loadLayout')->name('certificate-templates.load-layout');
-    Route::post('certificate-templates/{certificateTemplate}/preview', 'ModernTemplateBuilderController@preview')->name('certificate-templates.preview');
+    Route::post('certificate-templates/{certificateTemplate}/preview', 'ModernTemplateBuilderController@preview')->name('certificate-templates.preview-layout');
     Route::post('certificate-templates/{certificateTemplate}/export', 'ModernTemplateBuilderController@export')->name('certificate-templates.export');
 
     // Modern Section Management

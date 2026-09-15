@@ -31,12 +31,12 @@
                     <td nowrap>
                         <x-crm.action-buttons>
                             <button class="btn crm-btn crm-btn-edit btn-sm" title="{{ __('crm.edit') }}"
-                                wire:click="editUnit({{ $unit->id }})">
+                                wire:click="editUnit('{{ $unit->id }}')">
                                 <i class="mdi mdi-pencil-outline"></i>
                             </button>
                             @if (!$this->isQplus)
                                 <button class="btn crm-btn crm-btn-delete btn-sm" title="{{ __('crm.delete') }}"
-                                    wire:click="deleteUnit({{ $unit->id }})"
+                                    wire:click="deleteUnit('{{ $unit->id }}')"
                                     wire:confirm="{{ __('crm.delete_company_unit_confirm') }}">
                                     <i class="mdi mdi-trash-can-outline"></i>
                                 </button>
@@ -86,12 +86,10 @@
                         @endif
 
                         <x-imara.form-field label="{{ __('crm.name') }}" :required="true" :error="$errors->first('name')">
-                            <input type="text" wire:model="name" class="form-control" placeholder="{{ __('crm.name') }}..." required />
+                            <input type="text" wire:model="name" class="form-control @error('name') is-invalid @enderror" placeholder="{{ __('crm.name') }}..." required />
                         </x-imara.form-field>
 
-                        <div class="form-group">
-                            <x-imara.custom-checkbox wire:model="active" label="{{ __('crm.is_active') }}" />
-                        </div>
+                        <x-imara.custom-checkbox wire:model="active" label="{{ __('crm.is_active') }}" id="company-unit-active" />
                     </div>
                     <div class="modal-footer">
                         <button type="button" wire:click="saveUnit" wire:loading.attr="disabled" class="btn btn-primary">
@@ -120,8 +118,7 @@
                     </div>
                     <div class="modal-body">
                         <x-imara.form-field label="{{ __('crm.name') }}" :required="true" :error="$errors->first('labelValue')">
-                            <input type="text" wire:model="labelValue" class="form-control" placeholder="{{ __('crm.name') }}..."
-                                required />
+                            <input type="text" wire:model="labelValue" class="form-control @error('labelValue') is-invalid @enderror" placeholder="{{ __('crm.name') }}..." required />
                         </x-imara.form-field>
                     </div>
                     <div class="modal-footer">

@@ -383,25 +383,33 @@
                             </div>
 
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="form-group mb-3">
                                         <label class="form-label">{{ __('system.telephone') }}</label>
                                         <input type="text" wire:model="telephone" class="form-control @error('telephone') is-invalid @enderror">
                                         @error('telephone') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="form-group mb-3">
                                         <label class="form-label">{{ __('system.cell_phone') }}</label>
                                         <input type="text" wire:model="cell_phone" class="form-control @error('cell_phone') is-invalid @enderror">
                                         @error('cell_phone') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="form-group mb-3">
                                         <label class="form-label">{{ __('system.fax') }}</label>
                                         <input type="text" wire:model="fax" class="form-control @error('fax') is-invalid @enderror">
                                         @error('fax') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group mb-3">
+                                        @php($poBoxLabel = __('system.po_box'))
+                                        <label class="form-label">{{ $poBoxLabel === 'system.po_box' ? 'PO Box' : $poBoxLabel }}</label>
+                                        <input type="text" wire:model="po_box" class="form-control @error('po_box') is-invalid @enderror">
+                                        @error('po_box') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -423,21 +431,10 @@
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('system.company_postal_address') }}</label>
-                                        <textarea wire:model="address" rows="3" class="form-control @error('address') is-invalid @enderror"></textarea>
-                                        @error('address') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('system.po_box') }}</label>
-                                        <input type="text" wire:model="po_box" class="form-control @error('po_box') is-invalid @enderror">
-                                        @error('po_box') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">{{ __('system.company_postal_address') }}</label>
+                                <textarea wire:model="address" rows="3" class="form-control @error('address') is-invalid @enderror"></textarea>
+                                @error('address') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
                             {{-- Equipment Maintenance Period --}}
