@@ -5,7 +5,12 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/operators-attachments-notifications.png',
-	'caption' => 'Equipment detail — Operators, Attachments, and Notifications tabs.',
+	'caption' => 'Equipment detail — Operators, Attachments, Notifications (and related) tabs on the asset profile.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/equipment-detail.png',
+	'caption' => 'Equipment detail — Details tab with Basic Information for the asset.',
 ])
 
 <h2>Operators</h2>

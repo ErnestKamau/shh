@@ -30,16 +30,9 @@
                 <tr wire:key="unit-{{ $unit->id }}">
                     <td nowrap>
                         <x-crm.action-buttons>
-                            <button class="btn crm-btn crm-btn-edit btn-sm" title="{{ __('crm.edit') }}"
-                                wire:click="editUnit('{{ $unit->id }}')">
-                                <i class="mdi mdi-pencil-outline"></i>
-                            </button>
+                            <x-imara.row-action-btn variant="edit" wire:click="editUnit('{{ $unit->id }}')" class="mr-1" :title="__('crm.edit')" />
                             @if (!$this->isQplus)
-                                <button class="btn crm-btn crm-btn-delete btn-sm" title="{{ __('crm.delete') }}"
-                                    wire:click="deleteUnit('{{ $unit->id }}')"
-                                    wire:confirm="{{ __('crm.delete_company_unit_confirm') }}">
-                                    <i class="mdi mdi-trash-can-outline"></i>
-                                </button>
+                                <x-imara.row-action-btn variant="delete" wire:click="deleteUnit('{{ $unit->id }}')" wire:confirm="{{ __('crm.delete_company_unit_confirm') }}" :title="__('crm.delete')" />
                             @endif
                         </x-crm.action-buttons>
                     </td>

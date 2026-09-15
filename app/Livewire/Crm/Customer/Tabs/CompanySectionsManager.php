@@ -17,7 +17,7 @@ class CompanySectionsManager extends BaseCrmComponent
 
     public bool $showCreateModal = false;
 
-    public ?int $editingSectionId = null;
+    public ?string $editingSectionId = null;
 
     public string $name = '';
 
@@ -44,7 +44,7 @@ class CompanySectionsManager extends BaseCrmComponent
         $this->showCreateModal = true;
     }
 
-    public function editSection(int $sectionId): void
+    public function editSection(string $sectionId): void
     {
         $section = CRMCompanySection::findOrFail($sectionId);
         $this->editingSectionId = $sectionId;
@@ -100,7 +100,7 @@ class CompanySectionsManager extends BaseCrmComponent
         }
     }
 
-    public function deleteSection(int $sectionId): void
+    public function deleteSection(string $sectionId): void
     {
         CRMCompanySection::findOrFail($sectionId)->delete();
         $this->showSuccess('Company section deleted.');

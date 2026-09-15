@@ -1,22 +1,15 @@
 @props([
     'label' => '',
     'required' => false,
-    'error' => '',
+    'for' => null,
+    'error' => null,
 ])
 
-<div {{ $attributes->class(['form-group']) }}>
-    @if ($label !== '')
-        <label class="control-label">
-            {{ $label }}
-            @if ($required)
-                <span class="text-danger">*</span>
-            @endif
-        </label>
-    @endif
-
+<div class="form-group">
+    <label class="control-label" @if($for) for="{{ $for }}" @endif>
+        {{ $label }}
+        @if($required)<span class="text-danger">*</span>@endif
+    </label>
     {{ $slot }}
-
-    @if ($error !== '')
-        <div class="invalid-feedback d-block">{{ $error }}</div>
-    @endif
+    @if($error)<span class="text-danger small d-block mt-1">{{ $error }}</span>@endif
 </div>

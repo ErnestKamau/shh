@@ -7,7 +7,12 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/overview.png',
-	'caption' => 'Equipment module — sidebar navigation and main workspace.',
+	'caption' => 'Equipment List — main register with sidebar navigation for the whole Equipment module.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/dashboard.png',
+	'caption' => 'Equipment Dashboard — starting point after you open the Equipment module.',
 ])
 
 <p>

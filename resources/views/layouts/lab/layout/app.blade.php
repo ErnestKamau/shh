@@ -348,6 +348,12 @@
 					<span class="menu-collapsed">{{ __('lab.quotations') }}</span>
 				</div>
 			</a>
+			<a href="{{ route('billing.customer-purchase-orders') }}" class="list-group-item list-group-item-action {{ request()->routeIs('billing.customer-purchase-orders*') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-file-document-outline mr-3"></span>
+					<span class="menu-collapsed">Purchase Orders</span>
+				</div>
+			</a>
 			@endif
 
 		</div>

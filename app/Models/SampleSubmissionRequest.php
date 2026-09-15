@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Casts\SafeEncrypted;
 use App\Concerns\HasVarcharUuidRelationships;
+use App\Models\Commercial\CustomerPurchaseOrder;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\QuotationHeader;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -464,6 +466,11 @@ SQL);
         return $this->belongsTo(SampleHeader::class, 'sample_header_id');
     }
 
+    public function customerPurchaseOrder(): HasOne
+    {
+        return $this->hasOne(CustomerPurchaseOrder::class, 'enquiry_id');
+    }
+
     public function submissionFormInstance(): BelongsTo
     {
         return $this->uuidBelongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
@@ -487,36 +494,47 @@ SQL);
             }
         }
 
+        $enquiryId = trim((string) $this->id);
+        if ($enquiryId === '') {
+            return null;
+        }
+
+        // portal_request_id is bigint (legacy portal ints). Never bind a UUID enquiry id there.
+        $legacyNumericPortalId = ctype_digit($enquiryId) ? $enquiryId : null;
+
         return SubmissionFormInstance::query()
             ->with('submissionForm')
-            ->where('portal_request_id', (string) $this->id)
-            ->orWhere(function ($query): void {
-                $query
-                    ->whereRaw("LOWER(COALESCE(target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
-                    ->where('target_record_id', (string) $this->id);
-            })
-            ->orWhere(function ($query): void {
-                $identifier = trim((string) ($this->unique_identification ?? ''));
-
-                if ($identifier === '') {
-                    $query->whereRaw('1 = 0');
-
-                    return;
+            ->where(function ($query) use ($enquiryId, $legacyNumericPortalId): void {
+                if ($legacyNumericPortalId !== null) {
+                    $query->where('portal_request_id', $legacyNumericPortalId);
                 }
 
-                $query->where('form_number', $identifier);
+                $query->orWhere(function ($inner) use ($enquiryId): void {
+                    $inner
+                        ->whereRaw("LOWER(COALESCE(target_record_type, '')) IN ('sample_submission_request', 'sample_submission_requests')")
+                        ->where('target_record_id', $enquiryId);
+                });
+
+                $identifier = trim((string) ($this->unique_identification ?? ''));
+                if ($identifier !== '') {
+                    $query->orWhere('form_number', $identifier);
+                }
             })
             ->first();
     }
 
     public function staffViewUrl(): string
     {
-        $instance = ($this->relationLoaded('submissionFormInstance') && $this->submissionFormInstance !== null)
-            ? $this->submissionFormInstance
-            : $this->resolveLinkedFormInstance();
+        try {
+            $instance = ($this->relationLoaded('submissionFormInstance') && $this->submissionFormInstance !== null)
+                ? $this->submissionFormInstance
+                : $this->resolveLinkedFormInstance();
 
-        if ($instance?->submissionForm) {
-            return route('submission-forms.instances.show', [$instance->submissionForm, $instance]);
+            if ($instance?->submissionForm) {
+                return route('submission-forms.instances.show', [$instance->submissionForm, $instance]);
+            }
+        } catch (\Throwable) {
+            // Fall through to enquiry show when legacy portal_request_id typing mismatches.
         }
 
         return route('sample-submission-requests.show', $this);

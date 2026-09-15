@@ -6,7 +6,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/maintenance-log.png',
-	'caption' => 'Maintenance Log tab — service history and Add Maintenance Log.',
+	'caption' => 'Create Maintenance Log — Date, Description, Reference Number, Service Type, Employee/Supplier, Certificate.',
 ])
 
 <div class="um-tip">

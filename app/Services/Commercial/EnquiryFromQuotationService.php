@@ -1066,13 +1066,14 @@ final class EnquiryFromQuotationService
             $poNumber = $this->nullableString($intake['client_po_number'] ?? null)
                 ?? $this->nullableString($intake['reference_number'] ?? null);
 
-            return $this->receptionReadinessService->markReadyForReception(
+            return app(CustomerPurchaseOrderService::class)->recordAndMarkReadyForReception(
                 $enquiry->fresh() ?? $enquiry,
-                (string) $quotation->id,
                 [
                     'client_po_number' => $poNumber,
                     'po_skipped' => filter_var($intake['po_skipped'] ?? ($poNumber === null), FILTER_VALIDATE_BOOLEAN),
                 ],
+                null,
+                (string) $quotation->id,
             )->load(['currentQuotation.details', 'submissionFormInstance', 'requestedAnalyses', 'contact', 'enquiryQuotations']);
         }
 

@@ -6,7 +6,12 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/dashboard.png',
-	'caption' => 'Equipment Dashboard — KPI cards, charts, and quick actions.',
+	'caption' => 'Equipment Dashboard — KPI cards, Quick Actions, and Open Equipment List.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/dashboard-charts.png',
+	'caption' => 'Dashboard charts — Status Distribution, Maintenance & Calibration Health, Purchase Trend, and Critical Equipment.',
 ])
 
 <h2>KPI cards</h2>

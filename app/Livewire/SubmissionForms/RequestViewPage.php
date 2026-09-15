@@ -440,29 +440,32 @@ class RequestViewPage extends Component
                 ],
             );
 
-            if ($this->quotationAcceptanceAttachment !== null) {
-                $path = $this->quotationAcceptanceAttachment->store('request-attachments', 'public');
+            $this->commercialEnquiry = app(\App\Services\Commercial\CustomerPurchaseOrderService::class)
+                ->recordAndMarkReadyForReception(
+                    $accepted,
+                    [
+                        'client_po_number' => $this->clientPoNumber,
+                    ],
+                    $this->quotationAcceptanceAttachment,
+                    (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
+                );
+
+            $customerPo = $this->commercialEnquiry->loadMissing('customerPurchaseOrder')->customerPurchaseOrder;
+
+            if ($customerPo !== null && $customerPo->hasFile()) {
                 $type = trim($this->quotationAcceptanceAttachmentType) !== ''
                     ? trim($this->quotationAcceptanceAttachmentType)
                     : 'Purchase Order';
 
                 $this->instance->customAttachments()->create([
-                    'file_path' => $path,
-                    'original_name' => $this->quotationAcceptanceAttachment->getClientOriginalName(),
+                    'file_path' => $customerPo->file_path,
+                    'original_name' => $customerPo->file_name,
                     'uploaded_by' => auth()->id(),
                     'attachment_type' => $type,
                     'attachment_heading' => $type,
                     'description' => 'Uploaded during quotation acceptance',
                 ]);
             }
-
-            $this->commercialEnquiry = app(EnquiryReceptionReadinessService::class)->markReadyForReception(
-                $accepted,
-                (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
-                [
-                    'client_po_number' => $this->clientPoNumber,
-                ],
-            );
 
             $this->refreshCommercialState();
             $this->closeQuotationAcceptanceModal();
@@ -512,21 +515,37 @@ class RequestViewPage extends Component
             return;
         }
 
-        try {
-            app(EnquiryAccountSettingsService::class)->validateAcceptPayload(
-                $this->commercialEnquiry->customer,
-                [
-                    'client_po_number' => $this->clientPoNumber,
-                ],
-            );
+        $this->validate([
+            'quotationAcceptanceAttachment' => ['nullable', 'file', 'max:10240'],
+            'quotationAcceptanceAttachmentType' => ['nullable', 'string', 'max:120'],
+        ]);
 
-            $this->commercialEnquiry = app(EnquiryReceptionReadinessService::class)->markReadyForReception(
-                $this->commercialEnquiry,
-                (string) ($this->commercialEnquiry->accepted_quotation_header_id ?? $this->commercialEnquiry->current_quotation_header_id ?? ''),
-                [
-                    'client_po_number' => $this->clientPoNumber,
-                ],
-            );
+        try {
+            $this->commercialEnquiry = app(\App\Services\Commercial\CustomerPurchaseOrderService::class)
+                ->recordAndMarkReadyForReception(
+                    $this->commercialEnquiry,
+                    [
+                        'client_po_number' => $this->clientPoNumber,
+                    ],
+                    $this->quotationAcceptanceAttachment,
+                    (string) ($this->commercialEnquiry->accepted_quotation_header_id ?? $this->commercialEnquiry->current_quotation_header_id ?? ''),
+                );
+
+            $customerPo = $this->commercialEnquiry->loadMissing('customerPurchaseOrder')->customerPurchaseOrder;
+            if ($customerPo !== null && $customerPo->hasFile() && $this->instance !== null) {
+                $type = trim($this->quotationAcceptanceAttachmentType) !== ''
+                    ? trim($this->quotationAcceptanceAttachmentType)
+                    : 'Purchase Order';
+
+                $this->instance->customAttachments()->create([
+                    'file_path' => $customerPo->file_path,
+                    'original_name' => $customerPo->file_name,
+                    'uploaded_by' => auth()->id(),
+                    'attachment_type' => $type,
+                    'attachment_heading' => $type,
+                    'description' => 'Uploaded when recording PO',
+                ]);
+            }
 
             $this->refreshCommercialState();
             $this->closeQuotationAcceptanceModal();

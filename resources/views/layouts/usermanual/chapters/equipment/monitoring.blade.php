@@ -7,7 +7,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring.png',
-	'caption' => 'Monitoring home — Environmental Monitoring, Equipment Monitoring, and Template Engine cards.',
+	'caption' => 'Monitoring home — Environmental Monitoring, Equipment Monitoring, and Template Engine cards with Assigned Laboratories.',
 ])
 
 <h2>Three entry cards</h2>
@@ -66,7 +66,8 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-environmental.png',
-	'caption' => 'Environmental Monitoring — lab sections, Logs tab, and capture controls.',
+	'caption' => 'Environmental Monitoring — lab sections, Logs/Charts area, and status pills.',
+	'placeholder' => 'Screenshot coming soon — open Environmental Monitoring, pick a lab/section, and capture the Logs/Charts view.',
 ])
 
 <h2>Equipment Monitoring — step by step</h2>
@@ -94,7 +95,12 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-equipment.png',
-	'caption' => 'Equipment Monitoring — due today table, Execute action, and export controls.',
+	'caption' => 'Equipment Monitoring — Due Today filters and Export LWS-011 PDF.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-equipment-logs.png',
+	'caption' => 'Equipment Due Today table and Equipment Monitoring Logs.',
 ])
 
 <h3>Execute Monitoring modal</h3>

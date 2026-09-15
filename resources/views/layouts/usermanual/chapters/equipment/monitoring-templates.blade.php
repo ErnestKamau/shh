@@ -7,7 +7,12 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-templates.png',
-	'caption' => 'Template Engine — list of templates with New Template and row actions.',
+	'caption' => 'Template Engine — New Template button and template list (Edit, Clone, Clear logs, Delete).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-wizard.png',
+	'caption' => 'Create Monitoring Template — Step 1 Basic Info and Monitoring Type (Environmental / Equipment).',
 ])
 
 <h2>Template list</h2>
@@ -54,6 +59,32 @@
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-template-wizard.png',
 	'caption' => 'Create Monitoring Template wizard — five steps from Basic Info to Configured Fields.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-select-labs.png',
+	'caption' => 'Step 2 — Select Labs (choose which laboratories the template applies to).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-select-items.png',
+	'caption' => 'Step 3 — Select Items / Equipment (requires Lab + daily logging on each unit).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-reading-structure.png',
+	'caption' => 'Step 4 — Reading Structure (Add Step / Add First Step).',
+	'placeholder' => 'Screenshot coming soon — open Reading Structure and show Add Step / the step list.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-create-step.png',
+	'caption' => 'Create New Step modal — Step Basics, Step Type (Input / Derived / Lookup / Parameter Result).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-configured-fields.png',
+	'caption' => 'Step 5 — Configured Fields (Top / Bottom of Worksheet, Add Field).',
 ])
 
 <h3>Step 1 — Basic Info (Template Information)</h3>

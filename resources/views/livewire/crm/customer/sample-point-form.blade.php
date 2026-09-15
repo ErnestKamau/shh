@@ -66,20 +66,15 @@
                     </div>
                     <form wire:submit.prevent="save" class="sample-point-modal-form">
                         <div class="modal-body sample-point-modal-body">
-                            <div class="form-group">
-                                <label class="control-label">Name <span class="text-danger">*</span></label>
+                            <x-imara.form-field label="{{ __('crm.name') }}" :required="true" :error="$errors->first('name')">
                                 <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                    wire:model="name" placeholder="Sampling Location Name..." required />
-                                @error('name') <span class="text-danger">{{ $message }}</span> @enderror
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Description</label>
+                                    wire:model="name" placeholder="{{ __('crm.enter_sample_point_name') }}" required />
+                            </x-imara.form-field>
+                            <x-imara.form-field label="{{ __('crm.description') }}" :error="$errors->first('description')">
                                 <textarea class="form-control @error('description') is-invalid @enderror"
-                                    wire:model="description" rows="3" placeholder="Sampling Location Description..."></textarea>
-                                @error('description') <span class="text-danger">{{ $message }}</span> @enderror
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Company Unit <span class="text-danger">*</span></label>
+                                    wire:model="description" rows="3" placeholder="{{ __('crm.description') }}..."></textarea>
+                            </x-imara.form-field>
+                            <x-imara.form-field label="{{ __('crm.company_unit') }}" :required="true" :error="$errors->first('unitId')">
                                 <div class="tag-select-container @error('unitId') is-invalid @enderror"
                                     wire:click="$set('showUnitDropdown', true)"
                                     wire:click.outside="$set('showUnitDropdown', false)">
@@ -112,11 +107,9 @@
                                         </div>
                                     @endif
                                 </div>
-                                @error('unitId') <span class="text-danger">{{ $message }}</span> @enderror
-                            </div>
+                            </x-imara.form-field>
 
-                            <div class="form-group">
-                                <label class="control-label">Contact Details</label>
+                            <x-imara.form-field label="{{ __('crm.contact_details') }}" :error="$errors->first('contactId')">
                                 <div class="tag-select-container @error('contactId') is-invalid @enderror"
                                     wire:click="$set('showContactDropdown', true)"
                                     wire:click.outside="$set('showContactDropdown', false)">
@@ -155,7 +148,6 @@
                                         </div>
                                     @endif
                                 </div>
-                                @error('contactId') <span class="text-danger">{{ $message }}</span> @enderror
 
                                 @if($this->selectedContact)
                                     <div class="mt-2 p-2 rounded border bg-light">
@@ -174,10 +166,9 @@
                                         </div>
                                     </div>
                                 @endif
-                            </div>
+                            </x-imara.form-field>
 
-                            <div class="form-group mb-0">
-                                <label class="control-label">Location</label>
+                            <x-imara.form-field label="Location" class="mb-0">
                                 <div id="sample-point-map" class="sample-point-map" wire:ignore></div>
                                 <small class="text-muted">Drag the marker or click on the map to set the
                                     location.</small>
@@ -185,12 +176,9 @@
                                 @error('longitude') <div class="text-danger small">{{ $message }}</div> @enderror
                                 <input type="hidden" id="point-lat">
                                 <input type="hidden" id="point-lng">
-                            </div>
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" wire:model="active"
-                                    id="activePoint{{ $pointId ?? 'New' }}" />
-                                <label class="form-check-label" for="activePoint{{ $pointId ?? 'New' }}">Is
-                                    Active?</label>
+                            </x-imara.form-field>
+                            <div class="form-group">
+                                <x-imara.custom-checkbox wire:model="active" label="{{ __('crm.is_active') }}" :id="'activePoint' . ($pointId ?? 'New')" />
                             </div>
                         </div>
                         <div class="modal-footer sample-point-modal-footer">

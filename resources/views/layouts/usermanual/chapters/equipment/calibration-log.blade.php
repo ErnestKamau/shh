@@ -6,7 +6,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/calibration-log.png',
-	'caption' => 'Calibration Log tab — table of calibration entries and Add Calibration Log.',
+	'caption' => 'Create Calibration Log — Date, Description, Reference Number, Correction Factor, Uncertainty of Measure, Service Type.',
 ])
 
 <h2>What you see on the tab</h2>

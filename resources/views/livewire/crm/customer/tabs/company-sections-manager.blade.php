@@ -1,28 +1,5 @@
 <div>
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="mdi mdi-check-circle"></i> {{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
-    @if(session('message'))
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
-            <i class="mdi mdi-information"></i> {{ session('message') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
+    <x-livewire.flash-messages />
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
@@ -35,9 +12,7 @@
                 <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.group_customer_units_by_section') }}</small>
             </div>
         </div>
-        <button class="btn btn-add btn-sm" wire:click="openCreateModal">
-            <i class="mdi mdi-plus"></i> {{ __('crm.add') }}
-        </button>
+        <x-imara.primary-btn subject="{{ __('crm.company_section') }}" wire:click="openCreateModal" />
     </div>
 
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
@@ -62,16 +37,8 @@
                             </td>
                             <td nowrap>
                                 <x-crm.action-buttons>
-                                    <button class="btn crm-btn crm-btn-edit btn-sm"
-                                        wire:click="editSection({{ $section->id }})" title="{{ __('crm.edit') }}">
-                                        <i class="mdi mdi-pencil-outline"></i>
-                                    </button>
-                                    <button class="btn crm-btn crm-btn-delete btn-sm"
-                                        wire:click="deleteSection({{ $section->id }})"
-                                        wire:confirm="{{ __('crm.delete_company_section_confirm') }}"
-                                        title="{{ __('crm.delete') }}">
-                                        <i class="mdi mdi-delete-outline"></i>
-                                    </button>
+                                    <x-imara.row-action-btn variant="edit" wire:click="editSection('{{ $section->id }}')" class="mr-1" :title="__('crm.edit')" />
+                                    <x-imara.row-action-btn variant="delete" wire:click="deleteSection('{{ $section->id }}')" wire:confirm="{{ __('crm.delete_company_section_confirm') }}" :title="__('crm.delete')" />
                                 </x-crm.action-buttons>
                             </td>
                         </tr>
@@ -112,19 +79,13 @@
                                     <div class="alert alert-danger">{{ $modalError }}</div>
                                 @endif
 
-                                <div class="form-group">
-                                    <label class="control-label">{{ __('crm.name') }} <span class="text-danger">*</span></label>
+                                <x-imara.form-field label="{{ __('crm.name') }}" :required="true" :error="$errors->first('name')">
                                     <input type="text" class="form-control @error('name') is-invalid @enderror"
                                         wire:model="name" placeholder="{{ __('crm.name') }}..." required>
-                                    @error('name') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
+                                </x-imara.form-field>
 
                                 <div class="form-group">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="sectionActiveCheck"
-                                            wire:model="active">
-                                        <label class="custom-control-label" for="sectionActiveCheck">{{ __('crm.is_active') }}</label>
-                                    </div>
+                                    <x-imara.custom-checkbox wire:model="active" label="{{ __('crm.is_active') }}" id="sectionActiveCheck" />
                                 </div>
                             </div>
                             <div class="modal-footer">

@@ -53,9 +53,7 @@
             <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
                 <i class="mdi mdi-file-excel"></i> {{ __('crm.export_to_excel') }}
             </button>
-            <button class="btn btn-add btn-sm" wire:click="openPointForm">
-                <i class="mdi mdi-plus"></i> {{ __('crm.add') }}
-            </button>
+            <x-imara.primary-btn subject="{{ __('crm.sample_points') }}" wire:click="openPointForm" loading-target="openPointForm" />
         </div>
     </div>
 
@@ -99,10 +97,7 @@
                             </td>
                             <td nowrap>
                                 <x-crm.action-buttons>
-                                    <button class="btn crm-btn crm-btn-edit btn-sm" title="{{ __('crm.edit') }}"
-                                        wire:click="openPointForm('{{ $point->id }}')">
-                                        <i class="mdi mdi-pencil-outline"></i>
-                                    </button>
+                                    <x-imara.row-action-btn variant="edit" wire:click="openPointForm('{{ $point->id }}')" :title="__('crm.edit')" />
                                 </x-crm.action-buttons>
                             </td>
                         </tr>

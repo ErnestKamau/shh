@@ -44,9 +44,7 @@
             <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
                 <i class="mdi mdi-file-excel"></i> {{ __('crm.export_to_excel') }}
             </button>
-            <button class="btn btn-add btn-sm" wire:click="openContactForm">
-                <i class="mdi mdi-plus"></i> {{ __('crm.add') }}
-            </button>
+            <x-imara.primary-btn subject="{{ __('crm.contact') }}" wire:click="openContactForm" loading-target="openContactForm" />
         </div>
     </div>
 
@@ -79,15 +77,8 @@
                         <tr>
                             <td nowrap>
                                 <x-crm.action-buttons>
-                                    <button class="btn crm-btn crm-btn-edit btn-sm"
-                                        wire:click="openContactForm('{{ $contact->id }}')">
-                                        <i class="mdi mdi-pencil-outline"></i>
-                                    </button>
-                                    <button class="btn crm-btn crm-btn-delete btn-sm"
-                                        wire:click="deleteContact('{{ $contact->id }}')"
-                                        wire:confirm="{{ __('crm.delete_contact_confirm') }}">
-                                        <i class="mdi mdi-trash-can-outline"></i>
-                                    </button>
+                                    <x-imara.row-action-btn variant="edit" wire:click="openContactForm('{{ $contact->id }}')" class="mr-1" :title="__('crm.edit')" />
+                                    <x-imara.row-action-btn variant="delete" wire:click="deleteContact('{{ $contact->id }}')" wire:confirm="{{ __('crm.delete_contact_confirm') }}" :title="__('crm.delete')" />
                                 </x-crm.action-buttons>
                             </td>
                             <td>{{ $loop->iteration }}</td>
