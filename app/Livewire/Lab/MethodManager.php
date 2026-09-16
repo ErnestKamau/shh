@@ -6,6 +6,7 @@ use App\AnalysisMethod;
 use App\Company;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Models\BulkImportBatch;
+use App\Models\DataImportVersion;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Equipments\Equipment;
 use App\Models\QcModule\Configurations\QcSchemes;
@@ -14,6 +15,7 @@ use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
 use App\SampleType;
 use App\Services\BulkImportService;
+use App\Services\ImportVersioning\DataImportVersionService;
 use App\Services\Lab\MethodConfigurationResolver;
 use App\Standards;
 use Illuminate\Support\Facades\Auth;
@@ -87,6 +89,9 @@ class MethodManager extends Component
     public $messageType = '';
 
     public bool $showBulkImportModal = false;
+    public bool $showBulkImportVersionsModal = false;
+    /** @var list<array{id: string, version: int, status: string, applied_at: ?string, user_name: ?string, summary: string, notes: ?string}> */
+    public array $bulkImportVersions = [];
 
     /** @var mixed */
     public $bulkFile = null;
@@ -431,6 +436,84 @@ class MethodManager extends Component
         return app(BulkImportService::class)->generateTemplate('lab', 'analysis_method');
     }
 
+    public function downloadBulkImportCurrentData()
+    {
+        return app(BulkImportService::class)->generateCurrentDataExport('lab', 'analysis_method');
+    }
+
+    public function openBulkImportVersionsModal(): void
+    {
+        $this->refreshBulkImportVersions();
+        $this->showBulkImportVersionsModal = true;
+    }
+
+    public function closeBulkImportVersionsModal(): void
+    {
+        $this->showBulkImportVersionsModal = false;
+    }
+
+    public function refreshBulkImportVersions(): void
+    {
+        $scopeKey = DataImportVersion::labMasterScopeKey('lab', 'analysis_method');
+        $this->bulkImportVersions = app(DataImportVersionService::class)
+            ->listVersions(DataImportVersion::SCOPE_LAB_MASTER, $scopeKey)
+            ->map(static function (DataImportVersion $version): array {
+                $summary = $version->change_summary ?? [];
+                $bits = [];
+                if (isset($summary['imported'])) {
+                    $bits[] = (int) $summary['imported'].' imported';
+                }
+                if (isset($summary['errors'])) {
+                    $bits[] = (int) $summary['errors'].' errors';
+                }
+
+                return [
+                    'id' => (string) $version->id,
+                    'version' => (int) $version->version,
+                    'status' => (string) $version->status,
+                    'applied_at' => optional($version->applied_at)?->format('Y-m-d H:i'),
+                    'user_name' => $version->user?->name,
+                    'summary' => $bits !== [] ? implode(', ', $bits) : '—',
+                    'notes' => $version->notes,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    public function downloadBulkImportVersion(string $versionId)
+    {
+        $version = DataImportVersion::query()->findOrFail($versionId);
+
+        return app(DataImportVersionService::class)->downloadVersionFile(
+            $version,
+            'analysis-method-v'.$version->version.'.xlsx',
+        );
+    }
+
+    public function restoreBulkImportVersion(string $versionId): void
+    {
+        $version = DataImportVersion::query()->findOrFail($versionId);
+        $result = app(BulkImportService::class)->rollbackLabMasterVersion($version);
+
+        $this->refreshBulkImportVersions();
+        $this->resetPage();
+
+        if (! ($result['success'] ?? false)) {
+            $this->setMessage((string) ($result['message'] ?? 'Restore failed.'), 'error');
+
+            return;
+        }
+
+        $newVersion = $result['version']->version ?? null;
+        $this->setMessage(
+            'Restored methods from version '.$version->version
+            .($newVersion ? " (saved as version {$newVersion})" : '')
+            .'.',
+            'success'
+        );
+    }
+
     public function processBulkImport(): void
     {
         $companyName = $this->resolveCompanyName();
@@ -484,15 +567,17 @@ class MethodManager extends Component
                 if (count($errorList) > 5) {
                     $errorMessage .= ' ... and more';
                 }
+                $versionSuffix = ! empty($results['version']) ? ' Saved as version '.$results['version']->version.'.' : '';
                 $this->setMessage(
-                    "{$imported} method(s) imported. {$errors} row(s) failed. Errors: {$errorMessage}",
+                    "{$imported} method(s) imported. {$errors} row(s) failed. Errors: {$errorMessage}{$versionSuffix}",
                     'warning'
                 );
 
                 return;
             }
 
-            $this->setMessage("{$imported} method(s) imported successfully.", 'success');
+            $versionSuffix = ! empty($results['version']) ? ' Saved as version '.$results['version']->version.'.' : '';
+            $this->setMessage("{$imported} method(s) imported successfully.{$versionSuffix}", 'success');
         } catch (\Throwable $e) {
             $this->closeBulkImportModal();
 

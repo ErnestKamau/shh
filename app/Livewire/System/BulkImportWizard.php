@@ -4,7 +4,9 @@ namespace App\Livewire\System;
 
 use App\Company;
 use App\Models\BulkImportBatch;
+use App\Models\DataImportVersion;
 use App\Services\BulkImportService;
+use App\Services\ImportVersioning\DataImportVersionService;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +41,9 @@ class BulkImportWizard extends Component
     public array $zones = [];
     public bool $replaceExisting = false;
     public string $purgeConfirmation = '';
+    public bool $showImportVersionsModal = false;
+    /** @var list<array{id: string, version: int, status: string, applied_at: ?string, user_name: ?string, summary: string, notes: ?string}> */
+    public array $importVersions = [];
 
     public function mount()
     {
@@ -85,6 +90,118 @@ class BulkImportWizard extends Component
             $this->message = 'Error downloading template: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    public function downloadCurrentData()
+    {
+        try {
+            if (! $this->selectedModule || ! $this->selectedFormType) {
+                $this->message = 'Please select both module and form type';
+                $this->messageType = 'error';
+
+                return;
+            }
+
+            if ($this->selectedModule !== 'lab') {
+                $this->message = 'Current-data export is available for Lab Management forms.';
+                $this->messageType = 'error';
+
+                return;
+            }
+
+            return $this->bulkImportService()->generateCurrentDataExport(
+                $this->selectedModule,
+                $this->selectedFormType
+            );
+        } catch (\Exception $e) {
+            $this->message = 'Error downloading current data: '.$e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function openImportVersionsModal(): void
+    {
+        if ($this->selectedModule !== 'lab' || ! $this->selectedFormType) {
+            $this->message = 'Version history is available for Lab Management forms.';
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $this->refreshImportVersions();
+        $this->showImportVersionsModal = true;
+    }
+
+    public function closeImportVersionsModal(): void
+    {
+        $this->showImportVersionsModal = false;
+    }
+
+    public function refreshImportVersions(): void
+    {
+        if (! $this->selectedModule || ! $this->selectedFormType) {
+            $this->importVersions = [];
+
+            return;
+        }
+
+        $scopeKey = DataImportVersion::labMasterScopeKey($this->selectedModule, $this->selectedFormType);
+        $this->importVersions = app(DataImportVersionService::class)
+            ->listVersions(DataImportVersion::SCOPE_LAB_MASTER, $scopeKey)
+            ->map(static function (DataImportVersion $version): array {
+                $summary = $version->change_summary ?? [];
+                $bits = [];
+                if (isset($summary['imported'])) {
+                    $bits[] = (int) $summary['imported'].' imported';
+                }
+                if (isset($summary['errors'])) {
+                    $bits[] = (int) $summary['errors'].' errors';
+                }
+
+                return [
+                    'id' => (string) $version->id,
+                    'version' => (int) $version->version,
+                    'status' => (string) $version->status,
+                    'applied_at' => optional($version->applied_at)?->format('Y-m-d H:i'),
+                    'user_name' => $version->user?->name,
+                    'summary' => $bits !== [] ? implode(', ', $bits) : '—',
+                    'notes' => $version->notes,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    public function downloadImportVersion(string $versionId)
+    {
+        $version = DataImportVersion::query()->findOrFail($versionId);
+
+        return app(DataImportVersionService::class)->downloadVersionFile(
+            $version,
+            ($this->selectedFormType ?? 'import').'-v'.$version->version.'.xlsx',
+        );
+    }
+
+    public function restoreImportVersion(string $versionId): void
+    {
+        $version = DataImportVersion::query()->findOrFail($versionId);
+        $result = $this->bulkImportService()->rollbackLabMasterVersion($version, $this->selectedZoneId);
+
+        $this->refreshImportVersions();
+
+        if (! ($result['success'] ?? false)) {
+            $this->message = (string) ($result['message'] ?? 'Restore failed.');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $newVersion = $result['version']->version ?? null;
+        $this->message = 'Restored from version '.$version->version
+            .($newVersion ? " (saved as version {$newVersion})" : '')
+            .'.';
+        $this->messageType = 'success';
+        $this->showImportVersionsModal = false;
     }
 
     public function goToUpload(): void

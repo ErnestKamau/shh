@@ -424,4 +424,36 @@ class AnalysisMethodImporter extends BaseImporter
 
         return $default;
     }
+
+    protected function deleteRow(array $originalRow): bool
+    {
+        $code = trim((string) $this->firstFilled($originalRow, ['method_code', 'code', 'Method Code']));
+        $name = trim((string) $this->firstFilled($originalRow, ['method_name', 'name', 'Method Name']));
+
+        $query = AnalysisMethod::query()->where('company_id', $this->batch->company_id);
+        if ($code !== '') {
+            $query->where(function ($inner) use ($code): void {
+                $inner->whereRaw('LOWER(TRIM(code)) = ?', [strtolower($code)])
+                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower($code)]);
+            });
+        } elseif ($name !== '') {
+            $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)]);
+        } else {
+            $this->batch->addError($this->rowNumber, 'Method code or name is required to delete.', $originalRow);
+
+            return false;
+        }
+
+        $method = $query->first();
+        if ($method === null) {
+            $this->batch->addWarning($this->rowNumber, 'Analysis method not found for delete.', $originalRow);
+
+            return false;
+        }
+
+        $method->active = 0;
+        $method->save();
+
+        return true;
+    }
 }

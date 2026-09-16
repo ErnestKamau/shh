@@ -1712,7 +1712,7 @@
 										</button>
 									</li>
 								@endif
-								@if($status == 'Finished Sample')
+								@if(isCompletedReportStatus($status))
 									<li>
 										<button type="button" class="dropdown-item" disabled data-target="#move-sample-approval"
 											data-sf-trigger="workflow-action-return-to-approval"
@@ -3407,13 +3407,13 @@
 							@endif
 						@elseif($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
 							<!-- Batches Table -->
-							@if($status == 'Finished Sample')
+							@if(isCompletedReportStatus($status))
 								<div class="mb-4">
 									<div class="workflow-board-section-label">
 										<i class="mdi mdi-filter-outline"></i>
 										Apply filters
 									</div>
-									<form action="{{ route('sample-workflow', ['status' => 'Finished Sample']) }}" method="get">
+									<form action="{{ route('sample-workflow', ['status' => $status]) }}" method="get">
 										<div class="workflow-board-filter-nested">
 										<div class="row">
 											<div class="col-md-4">
@@ -3469,9 +3469,11 @@
 										'Reports In Payment',
 										'Reports for Collection',
 										'Finished Sample',
+										'Completed Sample',
 									];
 									$isUniformLabWorkflowTable = in_array($status, $uniformLabWorkflowStatuses, true);
 									$showStageReviewStatus = in_array($status, ['Sample Verification', 'Sample Approval'], true);
+									$isFinishedSampleStage = isCompletedReportStatus($status);
 								@endphp
 								<div class="table-responsive">
 									<table class="table table-hover workflow-table">
@@ -3634,6 +3636,26 @@
 															<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}" class="btn btn-sm btn-outline-info" title="Open batch">
 																<i class="mdi mdi-eye"></i>
 															</a>
+															@if($isFinishedSampleStage)
+																@php
+																	$testReportUrl = $item->testReportPublicUrl();
+																@endphp
+																@if($testReportUrl)
+																	<a href="{{ $testReportUrl }}"
+																		target="_blank"
+																		rel="noopener noreferrer"
+																		class="btn btn-sm btn-outline-success"
+																		title="View Test Report">
+																		<i class="mdi mdi-file-pdf-box"></i>
+																	</a>
+																@else
+																	<span class="btn btn-sm btn-outline-secondary disabled"
+																		title="No Test Report available"
+																		aria-disabled="true">
+																		<i class="mdi mdi-file-pdf-box"></i>
+																	</span>
+																@endif
+															@endif
 															@if($status === 'Sample Approval' && auth()->user()?->checkApproveLabSampleRole())
 																<button type="button"
 																	class="btn btn-sm btn-outline-success"
@@ -5256,7 +5278,7 @@
 				</div>
 			</div>
 		@endif
-		@if($status == 'Finished Sample')
+		@if(isCompletedReportStatus($status))
 			<div class="modal fade" id="move-sample-approval" role="dialog">
 				<div class="modal-dialog">
 					<div class="modal-content">

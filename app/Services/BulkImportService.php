@@ -3,6 +3,10 @@
 namespace App\Services;
 
 use App\Models\BulkImportBatch;
+use App\Models\DataImportVersion;
+use App\Services\ImportVersioning\DataImportVersionService;
+use App\Services\ImportVersioning\LabMasterCurrentDataExporter;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -74,6 +78,20 @@ class BulkImportService
     }
 
     /**
+     * Download current database rows for a lab master-data form.
+     */
+    public function generateCurrentDataExport(string $module, string $formType): StreamedResponse|BinaryFileResponse
+    {
+        $companyId = null;
+        if (function_exists('getUserCompany')) {
+            $companyId = getUserCompany();
+        }
+        $companyId ??= Auth::user()?->company_id;
+
+        return app(LabMasterCurrentDataExporter::class)->download($module, $formType, $companyId ? (string) $companyId : null);
+    }
+
+    /**
      * Create a new import batch.
      */
     public function createBatch(string $module, string $formType): BulkImportBatch
@@ -108,10 +126,47 @@ class BulkImportService
         set_time_limit(0);
         ini_set('memory_limit', '1024M');
 
+        $versionService = app(DataImportVersionService::class);
+        $scopeKey = DataImportVersion::labMasterScopeKey($batch->module, $batch->form_type);
+        $nextVersion = $versionService->nextVersionNumber(DataImportVersion::SCOPE_LAB_MASTER, $scopeKey);
+        $preSnapshotPath = null;
+        $storedUploadPath = null;
+
         try {
             $batch->status = 'processing';
             $batch->started_at = now();
             $batch->save();
+
+            if ($batch->module === 'lab') {
+                $preRelative = 'import-versions/'.DataImportVersion::SCOPE_LAB_MASTER.'/'
+                    .preg_replace('/[^A-Za-z0-9_-]+/', '-', $scopeKey)."/v{$nextVersion}/pre-apply-snapshot.xlsx";
+                try {
+                    app(LabMasterCurrentDataExporter::class)->storeToPath(
+                        $batch->module,
+                        $batch->form_type,
+                        (string) $batch->company_id,
+                        $preRelative,
+                    );
+                    $preSnapshotPath = $preRelative;
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to store pre-apply snapshot for bulk import', [
+                        'batch_id' => $batch->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                if ($uploadedFile instanceof UploadedFile) {
+                    $storedUploadPath = $versionService->storeUploadedFile(
+                        DataImportVersion::SCOPE_LAB_MASTER,
+                        $scopeKey,
+                        $uploadedFile,
+                        $nextVersion,
+                        'upload.xlsx',
+                    );
+                    $batch->file_path = $storedUploadPath;
+                    $batch->save();
+                }
+            }
 
             $purgeSummary = null;
             if ($replaceExisting && $batch->module === 'lab' && in_array($batch->form_type, ['lab_hierarchy', 'amspec_parameters'], true)) {
@@ -172,9 +227,32 @@ class BulkImportService
 
             $batch->markAsCompleted();
 
+            $version = null;
+            if ($batch->module === 'lab' && $storedUploadPath !== null && in_array($batch->status, ['completed', 'completed_with_errors'], true)) {
+                $upserted = $batch->getUpsertSummary();
+                $version = $versionService->recordAppliedVersion(
+                    DataImportVersion::SCOPE_LAB_MASTER,
+                    $scopeKey,
+                    $storedUploadPath,
+                    $preSnapshotPath,
+                    [
+                        'imported' => (int) $batch->imported_rows,
+                        'errors' => (int) $batch->error_rows,
+                        'total' => (int) $batch->total_rows,
+                        'upserted' => $upserted,
+                    ],
+                    [
+                        'company_id' => (string) $batch->company_id,
+                        'bulk_import_batch_id' => (string) $batch->id,
+                    ],
+                    Auth::user(),
+                );
+            }
+
             return [
                 'success' => true,
                 'batch' => $batch,
+                'version' => $version,
                 'summary' => [
                     'total_rows' => $batch->total_rows,
                     'imported_rows' => $batch->imported_rows,
@@ -194,6 +272,44 @@ class BulkImportService
                 'batch' => $batch,
             ];
         }
+    }
+
+    /**
+     * Re-apply a stored lab master import version (append-only history).
+     *
+     * @return array{success: bool, batch?: BulkImportBatch, version?: DataImportVersion|null, message?: string, summary?: array}
+     */
+    public function rollbackLabMasterVersion(DataImportVersion $version, ?string $zoneId = null): array
+    {
+        if ($version->scope !== DataImportVersion::SCOPE_LAB_MASTER) {
+            return ['success' => false, 'message' => 'Version is not a lab master-data import.'];
+        }
+
+        if (! $version->fileExists()) {
+            return ['success' => false, 'message' => 'Version file is missing from storage.'];
+        }
+
+        [$module, $formType] = array_pad(explode(':', $version->scope_key, 2), 2, null);
+        if ($module === null || $formType === null) {
+            return ['success' => false, 'message' => 'Invalid version scope key.'];
+        }
+
+        $batch = $this->createBatch($module, $formType);
+        $absolute = app(DataImportVersionService::class)->absolutePath($version->file_path);
+        $uploaded = new UploadedFile(
+            $absolute,
+            'restore-v'.$version->version.'.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true,
+        );
+
+        $result = $this->processImport($batch, $uploaded, $zoneId, false);
+        if (($result['success'] ?? false) && $version->status !== DataImportVersion::STATUS_APPLIED) {
+            app(DataImportVersionService::class)->markSupersededAsRolledBack($version);
+        }
+
+        return $result;
     }
 
     /**

@@ -27,6 +27,8 @@ class BatchResultsTemplateExport implements FromArray, WithHeadings, WithTitle, 
 
     public const HEADING_RESULT = 'Result';
 
+    public const HEADING_ACTION = 'Action';
+
     public const HEADING_WORKSHEET_NUMBER = 'Worksheet Number';
 
     /**
@@ -36,6 +38,7 @@ class BatchResultsTemplateExport implements FromArray, WithHeadings, WithTitle, 
         private readonly array $flatRows,
         private readonly string $sheetTitle = 'Results',
         private readonly bool $includeWorksheetNumber = false,
+        private readonly bool $includeAction = true,
     ) {}
 
     public function array(): array
@@ -53,6 +56,10 @@ class BatchResultsTemplateExport implements FromArray, WithHeadings, WithTitle, 
 
             if ($this->includeWorksheetNumber) {
                 array_splice($base, 1, 0, [(string) ($row['worksheet_number'] ?? '')]);
+            }
+
+            if ($this->includeAction) {
+                $base[] = (string) ($row['action'] ?? '');
             }
 
             return $base;
@@ -73,6 +80,10 @@ class BatchResultsTemplateExport implements FromArray, WithHeadings, WithTitle, 
 
         if ($this->includeWorksheetNumber) {
             array_splice($headings, 1, 0, [self::HEADING_WORKSHEET_NUMBER]);
+        }
+
+        if ($this->includeAction) {
+            $headings[] = self::HEADING_ACTION;
         }
 
         return $headings;

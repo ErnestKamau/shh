@@ -22,9 +22,15 @@
                         </ol>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-3 d-grid gap-2">
+                        <button type="button" wire:click="downloadBulkImportCurrentData" class="btn btn-primary w-100">
+                            <i class="mdi mdi-database-export"></i> Download current data
+                        </button>
                         <button type="button" wire:click="downloadBulkImportTemplate" class="btn btn-outline-primary w-100">
-                            <i class="mdi mdi-download"></i> Download Excel template
+                            <i class="mdi mdi-download"></i> Download blank template
+                        </button>
+                        <button type="button" wire:click="openBulkImportVersionsModal" class="btn btn-outline-secondary w-100">
+                            <i class="mdi mdi-history"></i> Version history
                         </button>
                     </div>
 
@@ -88,6 +94,70 @@
                             <i class="mdi mdi-loading mdi-spin"></i> Processing…
                         </span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if($showBulkImportVersionsModal ?? false)
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.55); z-index: 1060;" wire:key="analysis-method-bulk-import-versions">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="mdi mdi-history mr-1"></i> Method import versions</h5>
+                    <button type="button" class="btn-close" wire:click="closeBulkImportVersionsModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if(($bulkImportVersions ?? []) === [])
+                        <p class="text-muted mb-0">No versions yet. Download current data, edit, and import to create version 1.</p>
+                    @else
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Version</th>
+                                        <th>Status</th>
+                                        <th>Applied</th>
+                                        <th>By</th>
+                                        <th>Summary</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($bulkImportVersions as $versionRow)
+                                        <tr>
+                                            <td><strong>v{{ $versionRow['version'] }}</strong></td>
+                                            <td>
+                                                <span class="badge text-bg-{{ $versionRow['status'] === 'applied' ? 'success' : ($versionRow['status'] === 'rolled_back' ? 'warning' : 'secondary') }}">
+                                                    {{ $versionRow['status'] }}
+                                                </span>
+                                            </td>
+                                            <td nowrap>{{ $versionRow['applied_at'] ?? '—' }}</td>
+                                            <td>{{ $versionRow['user_name'] ?? '—' }}</td>
+                                            <td>{{ $versionRow['summary'] }}</td>
+                                            <td class="text-end" nowrap>
+                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    wire:click="downloadBulkImportVersion('{{ $versionRow['id'] }}')">
+                                                    <i class="mdi mdi-download"></i>
+                                                </button>
+                                                @if($versionRow['status'] !== 'applied')
+                                                    <button type="button" class="btn btn-sm btn-outline-warning"
+                                                        wire:click="restoreBulkImportVersion('{{ $versionRow['id'] }}')"
+                                                        wire:confirm="Restore version {{ $versionRow['version'] }}? Live method data will match that Excel.">
+                                                        <i class="mdi mdi-restore"></i> Restore
+                                                    </button>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" wire:click="closeBulkImportVersionsModal">Close</button>
                 </div>
             </div>
         </div>

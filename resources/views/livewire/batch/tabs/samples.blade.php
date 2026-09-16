@@ -900,8 +900,14 @@
                                          @click.stop>
                                         <a class="dropdown-item"
                                            href="{{ route('batch.request-test-results-excel', ['batch' => $batch->id]) }}">
-                                            <i class="mdi mdi-download mr-2"></i> Download template
+                                            <i class="mdi mdi-download mr-2"></i> Download current data
                                         </a>
+                                        <button type="button"
+                                                class="dropdown-item"
+                                                wire:click="openResultImportVersionsModal"
+                                                @click="open = false">
+                                            <i class="mdi mdi-history mr-2"></i> Version history
+                                        </button>
                                         <div class="dropdown-divider"></div>
                                         <div class="sample-parameters-modal__excel-upload px-3 py-2">
                                             <div class="mb-0" id="sample-parameters-excel-import-form">
@@ -916,6 +922,9 @@
                                                 @error('parameterImportFile')
                                                     <div class="text-danger small mb-2">{{ $message }}</div>
                                                 @enderror
+                                                <p class="small text-muted mb-2 mb-0">
+                                                    Set <code>Action=clear</code> to clear a result. Leave Result blank to skip.
+                                                </p>
                                                 <button type="button"
                                                         class="btn btn-sm btn-primary btn-block"
                                                         wire:click="importParameterResults"
@@ -1317,6 +1326,156 @@
             </div>
         </div>
     </div>
+
+    @if($showResultImportVersionsModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog"
+            style="background: rgba(15, 23, 42, 0.45); z-index: 1060;"
+            wire:keydown.escape.window="closeResultImportVersionsModal">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-history mr-1"></i> Result import versions
+                        </h5>
+                        <button type="button" class="close" wire:click="closeResultImportVersionsModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        @if($resultImportVersions === [])
+                            <p class="text-muted mb-0">No uploaded result versions yet. Download current data, edit, and import to create version 1.</p>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Version</th>
+                                            <th>Status</th>
+                                            <th>Applied</th>
+                                            <th>By</th>
+                                            <th>Summary</th>
+                                            <th class="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($resultImportVersions as $versionRow)
+                                            <tr>
+                                                <td><strong>v{{ $versionRow['version'] }}</strong></td>
+                                                <td>
+                                                    <span class="badge badge-{{ $versionRow['status'] === 'applied' ? 'success' : ($versionRow['status'] === 'rolled_back' ? 'warning' : 'secondary') }}">
+                                                        {{ $versionRow['status'] }}
+                                                    </span>
+                                                    @if(!empty($versionRow['notes']))
+                                                        <div class="small text-muted">{{ $versionRow['notes'] }}</div>
+                                                    @endif
+                                                </td>
+                                                <td nowrap>{{ $versionRow['applied_at'] ?? '—' }}</td>
+                                                <td>{{ $versionRow['user_name'] ?? '—' }}</td>
+                                                <td>{{ $versionRow['summary'] }}</td>
+                                                <td class="text-right" nowrap>
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        wire:click="downloadResultImportVersion('{{ $versionRow['id'] }}')">
+                                                        <i class="mdi mdi-download"></i>
+                                                    </button>
+                                                    @if($versionRow['status'] !== 'applied' && ! $parametersReadOnly)
+                                                        <button type="button"
+                                                            class="btn btn-sm btn-outline-warning"
+                                                            wire:click="restoreResultImportVersion('{{ $versionRow['id'] }}')"
+                                                            wire:confirm="Restore version {{ $versionRow['version'] }}? Live results will match that Excel.">
+                                                            <i class="mdi mdi-restore"></i> Restore
+                                                        </button>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeResultImportVersionsModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showResultImportVersionsModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog"
+            style="background: rgba(15, 23, 42, 0.45); z-index: 1060;"
+            wire:keydown.escape.window="closeResultImportVersionsModal">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-history mr-1"></i> Result import versions
+                        </h5>
+                        <button type="button" class="close" wire:click="closeResultImportVersionsModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        @if($resultImportVersions === [])
+                            <p class="text-muted mb-0">No uploaded result versions yet. Download current data, edit, and import to create version 1.</p>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Version</th>
+                                            <th>Status</th>
+                                            <th>Applied</th>
+                                            <th>By</th>
+                                            <th>Summary</th>
+                                            <th class="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($resultImportVersions as $versionRow)
+                                            <tr>
+                                                <td><strong>v{{ $versionRow['version'] }}</strong></td>
+                                                <td>
+                                                    <span class="badge badge-{{ $versionRow['status'] === 'applied' ? 'success' : ($versionRow['status'] === 'rolled_back' ? 'warning' : 'secondary') }}">
+                                                        {{ $versionRow['status'] }}
+                                                    </span>
+                                                    @if(!empty($versionRow['notes']))
+                                                        <div class="small text-muted">{{ $versionRow['notes'] }}</div>
+                                                    @endif
+                                                </td>
+                                                <td nowrap>{{ $versionRow['applied_at'] ?? '—' }}</td>
+                                                <td>{{ $versionRow['user_name'] ?? '—' }}</td>
+                                                <td>{{ $versionRow['summary'] }}</td>
+                                                <td class="text-right" nowrap>
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        wire:click="downloadResultImportVersion('{{ $versionRow['id'] }}')">
+                                                        <i class="mdi mdi-download"></i>
+                                                    </button>
+                                                    @if($versionRow['status'] !== 'applied' && ! $parametersReadOnly)
+                                                        <button type="button"
+                                                            class="btn btn-sm btn-outline-warning"
+                                                            wire:click="restoreResultImportVersion('{{ $versionRow['id'] }}')"
+                                                            wire:confirm="Restore version {{ $versionRow['version'] }}? Live results will match that Excel.">
+                                                            <i class="mdi mdi-restore"></i> Restore
+                                                        </button>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeResultImportVersionsModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <style>
         .sample-parameters-modal .modal-dialog {

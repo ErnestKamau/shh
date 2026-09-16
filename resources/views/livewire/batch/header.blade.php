@@ -284,7 +284,7 @@
                                     <li><hr class="dropdown-divider"></li>
                                 @endif
                                 @if(isset($batch->id))
-                                    @if($batch->status == 'Finished Sample')
+                                    @if(isCompletedReportStatus($batch->status) && filled($batch->batch_report_url))
                                     <?php            $reportpath = '/storage' . $batch->batch_report_url; ?>
                                     <li>
                                         <a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i

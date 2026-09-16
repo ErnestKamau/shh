@@ -138,6 +138,35 @@ class AnalyteImporter extends BaseImporter
         }
     }
 
+    protected function deleteRow(array $originalRow): bool
+    {
+        $code = $this->sanitizeImportedString(trim((string) $this->fuzzyGet($originalRow, ['code', 'analyte_code', 'parameter_code', 'coa_name', 'id'], '')));
+        $name = $this->sanitizeImportedString(trim((string) $this->fuzzyGet($originalRow, ['name', 'analyte_name', 'analyte', 'parameter', 'parameter_name', 'title'], '')));
+
+        $query = Analyte::query()->where('company_id', $this->batch->company_id);
+        if ($code !== '') {
+            $query->where('code', $code);
+        } elseif ($name !== '') {
+            $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)]);
+        } else {
+            $this->batch->addError($this->rowNumber, 'Code or name is required to delete an analyte.', $originalRow);
+
+            return false;
+        }
+
+        $analyte = $query->first();
+        if ($analyte === null) {
+            $this->batch->addWarning($this->rowNumber, 'Analyte not found for delete.', $originalRow);
+
+            return false;
+        }
+
+        $analyte->active = 0;
+        $analyte->save();
+
+        return true;
+    }
+
     /**
      * @return list<string>
      */
