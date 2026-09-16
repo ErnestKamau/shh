@@ -62,6 +62,7 @@
 <div class="um-tip">
 	<span class="um-tip__icon"><i class="mdi mdi-cart-outline"></i></span>
 	<p>
-		If the item is already in store and you only need it issued to your department, use <strong>Request to Store</strong> instead.
+		If the item is already in store and you only need it issued to your department, use
+		<a href="{{ route('usermanual.show', ['manual' => 'inventory', 'chapter' => 'request-to-store']) }}">Request to Store</a> instead.
 	</p>
 </div>

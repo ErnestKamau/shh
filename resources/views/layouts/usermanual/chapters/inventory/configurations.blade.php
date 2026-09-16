@@ -168,7 +168,8 @@
 <h2>Approval Configuration (separate from this menu)</h2>
 <p>
 	Approver lists for Purchase Request, RFQ, Purchase Order, and Request to Store are <strong>not</strong> under Configurations in the sidebar.
-	They live on each workflow screen under the <strong>Approval Configuration</strong> tab.
+	They live on each workflow screen under the <strong>Approval Configuration</strong> tab
+	(see <a href="{{ route('usermanual.show', ['manual' => 'inventory', 'chapter' => 'request-to-store']) }}">Request to Store</a> for the store issuance approvers).
 	Update those when approvers change role or leave.
 </p>
 

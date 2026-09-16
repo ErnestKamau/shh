@@ -73,13 +73,22 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-template-reading-structure.png',
-	'caption' => 'Step 4 — Reading Structure (Add Step / Add First Step).',
-	'placeholder' => 'Screenshot coming soon — open Reading Structure and show Add Step / the step list.',
+	'caption' => 'Step 4 — Reading Structure empty state (Add Step / Add First Step).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-create-step-modal.png',
+	'caption' => 'Create New Step — Step Basics, Step Type (Input / Derived / Lookup / Parameter Result), and Input configuration.',
 ])
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-template-create-step.png',
-	'caption' => 'Create New Step modal — Step Basics, Step Type (Input / Derived / Lookup / Parameter Result).',
+	'caption' => 'Create New Step modal — alternate view of step types when adding to the pipeline.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-template-reading-structure-filled.png',
+	'caption' => 'Reading Structure after adding an Input step (for example temperature) — Edit / Delete on the step card.',
 ])
 
 @include('layouts.usermanual.partials.figure', [

@@ -47,7 +47,8 @@
 <h3>3. Request to Store</h3>
 <p>
 	When stock is <strong>already in the store</strong> and a department needs it issued,
-	you use Request to Store (and related store steps). That chapter will grow as the process is documented further.
+	use <a href="{{ route('usermanual.show', ['manual' => 'inventory', 'chapter' => 'request-to-store']) }}">Request to Store</a>:
+	raise the request, get approval, create <strong>Material Issuance</strong>, then confirm pickup with the requester OTP.
 </p>
 
 <div class="um-tip">

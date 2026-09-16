@@ -98,8 +98,12 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/create-edit-value-types-filled.png',
-	'caption' => 'Value Type filled example — Constant, Quantitative, Expected Value, Reporting Unit.',
-	'placeholder' => 'Screenshot coming soon — add a Value Type card with Constant / Quantitative / Expected Value filled in.',
+	'caption' => 'Value Type filled — Constant, Quantitative, Expected Value (30), Reporting Unit (g/L).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-value-types-range.png',
+	'caption' => 'Value Type as Range — Minimum / Maximum values (always quantitative) and Reporting Unit.',
 ])
 
 <ul>
