@@ -7,7 +7,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring.png',
-	'caption' => 'Monitoring home — Environmental Monitoring, Equipment Monitoring, and Template Engine cards.',
+	'caption' => 'Monitoring home — Environmental Monitoring, Equipment Monitoring, and Template Engine cards with Assigned Laboratories.',
 ])
 
 <h2>Three entry cards</h2>
@@ -66,8 +66,16 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-environmental.png',
-	'caption' => 'Environmental Monitoring — lab sections, Logs tab, and capture controls.',
+	'caption' => 'Equipment Monitoring — lab tabs, Equipment Due Today (PENDING), Export LWS-011 PDF, and logs for the day.',
 ])
+
+<div class="um-tip">
+	<span class="um-tip__icon"><i class="mdi mdi-information-outline"></i></span>
+	<p>
+		<strong>Environmental Monitoring</strong> uses the same lab tabs and Logs/Charts pattern.
+		Pick the Environmental card (or an environmental template), then work section by section as on Equipment Monitoring.
+	</p>
+</div>
 
 <h2>Equipment Monitoring — step by step</h2>
 <ol>
@@ -94,15 +102,26 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/monitoring-equipment.png',
-	'caption' => 'Equipment Monitoring — due today table, Execute action, and export controls.',
+	'caption' => 'Equipment Monitoring — Due Today filters and Export LWS-011 PDF.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-equipment-logs.png',
+	'caption' => 'Equipment Due Today table and Equipment Monitoring Logs.',
 ])
 
 <h3>Execute Monitoring modal</h3>
 <p>Title: <strong>Execute Monitoring: {template name}</strong></p>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-execute-modal.png',
+	'caption' => 'Execute Monitoring — optional Equipment, Remark, and template fields (for example Temperature *), then Save Log.',
+])
+
 <ol>
 	<li>Optional <strong>Equipment</strong> picker when the template allows selecting a unit.</li>
-	<li><strong>Reading frequency *</strong> (and any other dynamic fields defined on the template — numbers, pass/fail, formula outputs).</li>
-	<li><strong>Remark</strong> when shown.</li>
+	<li>Enter required template fields (for example <strong>Temperature *</strong>, reading frequency, pass/fail, or formula outputs).</li>
+	<li><strong>Remark</strong> when shown (optional note for this reading).</li>
 	<li><strong>Save Log</strong> — records the run and updates status.</li>
 	<li><strong>Cancel</strong> — close without saving.</li>
 </ol>
@@ -113,6 +132,11 @@
 	Typical columns: <strong>Template</strong>, <strong>Result</strong>, <strong>Status</strong>, <strong>Executed By</strong>, <strong>Executed At</strong>.
 	Related panels may compare logs vs optimum levels (for example <strong>Equipment Logs vs. Optimum Level</strong>).
 </p>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/monitoring-equipment-logs-chart.png',
+	'caption' => 'After Save Log — COMPLETED / IN RANGE row and measured reading chart.',
+])
 
 <h2>Button &amp; label glossary (Monitoring)</h2>
 <table class="table table-sm">

@@ -1,28 +1,5 @@
 <div>
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="mdi mdi-check-circle"></i> {{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
-    @if(session('message'))
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
-            <i class="mdi mdi-information"></i> {{ session('message') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
+    <x-livewire.flash-messages />
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
@@ -35,9 +12,7 @@
                 <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.certifications_documents') }}</small>
             </div>
         </div>
-        <button class="btn btn-add btn-sm" wire:click="openCreateModal">
-            <i class="mdi mdi-plus"></i> {{ __('crm.add') }}
-        </button>
+        <x-imara.primary-btn subject="{{ __('crm.attachment') }}" wire:click="openCreateModal" />
     </div>
 
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
@@ -76,15 +51,8 @@
                             <td>{{ $item->edited ?: '—' }}</td>
                             <td nowrap>
                                 <x-crm.action-buttons>
-                                    <button class="btn crm-btn crm-btn-edit btn-sm" title="Edit"
-                                        wire:click="editAttachment('{{ $item->id }}')">
-                                        <i class="mdi mdi-pencil-outline"></i>
-                                    </button>
-                                    <button class="btn crm-btn crm-btn-delete btn-sm" title="{{ __('crm.delete') }}"
-                                        wire:click="deleteAttachment('{{ $item->id }}')"
-                                        wire:confirm="{{ __('crm.delete_attachment_confirm') }}">
-                                        <i class="mdi mdi-delete-outline"></i>
-                                    </button>
+                                    <x-imara.row-action-btn variant="edit" wire:click="editAttachment('{{ $item->id }}')" class="mr-1" :title="__('crm.edit')" />
+                                    <x-imara.row-action-btn variant="delete" wire:click="deleteAttachment('{{ $item->id }}')" wire:confirm="{{ __('crm.delete_attachment_confirm') }}" :title="__('crm.delete')" />
                                 </x-crm.action-buttons>
                             </td>
                         </tr>
@@ -125,51 +93,37 @@
                                     <div class="alert alert-danger">{{ $modalError }}</div>
                                 @endif
 
-                                <div class="form-group">
-                                    <label class="control-label">{{ __('crm.name') }} <span class="text-danger">*</span></label>
+                                <x-imara.form-field label="{{ __('crm.name') }}" :required="true" :error="$errors->first('name')">
                                     <input type="text" class="form-control @error('name') is-invalid @enderror"
                                         wire:model="name" placeholder="{{ __('crm.name') }}..." required>
-                                    @error('name') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
+                                </x-imara.form-field>
 
-                                <div class="form-group">
-                                    <label class="control-label">{{ __('crm.certificate') }} @if(!$editingId)<span class="text-danger">*</span>@endif</label>
+                                <x-imara.form-field label="{{ __('crm.certificate') }}" :required="!$editingId" :error="$errors->first('certificate')">
                                     <input type="file" class="form-control @error('certificate') is-invalid @enderror"
                                         wire:model="certificate">
                                     @if($editingId)
                                         <small class="text-muted d-block mt-1">{{ __('crm.leave_blank_retain_existing') }}</small>
                                     @endif
-                                    @error('certificate') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
+                                </x-imara.form-field>
 
-                                <div class="form-group">
-                                    <label class="control-label">{{ __('crm.certificate_date') }} <span class="text-danger">*</span></label>
+                                <x-imara.form-field label="{{ __('crm.certificate_date') }}" :required="true" :error="$errors->first('certificationDate')">
                                     <input type="date" class="form-control @error('certificationDate') is-invalid @enderror"
                                         wire:model="certificationDate">
-                                    @error('certificationDate') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
+                                </x-imara.form-field>
 
-                                <div class="form-group">
-                                    <label class="control-label">{{ __('crm.expire_date') }} <span class="text-danger">*</span></label>
+                                <x-imara.form-field label="{{ __('crm.expire_date') }}" :required="true" :error="$errors->first('expireDate')">
                                     <input type="date" class="form-control @error('expireDate') is-invalid @enderror"
                                         wire:model="expireDate">
-                                    @error('expireDate') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
+                                </x-imara.form-field>
 
-                                <div class="form-group">
-                                    <label class="control-label">{{ __('crm.certification_body') }} <span class="text-danger">*</span></label>
+                                <x-imara.form-field label="{{ __('crm.certification_body') }}" :required="true" :error="$errors->first('certificationBody')">
                                     <input type="text" class="form-control @error('certificationBody') is-invalid @enderror"
                                         wire:model="certificationBody" placeholder="{{ __('crm.certification_body') }}...">
-                                    @error('certificationBody') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
+                                </x-imara.form-field>
 
                                 @if($editingId)
                                     <div class="form-group">
-                                        <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="attachment-status-active"
-                                                wire:model="isActive">
-                                            <label class="custom-control-label" for="attachment-status-active">{{ ucfirst(__('crm.active')) }}</label>
-                                        </div>
+                                        <x-imara.custom-checkbox wire:model="isActive" label="{{ ucfirst(__('crm.active')) }}" id="attachment-status-active" />
                                     </div>
                                 @endif
                             </div>

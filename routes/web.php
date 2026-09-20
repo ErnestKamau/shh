@@ -419,6 +419,18 @@ Route::get('/billing/quotations', function () {
     return view('layouts.billing.quotations-index', compact('customers', 'labSections'));
 })->name('billing.quotations')->middleware('can:laboratory.components.quotation.view');
 
+Route::get('/billing/customer-purchase-orders', function () {
+    return view('layouts.billing.customer-purchase-orders-index');
+})->name('billing.customer-purchase-orders')->middleware('can:laboratory.components.quotation.view');
+
+Route::get('/billing/customer-purchase-orders/{id}', function (string $id) {
+    return view('layouts.billing.customer-purchase-order-show', ['purchaseOrderId' => $id]);
+})->name('billing.customer-purchase-orders.show')->middleware('can:laboratory.components.quotation.view');
+
+Route::get('/billing/customer-purchase-orders/{id}/download', \App\Http\Controllers\Billing\CustomerPurchaseOrderDownloadController::class)
+    ->name('billing.customer-purchase-orders.download')
+    ->middleware('can:laboratory.components.quotation.view');
+
 Route::get('/billing/sales-order/create', function () {
     $batchCodes = request()->get('batches', []);
     return view('layouts.billing.sales-order-create', ['batchCodes' => $batchCodes]);

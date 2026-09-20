@@ -8191,6 +8191,33 @@
 								<small class="text-danger d-block mt-1">{{ $message }}</small>
 							@enderror
 						</div>
+						<div class="form-group">
+							<label for="workflowQuotationAcceptanceAttachmentType">Attachment type (optional)</label>
+							<select id="workflowQuotationAcceptanceAttachmentType" class="form-control" wire:model="quotationAcceptanceAttachmentType">
+								<option value="">No attachment</option>
+								<option value="Test Request Form">Test Request Form</option>
+								<option value="Quotation">Quotation</option>
+								<option value="Purchase Order">Purchase Order</option>
+								<option value="Invoice">Invoice</option>
+								<option value="Others">Others</option>
+							</select>
+						</div>
+						<div class="form-group mb-0">
+							@include('layouts.lab.partials.ls-ui.upload.ls-upload-files', [
+								'title' => 'Upload attachment (optional)',
+								'subtitle' => 'Use this for a purchase order or supporting document.',
+								'hint' => 'JPEG, PNG, or PDF, up to 10 MB.',
+								'accept' => '.pdf,.png,.jpg,.jpeg',
+								'showUrlImport' => false,
+								'showDemoFiles' => false,
+								'showHeadClose' => false,
+								'multiple' => false,
+								'inputId' => 'workflowQuotationAcceptanceAttachment',
+								'wireModel' => 'quotationAcceptanceAttachment',
+								'errorBag' => 'quotationAcceptanceAttachment',
+							])
+							<div wire:loading wire:target="quotationAcceptanceAttachment" class="small text-muted mt-1">Uploading…</div>
+						</div>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-outline-secondary" wire:click="closeQuotationAcceptanceModal">Cancel</button>

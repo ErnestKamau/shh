@@ -6,7 +6,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/create-edit-wizard.png',
-	'caption' => 'Equipment wizard — step indicators Basic Info, Assignment, Monitoring, Maintenance, Depreciation.',
+	'caption' => 'Create Equipment wizard — five steps: Basic Info, Assignment, Monitoring, Maintenance, Depreciation.',
 ])
 
 <h2>Wizard navigation</h2>
@@ -20,6 +20,12 @@
 <p>Fields marked with a red asterisk (<span class="text-danger">*</span>) are required.</p>
 
 <h2>Step 1 — Basic Info</h2>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-wizard.png',
+	'caption' => 'Step 1 — Basic Information and Photo.',
+])
+
 <h3>Basic Information</h3>
 <ul>
 	<li><strong>Name *</strong> — everyday name of the instrument.</li>
@@ -42,8 +48,18 @@
 	<li><strong>End of Life</strong> / <strong>End of Service</strong></li>
 </ul>
 
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-procurement.png',
+	'caption' => 'Procurement & Technical Lifecycle — purchase price, supplier, installation, limits, warranty, end of life/service.',
+])
+
 <h2>Step 2 — Assignment</h2>
 <p>Section title on screen: <strong>Assignment &amp; Location</strong>.</p>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-assignment.png',
+	'caption' => 'Step 2 — Assignment & Location (Status, Condition, Department, Employee, Asset Type/Location, Lab).',
+])
 <ul>
 	<li><strong>Status *</strong> — typically Active, Obsolete, or Out Of Service.</li>
 	<li><strong>Condition *</strong> — free-text condition (for example Good).</li>
@@ -64,6 +80,32 @@
 </div>
 
 <h2>Step 3 — Monitoring</h2>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-monitoring.png',
+	'caption' => 'Step 3 — Requires Daily Log and Daily Log Configuration (Logging Frequency).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-daily-log-frequency.png',
+	'caption' => 'Frequency Schedule — e.g. Twice a day with morning / evening labels.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-value-types.png',
+	'caption' => 'Value Types — Add Value Type, then choose Constant/Range and Nature of Result.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-value-types-filled.png',
+	'caption' => 'Value Type filled — Constant, Quantitative, Expected Value (30), Reporting Unit (g/L).',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-value-types-range.png',
+	'caption' => 'Value Type as Range — Minimum / Maximum values (always quantitative) and Reporting Unit.',
+])
+
 <ul>
 	<li><strong>Requires Daily Log</strong> — checkbox labelled <strong>Equipment Appears On Daily Log Page</strong>.</li>
 </ul>
@@ -84,6 +126,12 @@
 </ul>
 
 <h2>Step 4 — Maintenance</h2>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/create-edit-maintenance.png',
+	'caption' => 'Step 4 — Maintenance Schedule and Calibration Schedule (days and notification days).',
+])
+
 <p>Section: <strong>Maintenance Schedule</strong></p>
 <ul>
 	<li><strong>Maintenance After (Days) *</strong> — interval between maintenance services.</li>
@@ -102,6 +150,12 @@
 
 <h2>Step 5 — Depreciation</h2>
 <p>Section: <strong>Asset Depreciation Configuration</strong></p>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/depreciation-and-reports.png',
+	'caption' => 'Step 5 — Enable Depreciation, currency, capitalized amount, method, and frequencies.',
+])
+
 <ul>
 	<li><strong>Enable Depreciation</strong> — switch. When off, you can save without depreciation fields.</li>
 </ul>

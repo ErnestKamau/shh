@@ -18,6 +18,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLog;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLogItem;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
+use App\Services\Commercial\CustomerPurchaseOrderService;
 use App\Services\Commercial\EnquiryAccountSettingsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
@@ -45,11 +46,13 @@ use Throwable;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class WorkflowBoard extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use WithFileUploads;
     use WithPagination;
 
     protected string $paginationTheme = 'bootstrap';
@@ -243,6 +246,10 @@ class WorkflowBoard extends Component
     public array $quotationAcceptanceContactOptions = [];
 
     public string $clientPoNumber = '';
+
+    public string $quotationAcceptanceAttachmentType = '';
+
+    public $quotationAcceptanceAttachment = null;
 
     public string $poRuleType = 'walk_in';
 
@@ -2660,6 +2667,8 @@ SQL);
         $this->quotationAcceptanceAppliedContactId = '';
         $this->quotationAcceptanceContactOptions = [];
         $this->clientPoNumber = '';
+        $this->quotationAcceptanceAttachmentType = '';
+        $this->quotationAcceptanceAttachment = null;
         $this->poRuleType = 'walk_in';
         $this->poRequiresPo = false;
         $this->poRuleMessage = '';
@@ -2697,6 +2706,8 @@ SQL);
         $this->validate([
             'quotationAcceptanceContactId' => ['required', 'string'],
             'quotationAcceptanceSignature' => ['required', 'string'],
+            'quotationAcceptanceAttachment' => ['nullable', 'file', 'max:10240'],
+            'quotationAcceptanceAttachmentType' => ['nullable', 'string', 'max:120'],
         ], [
             'quotationAcceptanceContactId.required' => 'Select the customer contact.',
             'quotationAcceptanceSignature.required' => 'Provide the customer signature.',
@@ -2736,12 +2747,13 @@ SQL);
                 ],
             );
 
-            app(EnquiryReceptionReadinessService::class)->markReadyForReception(
+            app(CustomerPurchaseOrderService::class)->recordAndMarkReadyForReception(
                 $accepted,
-                (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
                 [
                     'client_po_number' => $this->clientPoNumber,
                 ],
+                $this->quotationAcceptanceAttachment,
+                (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
             );
 
             $this->selectedFormInstanceIds = [];
@@ -2876,20 +2888,19 @@ SQL);
             return;
         }
 
-        try {
-            app(EnquiryAccountSettingsService::class)->validateAcceptPayload(
-                $enquiry->customer,
-                [
-                    'client_po_number' => $this->clientPoNumber,
-                ],
-            );
+        $this->validate([
+            'quotationAcceptanceAttachment' => ['nullable', 'file', 'max:10240'],
+            'quotationAcceptanceAttachmentType' => ['nullable', 'string', 'max:120'],
+        ]);
 
-            app(EnquiryReceptionReadinessService::class)->markReadyForReception(
+        try {
+            app(CustomerPurchaseOrderService::class)->recordAndMarkReadyForReception(
                 $enquiry,
-                (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
                 [
                     'client_po_number' => $this->clientPoNumber,
                 ],
+                $this->quotationAcceptanceAttachment,
+                (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
             );
 
             $this->closeQuotationAcceptanceModal();

@@ -1,19 +1,18 @@
 @props([
     'label' => '',
     'id' => null,
+    'value' => '1',
 ])
 
 @php
-    $inputId = $id ?? 'imara-checkbox-'.str_replace('.', '', uniqid('', true));
+    $inputId = $id ?? 'imara-switch-'.\Illuminate\Support\Str::random(6);
 @endphp
 
-<div @class(['form-group', 'mb-0'])>
-    <div class="custom-control custom-checkbox">
-        <input
-            type="checkbox"
-            id="{{ $inputId }}"
-            {{ $attributes->except('class')->merge(['class' => 'custom-control-input']) }}
-        />
-        <label class="custom-control-label" for="{{ $inputId }}">{{ $label }}</label>
-    </div>
+<div class="custom-control custom-switch">
+    <input
+        type="checkbox"
+        value="{{ $value }}"
+        {{ $attributes->merge(['class' => 'custom-control-input', 'id' => $inputId]) }}
+    />
+    <label class="custom-control-label" for="{{ $inputId }}">{{ $label }}</label>
 </div>

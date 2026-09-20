@@ -7,7 +7,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/maintenance-programs.png',
-	'caption' => 'Equipment Maintenance Program — Annual, Preventive, Register, and Replacement Plan tabs.',
+	'caption' => 'Annual Program — period, Export Annual Program, filters, and + Create Annual Program.',
 ])
 
 <div class="um-tip">
@@ -30,49 +30,74 @@
 <ul>
 	<li>Search placeholder: <strong>Search equipment by name or serial...</strong></li>
 	<li><strong>Show</strong> — rows per page.</li>
-	<li><strong>Advanced Filters</strong> / <strong>Clear Filters</strong></li>
-	<li><strong>Start Date</strong> / <strong>End Date</strong></li>
-	<li><strong>Maintenance Status</strong> — All Statuses, Scheduled, Serviced, Overdue (labels may also read Scheduled (Pending) / Serviced (Done)).</li>
-	<li><strong>Service Type</strong> / <strong>Service Provider</strong> when offered.</li>
+	<li><strong>Advanced Filters</strong> — <strong>Start Date</strong> / <strong>End Date</strong>, status or service filters as shown on each tab.</li>
+	<li>Period banner (for example <em>Jan 2026 – Dec 2026</em>) and an <strong>Export …</strong> button for the active tab.</li>
 </ul>
 
 <h2>Annual Program</h2>
 <ol>
-	<li>Click <strong>Create Annual Program</strong>.</li>
+	<li>Click <strong>+ Create Annual Program</strong>.</li>
 	<li>Modal fields: <strong>Name *</strong>, <strong>Date *</strong>, <strong>Description</strong>, <strong>Status</strong> (Active / Draft).</li>
 	<li><strong>Save Program</strong> or <strong>Update Program</strong>; <strong>Cancel</strong> to close.</li>
-	<li>Use <strong>Add Equipment to Program</strong> to attach assets.</li>
-	<li>Table columns typically: <strong>Equipment Name</strong>, <strong>Serial Number</strong>, <strong>Serviced Date</strong>, <strong>Status</strong>, <strong>Next Service</strong>, <strong>Remark</strong>, <strong>Actions</strong>.</li>
-	<li>Row actions include <strong>Details</strong>, edit, and delete programme tools (<strong>Edit Program</strong> / <strong>Delete Program</strong>).</li>
+	<li>Use the Active Annual Program dropdown (for example <em>View All Equipment</em>) and <strong>Add Equipment to Program</strong> where offered.</li>
 	<li><strong>Export Annual Program</strong> — download the programme spreadsheet/report.</li>
 </ol>
 
 <h2>Preventive Program</h2>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/maintenance-preventive.png',
+	'caption' => 'Preventive Program — Export Preventive Program, filters, Create Preventive Program, and month-cell legend.',
+])
+
 <ol>
-	<li><strong>Create Preventive Program</strong> — same style of Name / Date / Description / Status.</li>
-	<li><strong>Add Equipment to Program</strong> — schedule units on quarter/month grids as shown.</li>
-	<li><strong>Mark Done</strong> (or similar mark-serviced control) — record that preventive work for that slot is complete.</li>
-	<li><strong>Apply to All</strong> — push a scheduled month / setting across selected rows when available.</li>
+	<li><strong>+ Create Preventive Program</strong> — Name / Date / Description / Status.</li>
+	<li>Schedule units on the month grid: click a month cell to schedule; click ✓ Done to mark serviced.</li>
+	<li>Legend: <strong>Not scheduled</strong> · <strong>Scheduled (pending)</strong> · <strong>Serviced / Done</strong>.</li>
 	<li><strong>Export Preventive Program</strong>.</li>
 </ol>
 
 <h2>Maintenance Register</h2>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/maintenance-register.png',
+	'caption' => 'Maintenance Register — filters (service type / provider), Create Maintenance Register, and cost columns.',
+])
+
 <ol>
-	<li><strong>Add Equipment to Register</strong> — capture cost and provider details (USD/TZS or other currencies as configured).</li>
-	<li>Edit / delete register rows via <strong>Edit Register</strong> / <strong>Delete Register</strong>.</li>
+	<li><strong>+ Create Maintenance Register</strong> (or add equipment to an active register).</li>
+	<li>Columns typically: <strong>Equipment Name</strong>, <strong>Service Provider</strong>, <strong>Type of Service</strong>, <strong>Cost (USD)</strong>, <strong>Cost (TZS)</strong>, <strong>Actions</strong>.</li>
 	<li><strong>Export Register</strong>.</li>
 </ol>
 <p>
-	Opening an asset from here may show profile tabs <strong>Annual (TSU/F/06)</strong>, <strong>Preventive (TSU/F/05)</strong>, and <strong>Maintenance Register</strong>
-	with <strong>Add Annual Record</strong>, <strong>Add Preventive Record</strong>, <strong>Add Register Entry</strong>.
+	From an equipment profile you can also open <strong>Maintenance Register</strong> and click <strong>+ Add Register Entry</strong>.
 </p>
 
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/maintenance-register-add.png',
+	'caption' => 'Add Maintenance Register Entry — Year / Financial Year, Service Provider, Type of Service, Cost (USD / TZS).',
+])
+
+<ul>
+	<li><strong>Year / Financial Year</strong> (for example <em>2026/2027</em>)</li>
+	<li><strong>Service Provider</strong></li>
+	<li><strong>Type of Service</strong></li>
+	<li><strong>Cost (USD)</strong> / <strong>Cost (TZS)</strong> (or other currencies as configured)</li>
+	<li><strong>Save Entry</strong> or <strong>Cancel</strong></li>
+</ul>
+
 <h2>Replacement Plan</h2>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/maintenance-replacement.png',
+	'caption' => 'Replacement Plan — date filters, Create Plan, and equipment with Planned Replacement Year.',
+])
+
 <ol>
-	<li>Create or edit a plan: modal <strong>Create/Edit Replacement Plan</strong> with <strong>Plan Name *</strong>, <strong>Start Year *</strong>, and related fields.</li>
-	<li><strong>Add Equipment to Plan</strong> / <strong>Edit Plan Item</strong>.</li>
-	<li><strong>Edit Plan</strong> / <strong>Delete Plan</strong>.</li>
-	<li><strong>Export Replacement Plan</strong>.</li>
+	<li>Click <strong>+ Create Plan</strong> — Plan Name, Start Year, and related fields.</li>
+	<li>Table columns: <strong>Equipment Name</strong>, <strong>Serial Number</strong>, <strong>Planned Replacement Year</strong>, <strong>Actions</strong>.</li>
+	<li>Use row view/edit actions to set the planned replacement year.</li>
+	<li><strong>Export Replacement Plan</strong> when offered.</li>
 </ol>
 
 <div class="um-tip">

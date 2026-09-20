@@ -15,9 +15,7 @@
                     <button class="btn btn-outline-success btn-sm mr-2 crm-btn-export" wire:click="exportToExcel" wire:loading.attr="disabled">
                         <i class="mdi mdi-file-excel-box mr-1"></i> {{ __('crm.export_to_excel') }}
                     </button>
-                    <button class="btn btn-outline-primary btn-sm mr-2 crm-btn-add crm-btn-add-rounded" wire:click="openAddForm">
-                        <i class="mdi mdi-plus"></i> {{ __('crm.add_client') }}
-                    </button>
+                    <x-imara.primary-btn subject="{{ __('crm.client') }}" wire:click="openAddForm" loading-target="openAddForm" class="mr-2 crm-btn-add-rounded" />
                 </x-slot:actions>
             </x-crm.page-header>
 
@@ -154,15 +152,9 @@
                                 <tr wire:key="customer-{{ $customer->id }}">
                                     <td nowrap>
                                         <x-crm.action-buttons class="justify-content-center">
-                                            <button type="button" class="btn crm-btn crm-btn-edit btn-sm" wire:click="openEditForm({{ $customer->id }})" title="Edit">
-                                                <i class="mdi mdi-pencil-outline"></i>
-                                            </button>
-                                            <a class="btn crm-btn crm-btn-view btn-sm" href="{{ route('crm.customer.show', $customer->id) }}" title="{{ __('crm.view') }}">
-                                                <i class="mdi mdi-eye-outline"></i>
-                                            </a>
-                                            <button type="button" class="btn crm-btn crm-btn-delete btn-sm" wire:click="confirmDelete({{ $customer->id }})" title="{{ __('crm.delete') }}">
-                                                <i class="mdi mdi-trash-can-outline"></i>
-                                            </button>
+                                            <x-imara.row-action-btn variant="edit" wire:click="openEditForm('{{ $customer->id }}')" class="mr-1" :title="__('crm.edit')" />
+                                            <x-imara.row-action-btn variant="view" :href="route('crm.customer.show', $customer->id)" class="mr-1" :title="__('crm.view')" />
+                                            <x-imara.row-action-btn variant="delete" wire:click="confirmDelete('{{ $customer->id }}')" :title="__('crm.delete')" />
                                         </x-crm.action-buttons>
                                     </td>
                                     <td>

@@ -1,20 +1,20 @@
 <h2>Equipment Disposal</h2>
 <p>
 	Open <strong>Equipment → Equipment Disposal</strong>.
-	Page title: <strong>Disposal Management</strong>.
+	Page title: <strong>Equipment Disposal Management</strong>.
 	Use this when an asset must leave the register through a controlled request, approval, and execution process.
 </p>
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/disposal.png',
-	'caption' => 'Disposal Management — request tabs and Create New Disposal Request.',
+	'caption' => 'Disposal Management — Manage Workflows, Create New Disposal Request, filters, and status tabs.',
 ])
 
 <h2>List page</h2>
 <ul>
-	<li><strong>Create New Disposal Request</strong> — start a new request.</li>
+	<li><strong>+ Create New Disposal Request</strong> — start a new request.</li>
 	<li><strong>Manage Workflows</strong> — configure approval workflows (administrators).</li>
-	<li><strong>Filter Options</strong>: Search, <strong>Date From</strong>, <strong>Date To</strong>, <strong>Clear</strong>.</li>
+	<li><strong>Filter Options</strong>: Search (equipment name, number, or reason), <strong>Date From</strong>, <strong>Date To</strong>, <strong>Clear</strong>.</li>
 	<li>Tabs: <strong>Draft</strong>, <strong>Pending Approval</strong>, <strong>Approved</strong>, <strong>Rejected</strong>, <strong>All Requests</strong>.</li>
 	<li>Columns typically: <strong>Actions</strong>, <strong>Id</strong>, <strong>Equipment</strong>, <strong>Requested By</strong>, <strong>Status</strong>, <strong>Risk Level</strong>, <strong>Method</strong>, <strong>Created</strong>.</li>
 	<li>Row action: <strong>View</strong>.</li>
@@ -24,24 +24,35 @@
 </p>
 
 <h2>Create or edit a request</h2>
-<p>Modal titles: <strong>Initiate Disposal Request</strong> / <strong>Edit Disposal Request</strong>.</p>
+<p>Modal title: <strong>Initiate Disposal Request</strong> (or Edit Disposal Request).</p>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/disposal-initiate.png',
+	'caption' => 'Initiate Disposal Request — select Equipment, Justification, Proposed Disposal Method, and Risk Assessment.',
+])
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/disposal-initiate-evidence.png',
+	'caption' => 'Same modal (scrolled) — Regulatory Category, Evidence Uploads, then Save as Draft or Submit for Approval.',
+])
+
 <ol>
 	<li><strong>Equipment Selection</strong> — choose <strong>Equipment *</strong>.</li>
-	<li>Review <strong>Equipment Metadata</strong> (may show calibration / maintenance status summaries).</li>
+	<li>Review <strong>Equipment Metadata</strong> when shown (calibration / maintenance summaries).</li>
 	<li><strong>Disposal Justification</strong>:
 		<ul>
-			<li><strong>Justification *</strong></li>
+			<li><strong>Justification *</strong> — minimum length may apply (for example 10 characters).</li>
 			<li><strong>Proposed Disposal Method *</strong> — Scrap, Donation, Auction, Recycling, Destruction (as listed).</li>
 			<li><strong>Risk Assessment *</strong> — Low, Medium, High, Critical.</li>
-			<li><strong>Regulatory Category *</strong></li>
+			<li><strong>Regulatory Category *</strong> — for example hazardous, non-hazardous, e-waste.</li>
 		</ul>
 	</li>
-	<li><strong>Evidence Uploads</strong> — <strong>Upload Evidence Files</strong>.</li>
+	<li><strong>Evidence Uploads</strong> — <strong>Choose Files</strong> (images, PDFs, documents; size limit shown on screen).</li>
 	<li><strong>Requester Information</strong> — confirm requester details shown.</li>
 	<li>Buttons:
 		<ul>
-			<li><strong>Save As Draft</strong> — keep working later under Draft.</li>
-			<li><strong>Submit For Approval</strong> — send into the approval workflow (button may show Submitting...).</li>
+			<li><strong>Save as Draft</strong> — keep working later under Draft.</li>
+			<li><strong>Submit for Approval</strong> — send into the approval workflow.</li>
 			<li><strong>Cancel</strong></li>
 		</ul>
 	</li>
@@ -59,7 +70,7 @@
 <ol>
 	<li>Read the <strong>Disposal Request Summary</strong>.</li>
 	<li><strong>Approval Decision</strong>: <strong>Decision *</strong> Approve or Reject; <strong>Remarks *</strong>; optional <strong>Digital Signature</strong>.</li>
-	<li>Submit with <strong>Approve</strong> / <strong>Reject</strong> / <strong>Submit Decision</strong> (Processing while saving).</li>
+	<li>Submit with <strong>Approve</strong> / <strong>Reject</strong> / <strong>Submit Decision</strong>.</li>
 	<li><strong>Cancel</strong> closes without deciding.</li>
 </ol>
 
@@ -74,6 +85,6 @@
 	<span class="um-tip__icon"><i class="mdi mdi-alert-circle-outline"></i></span>
 	<p>
 		Once executed, the asset is treated as disposed (dashboard Disposed counts, list behaviour).
-		Keep evidence files complete before Submit For Approval so approvers can decide safely.
+		Keep evidence files complete before Submit for Approval so approvers can decide safely.
 	</p>
 </div>

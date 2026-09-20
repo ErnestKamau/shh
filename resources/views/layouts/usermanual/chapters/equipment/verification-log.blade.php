@@ -6,13 +6,13 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/verification-log.png',
-	'caption' => 'Verification Log tab — list of verification entries and Add Verification Log.',
+	'caption' => 'Verification Log tab — search, Add Verification Log, and columns (Type, Reference Standards, Service Performer, Verification Date).',
 ])
 
 <h2>What you see on the tab</h2>
 <ul>
 	<li><strong>Add Verification Log</strong> — opens the create modal.</li>
-	<li>Table columns typically include: <strong>Actions</strong>, <strong>Type</strong>, <strong>Reference Standards</strong> (or related fields), <strong>Date</strong> / <strong>Verification Date</strong>, <strong>Operator</strong> or provider, <strong>Procedure</strong>, <strong>Response</strong> / readings, <strong>Remarks</strong>.</li>
+	<li>Table columns typically include: <strong>Actions</strong>, <strong>Type</strong>, <strong>Reference Standards</strong>, <strong>Service Performer</strong>, <strong>Verification Date</strong>.</li>
 </ul>
 
 <h2>Row actions</h2>
@@ -23,9 +23,15 @@
 </ul>
 
 <h2>Add or edit a verification — step by step</h2>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/verification-log-create.png',
+	'caption' => 'Create Verification Log — date, reference standard, In House / External, Operator, Procedure, Responses/Readings.',
+])
+
 <ol>
 	<li>Click <strong>Add Verification Log</strong> (or Edit).</li>
-	<li>Modal title: <strong>Create/Edit Verification Log</strong>. Fill:
+	<li>Modal title: <strong>Create Verification Log</strong> (or Edit). Fill:
 		<ul>
 			<li><strong>Verification Date *</strong></li>
 			<li><strong>Reference Standard *</strong> — which standard or reference was used.</li>
@@ -37,7 +43,7 @@
 			</li>
 			<li><strong>Procedure *</strong> — what procedure or method was followed.</li>
 			<li><strong>Responses/Readings *</strong> — observed readings or pass/fail responses.</li>
-			<li><strong>Remarks *</strong> — comments and conclusions.</li>
+			<li><strong>Remarks</strong> — comments and conclusions when shown.</li>
 		</ul>
 	</li>
 	<li>Click <strong>Save</strong> or <strong>Cancel</strong>.</li>

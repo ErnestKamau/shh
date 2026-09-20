@@ -79,7 +79,7 @@ class UserManualRegistry
                     ['slug' => 'request-for-quotation', 'title' => 'Request for Quotation', 'summary' => 'Send RFQs to suppliers, record quotes, award, approve, and create a PO.'],
                     ['slug' => 'purchase-order', 'title' => 'Purchase Order', 'summary' => 'Approve, send PO to supplier, view PDF, and create full or partial goods receipts.'],
                     ['slug' => 'goods-receipt', 'title' => 'Goods Receipt', 'summary' => 'Verify delivery, accept goods with OTP, rate supplier, and send to finance.'],
-                    ['slug' => 'request-to-store', 'title' => 'Request to Store', 'summary' => 'Ask the store for stock already on hand (coming next).'],
+                    ['slug' => 'request-to-store', 'title' => 'Request to Store', 'summary' => 'Ask for stock on hand, approve, create Material Issuance, and confirm pickup with OTP.'],
                 ],
             ],
             'equipment' => [

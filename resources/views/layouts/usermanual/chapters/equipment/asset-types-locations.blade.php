@@ -6,7 +6,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/equipment/asset-types-locations.png',
-	'caption' => 'Asset Types and Asset Locations managers in the Equipment module.',
+	'caption' => 'Asset Types — search, list, and + Add New Type.',
 ])
 
 <h2>Asset Types</h2>
@@ -15,16 +15,42 @@
 	On the Assignment step the field is labelled <strong>Asset Type</strong>; search and pick a type
 	(display often shows code and description together).
 </p>
+<p>
+	Open <strong>Equipment → Asset Types</strong>.
+	Subtitle: <em>Manage asset categories and classifications.</em>
+</p>
+<ul>
+	<li><strong>+ Add New Type</strong> — create a type.</li>
+	<li><strong>Filter Options → Search</strong> — search by asset code or description.</li>
+	<li>Columns: <strong>Actions</strong> (Edit / Delete), <strong>Asset Code</strong>, <strong>Description</strong>, <strong>Active Equipments</strong> (toggle), <strong>Status</strong>.</li>
+</ul>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/asset-types-create.png',
+	'caption' => 'Create Asset Type — Asset Code, Description, and Active Status.',
+])
+
 <ol>
-	<li>Open <strong>Equipment → Asset Types</strong>.</li>
-	<li>Add or edit types (code, description, and any other fields shown).</li>
-	<li>Use import/export templates if your organisation loads many types at once.</li>
-	<li>Return to Equipment List → Edit an asset → Assignment → select the new type.</li>
+	<li>Click <strong>+ Add New Type</strong>.</li>
+	<li>Enter <strong>Asset Code *</strong> (for example <em>IT-HW</em>).</li>
+	<li>Enter <strong>Description *</strong> (for example <em>IT Hardware</em>).</li>
+	<li>Leave <strong>Active Status</strong> checked if the type should be available immediately.</li>
+	<li>Click <strong>Save Changes</strong> (or <strong>Cancel</strong>).</li>
 </ol>
+
+@include('layouts.usermanual.partials.figure', [
+	'src' => '/images/usermanual/equipment/asset-types-created.png',
+	'caption' => 'After save — Asset Type created successfully; new row appears in the list.',
+])
+
+<p>
+	Then return to Equipment List → Edit an asset → Assignment → select the new type.
+</p>
 
 <h2>Asset Locations</h2>
 <p>
 	An <strong>asset location</strong> is where the equipment is kept (room, wing, site).
+	Open <strong>Equipment → Asset Locations</strong> from the same sidebar.
 	On the Assignment step the field is labelled <strong>Asset Location</strong>.
 </p>
 <ol>

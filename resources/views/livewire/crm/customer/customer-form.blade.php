@@ -134,17 +134,10 @@
                                 </div>
                                 <div class="row">
                                     <div class="col-sm-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox"
-                                                wire:model="lpos_required" />
-                                            <label class="form-check-label">LPO Required?</label>
-                                        </div>
+                                        <x-imara.custom-checkbox wire:model="lpos_required" label="LPO Required?" id="customer-lpos-required" />
                                     </div>
                                     <div class="col-sm-6">
-                                        <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" wire:model="active" />
-                                            <label class="form-check-label">Is Active?</label>
-                                        </div>
+                                        <x-imara.custom-checkbox wire:model="active" label="Is Active?" id="customer-active" />
                                     </div>
                                     <div class="col-sm-6">
                                         <div class="form-check">
