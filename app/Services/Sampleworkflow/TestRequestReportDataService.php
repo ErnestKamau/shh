@@ -593,7 +593,7 @@ class TestRequestReportDataService
             }
 
             $contexts[] = [
-                'rows' => $this->compactSampleDetailRows($rows),
+                'rows' => $this->normalizeSampleDetailRows($rows),
                 'lab_section' => $labSectionNames,
                 'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
                 'sample_photo_data_uri' => $samplePhotoDataUri,
@@ -688,45 +688,62 @@ class TestRequestReportDataService
     }
 
     /**
-     * Drop empty / placeholder detail cells and re-pair remaining fields into two columns.
+     * Keep the designed field layout and show empty / placeholder values as NP.
      *
      * @param  list<array{left?: array{label: string, value: string, emphasize?: bool}|null, right?: array{label: string, value: string, emphasize?: bool}|null}>  $rows
      * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}|null}>
      */
-    private function compactSampleDetailRows(array $rows): array
+    private function normalizeSampleDetailRows(array $rows): array
     {
-        $cells = [];
+        $normalized = [];
 
         foreach ($rows as $pair) {
-            foreach (['left', 'right'] as $side) {
-                $cell = $pair[$side] ?? null;
-                if (! is_array($cell)) {
-                    continue;
-                }
+            $left = is_array($pair['left'] ?? null)
+                ? $this->normalizeSampleDetailCell($pair['left'])
+                : null;
+            $right = is_array($pair['right'] ?? null)
+                ? $this->normalizeSampleDetailCell($pair['right'])
+                : null;
 
-                if (! $this->isReportValuePresent($cell['value'] ?? null)) {
-                    continue;
-                }
-
-                $cells[] = [
-                    'label' => (string) ($cell['label'] ?? ''),
-                    'value' => trim((string) ($cell['value'] ?? '')),
-                    ...(! empty($cell['emphasize']) ? ['emphasize' => true] : []),
-                ];
+            if ($left === null && $right === null) {
+                continue;
             }
-        }
 
-        $compacted = [];
-        $count = count($cells);
+            if ($left === null) {
+                $left = $right;
+                $right = null;
+            }
 
-        for ($i = 0; $i < $count; $i += 2) {
-            $compacted[] = [
-                'left' => $cells[$i],
-                'right' => $cells[$i + 1] ?? null,
+            $normalized[] = [
+                'left' => $left,
+                'right' => $right,
             ];
         }
 
-        return $compacted;
+        return $normalized;
+    }
+
+    /**
+     * @param  array{label: string, value: string, emphasize?: bool}  $cell
+     * @return array{label: string, value: string, emphasize?: bool}
+     */
+    private function normalizeSampleDetailCell(array $cell): array
+    {
+        $value = trim((string) ($cell['value'] ?? ''));
+        if (! $this->isReportValuePresent($value)) {
+            $value = 'NP';
+        }
+
+        $normalized = [
+            'label' => (string) ($cell['label'] ?? ''),
+            'value' => $value,
+        ];
+
+        if (! empty($cell['emphasize'])) {
+            $normalized['emphasize'] = true;
+        }
+
+        return $normalized;
     }
 
     private function isReportValuePresent(mixed $value): bool
@@ -1626,7 +1643,7 @@ class TestRequestReportDataService
     }
 
     /**
-     * Test Request Report letterhead: 3-line postal address, T and W only.
+     * Test Request Report letterhead: company name (from Companies), then postal address, T and W.
      *
      * @return array{name: string, lines: list<string>}
      */
@@ -1648,6 +1665,13 @@ class TestRequestReportDataService
         $website = trim((string) ($company->website ?? ''));
         if ($website !== '') {
             $lines[] = 'W: '.$website;
+        }
+
+        if ($name !== '') {
+            $lines = array_values(array_filter(
+                $lines,
+                static fn (string $line): bool => strcasecmp($line, $name) !== 0,
+            ));
         }
 
         return [

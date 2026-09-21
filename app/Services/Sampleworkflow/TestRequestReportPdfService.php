@@ -7,6 +7,8 @@ use App\Models\TestRequestReportLanguageFile;
 use App\Models\TestRequestReportRevision;
 use App\SampleHeader;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdfDocument;
+use Illuminate\Support\Facades\Log;
 
 class TestRequestReportPdfService
 {
@@ -19,8 +21,13 @@ class TestRequestReportPdfService
      * @param  array{include_reference_method?: bool, show_specification?: bool, show_specification_standard?: bool, show_mu_percent?: bool}  $options
      * @return array{relative_path: string, online_url: string, filename: string, language: string}
      */
-    public function generateAndStore(SampleHeader $batch, int $sequence, string $language, array $options = []): array
-    {
+    public function generateAndStore(
+        SampleHeader $batch,
+        int $sequence,
+        string $language,
+        array $options = [],
+        ?string $userId = null,
+    ): array {
         $batch->loadMissing(['customer', 'sample_type', 'samples']);
         $language = $this->normalizeLanguage($language);
         $includeReferenceMethod = (bool) ($options['include_reference_method'] ?? false);
@@ -101,11 +108,35 @@ class TestRequestReportPdfService
         $pdf->setPaper('a4', 'portrait');
         app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf);
 
+        return $this->persistOfficialPdf(
+            $batch,
+            $pdf,
+            $reportNumber,
+            $language,
+            $sequence,
+            $userId ?? (auth()->id() ? (string) auth()->id() : null),
+        );
+    }
+
+    /**
+     * Write a unique PDF snapshot so regenerating never overwrites a previous file.
+     *
+     * @return array{relative_path: string, online_url: string, filename: string, language: string}
+     */
+    public function persistOfficialPdf(
+        SampleHeader $batch,
+        DomPdfDocument $pdf,
+        string $reportNumber,
+        string $language,
+        int $sequence,
+        ?string $userId = null,
+        bool $isDraft = false,
+    ): array {
+        $language = $this->normalizeLanguage($language);
         $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
-        $customerName = trim($customerName, '_') ?: 'customer';
-        $filename = 'TRR_'.$reportNumber.'-'.$language.'.pdf';
+        $customerName = trim((string) $customerName, '_') ?: 'customer';
+        $filename = $this->uniqueStoredFilename($reportNumber, $language, $isDraft);
         $relativePath = '/reports/'.$customerName.'/'.$filename;
-        // Must live under app/public so /storage/... (public/storage symlink) can serve it.
         $absoluteDir = storage_path('app/public/reports/'.$customerName);
 
         if (! is_dir($absoluteDir)) {
@@ -121,17 +152,26 @@ class TestRequestReportPdfService
             'language' => $language,
         ];
 
+        $attachmentService = app(BatchWorkflowDocumentAttachmentService::class);
+
         try {
-            app(BatchWorkflowDocumentAttachmentService::class)->attachTestReport(
+            $attachmentService->attachTestReport(
                 $batch,
                 $result['online_url'],
-                auth()->id() ? (string) auth()->id() : null,
+                $userId,
+                $attachmentService->testReportAttachmentTitle($reportNumber, $language, $isDraft),
+                $isDraft,
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to attach generated Test Report to batch attachments', [
+            Log::warning('Failed to attach generated Test Report to batch attachments', [
                 'batch_id' => $batch->id,
+                'is_draft' => $isDraft,
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        if (! $isDraft) {
+            $this->persistRevisionFile($batch, $sequence, $result, $language);
         }
 
         return $result;
@@ -180,6 +220,7 @@ class TestRequestReportPdfService
         return match ($language) {
             'ar' => [
                 'report_title' => 'تقرير الاختبار',
+                'draft_report_title' => 'مسودة تقرير الاختبار',
                 'certificate_no' => 'رقم الشهادة',
                 'page_of' => 'صفحة %d من %d',
                 'attention' => 'إلى عناية',
@@ -253,6 +294,7 @@ class TestRequestReportPdfService
             ],
             'pt' => [
                 'report_title' => 'RELATÓRIO DE ENSAIO',
+                'draft_report_title' => 'RASCUNHO DO RELATÓRIO DE ENSAIO',
                 'certificate_no' => 'Certificado n.º',
                 'page_of' => 'Página %d de %d',
                 'attention' => 'À atenção de',
@@ -326,6 +368,7 @@ class TestRequestReportPdfService
             ],
             default => [
                 'report_title' => 'TEST REPORT',
+                'draft_report_title' => 'DRAFT TEST REPORT',
                 'certificate_no' => 'Certificate no.',
                 'page_of' => 'Page %d of %d',
                 'attention' => 'Attention',
@@ -429,5 +472,54 @@ class TestRequestReportPdfService
             'formattedReportNumber' => $config['formatted_report_number'],
             'sampleNumberSuffix' => $config['sample_number_suffix'],
         ];
+    }
+
+    private function uniqueStoredFilename(string $reportNumber, string $language, bool $isDraft = false): string
+    {
+        $safeNumber = preg_replace('/[^A-Za-z0-9\-_]/', '_', $reportNumber) ?: 'report';
+        $stamp = now()->format('YmdHis');
+        $suffix = bin2hex(random_bytes(3));
+        $prefix = $isDraft ? 'TRR_DRAFT_' : 'TRR_';
+
+        return $prefix.$safeNumber.'-'.$language.'-'.$stamp.'-'.$suffix.'.pdf';
+    }
+
+    /**
+     * @param  array{relative_path: string, online_url: string, filename: string, language: string}  $stored
+     */
+    private function persistRevisionFile(
+        SampleHeader $batch,
+        int $sequence,
+        array $stored,
+        string $language,
+    ): void {
+        try {
+            $revision = TestRequestReportRevision::query()
+                ->where('batch_id', $batch->id)
+                ->where('revision_no', $sequence)
+                ->latest('id')
+                ->first();
+
+            if ($revision === null) {
+                return;
+            }
+
+            if (
+                filled($revision->report_url)
+                && (string) $revision->language !== $language
+            ) {
+                return;
+            }
+
+            $revision->report_url = $stored['relative_path'];
+            $revision->report_online_url = $stored['online_url'];
+            $revision->save();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to persist Test Report revision file path', [
+                'batch_id' => $batch->id,
+                'revision_no' => $sequence,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

@@ -6592,20 +6592,6 @@ class SampleWorkFlowController extends Controller
                     // Persist report URLs only — workflow stage must change via manual move.
                     $batch->save();
 
-                    try {
-                        app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
-                            ->attachTestReport(
-                                $batch,
-                                $batch->batch_report_online_url,
-                                auth()->id() ? (string) auth()->id() : null,
-                            );
-                    } catch (\Throwable $attachmentError) {
-                        \Log::warning('Failed to attach delivered Test Report to batch attachments', [
-                            'batch_id' => $batch->id,
-                            'error' => $attachmentError->getMessage(),
-                        ]);
-                    }
-
                     // Push a CustomerNotification (surfaces in portal notifications bell).
                     \App\Models\CRM\CustomerNotification::create([
                         'customer_id'              => $customerId,
@@ -6973,42 +6959,29 @@ class SampleWorkFlowController extends Controller
                 $this->applyTestRequestReportPreviewWatermark($dompdf);
             }
 
-            $filename = ($isPreviewPdf ? 'TRR_PREVIEW_' : 'TRR_') . $reportNumber . '.pdf';
+            $filename = ($isPreviewPdf ? 'TRR_DRAFT_' : 'TRR_') . $reportNumber . '.pdf';
 
-            // Official generate persists the report path; preview-pdf does not.
+            // Official and draft generates both persist a unique snapshot;
+            // drafts do not bump the batch's official report URL / revision.
+            $stored = $pdfService->persistOfficialPdf(
+                $batch,
+                $pdf,
+                $reportNumber,
+                $language,
+                (int) $sequence,
+                auth()->id() ? (string) auth()->id() : null,
+                $isPreviewPdf,
+            );
+
+            $filename = $stored['filename'];
+
             if (! $isPreviewPdf) {
-                $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
-                $customerName = trim($customerName, '_') ?: 'customer';
-                $relativePath = '/reports/' . $customerName . '/' . $filename;
-                // Must live under app/public so /storage/... (public/storage symlink) can serve it.
-                $absoluteDir = storage_path('app/public/reports/' . $customerName);
-
-                if (!is_dir($absoluteDir)) {
-                    mkdir($absoluteDir, 0755, true);
-                }
-
-                $pdf->save($absoluteDir . '/' . $filename);
-
-                $batch->batch_report_url = $relativePath;
-                $batch->batch_report_online_url = url('/storage' . $relativePath);
+                $batch->batch_report_url = $stored['relative_path'];
+                $batch->batch_report_online_url = $stored['online_url'];
                 if ((int) ($batch->in_ammendment_proccess ?? 0) === 1) {
                     $batch->in_ammendment_proccess = 0;
                 }
                 $batch->save();
-
-                try {
-                    app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
-                        ->attachTestReport(
-                            $batch,
-                            $batch->batch_report_online_url,
-                            auth()->id() ? (string) auth()->id() : null,
-                        );
-                } catch (\Throwable $attachmentError) {
-                    \Log::warning('Failed to attach generated Test Report to batch attachments', [
-                        'batch_id' => $batch->id,
-                        'error' => $attachmentError->getMessage(),
-                    ]);
-                }
             }
 
             return $pdf->stream($filename, [

@@ -111,12 +111,12 @@
                                         <i class="mdi mdi-clipboard-text-outline"></i>
                                     </button>
                                     @can('laboratory.components.lab-reports.view')
-                                    <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
+                                    <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview-pdf', 'lang' => 'en']) }}"
                                         class="btn btn-sm btn-outline-secondary"
-                                        title="Preview Test Report"
+                                        title="Generate Draft Test Report"
                                         target="_blank"
                                         rel="noopener noreferrer">
-                                        <i class="mdi mdi-eye-outline"></i>
+                                        <i class="mdi mdi-file-document-outline"></i>
                                     </a>
                                     @endcan
                                     @endif

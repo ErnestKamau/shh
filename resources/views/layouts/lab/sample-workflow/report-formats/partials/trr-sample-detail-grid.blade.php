@@ -1,4 +1,4 @@
-{{-- Per-sample detail grid: two columns of "Label : Value" cells (empty values omitted upstream) --}}
+{{-- Per-sample Test info grid: two columns of "Label : Value" (empty values omitted upstream). --}}
 @php
     $context = $sampleDetailContexts[$sampleIndex] ?? null;
     $rows = is_array($context['rows'] ?? null) ? $context['rows'] : [];
@@ -31,17 +31,5 @@
     </tr>
     @endif
     @endforeach
-</table>
-@endif
-
-@php $labSection = trim((string) ($context['lab_section'] ?? '')); @endphp
-@if($labSection !== '')
-<table class="detail-grid lab-section-banner">
-    @include('layouts.lab.sample-workflow.report-formats.partials.trr-detail-grid-cols')
-    <tr>
-        <td colspan="2">
-            <strong>{{ $labels['lab_section'] ?? 'Lab Section' }}</strong> : {{ $labSection }}
-        </td>
-    </tr>
 </table>
 @endif

@@ -331,9 +331,11 @@
                                 @if(isset($batch->status) && $batch->status == "Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
                                     @can('laboratory.components.lab-reports.view')
                                     <li>
-                                        <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
-                                           class="dropdown-item">
-                                            <i class="mdi mdi-eye-outline mr-2"></i> Preview Test Report
+                                        <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview-pdf', 'lang' => 'en']) }}"
+                                           class="dropdown-item"
+                                           target="_blank"
+                                           rel="noopener noreferrer">
+                                            <i class="mdi mdi-file-document-outline mr-2"></i> Generate Draft Test Report
                                         </a>
                                     </li>
                                     @if(!empty($batch->is_shelf_life))
@@ -368,9 +370,11 @@
                                 @if(isset($batch->status) && Auth::user()->is_client == 0 && $status == 'Sample Verification')
                                     @can('laboratory.components.lab-reports.view')
                                     <li>
-                                        <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"
-                                           class="dropdown-item">
-                                            <i class="mdi mdi-eye-outline mr-2"></i> Preview Test Report
+                                        <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview-pdf', 'lang' => 'en']) }}"
+                                           class="dropdown-item"
+                                           target="_blank"
+                                           rel="noopener noreferrer">
+                                            <i class="mdi mdi-file-document-outline mr-2"></i> Generate Draft Test Report
                                         </a>
                                     </li>
                                     @if(!empty($batch->is_shelf_life))
@@ -453,6 +457,14 @@
                                     @endif
                                     @if($batch->status == "Sample Approval")
                                         @can('laboratory.components.lab-reports.view')
+                                        <li>
+                                            <a href="{{ route('generateTestRequestReport', ['batch_id' => $batch->id, 'mode' => 'preview-pdf', 'lang' => 'en']) }}"
+                                               class="dropdown-item"
+                                               target="_blank"
+                                               rel="noopener noreferrer">
+                                                <i class="mdi mdi-file-document-outline mr-2"></i> Generate Draft Test Report
+                                            </a>
+                                        </li>
                                         @if(!empty($batch->is_shelf_life))
                                         <li>
                                             <a href="{{ route('generateShelfLifeStudyReport', ['batch_id' => $batch->id, 'mode' => 'preview', 'lang' => 'en']) }}"

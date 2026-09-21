@@ -33,12 +33,12 @@
         box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
     .pg-header {
-        margin-bottom: 10px !important;
-        padding-bottom: 8px !important;
+        margin-bottom: 4px !important;
+        padding-bottom: 2px !important;
     }
     .report-title-bar {
-        margin: 8px 0 10px !important;
-        padding: 6px 0 !important;
+        margin: 4px 0 4px !important;
+        padding: 4px 0 2px !important;
     }
     @endif
 
@@ -182,13 +182,13 @@
         text-align: left;
     }
     .pg-header-logo img {
-        max-height: 110px;
-        max-width: 360px;
+        max-height: 82px;
+        max-width: 270px;
         object-fit: contain;
         display: block;
     }
     .pg-header-logo .logo-text {
-        font-size: 28px;
+        font-size: 22px;
         font-weight: 900;
         color: #8B1A1A;
         letter-spacing: 1px;
@@ -198,7 +198,8 @@
         font-size: 10pt;
         font-weight: bold;
         color: #111;
-        margin-top: 4px;
+        margin-top: 0;
+        margin-bottom: 1px;
         line-height: 1.3;
     }
     .pg-header-address {
@@ -219,8 +220,8 @@
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 1.2px;
-        padding: 8px 0 4px;
-        margin: 2px 0 8px;
+        padding: 6px 0 2px;
+        margin: 2px 0 4px;
         color: #111;
         border-top: none;
         border-bottom: 3px solid #8B1A1A;
@@ -256,7 +257,7 @@
         margin-top: -1px;
     }
     .info-table + .detail-grid {
-        margin-top: 8px;
+        margin-top: -1px;
     }
     .detail-grid td {
         border: 1px solid #000;
@@ -275,13 +276,7 @@
     }
     .sample-detail-grid {
         margin-top: 6px;
-        margin-bottom: 4px;
-    }
-    .lab-section-banner {
-        margin-bottom: 6px;
-    }
-    .lab-section-banner td {
-        font-weight: normal;
+        margin-bottom: 0;
     }
     .trr-sample-block + .trr-sample-block {
         margin-top: 18px;
@@ -333,6 +328,7 @@
         width: 100%;
         border-collapse: collapse;
         font-size: 9.5pt;
+        margin-top: 10px;
         margin-bottom: 10px;
     }
     .results-table th {
@@ -360,6 +356,13 @@
         text-align: left;
     }
     .results-table tr:nth-child(even) td { background: #fbfbfb; }
+    .results-table tr.results-lab-section td {
+        background: #fff;
+        text-align: left;
+        font-weight: normal;
+        padding: 5px 8px;
+        border: 1px solid #000;
+    }
     .results-table .analysis-group td {
         background: #efefef;
         font-weight: bold;
@@ -568,7 +571,7 @@
         size: A4 portrait;
     }
     html {
-        margin: 54mm 12mm 28mm 12mm;
+        margin: 38mm 12mm 28mm 12mm;
         padding: 0;
     }
     body, main {
@@ -587,7 +590,7 @@
     }
     .pdf-doc-header {
         position: fixed;
-        top: -50mm;
+        top: -36mm;
         left: 0;
         right: 0;
         width: auto;
@@ -605,23 +608,24 @@
         vertical-align: top;
     }
     .pdf-doc-header .pg-header-logo img {
-        max-height: 28mm;
-        max-width: 90mm;
+        max-height: 20mm;
+        max-width: 68mm;
     }
     .pdf-doc-header .logo-text {
-        font-size: 26px;
+        font-size: 20px;
     }
     .pdf-doc-header .pg-header-company {
         font-size: 9pt;
-        margin-top: 2px;
+        margin-top: 0;
+        margin-bottom: 1px;
     }
     .pdf-doc-header .pg-header-address {
         font-size: 8.5pt;
         line-height: 1.3;
     }
     .pdf-doc-header .report-title-bar {
-        margin: 2px 0 0;
-        padding: 3px 0 2px;
+        margin: 1px 0 0;
+        padding: 2px 0 1px;
         font-size: 11pt;
         letter-spacing: 1px;
         border-top: none;
@@ -673,7 +677,7 @@
         padding: 3px 6px;
     }
     .info-table + .detail-grid {
-        margin-top: 6px;
+        margin-top: -1px;
     }
     .detail-grid {
         margin-bottom: 0;
@@ -683,7 +687,7 @@
     .detail-grid td {
         padding: 3px 5px;
     }
-    .lab-section-banner {
+    .sample-detail-grid {
         page-break-after: avoid;
     }
     .trr-sample-block + .trr-sample-block {
@@ -720,6 +724,7 @@
     }
     .results-table {
         font-size: 8pt;
+        margin-top: 8px;
         margin-bottom: 6px;
         page-break-inside: auto;
     }
@@ -860,7 +865,7 @@
             <div class="trr-preview-chrome">
                 <div class="trr-preview-copy">
                     <span class="trr-preview-badge">Draft preview</span>
-                    <h1>Test Report</h1>
+                    <h1>Draft Test Report</h1>
                     <p>
                         This is how the final report will look with the current results and comments.
                         It does not issue a revision and is not saved as an official PDF.
@@ -899,8 +904,7 @@
 
             <table class="results-table">
                 <thead>
-                    <tr>
-                        @php
+                    @php
                             $includeReferenceMethod = !empty($includeReferenceMethod);
                             $isBrazilExportationReport = !empty($isBrazilExportationReport);
                             $optShowSpecification = isset($showSpecification)
@@ -966,7 +970,8 @@
                                 + ($includeSpecStandardCol ? 1 : 0)
                                 + ($includeMuCol ? 1 : 0)
                                 + ($includeReferenceMethodCol ? 1 : 0);
-                        @endphp
+                    @endphp
+                    <tr>
                         <th style="width:{{ $includeReferenceMethodCol ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
                         <th style="width:10%">{{ $labels['results'] }}</th>
                         <th style="width:7%">{{ $labels['unit'] }}</th>
@@ -989,7 +994,17 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php $hasRows = $sampleResultRows !== []; @endphp
+                    @php
+                        $hasRows = $sampleResultRows !== [];
+                        $labSection = trim((string) (($sampleDetailContexts[$loop->index]['lab_section'] ?? '') ?: ''));
+                    @endphp
+                    @if($labSection !== '')
+                    <tr class="results-lab-section">
+                        <td colspan="{{ $resultsColspan }}">
+                            <strong>{{ $labels['lab_section'] ?? 'Lab Section' }}</strong> : {{ $labSection }}
+                        </td>
+                    </tr>
+                    @endif
                     @foreach ($sampleResultRows as $row)
                         @php $cr = $row['cr']; @endphp
                             <tr>
