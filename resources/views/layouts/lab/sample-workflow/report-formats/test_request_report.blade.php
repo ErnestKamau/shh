@@ -923,8 +923,20 @@
                                 return ! in_array($trimmed, ['-', '—', '–', 'N/A', 'n/a', 'NA'], true);
                             };
                             $sampleResultRows = [];
+                            $filterLabSectionIds = collect($filterLabSectionIds ?? [])
+                                ->map(static fn ($id): string => trim((string) $id))
+                                ->filter()
+                                ->values()
+                                ->all();
+                            if ($filterLabSectionIds === [] && filled($filterLabSectionId ?? null)) {
+                                $filterLabSectionIds = [trim((string) $filterLabSectionId)];
+                            }
                             foreach ($sample->getSampleByAnalysisType() as $atLevel) {
                                 foreach ($atLevel->getCapturedResults() as $cr) {
+                                    if ($filterLabSectionIds !== []
+                                        && ! in_array((string) ($cr->lab_section_id ?? ''), $filterLabSectionIds, true)) {
+                                        continue;
+                                    }
                                     $analysisMethod = $cr->method() ?: $cr->ltmethod;
                                     $sampleResultRows[] = [
                                         'cr' => $cr,
@@ -997,7 +1009,7 @@
                                     {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
                                 </td>
                                 <td class="{{ isset($cr->remark) && strtoupper($cr->remark) == 'FAIL' ? 'fail' : '' }}">
-                                    {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
+                                    {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : 'TBA') }}
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
                                 @if($includeLoqCol)

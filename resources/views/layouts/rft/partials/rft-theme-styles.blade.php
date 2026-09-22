@@ -1147,6 +1147,50 @@
 		border-top: 1px solid #e2e8f0;
 	}
 
+	.rft-sample-section-label--collection {
+		margin-top: 0.25rem;
+		padding-top: 0;
+		border-top: none;
+		color: #7f1d1d;
+		border-bottom: 1px solid rgba(127, 29, 29, 0.18);
+		padding-bottom: 0.3rem;
+	}
+
+	.rft-sample-section-label--sample {
+		color: #1e3a5f;
+		border-top-color: rgba(30, 58, 95, 0.18);
+	}
+
+	.rft-sample-grid-row--collection {
+		background: rgba(127, 29, 29, 0.035);
+		border-radius: 0.5rem;
+		padding: 0.4rem 0.5rem 0.2rem;
+		margin-bottom: 0.35rem;
+	}
+
+	.rft-additional-details__row {
+		display: grid;
+		grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) auto;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.rft-additional-details .rft-sample-section-label {
+		margin: 0;
+		padding: 0;
+		border: none;
+	}
+
+	.rft-sample-field-nested {
+		margin-top: 0.55rem;
+		padding-top: 0.45rem;
+		border-top: 1px dashed rgba(15, 23, 42, 0.12);
+	}
+
+	.rft-sample-field-nested .trf-sampling-equipment-ids {
+		margin-top: 0;
+	}
+
 	.rft-option-grid--tight {
 		margin-left: -0.25rem !important;
 		margin-right: -0.25rem !important;

@@ -300,7 +300,7 @@ final class SubmissionFormInstanceSampleRowUpdateService
 
                 /** @var SubmissionFormElement $element */
                 $element = $elementByName->get($name);
-                $stored = $this->encodeValueForStorage($value, (string) $element->element_type);
+                $stored = $this->encodeValueForStorage($value, (string) $element->element_type, $name);
 
                 SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element, $stored, $rowIndex): void {
                     SubmissionFormInstanceValue::query()->updateOrCreate(
@@ -334,6 +334,10 @@ final class SubmissionFormInstanceSampleRowUpdateService
                 return [];
             }
 
+            if ($fieldName === 'additional_details') {
+                return [];
+            }
+
             if (in_array($fieldName, SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames(), true)
                 || $elementType === 'analysis_elements_select') {
                 return [];
@@ -344,6 +348,12 @@ final class SubmissionFormInstanceSampleRowUpdateService
 
         if ($elementType === 'checkbox' || in_array($fieldName, ['test_requirements', 'test_category'], true)) {
             return SubmissionFormSchemaHelper::checkboxGroupValueMap($raw);
+        }
+
+        if ($fieldName === 'additional_details') {
+            $decoded = json_decode($raw, true);
+
+            return is_array($decoded) ? $decoded : [];
         }
 
         if (in_array($elementType, ['analysis_elements_select'], true) && str_contains($raw, ',')) {
@@ -361,10 +371,29 @@ final class SubmissionFormInstanceSampleRowUpdateService
         return $raw;
     }
 
-    private function encodeValueForStorage(mixed $value, string $elementType): ?string
+    private function encodeValueForStorage(mixed $value, string $elementType, string $fieldName = ''): ?string
     {
         if ($value === null || $value === '') {
             return null;
+        }
+
+        if ($fieldName === 'additional_details' && is_array($value)) {
+            $rows = array_values(array_filter($value, static function ($row): bool {
+                if (! is_array($row)) {
+                    return false;
+                }
+
+                return trim((string) ($row['label'] ?? '')) !== ''
+                    || trim((string) ($row['value'] ?? '')) !== '';
+            }));
+
+            return $rows === [] ? null : json_encode(array_map(
+                static fn (array $row): array => [
+                    'label' => trim((string) ($row['label'] ?? '')),
+                    'value' => trim((string) ($row['value'] ?? '')),
+                ],
+                $rows
+            ));
         }
 
         if (is_array($value)) {

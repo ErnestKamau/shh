@@ -491,13 +491,21 @@ class RequestViewPagePresenter
 
         foreach ($formData['sections'] ?? [] as $section) {
             $titleKey = strtolower(trim((string) ($section['title'] ?? '')));
-            if ($titleKey !== 'sample collection data') {
+            $sectionType = (string) ($section['section_type'] ?? '');
+            $isCollectionSection = $titleKey === 'sample collection data';
+            $isRowsSection = $sectionType === 'rows_section';
+
+            if (! $isCollectionSection && ! $isRowsSection) {
                 continue;
             }
 
             foreach ($this->filledFieldsFromSection($section) as $field) {
                 $name = strtolower(trim((string) ($field['name'] ?? '')));
                 if (in_array($name, SubmissionFormSchemaHelper::miscellaneousTrfFieldNames(), true)) {
+                    continue;
+                }
+
+                if ($isRowsSection && ! SubmissionFormSchemaHelper::isSampleCollectionFieldName($name)) {
                     continue;
                 }
 

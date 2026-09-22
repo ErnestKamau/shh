@@ -114,6 +114,7 @@ trait BuildsSubmissionFormTrfSections
             ]],
             ['text', 'Sample Temp (°C)', 'sample_temp', 13],
             ['analysis_elements_select', 'Tests', 'parameters', 14],
+            ['textarea', 'Additional details', 'additional_details', 15],
         ];
     }
 
@@ -140,6 +141,7 @@ trait BuildsSubmissionFormTrfSections
             ['sample_type_select', 'Sample type', 'sample_type_id', 11, null, true],
             ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 12, null, true],
             ['analysis_elements_select', 'Tests', 'parameters', 13],
+            ['textarea', 'Additional details', 'additional_details', 14],
         ];
     }
 
@@ -171,6 +173,7 @@ trait BuildsSubmissionFormTrfSections
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'chemistry', 'label' => 'Chemistry'],
             ]],
+            ['textarea', 'Additional details', 'additional_details', 11],
         ];
     }
 
@@ -382,6 +385,210 @@ trait BuildsSubmissionFormTrfSections
             'picture_of_samples',
         ]);
         $this->patchMiscellaneousSection($form);
+        $this->promoteCollectionFieldsToSampleRows($form);
+    }
+
+    /**
+     * Move Sample collection data fields onto the sample rows section (per-sample)
+     * and hide the batch Collection wizard step.
+     *
+     * @param  list<array{value: string, label: string}>  $extraApparatusOptions
+     */
+    protected function promoteCollectionFieldsToSampleRows(
+        SubmissionForm $form,
+        array $extraApparatusOptions = [],
+    ): void {
+        $rowsSection = $form->sections()
+            ->where('section_type', 'rows_section')
+            ->where('title', 'Test & sample information')
+            ->first();
+
+        if ($rowsSection === null) {
+            return;
+        }
+
+        $rowsHolder = $rowsSection->elementHolders()->where('holder_type', 'field')->first();
+        if ($rowsHolder === null) {
+            $rowsHolder = $rowsSection->elementHolders()->create([
+                'id' => (string) Str::uuid7(),
+                'holder_type' => 'field',
+                'max_elements' => 60,
+                'sort_order' => 1,
+            ]);
+        }
+
+        $collectionDefinitions = $this->collectionFieldDefinitionsForForm($form, $extraApparatusOptions);
+        $movedElementIds = [];
+        $sortOrder = 1;
+
+        $collectionSection = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Sample collection data')
+            ->first();
+
+        $collectionHolder = $collectionSection?->elementHolders()->where('holder_type', 'field')->first();
+
+        foreach ($collectionDefinitions as $field) {
+            $name = (string) $field[2];
+            $existingOnRows = $rowsHolder->elements()->where('name', $name)->first();
+            $fromCollection = $collectionHolder?->elements()->where('name', $name)->first();
+
+            if ($existingOnRows !== null) {
+                $existingOnRows->update([
+                    'label' => $field[1],
+                    'element_type' => $field[0],
+                    'sort_order' => $sortOrder,
+                    'is_hidden' => false,
+                    'is_required' => false,
+                ]);
+                if (in_array($field[0], ['select', 'checkbox', 'radio'], true) && isset($field[4]) && is_array($field[4])) {
+                    $existingOnRows->update(['options' => $field[4]]);
+                }
+                $movedElementIds[] = (string) $existingOnRows->id;
+
+                if ($fromCollection !== null && (string) $fromCollection->id !== (string) $existingOnRows->id) {
+                    $this->hideOrDeleteOrphanCollectionElement($fromCollection);
+                }
+            } elseif ($fromCollection !== null) {
+                $fromCollection->update([
+                    'submission_form_element_holder_id' => $rowsHolder->id,
+                    'label' => $field[1],
+                    'element_type' => $field[0],
+                    'sort_order' => $sortOrder,
+                    'is_hidden' => false,
+                    'is_required' => false,
+                ]);
+                if (in_array($field[0], ['select', 'checkbox', 'radio'], true) && isset($field[4]) && is_array($field[4])) {
+                    $fromCollection->update(['options' => $field[4]]);
+                }
+                $movedElementIds[] = (string) $fromCollection->id;
+            } else {
+                $created = $this->upsertRowElement($rowsHolder, [
+                    $field[0],
+                    $field[1],
+                    $field[2],
+                    $sortOrder,
+                    $field[4] ?? null,
+                    false,
+                ]);
+                $movedElementIds[] = (string) $created->id;
+            }
+
+            $sortOrder++;
+        }
+
+        // Keep non-collection sample fields after collection block.
+        $rowsHolder->elements()
+            ->whereNotIn('name', array_map(static fn (array $field): string => (string) $field[2], $collectionDefinitions))
+            ->orderBy('sort_order')
+            ->get()
+            ->each(function (SubmissionFormElement $element) use (&$sortOrder): void {
+                $element->update(['sort_order' => $sortOrder]);
+                $sortOrder++;
+            });
+
+        $rowsHolder->update(['max_elements' => max((int) $rowsHolder->max_elements, $sortOrder)]);
+
+        if ($movedElementIds !== []) {
+            SubmissionFormInstanceValue::query()
+                ->whereIn('submission_form_element_id', $movedElementIds)
+                ->whereNull('array_index')
+                ->update(['array_index' => 0]);
+        }
+
+        if ($collectionSection !== null) {
+            $collectionSection->update(['is_hidden' => true]);
+            $collectionSection->elementHolders()
+                ->with('elements')
+                ->get()
+                ->each(function (SubmissionFormElementHolder $holder): void {
+                    $holder->elements->each(function (SubmissionFormElement $element): void {
+                        $this->hideOrDeleteOrphanCollectionElement($element);
+                    });
+                });
+        }
+
+        $this->ensureAdditionalDetailsRowElement($form);
+    }
+
+    /**
+     * Persistable per-sample JSON field for custom label/value detail rows.
+     * Hidden from generic row rendering — walk-in cards use a dedicated UI.
+     */
+    protected function ensureAdditionalDetailsRowElement(SubmissionForm $form): void
+    {
+        $rowsSection = $form->sections()
+            ->where('section_type', 'rows_section')
+            ->where('title', 'Test & sample information')
+            ->first();
+
+        if ($rowsSection === null) {
+            return;
+        }
+
+        $rowsHolder = $rowsSection->elementHolders()->where('holder_type', 'field')->first();
+        if ($rowsHolder === null) {
+            return;
+        }
+
+        $maxSort = (int) $rowsHolder->elements()->max('sort_order');
+        $this->upsertRowElement($rowsHolder, [
+            'textarea',
+            'Additional details',
+            'additional_details',
+            max(1, $maxSort + 1),
+            null,
+            false,
+        ]);
+        $rowsHolder->update(['max_elements' => max((int) $rowsHolder->max_elements, $maxSort + 1)]);
+    }
+
+    protected function hideOrDeleteOrphanCollectionElement(SubmissionFormElement $element): void
+    {
+        $hasValues = SubmissionFormInstanceValue::query()
+            ->where('submission_form_element_id', $element->id)
+            ->exists();
+
+        if (! $hasValues) {
+            $element->delete();
+
+            return;
+        }
+
+        $element->update([
+            'is_hidden' => true,
+            'is_required' => false,
+        ]);
+    }
+
+    /**
+     * @param  list<array{value: string, label: string}>  $extraApparatusOptions
+     * @return list<array{0: string, 1: string, 2: string, 3: int, 4?: list<array{value: string, label: string}>}>
+     */
+    protected function collectionFieldDefinitionsForForm(
+        SubmissionForm $form,
+        array $extraApparatusOptions = [],
+    ): array {
+        $documentCode = strtoupper(trim((string) ($form->document_code ?? '')));
+
+        if (
+            $documentCode === 'TRF-WASTEWATER-036'
+            || $documentCode === 'TRF-WASTE-036'
+            || str_contains($documentCode, 'WASTEWATER')
+            || (str_contains($documentCode, 'WASTE') && str_contains($documentCode, '036'))
+        ) {
+            return $this->wasteWaterCollectionDataFields();
+        }
+
+        if ($documentCode === 'TRF-FOOD-019' || $documentCode === 'TRF-FOOD-FEED-021') {
+            $extra = $extraApparatusOptions !== []
+                ? $extraApparatusOptions
+                : [['value' => 'air_sampler', 'label' => 'Air sampler']];
+
+            return $this->standardCollectionDataFields($this->baseSamplingApparatusOptions($extra));
+        }
+
+        return $this->standardCollectionDataFields($this->baseSamplingApparatusOptions($extraApparatusOptions));
     }
 
     /**
@@ -397,6 +604,7 @@ trait BuildsSubmissionFormTrfSections
             ['sample_type_select', 'Sample type', 'sample_type_id', 5, null, true],
             ['analysis_type_select', 'Analysis Type', 'analysis_type_id', 6, null, true],
             ['analysis_elements_select', 'Tests', 'parameters', 7],
+            ['textarea', 'Additional details', 'additional_details', 8],
         ];
     }
 

@@ -30,6 +30,17 @@
 		$canGenerateReports = $allApproved
 			&& $sameCustomer
 			&& auth()->user()?->can('laboratory.components.lab-reports.view');
+		$bulkReportLabSections = [];
+		if ($canGenerateReports && $bulkVerifyBatchIds !== []) {
+			$bulkReportLabSections = \App\SampleHeader::query()
+				->whereIn('id', $bulkVerifyBatchIds)
+				->get()
+				->flatMap(static fn (\App\SampleHeader $batch): array => $batch->labSectionsForDisplay())
+				->unique('id')
+				->sortBy(static fn (array $section): string => mb_strtolower($section['name'] !== '' ? $section['name'] : $section['code']))
+				->values()
+				->all();
+		}
 		$activeMeta = $activeBatch === null
 			? ''
 			: collect([
@@ -375,6 +386,22 @@
 								<label class="mb-0"><input type="checkbox" wire:model="bulkTestReportShowSpecificationStandard" class="mr-1"> Spec Standard</label>
 								<label class="mb-0"><input type="checkbox" wire:model="bulkTestReportShowMuPercent" class="mr-1"> M.U%</label>
 							</div>
+							@if($bulkReportLabSections !== [])
+								<div class="mt-2">
+									<label class="small font-weight-bold mb-1 d-block" for="bulk-trr-lab-section">Lab Section</label>
+									<select id="bulk-trr-lab-section" class="form-control form-control-sm" wire:model="bulkTestReportLabSectionId">
+										<option value="">All lab sections (full report)</option>
+										@foreach($bulkReportLabSections as $section)
+											<option value="{{ $section['id'] }}">
+												{{ $section['name'] !== '' ? $section['name'] : $section['code'] }}
+											</option>
+										@endforeach
+									</select>
+									<small class="text-muted d-block mt-1">
+										Section-only prints keep each sample on its own page and are not saved as the official Test Report.
+									</small>
+								</div>
+							@endif
 						</div>
 					@endif
 					<div class="d-flex justify-content-between align-items-center w-100 flex-wrap" style="gap:8px;">

@@ -1452,7 +1452,11 @@ class RequestViewPage extends Component
             return;
         }
 
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             $slide = 'customer';
         }
 
@@ -1522,7 +1526,9 @@ class RequestViewPage extends Component
                     if ($name === '') {
                         continue;
                     }
-                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
+                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)
+                        || in_array($name, \App\Services\SubmissionForm\SubmissionFormSchemaHelper::sampleCollectionFieldNames(), true)
+                            && in_array($type, ['checkbox', 'radio'], true)) {
                         $draft[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
                             $draft[$name] ?? null,
                         );
@@ -1581,7 +1587,11 @@ class RequestViewPage extends Component
     {
         $this->authorizeFormAccess(auth()->user());
 
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             $slide = 'customer';
         }
 
@@ -1650,7 +1660,9 @@ class RequestViewPage extends Component
                     if ($name === '') {
                         continue;
                     }
-                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
+                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)
+                        || in_array($name, \App\Services\SubmissionForm\SubmissionFormSchemaHelper::sampleCollectionFieldNames(), true)
+                            && in_array($type, ['checkbox', 'radio'], true)) {
                         $draft[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
                             $draft[$name] ?? null,
                         );
@@ -1713,7 +1725,11 @@ class RequestViewPage extends Component
 
     public function setTrfViewSlide(string $slide): void
     {
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             return;
         }
 
@@ -1723,7 +1739,11 @@ class RequestViewPage extends Component
 
     public function setTrfEditSlide(string $slide): void
     {
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             return;
         }
 
@@ -1820,6 +1840,34 @@ class RequestViewPage extends Component
         $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
         $this->dispatch('trf-sample-card-toggled', rowIndex: $rowIndex, open: true);
         $this->dispatch('trf-sample-card-opened', rowIndex: $rowIndex);
+    }
+
+    public function copyTrfEditCollectionFromFirstSample(int $targetRowIndex): void
+    {
+        if ($targetRowIndex <= 0 || ! array_key_exists(0, $this->trfEditSampleDrafts)) {
+            return;
+        }
+
+        if (! array_key_exists($targetRowIndex, $this->trfEditSampleDrafts)) {
+            return;
+        }
+
+        $this->persistExpandedSampleDraft();
+
+        $source = $this->trfEditSampleDrafts[0];
+        foreach (\App\Services\SubmissionForm\SubmissionFormSchemaHelper::sampleCollectionFieldNames() as $fieldName) {
+            if (! array_key_exists($fieldName, $source)) {
+                continue;
+            }
+            $value = $source[$fieldName];
+            $this->trfEditSampleDrafts[$targetRowIndex][$fieldName] = is_array($value)
+                ? json_decode(json_encode($value), true)
+                : $value;
+        }
+
+        if ($this->trfEditExpandedSampleIndex === $targetRowIndex) {
+            $this->editingRowFields = $this->trfEditSampleDrafts[$targetRowIndex];
+        }
     }
 
     public function closeTrfEditor(): void

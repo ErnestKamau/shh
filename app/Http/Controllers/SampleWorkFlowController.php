@@ -6221,11 +6221,73 @@ class SampleWorkFlowController extends Controller
             'show_specification' => ['nullable', 'boolean'],
             'show_specification_standard' => ['nullable', 'boolean'],
             'show_mu_percent' => ['nullable', 'boolean'],
+            'lab_section_ids' => ['nullable', 'array'],
+            'lab_section_ids.*' => ['uuid'],
+            'sample_ids' => ['nullable', 'array'],
+            'sample_ids.*' => ['uuid'],
         ]);
 
         $batch = SampleHeader::find($request->batch_id);
         if (!$batch) {
             return redirect()->back()->with('error', 'Batch not found.');
+        }
+
+        $reportDataService = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class);
+        $filterLabSectionIds = $reportDataService->normalizeLabSectionIds($request->input('lab_section_ids'));
+        $filterSampleIds = $reportDataService->normalizeSampleIds($request->input('sample_ids'));
+
+        $columnOptions = [
+            'include_reference_method' => $request->boolean('include_reference_method') ? 1 : 0,
+            'show_specification' => $request->boolean('show_specification') ? 1 : 0,
+            'show_specification_standard' => $request->boolean('show_specification_standard') ? 1 : 0,
+            'show_mu_percent' => $request->boolean('show_mu_percent') ? 1 : 0,
+        ];
+
+        // Section-scoped print: do not bump revision or replace the official full Test Report.
+        if ($filterLabSectionIds !== []) {
+            $jobSectionIds = collect($batch->labSectionsForDisplay())
+                ->pluck('id')
+                ->map(static fn ($id): string => (string) $id)
+                ->all();
+
+            $invalidSections = array_values(array_diff($filterLabSectionIds, $jobSectionIds));
+            if ($invalidSections !== []) {
+                return redirect()->back()->with('error', 'One or more selected lab sections are not part of this job.');
+            }
+
+            if ($filterSampleIds === []) {
+                return redirect()->back()->with('error', 'Select at least one sample to print.');
+            }
+
+            $validSampleIds = \App\SampleDetails::query()
+                ->where('sample_header_id', $batch->id)
+                ->whereIn('id', $filterSampleIds)
+                ->pluck('id')
+                ->map(static fn ($id): string => (string) $id)
+                ->all();
+
+            if ($validSampleIds === []) {
+                return redirect()->back()->with('error', 'Selected samples are not part of this job.');
+            }
+
+            $hasSectionResults = \App\CapturedResult::query()
+                ->where('sample_header_id', $batch->id)
+                ->whereIn('lab_section_id', $filterLabSectionIds)
+                ->whereIn('sample_detail_id', $validSampleIds)
+                ->exists();
+
+            if (! $hasSectionResults) {
+                return redirect()->back()->with('error', 'No test results found for the selected lab section(s) and samples.');
+            }
+
+            return redirect()->route('generateTestRequestReport', array_merge([
+                'batch_id' => $batch->id,
+                'seq' => max(1, (int) ($batch->test_request_report_sequence ?? 0)),
+                'lang' => $request->language,
+                'mode' => 'pdf',
+                'lab_section_ids' => implode(',', $filterLabSectionIds),
+                'sample_ids' => implode(',', $validSampleIds),
+            ], $columnOptions));
         }
 
         $ammendment = BatchAmmendment::resolveForBatch($batch);
@@ -6258,16 +6320,12 @@ class SampleWorkFlowController extends Controller
         app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
             ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
 
-        return redirect()->route('generateTestRequestReport', [
+        return redirect()->route('generateTestRequestReport', array_merge([
             'batch_id' => $batch->id,
             'seq'      => $batch->test_request_report_sequence,
             'lang'     => $request->language,
             'mode'     => 'pdf',
-            'include_reference_method' => $request->boolean('include_reference_method') ? 1 : 0,
-            'show_specification' => $request->boolean('show_specification') ? 1 : 0,
-            'show_specification_standard' => $request->boolean('show_specification_standard') ? 1 : 0,
-            'show_mu_percent' => $request->boolean('show_mu_percent') ? 1 : 0,
-        ]);
+        ], $columnOptions));
     }
 
     public function processShelfLifeStudyReport(Request $request)
@@ -6825,7 +6883,12 @@ class SampleWorkFlowController extends Controller
         $isPreviewDoc = $mode === 'preview-doc';
         $isPreviewPdf = $mode === 'preview-pdf';
         $isPdfMode = $mode === 'pdf' || $isPreviewPdf;
-        $skipSequenceBump = $isPreviewMode || $isPreviewDoc || $isPreviewPdf;
+        $filterLabSectionIdsEarly = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
+            ->normalizeLabSectionIds(
+                $request->query('lab_section_ids', $request->query('lab_section_id'))
+            );
+        $isSectionOnlyPrint = $filterLabSectionIdsEarly !== [];
+        $skipSequenceBump = $isPreviewMode || $isPreviewDoc || $isPreviewPdf || $isSectionOnlyPrint;
 
         // Preview never bumps revision. Official generate only bumps when seq is absent
         // (processTestRequestReport already bumps and passes seq).
@@ -6844,7 +6907,12 @@ class SampleWorkFlowController extends Controller
                 ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
         }
 
-        if ($skipSequenceBump) {
+        if ($isSectionOnlyPrint) {
+            // Section-only prints reuse the current (or requested) revision number — no provisional bump.
+            $sequence = $request->has('seq')
+                ? max(1, (int) $request->query('seq'))
+                : max(1, (int) ($batch->test_request_report_sequence ?? 0));
+        } elseif ($skipSequenceBump) {
             // Show the next provisional revision without persisting a bump
             $provisionalNext = max(1, (int) ($batch->test_request_report_sequence ?? 0) + 1);
             $sequence = max($provisionalNext, max(1, (int) ($batch->is_amendment ?? 1)));
@@ -6856,10 +6924,18 @@ class SampleWorkFlowController extends Controller
         $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
             ->formatReportNumber((string) $jobNumber, (int) $sequence);
 
-        $reportData = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
-            ->build($batch, $reportNumber, [
-                'logoPublicUrlFallback' => ! $isPdfMode,
-            ]);
+        $reportDataService = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class);
+        $filterLabSectionIds = $filterLabSectionIdsEarly;
+        $filterSampleIds = $reportDataService->normalizeSampleIds($request->query('sample_ids'));
+        $reportData = $reportDataService->build($batch, $reportNumber, [
+            'logoPublicUrlFallback' => ! $isPdfMode,
+            'lab_section_ids' => $filterLabSectionIds,
+            'sample_ids' => $filterSampleIds,
+        ]);
+
+        if ($isSectionOnlyPrint && collect($reportData['samples'] ?? [])->isEmpty()) {
+            return redirect()->back()->with('error', 'No test results found for the selected lab section(s) and samples.');
+        }
 
         if (! empty($reportData['signatureWarning'])) {
             session()->flash('warning', $reportData['signatureWarning']);
@@ -6883,7 +6959,7 @@ class SampleWorkFlowController extends Controller
             ? $request->boolean('show_mu_percent')
             : ! $isBrazilExportationReport;
 
-        $verificationUrl = route('generateTestRequestReport', [
+        $verificationUrlParams = [
             'batch_id' => $batch->id,
             'seq' => $sequence,
             'lang' => $language,
@@ -6892,7 +6968,14 @@ class SampleWorkFlowController extends Controller
             'show_specification' => $showSpecification ? 1 : 0,
             'show_specification_standard' => $showSpecificationStandard ? 1 : 0,
             'show_mu_percent' => $showMuPercent ? 1 : 0,
-        ]);
+        ];
+        if ($filterLabSectionIds !== []) {
+            $verificationUrlParams['lab_section_ids'] = implode(',', $filterLabSectionIds);
+        }
+        if ($filterSampleIds !== []) {
+            $verificationUrlParams['sample_ids'] = implode(',', $filterSampleIds);
+        }
+        $verificationUrl = route('generateTestRequestReport', $verificationUrlParams);
 
         $footerQrCode = '';
         if (class_exists(\SimpleSoftwareIO\QrCode\Facades\QrCode::class)) {
@@ -6973,10 +7056,20 @@ class SampleWorkFlowController extends Controller
                 $this->applyTestRequestReportPreviewWatermark($dompdf);
             }
 
-            $filename = ($isPreviewPdf ? 'TRR_PREVIEW_' : 'TRR_') . $reportNumber . '.pdf';
+            $filename = ($isPreviewPdf ? 'TRR_PREVIEW_' : 'TRR_') . $reportNumber;
+            $sectionSlug = preg_replace(
+                '/[^A-Za-z0-9\-\_]/',
+                '_',
+                (string) ($reportData['filterLabSectionName'] ?? ''),
+            );
+            $sectionSlug = trim((string) $sectionSlug, '_');
+            if ($isSectionOnlyPrint && $sectionSlug !== '') {
+                $filename .= '_' . $sectionSlug;
+            }
+            $filename .= '.pdf';
 
-            // Official generate persists the report path; preview-pdf does not.
-            if (! $isPreviewPdf) {
+            // Official generate persists the report path; preview-pdf and section-only prints do not.
+            if (! $isPreviewPdf && ! $isSectionOnlyPrint) {
                 $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
                 $customerName = trim($customerName, '_') ?: 'customer';
                 $relativePath = '/reports/' . $customerName . '/' . $filename;

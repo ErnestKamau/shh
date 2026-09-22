@@ -69,5 +69,9 @@
             </td>
         </tr>
     @endforeach
+    @include('workflow.forms.test-request.partials.additional-details-rows', [
+        'sampleRows' => $sampleRows,
+        'colspan' => $waterColspan,
+    ])
     @include('workflow.forms.test-request.partials.footer-rows', ['footerColspan' => $waterColspan, 'variant' => 'water'])
 </table>

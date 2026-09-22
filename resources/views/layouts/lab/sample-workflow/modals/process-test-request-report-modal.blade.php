@@ -4,12 +4,12 @@
      ═══════════════════════════════════════════════════════════════ --}}
 <div class="modal fade" id="process-test-request-report-modal" tabindex="-1" role="dialog"
      aria-labelledby="ptrr-modal-label" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:660px;width:calc(100% - 32px);margin:16px auto;">
-        <div class="modal-content" style="border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.2);display:flex;flex-direction:column;max-height:calc(100vh - 56px);">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:720px;width:calc(100% - 32px);margin:16px auto;">
+        <div class="modal-content" style="border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(15,23,42,.18);display:flex;flex-direction:column;max-height:calc(100vh - 56px);">
 
             {{-- Header --}}
-            <div class="modal-header" style="background:#8B1A1A;color:#fff;border-bottom:none;padding:18px 24px;">
-                <h5 class="modal-title font-weight-bold" id="ptrr-modal-label">
+            <div class="modal-header" style="background:linear-gradient(135deg,#8B1A1A 0%,#6d1414 100%);color:#fff;border-bottom:none;padding:18px 24px;">
+                <h5 class="modal-title font-weight-bold" id="ptrr-modal-label" style="letter-spacing:.2px;">
                     <i class="mdi mdi-file-document-edit-outline mr-2"></i>
                     Process Test Report
                 </h5>
@@ -25,7 +25,80 @@
                 @csrf
                 <input type="hidden" name="batch_id" value="{{ $batch->id }}">
 
-                <div class="modal-body" style="padding:24px 28px;overflow-y:auto;flex:1 1 auto;">
+                <div class="modal-body" style="padding:22px 26px;overflow-y:auto;flex:1 1 auto;">
+                    <style>
+                        .ptrr-panel {
+                            border: 1px solid #e8ecef;
+                            border-radius: 12px;
+                            background: #fff;
+                            padding: 14px 16px;
+                            margin-bottom: 16px;
+                        }
+                        .ptrr-panel__title {
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: #1f2937;
+                            margin-bottom: 4px;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        }
+                        .ptrr-panel__hint {
+                            font-size: 11px;
+                            color: #6b7280;
+                            margin-bottom: 12px;
+                        }
+                        .ptrr-chip-grid {
+                            display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                            gap: 8px;
+                        }
+                        .ptrr-chip {
+                            display: flex;
+                            align-items: flex-start;
+                            gap: 8px;
+                            margin: 0;
+                            padding: 10px 12px;
+                            border: 1.5px solid #e5e7eb;
+                            border-radius: 10px;
+                            background: #fafafa;
+                            cursor: pointer;
+                            transition: border-color .15s, background .15s, box-shadow .15s;
+                        }
+                        .ptrr-chip:hover { border-color: #c4a0a0; background: #fff; }
+                        .ptrr-chip:has(input:checked) {
+                            border-color: #8B1A1A;
+                            background: #fdf4f4;
+                            box-shadow: inset 0 0 0 1px rgba(139,26,26,.08);
+                        }
+                        .ptrr-chip input { margin-top: 2px; flex-shrink: 0; }
+                        .ptrr-chip strong { display: block; font-size: 12.5px; color: #111827; line-height: 1.3; }
+                        .ptrr-chip small { display: block; font-size: 10.5px; color: #6b7280; margin-top: 2px; }
+                        .ptrr-sample-list {
+                            border: 1px solid #e5e7eb;
+                            border-radius: 10px;
+                            max-height: 180px;
+                            overflow-y: auto;
+                            background: #fafafa;
+                        }
+                        .ptrr-sample-row {
+                            display: flex;
+                            align-items: flex-start;
+                            gap: 10px;
+                            margin: 0;
+                            padding: 10px 12px;
+                            border-bottom: 1px solid #eee;
+                            cursor: pointer;
+                        }
+                        .ptrr-sample-row:last-child { border-bottom: none; }
+                        .ptrr-sample-row:hover { background: #fff; }
+                        .ptrr-sample-row input { margin-top: 2px; }
+                        .ptrr-lang-card:has(.ptrr-lang-radio:checked) {
+                            border-color: #8B1A1A !important;
+                            background: #fdf4f4;
+                        }
+                        #ptrr-samples-panel[data-disabled="1"] { opacity: .55; pointer-events: none; }
+                    </style>
 
                     {{-- Revision info banner --}}
                     @php
@@ -34,9 +107,34 @@
                         $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
                         $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
                         $nextRev = max($nextFromSequence, $amendmentVersion);
+
+                        $ptrrLabSections = $batch->labSectionsForDisplay();
+                        $ptrrSamples = \App\SamplesCategory::query()
+                            ->where('sample_header_id', $batch->id)
+                            ->orderBy('sample_code')
+                            ->get(['id', 'sample_code', 'comments']);
+                        if ($ptrrSamples->isEmpty() && \App\SampleDetails::where('sample_header_id', $batch->id)->exists()) {
+                            app(\App\Services\Sampleworkflow\SamplesByCategoryViewService::class)->recreate();
+                            $ptrrSamples = \App\SamplesCategory::query()
+                                ->where('sample_header_id', $batch->id)
+                                ->orderBy('sample_code')
+                                ->get(['id', 'sample_code', 'comments']);
+                        }
+                        $ptrrResultsBySample = \App\CapturedResult::query()
+                            ->where('sample_header_id', $batch->id)
+                            ->whereNotNull('lab_section_id')
+                            ->get(['sample_detail_id', 'lab_section_id'])
+                            ->groupBy(static fn (\App\CapturedResult $row): string => (string) $row->sample_detail_id)
+                            ->map(static function ($rows): string {
+                                return $rows->pluck('lab_section_id')
+                                    ->map(static fn ($id): string => trim((string) $id))
+                                    ->filter()
+                                    ->unique()
+                                    ->implode(',');
+                            });
                     @endphp
                     @if($inAmendment && $pendingAmendment)
-                    <div class="alert alert-warning d-flex align-items-start mb-3" style="border-radius:8px;font-size:13px;padding:12px 16px;">
+                    <div class="alert alert-warning d-flex align-items-start mb-3" style="border-radius:10px;font-size:13px;padding:12px 16px;">
                         <i class="mdi mdi-file-replace-outline mr-2" style="font-size:18px;margin-top:1px;"></i>
                         <div>
                             <strong>Amendment in progress</strong> (V{{ $pendingAmendment->version_number }})
@@ -45,14 +143,90 @@
                         </div>
                     </div>
                     @endif
-                    <div class="alert alert-info d-flex align-items-center mb-4" style="border-radius:8px;font-size:13px;padding:12px 16px;">
-                        <i class="mdi mdi-information-outline mr-2" style="font-size:18px;"></i>
-                        <div>
+                    <div class="alert alert-light border d-flex align-items-center mb-3" id="ptrr-mode-banner"
+                         style="border-radius:10px;font-size:13px;padding:12px 16px;background:#f8fafc;">
+                        <i class="mdi mdi-information-outline mr-2" style="font-size:18px;color:#8B1A1A;"></i>
+                        <div id="ptrr-mode-banner-text">
                             Generating <strong>Revision {{ str_pad($nextRev, 2, '0', STR_PAD_LEFT) }}</strong>
                             of report
                             <strong>{{ $batch->batch_code }}-R{{ str_pad($nextRev, 2, '0', STR_PAD_LEFT) }}</strong>
+                            <span class="text-muted"> — full official Test Report</span>
                         </div>
                     </div>
+
+                    {{-- Lab sections --}}
+                    @if($ptrrLabSections !== [])
+                    <div class="ptrr-panel mb-3">
+                        <div class="ptrr-panel__title">
+                            <i class="mdi mdi-flask-outline" style="color:#8B1A1A;"></i>
+                            Lab sections
+                        </div>
+                        <div class="ptrr-panel__hint mb-0">
+                            Leave all unchecked for the full official report. Check one or more to print only those sections’ tests (one page per sample).
+                        </div>
+                        <div class="ptrr-chip-grid mt-3" id="ptrr-lab-sections">
+                            @foreach($ptrrLabSections as $section)
+                                <label class="ptrr-chip" for="ptrr-section-{{ $section['id'] }}">
+                                    <input type="checkbox"
+                                           class="ptrr-section-check"
+                                           id="ptrr-section-{{ $section['id'] }}"
+                                           name="lab_section_ids[]"
+                                           value="{{ $section['id'] }}">
+                                    <span>
+                                        <strong>{{ $section['name'] !== '' ? $section['name'] : $section['code'] }}</strong>
+                                        @if($section['code'] !== '' && $section['name'] !== '' && $section['code'] !== $section['name'])
+                                            <small>{{ $section['code'] }}</small>
+                                        @endif
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="ptrr-panel mb-3" id="ptrr-samples-panel" data-disabled="1">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <div class="ptrr-panel__title mb-0">
+                                <i class="mdi mdi-test-tube" style="color:#8B1A1A;"></i>
+                                Samples
+                            </div>
+                            <div class="small" style="display:flex;gap:12px;">
+                                <button type="button" class="btn btn-link btn-sm p-0" id="ptrr-select-all-samples">Select all</button>
+                                <button type="button" class="btn btn-link btn-sm p-0" id="ptrr-clear-samples">Clear</button>
+                            </div>
+                        </div>
+                        <div class="ptrr-panel__hint">Choose which samples to include for the selected lab section(s).</div>
+                        <div class="ptrr-sample-list" id="ptrr-sample-list">
+                            @forelse($ptrrSamples as $sample)
+                                @php
+                                    $sampleId = (string) $sample->id;
+                                    $sectionIdsCsv = (string) ($ptrrResultsBySample[$sampleId] ?? '');
+                                    $sampleLabel = format_sample_code($sample->sample_code ?? '') ?: $sampleId;
+                                    $sampleDesc = trim(strip_tags((string) ($sample->comments ?? '')));
+                                @endphp
+                                <label class="ptrr-sample-row"
+                                       data-section-ids="{{ $sectionIdsCsv }}"
+                                       style="display:none;">
+                                    <input type="checkbox"
+                                           class="ptrr-sample-check"
+                                           name="sample_ids[]"
+                                           value="{{ $sampleId }}"
+                                           disabled>
+                                    <span>
+                                        <strong style="font-size:12.5px;display:block;color:#111827;">{{ $sampleLabel }}</strong>
+                                        @if($sampleDesc !== '')
+                                            <span style="font-size:11px;color:#6b7280;">{{ \Illuminate\Support\Str::limit($sampleDesc, 90) }}</span>
+                                        @endif
+                                    </span>
+                                </label>
+                            @empty
+                                <div class="p-3 text-muted small">No samples on this job.</div>
+                            @endforelse
+                        </div>
+                        <small class="text-muted d-block mt-2" id="ptrr-sample-hint">
+                            Select a lab section to choose samples.
+                        </small>
+                    </div>
+                    @endif
 
                     {{-- Language --}}
                     <div class="form-group mb-4">
@@ -80,16 +254,7 @@
                             </label>
                             @endforeach
                         </div>
-                        <small class="text-muted mt-1 d-block">
-                            The entire report will be rendered in the selected language.
-                        </small>
                     </div>
-                    <style>
-                        .ptrr-lang-card:has(.ptrr-lang-radio:checked) {
-                            border-color: #8B1A1A !important;
-                            background: #fdf4f4;
-                        }
-                    </style>
                     <script>
                         document.querySelectorAll('.ptrr-lang-radio').forEach(function(radio) {
                             radio.addEventListener('change', function() {
@@ -103,7 +268,6 @@
                                 }
                             });
                         });
-                        // Init on load
                         document.addEventListener('DOMContentLoaded', function() {
                             var checked = document.querySelector('.ptrr-lang-radio:checked');
                             if (checked) {
@@ -700,6 +864,169 @@
                     @endif
                 </div>
             </form>
+
+            <script>
+            (function () {
+                var form = document.getElementById('process-trr-form');
+                var submitBtn = document.getElementById('ptrr-submit-btn');
+                var sendBtn = document.getElementById('ptrr-send-btn');
+                var samplesPanel = document.getElementById('ptrr-samples-panel');
+                var sampleHint = document.getElementById('ptrr-sample-hint');
+                var bannerText = document.getElementById('ptrr-mode-banner-text');
+                var deliverySection = document.getElementById('ptrr-delivery-section');
+                var batchCode = @json((string) $batch->batch_code);
+                @php
+                    $ptrrNextRevPadded = str_pad((string) ($nextRev ?? 1), 2, '0', STR_PAD_LEFT);
+                @endphp
+                var nextRev = @json($ptrrNextRevPadded);
+
+                if (!form || !document.getElementById('ptrr-lab-sections')) {
+                    return;
+                }
+
+                var selectedSectionIds = function () {
+                    return Array.prototype.slice.call(document.querySelectorAll('.ptrr-section-check:checked'))
+                        .map(function (el) { return el.value; });
+                };
+
+                var sampleRows = function () {
+                    return Array.prototype.slice.call(document.querySelectorAll('.ptrr-sample-row'));
+                };
+
+                var syncScope = function () {
+                    var sectionIds = selectedSectionIds();
+                    var sectionMode = sectionIds.length > 0;
+                    var visibleCount = 0;
+
+                    if (samplesPanel) {
+                        samplesPanel.setAttribute('data-disabled', sectionMode ? '0' : '1');
+                    }
+
+                    sampleRows().forEach(function (row) {
+                        var check = row.querySelector('.ptrr-sample-check');
+                        var rowSections = (row.getAttribute('data-section-ids') || '').split(',').filter(Boolean);
+                        var matches = sectionMode && rowSections.some(function (id) {
+                            return sectionIds.indexOf(id) !== -1;
+                        });
+
+                        row.style.display = matches ? '' : 'none';
+                        if (check) {
+                            check.disabled = !matches;
+                            if (!matches) {
+                                check.checked = false;
+                            } else if (!check.dataset.userTouched) {
+                                check.checked = true;
+                            }
+                            if (matches) {
+                                visibleCount += 1;
+                            }
+                        }
+                    });
+
+                    if (sampleHint) {
+                        if (!sectionMode) {
+                            sampleHint.textContent = 'Select a lab section to choose samples.';
+                        } else if (visibleCount === 0) {
+                            sampleHint.textContent = 'No samples have results for the selected lab section(s).';
+                        } else {
+                            sampleHint.textContent = visibleCount + ' sample' + (visibleCount === 1 ? '' : 's') + ' available for the selected section(s).';
+                        }
+                    }
+
+                    if (bannerText) {
+                        if (sectionMode) {
+                            bannerText.innerHTML = 'Printing a <strong>section-only</strong> report for selected lab section(s) and samples. This does not replace the official Test Report.';
+                        } else {
+                            bannerText.innerHTML = 'Generating <strong>Revision ' + nextRev + '</strong> of report <strong>' + batchCode + '-R' + nextRev + '</strong> <span class="text-muted">— full official Test Report</span>';
+                        }
+                    }
+
+                    if (submitBtn) {
+                        submitBtn.innerHTML = sectionMode
+                            ? '<i class="mdi mdi-printer mr-1"></i> Print Section Report'
+                            : '<i class="mdi mdi-file-check-outline mr-1"></i> Generate Report';
+                    }
+                    if (sendBtn) {
+                        sendBtn.style.display = sectionMode ? 'none' : '';
+                    }
+                    if (deliverySection) {
+                        deliverySection.style.display = sectionMode ? 'none' : '';
+                    }
+                };
+
+                document.querySelectorAll('.ptrr-section-check').forEach(function (el) {
+                    el.addEventListener('change', function () {
+                        sampleRows().forEach(function (row) {
+                            var check = row.querySelector('.ptrr-sample-check');
+                            if (check) {
+                                delete check.dataset.userTouched;
+                            }
+                        });
+                        syncScope();
+                    });
+                });
+
+                sampleRows().forEach(function (row) {
+                    var check = row.querySelector('.ptrr-sample-check');
+                    if (!check) {
+                        return;
+                    }
+                    check.addEventListener('change', function () {
+                        check.dataset.userTouched = '1';
+                    });
+                });
+
+                var selectAll = document.getElementById('ptrr-select-all-samples');
+                var clearAll = document.getElementById('ptrr-clear-samples');
+                if (selectAll) {
+                    selectAll.addEventListener('click', function () {
+                        sampleRows().forEach(function (row) {
+                            if (row.style.display === 'none') {
+                                return;
+                            }
+                            var check = row.querySelector('.ptrr-sample-check');
+                            if (check && !check.disabled) {
+                                check.checked = true;
+                                check.dataset.userTouched = '1';
+                            }
+                        });
+                    });
+                }
+                if (clearAll) {
+                    clearAll.addEventListener('click', function () {
+                        sampleRows().forEach(function (row) {
+                            var check = row.querySelector('.ptrr-sample-check');
+                            if (check) {
+                                check.checked = false;
+                                check.dataset.userTouched = '1';
+                            }
+                        });
+                    });
+                }
+
+                form.addEventListener('submit', function (event) {
+                    var sectionIds = selectedSectionIds();
+                    if (sectionIds.length === 0) {
+                        return;
+                    }
+
+                    var hasSample = sampleRows().some(function (row) {
+                        if (row.style.display === 'none') {
+                            return false;
+                        }
+                        var check = row.querySelector('.ptrr-sample-check');
+                        return check && check.checked && !check.disabled;
+                    });
+
+                    if (!hasSample) {
+                        event.preventDefault();
+                        alert('Select at least one sample for the selected lab section(s).');
+                    }
+                });
+
+                syncScope();
+            })();
+            </script>
 
         </div>
     </div>

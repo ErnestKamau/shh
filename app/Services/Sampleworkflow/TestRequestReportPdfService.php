@@ -16,8 +16,14 @@ class TestRequestReportPdfService
     ) {}
 
     /**
-     * @param  array{include_reference_method?: bool, show_specification?: bool, show_specification_standard?: bool, show_mu_percent?: bool}  $options
-     * @return array{relative_path: string, online_url: string, filename: string, language: string}
+     * @param  array{
+     *     include_reference_method?: bool,
+     *     show_specification?: bool,
+     *     show_specification_standard?: bool,
+     *     show_mu_percent?: bool,
+     *     lab_section_id?: string|null
+     * }  $options
+     * @return array{relative_path: string, online_url: string, filename: string, language: string, section_only?: bool}
      */
     public function generateAndStore(SampleHeader $batch, int $sequence, string $language, array $options = []): array
     {
@@ -27,15 +33,23 @@ class TestRequestReportPdfService
         $showSpecification = (bool) ($options['show_specification'] ?? true);
         $showSpecificationStandard = (bool) ($options['show_specification_standard'] ?? true);
         $showMuPercent = (bool) ($options['show_mu_percent'] ?? true);
+        $filterLabSectionId = $this->reportDataService->normalizeLabSectionId($options['lab_section_id'] ?? null);
+        $filterLabSectionIds = $this->reportDataService->normalizeLabSectionIds(
+            $options['lab_section_ids'] ?? $filterLabSectionId
+        );
+        $isSectionOnlyPrint = $filterLabSectionIds !== [];
 
         $jobNumber = (string) $batch->batch_code;
         $reportNumber = $this->amendmentReportConfig->formatReportNumber($jobNumber, max(1, $sequence));
 
-        $reportData = $this->reportDataService->build($batch, $reportNumber);
+        $reportData = $this->reportDataService->build($batch, $reportNumber, [
+            'lab_section_ids' => $filterLabSectionIds,
+            'sample_ids' => $options['sample_ids'] ?? null,
+        ]);
         $labels = $this->labelsFor($language);
         $isRTL = $language === 'ar';
 
-        $verificationUrl = route('generateTestRequestReport', [
+        $verificationUrlParams = [
             'batch_id' => $batch->id,
             'seq' => $sequence,
             'lang' => $language,
@@ -44,7 +58,11 @@ class TestRequestReportPdfService
             'show_specification' => $showSpecification ? 1 : 0,
             'show_specification_standard' => $showSpecificationStandard ? 1 : 0,
             'show_mu_percent' => $showMuPercent ? 1 : 0,
-        ]);
+        ];
+        if ($filterLabSectionIds !== []) {
+            $verificationUrlParams['lab_section_ids'] = implode(',', $filterLabSectionIds);
+        }
+        $verificationUrl = route('generateTestRequestReport', $verificationUrlParams);
 
         $footerQrCode = '';
         if (class_exists(\SimpleSoftwareIO\QrCode\Facades\QrCode::class)) {
@@ -103,7 +121,17 @@ class TestRequestReportPdfService
 
         $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
         $customerName = trim($customerName, '_') ?: 'customer';
-        $filename = 'TRR_'.$reportNumber.'-'.$language.'.pdf';
+        $filename = 'TRR_'.$reportNumber;
+        $sectionSlug = preg_replace(
+            '/[^A-Za-z0-9\-\_]/',
+            '_',
+            (string) ($reportData['filterLabSectionName'] ?? ''),
+        );
+        $sectionSlug = trim((string) $sectionSlug, '_');
+        if ($isSectionOnlyPrint && $sectionSlug !== '') {
+            $filename .= '_'.$sectionSlug;
+        }
+        $filename .= '-'.$language.'.pdf';
         $relativePath = '/reports/'.$customerName.'/'.$filename;
         // Must live under app/public so /storage/... (public/storage symlink) can serve it.
         $absoluteDir = storage_path('app/public/reports/'.$customerName);
@@ -119,19 +147,22 @@ class TestRequestReportPdfService
             'online_url' => url('/storage'.$relativePath),
             'filename' => $filename,
             'language' => $language,
+            'section_only' => $isSectionOnlyPrint,
         ];
 
-        try {
-            app(BatchWorkflowDocumentAttachmentService::class)->attachTestReport(
-                $batch,
-                $result['online_url'],
-                auth()->id() ? (string) auth()->id() : null,
-            );
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to attach generated Test Report to batch attachments', [
-                'batch_id' => $batch->id,
-                'error' => $e->getMessage(),
-            ]);
+        if (! $isSectionOnlyPrint) {
+            try {
+                app(BatchWorkflowDocumentAttachmentService::class)->attachTestReport(
+                    $batch,
+                    $result['online_url'],
+                    auth()->id() ? (string) auth()->id() : null,
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to attach generated Test Report to batch attachments', [
+                    'batch_id' => $batch->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $result;

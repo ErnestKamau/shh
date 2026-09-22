@@ -365,6 +365,13 @@ class TrfSampleFieldMapper
                 continue;
             }
 
+            if (is_array($candidate)) {
+                $candidate = $candidate[0] ?? (array_values($candidate)[0] ?? null);
+                if ($candidate === null || is_array($candidate)) {
+                    continue;
+                }
+            }
+
             $value = trim((string) $candidate);
             if ($value !== '') {
                 return $value;

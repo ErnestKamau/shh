@@ -1198,16 +1198,16 @@
     @endif
 
     @include('layouts.lab.sample-workflow.modals.process-test-request-report-modal', ['batch' => $batch])
-</div>
 
-<script>
-    if (!window.hasOpenNewTabListener) {
-        window.hasOpenNewTabListener = true;
-        window.addEventListener('open-new-tab', function(event) {
-            var url = event.detail.url || event.detail;
-            if (url) {
-                window.open(url, '_blank');
-            }
-        });
-    }
-</script>
+    <script>
+        if (!window.hasOpenNewTabListener) {
+            window.hasOpenNewTabListener = true;
+            window.addEventListener('open-new-tab', function(event) {
+                var url = event.detail.url || event.detail;
+                if (url) {
+                    window.open(url, '_blank');
+                }
+            });
+        }
+    </script>
+</div>

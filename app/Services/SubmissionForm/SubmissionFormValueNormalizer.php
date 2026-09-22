@@ -70,6 +70,20 @@ final class SubmissionFormValueNormalizer
                 continue;
             }
 
+            // Legacy batch scalars for fields that are now per-sample rows → index 0.
+            if (in_array((string) $fieldName, $rowElementNames, true)) {
+                $existing = $formData[$fieldName] ?? [];
+                if (! is_array($existing)) {
+                    $existing = [];
+                }
+                if (! array_key_exists(0, $existing) || $existing[0] === null || $existing[0] === '') {
+                    $existing[0] = $value->value;
+                }
+                $formData[$fieldName] = $existing;
+
+                continue;
+            }
+
             $formData[$fieldName] = $value->value;
         }
 
@@ -291,6 +305,22 @@ final class SubmissionFormValueNormalizer
             foreach ($normalizedValues as $index => $value) {
                 $rowIndex = (int) $index;
                 if ($rowIndex < 0 || $rowIndex >= $rowCount) {
+                    continue;
+                }
+
+                if ($field === 'additional_details') {
+                    if (is_string($value) && trim($value) !== '') {
+                        $decoded = json_decode($value, true);
+                        $rows[$rowIndex][$field] = is_array($decoded) ? $decoded : [];
+                    } elseif (is_array($value)) {
+                        $rows[$rowIndex][$field] = array_values(array_filter(
+                            $value,
+                            static fn ($row): bool => is_array($row)
+                        ));
+                    } else {
+                        $rows[$rowIndex][$field] = [];
+                    }
+
                     continue;
                 }
 
