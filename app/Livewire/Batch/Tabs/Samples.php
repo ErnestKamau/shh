@@ -853,6 +853,8 @@ class Samples extends Component
                 ]);
         }
 
+        app(StatementOfConformityService::class)->ensureForSample($sample, $this->batch);
+
         return $sample;
     }
 

@@ -399,7 +399,7 @@ class ResultRemarkService
                 return 'PASS';
             }
 
-            if (in_array($resultUpper, ['PRESENT', 'TN'], true)) {
+            if ($this->isDetectedLikeResult($resultUpper) || in_array($resultUpper, ['TN'], true)) {
                 return 'FAIL';
             }
 
@@ -545,7 +545,8 @@ class ResultRemarkService
             return 'FAIL';
         }
 
-        if (in_array($upperResult, ['PRESENT', 'TN'], true)) {
+        // Detected / Present / TN against Not Detected (or equivalent) limits are non-conforming.
+        if ($this->isDetectedLikeResult($upperResult) || $upperResult === 'TN') {
             return 'FAIL';
         }
 
@@ -579,6 +580,26 @@ class ResultRemarkService
             'NON DETECTABLE',
             'NONE DETECTED',
             'NONE DETECTABLE',
+        ], true);
+    }
+
+    /**
+     * Qualitative positive / detected results (must not match "Not Detected" variants).
+     */
+    protected function isDetectedLikeResult(string $upperResult): bool
+    {
+        if ($this->isNotDetectableLikeResult($upperResult)) {
+            return false;
+        }
+
+        $normalized = strtoupper(preg_replace('/[\s_\-]+/', ' ', trim($upperResult)) ?? '');
+
+        return in_array($normalized, [
+            'DETECTED',
+            'DETECTABLE',
+            'PRESENT',
+            'POSITIVE',
+            'FOUND',
         ], true);
     }
 
