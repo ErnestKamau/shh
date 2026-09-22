@@ -423,4 +423,37 @@ class AnalysisTypeImporter extends BaseImporter
 
         return $value === '' ? null : $value;
     }
+
+    protected function deleteRow(array $originalRow): bool
+    {
+        $code = trim((string) $this->fuzzyGet($originalRow, [
+            'analysis_type_code', 'code', 'at_code',
+        ], ''));
+        $name = trim((string) $this->fuzzyGet($originalRow, [
+            'analysis_type_name', 'name', 'at_name',
+        ], ''));
+
+        $query = AnalysisType::query()->where('company_id', $this->batch->company_id);
+        if ($code !== '') {
+            $query->where('code', $code);
+        } elseif ($name !== '') {
+            $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)]);
+        } else {
+            $this->batch->addError($this->rowNumber, 'Analysis type code or name is required to delete.', $originalRow);
+
+            return false;
+        }
+
+        $type = $query->first();
+        if ($type === null) {
+            $this->batch->addWarning($this->rowNumber, 'Analysis type not found for delete.', $originalRow);
+
+            return false;
+        }
+
+        $type->active = 0;
+        $type->save();
+
+        return true;
+    }
 }

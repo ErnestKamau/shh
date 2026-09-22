@@ -332,6 +332,21 @@ abstract class BaseImporter implements
                     DB::transaction(function () use ($rowData) {
                         $this->beforeImport($rowData);
 
+                        $action = strtolower(trim((string) $this->fuzzyGet($rowData, ['action'], '')));
+                        if ($action === 'delete') {
+                            $deleted = $this->deleteRow($rowData);
+                            if ($deleted) {
+                                $this->batch->imported_rows++;
+                                $this->recordUpsert(
+                                    (string) ($this->fuzzyGet($rowData, $this->getPrimaryKeysForFormType(strtolower($this->batch->form_type ?? '')) ?: ['code', 'name'], 'row') ?? 'row'),
+                                    'deleted'
+                                );
+                            }
+                            $this->afterImport($rowData, $deleted);
+
+                            return;
+                        }
+
                         $validationErrors = $this->validateRow($rowData);
                         if (!empty($validationErrors)) {
                             // Filter out "required" errors
@@ -582,6 +597,21 @@ abstract class BaseImporter implements
      * Import the transformed row. Return true if successful.
      */
     abstract protected function importRow(array $transformedData, array $originalRow): bool;
+
+    /**
+     * Soft-delete / deactivate a row when Action=delete.
+     * Override in importers that support delete; default records an error.
+     */
+    protected function deleteRow(array $originalRow): bool
+    {
+        $this->batch->addError(
+            $this->rowNumber,
+            'Action=delete is not supported for this import type.',
+            $originalRow
+        );
+
+        return false;
+    }
 
     /**
      * Hook after import processing. Override in subclass if needed.

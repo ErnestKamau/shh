@@ -33,6 +33,7 @@ use App\Services\Sampleworkflow\BatchResultsExcelImportService;
 use App\Services\Sampleworkflow\CapturedResultCaptureService;
 use App\Services\Sampleworkflow\StandardPassFailCommentService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
+use App\Models\DataImportVersion;
 use App\Models\SubmissionFormInstance;
 use App\Services\ResultRemarkService;
 use App\Services\StandardLimitDisplayService;
@@ -144,6 +145,9 @@ class Samples extends Component
      */
     public array $parametersDraftBySample = [];
     public $parameterImportFile = null;
+    public bool $showResultImportVersionsModal = false;
+    /** @var list<array{id: string, version: int, status: string, applied_at: ?string, user_name: ?string, summary: string, notes: ?string}> */
+    public array $resultImportVersions = [];
     public $activeField = '';
 
     public $activeRowIndex = null;
@@ -848,6 +852,8 @@ class Samples extends Component
                     'main_value' => null,
                 ]);
         }
+
+        app(StatementOfConformityService::class)->ensureForSample($sample, $this->batch);
 
         return $sample;
     }
@@ -3000,19 +3006,126 @@ class Samples extends Component
 
         $updated = (int) ($result['updated'] ?? 0);
         $skipped = (int) ($result['skipped'] ?? 0);
+        $cleared = (int) ($result['cleared'] ?? 0);
 
         if ($this->selectedSampleCode) {
             $this->viewParameters($this->selectedSampleCode);
             $this->persistEvaluatedParameterRemarks();
         }
 
-        if ($updated === 0) {
-            session()->flash('error', 'No results were imported. Fill the Result column and upload again. Skipped blank rows: '.$skipped.'.');
+        if ($updated === 0 && $cleared === 0) {
+            session()->flash('error', 'No results were imported. Fill the Result column (or set Action=clear) and upload again. Skipped blank rows: '.$skipped.'.');
 
             return;
         }
 
-        session()->flash('message', "Imported {$updated} result(s). Remarks were auto-calculated where a spec limit exists. Blank rows skipped: {$skipped}.");
+        $parts = [];
+        if ($updated > 0) {
+            $parts[] = "Imported {$updated} result(s)";
+        }
+        if ($cleared > 0) {
+            $parts[] = "cleared {$cleared}";
+        }
+        $message = implode(', ', $parts).'. Remarks were auto-calculated where a spec limit exists. Blank rows skipped: '.$skipped.'.';
+        if (! empty($result['version'])) {
+            $message .= ' Saved as version '.$result['version']->version.'.';
+        }
+        session()->flash('message', $message);
+    }
+
+    public function openResultImportVersionsModal(): void
+    {
+        $this->refreshResultImportVersions();
+        $this->showResultImportVersionsModal = true;
+    }
+
+    public function closeResultImportVersionsModal(): void
+    {
+        $this->showResultImportVersionsModal = false;
+    }
+
+    public function refreshResultImportVersions(): void
+    {
+        $this->resultImportVersions = app(BatchResultsExcelImportService::class)
+            ->listVersions($this->batch)
+            ->map(static function (DataImportVersion $version): array {
+                $summary = $version->change_summary ?? [];
+                $bits = [];
+                if (isset($summary['updated'])) {
+                    $bits[] = (int) $summary['updated'].' updated';
+                }
+                if (isset($summary['cleared'])) {
+                    $bits[] = (int) $summary['cleared'].' cleared';
+                }
+                if (isset($summary['skipped'])) {
+                    $bits[] = (int) $summary['skipped'].' skipped';
+                }
+
+                return [
+                    'id' => (string) $version->id,
+                    'version' => (int) $version->version,
+                    'status' => (string) $version->status,
+                    'applied_at' => optional($version->applied_at)?->format('Y-m-d H:i'),
+                    'user_name' => $version->user?->name,
+                    'summary' => $bits !== [] ? implode(', ', $bits) : '—',
+                    'notes' => $version->notes,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    public function downloadResultImportVersion(string $versionId)
+    {
+        $version = DataImportVersion::query()->findOrFail($versionId);
+
+        return app(BatchResultsExcelImportService::class)->downloadVersion($version);
+    }
+
+    public function restoreResultImportVersion(string $versionId): void
+    {
+        if ($this->parametersReadOnly) {
+            session()->flash('error', app(LabSectionResultAccess::class)->denyEditMessage(auth()->user()));
+
+            return;
+        }
+
+        $version = DataImportVersion::query()->findOrFail($versionId);
+
+        try {
+            $result = app(BatchResultsExcelImportService::class)->rollbackTo(
+                $this->batch,
+                $version,
+                auth()->user(),
+            );
+        } catch (ValidationException $exception) {
+            $messages = $exception->errors()['importFile'] ?? [];
+            if (! is_array($messages)) {
+                $messages = [(string) $messages];
+            }
+            session()->flash('error', implode(' ', array_map('strval', $messages)) ?: 'Restore failed.');
+
+            return;
+        } catch (\Throwable $exception) {
+            Log::error('Result import version restore failed: '.$exception->getMessage());
+            session()->flash('error', 'Failed to restore version: '.$exception->getMessage());
+
+            return;
+        }
+
+        $this->refreshResultImportVersions();
+        if ($this->selectedSampleCode) {
+            $this->viewParameters($this->selectedSampleCode);
+            $this->persistEvaluatedParameterRemarks();
+        }
+
+        $newVersion = $result['version']->version ?? null;
+        session()->flash(
+            'message',
+            'Restored results from version '.$version->version
+            .($newVersion ? " (saved as version {$newVersion})" : '')
+            .'.'
+        );
     }
 
     private function evaluateMissingParameterRemarks(): void

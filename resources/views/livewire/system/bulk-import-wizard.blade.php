@@ -130,7 +130,8 @@
                             <i class="fas fa-info-circle"></i>
                             <strong>Instructions:</strong>
                             <ol class="mb-0">
-                                <li>Download the template for <strong>{{ $formTypes[$selectedFormType] ?? $selectedFormType }}</strong></li>
+                                <li>Prefer <strong>Download current data</strong> so you edit the live dataset offline</li>
+                                <li>Add / update rows, or set <code>Action=delete</code> to deactivate</li>
                                 @if ($selectedFormType === 'analysis_method')
                                     <li>Or upload your AmSpec Parameters workbook directly (Reference Method + Test Method SOP columns are extracted)</li>
                                 @endif
@@ -146,38 +147,59 @@
                                         <strong>Labs</strong> must already exist.
                                     </li>
                                 @endif
-                                <li>Enter your data starting from row 2 (just below the header row)</li>
-                                <li>Fields marked with <strong>*</strong> are required</li>
-                                <li>Save the file and come back to upload</li>
+                                <li>Upload the file — the system will use the new data and keep a version history</li>
                             </ol>
                         </div>
 
                         <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card border-success">
+                            @if ($selectedModule === 'lab')
+                                <div class="col-md-4 mb-3">
+                                    <div class="card border-primary h-100">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title text-primary mb-3">
+                                                <i class="fas fa-database fa-2x"></i>
+                                            </h6>
+                                            <p class="card-text mb-3">
+                                                <strong>Current data</strong>
+                                            </p>
+                                            <button class="btn btn-primary btn-sm" wire:click="downloadCurrentData()">
+                                                <i class="fas fa-download"></i> Download current data
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                            <div class="col-md-{{ $selectedModule === 'lab' ? '4' : '6' }} mb-3">
+                                <div class="card border-success h-100">
                                     <div class="card-body text-center">
                                         <h6 class="card-title text-success mb-3">
                                             <i class="fas fa-file-excel fa-2x"></i>
                                         </h6>
                                         <p class="card-text mb-3">
-                                            <strong>{{ $formTypes[$selectedFormType] ?? $selectedFormType }} Template</strong>
+                                            <strong>{{ $formTypes[$selectedFormType] ?? $selectedFormType }} blank template</strong>
                                         </p>
                                         <button class="btn btn-success btn-sm" wire:click="downloadTemplate()">
-                                            <i class="fas fa-download"></i> Download Template
+                                            <i class="fas fa-download"></i> Download blank template
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="card border-info">
+                            <div class="col-md-{{ $selectedModule === 'lab' ? '4' : '6' }} mb-3">
+                                <div class="card border-info h-100">
                                     <div class="card-body text-center">
                                         <h6 class="card-title text-info mb-3">
-                                            <i class="fas fa-question-circle fa-2x"></i>
+                                            <i class="fas fa-history fa-2x"></i>
                                         </h6>
                                         <p class="card-text mb-3">
-                                            <strong>Need Help?</strong>
+                                            <strong>{{ $selectedModule === 'lab' ? 'Version history' : 'Need Help?' }}</strong>
                                         </p>
-                                        <p class="small text-muted mb-0">The template contains only headers. Use names/codes (not IDs/UUIDs) where applicable.</p>
+                                        @if ($selectedModule === 'lab')
+                                            <button class="btn btn-outline-info btn-sm" wire:click="openImportVersionsModal">
+                                                <i class="fas fa-history"></i> View versions
+                                            </button>
+                                        @else
+                                            <p class="small text-muted mb-0">The template contains only headers. Use names/codes (not IDs/UUIDs) where applicable.</p>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -974,4 +996,70 @@
         font-size: 0.8rem;
     }
 </style>
+
+@if($showImportVersionsModal)
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.55); z-index: 1060;">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-history mr-1"></i> Import versions</h5>
+                    <button type="button" class="close" wire:click="closeImportVersionsModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @if($importVersions === [])
+                        <p class="text-muted mb-0">No versions yet for this form.</p>
+                    @else
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Version</th>
+                                        <th>Status</th>
+                                        <th>Applied</th>
+                                        <th>By</th>
+                                        <th>Summary</th>
+                                        <th class="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($importVersions as $versionRow)
+                                        <tr>
+                                            <td><strong>v{{ $versionRow['version'] }}</strong></td>
+                                            <td>
+                                                <span class="badge badge-{{ $versionRow['status'] === 'applied' ? 'success' : ($versionRow['status'] === 'rolled_back' ? 'warning' : 'secondary') }}">
+                                                    {{ $versionRow['status'] }}
+                                                </span>
+                                            </td>
+                                            <td nowrap>{{ $versionRow['applied_at'] ?? '—' }}</td>
+                                            <td>{{ $versionRow['user_name'] ?? '—' }}</td>
+                                            <td>{{ $versionRow['summary'] }}</td>
+                                            <td class="text-right" nowrap>
+                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    wire:click="downloadImportVersion('{{ $versionRow['id'] }}')">
+                                                    <i class="fas fa-download"></i>
+                                                </button>
+                                                @if($versionRow['status'] !== 'applied')
+                                                    <button type="button" class="btn btn-sm btn-outline-warning"
+                                                        wire:click="restoreImportVersion('{{ $versionRow['id'] }}')"
+                                                        wire:confirm="Restore version {{ $versionRow['version'] }}? Live data will match that Excel.">
+                                                        <i class="fas fa-undo"></i> Restore
+                                                    </button>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" wire:click="closeImportVersionsModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
 </div>

@@ -6650,20 +6650,6 @@ class SampleWorkFlowController extends Controller
                     // Persist report URLs only — workflow stage must change via manual move.
                     $batch->save();
 
-                    try {
-                        app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
-                            ->attachTestReport(
-                                $batch,
-                                $batch->batch_report_online_url,
-                                auth()->id() ? (string) auth()->id() : null,
-                            );
-                    } catch (\Throwable $attachmentError) {
-                        \Log::warning('Failed to attach delivered Test Report to batch attachments', [
-                            'batch_id' => $batch->id,
-                            'error' => $attachmentError->getMessage(),
-                        ]);
-                    }
-
                     // Push a CustomerNotification (surfaces in portal notifications bell).
                     \App\Models\CRM\CustomerNotification::create([
                         'customer_id'              => $customerId,
@@ -7056,52 +7042,46 @@ class SampleWorkFlowController extends Controller
                 $this->applyTestRequestReportPreviewWatermark($dompdf);
             }
 
-            $filename = ($isPreviewPdf ? 'TRR_PREVIEW_' : 'TRR_') . $reportNumber;
-            $sectionSlug = preg_replace(
-                '/[^A-Za-z0-9\-\_]/',
-                '_',
-                (string) ($reportData['filterLabSectionName'] ?? ''),
-            );
-            $sectionSlug = trim((string) $sectionSlug, '_');
-            if ($isSectionOnlyPrint && $sectionSlug !== '') {
-                $filename .= '_' . $sectionSlug;
-            }
-            $filename .= '.pdf';
-
-            // Official generate persists the report path; preview-pdf and section-only prints do not.
-            if (! $isPreviewPdf && ! $isSectionOnlyPrint) {
-                $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
-                $customerName = trim($customerName, '_') ?: 'customer';
-                $relativePath = '/reports/' . $customerName . '/' . $filename;
-                // Must live under app/public so /storage/... (public/storage symlink) can serve it.
-                $absoluteDir = storage_path('app/public/reports/' . $customerName);
-
-                if (!is_dir($absoluteDir)) {
-                    mkdir($absoluteDir, 0755, true);
+            // Section-only prints stream only — do not persist / attach / bump official URL.
+            if ($isSectionOnlyPrint) {
+                $filename = 'TRR_' . $reportNumber;
+                $sectionSlug = preg_replace(
+                    '/[^A-Za-z0-9\-\_]/',
+                    '_',
+                    (string) ($reportData['filterLabSectionName'] ?? ''),
+                );
+                $sectionSlug = trim((string) $sectionSlug, '_');
+                if ($sectionSlug !== '') {
+                    $filename .= '_' . $sectionSlug;
                 }
+                $filename .= '.pdf';
 
-                $pdf->save($absoluteDir . '/' . $filename);
+                return $pdf->stream($filename, [
+                    'Attachment' => false,
+                ]);
+            }
 
-                $batch->batch_report_url = $relativePath;
-                $batch->batch_report_online_url = url('/storage' . $relativePath);
+            // Official and draft both persist a unique snapshot;
+            // drafts do not bump the batch's official report URL / revision.
+            $stored = $pdfService->persistOfficialPdf(
+                $batch,
+                $pdf,
+                $reportNumber,
+                $language,
+                (int) $sequence,
+                auth()->id() ? (string) auth()->id() : null,
+                $isPreviewPdf,
+            );
+
+            $filename = $stored['filename'];
+
+            if (! $isPreviewPdf) {
+                $batch->batch_report_url = $stored['relative_path'];
+                $batch->batch_report_online_url = $stored['online_url'];
                 if ((int) ($batch->in_ammendment_proccess ?? 0) === 1) {
                     $batch->in_ammendment_proccess = 0;
                 }
                 $batch->save();
-
-                try {
-                    app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
-                        ->attachTestReport(
-                            $batch,
-                            $batch->batch_report_online_url,
-                            auth()->id() ? (string) auth()->id() : null,
-                        );
-                } catch (\Throwable $attachmentError) {
-                    \Log::warning('Failed to attach generated Test Report to batch attachments', [
-                        'batch_id' => $batch->id,
-                        'error' => $attachmentError->getMessage(),
-                    ]);
-                }
             }
 
             return $pdf->stream($filename, [

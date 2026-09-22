@@ -277,6 +277,15 @@ class SampleHeader extends Model implements Auditable
 		return (int) ($this->in_ammendment_proccess ?? $this->in_ammendment_process ?? 0) === 1;
 	}
 
+	/**
+	 * Public URL for the generated Test Report / COA PDF, when available.
+	 */
+	public function testReportPublicUrl(): ?string
+	{
+		return app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class)
+			->resolveTestReportPublicUrl($this);
+	}
+
 	public function amendmentVersion(): int
 	{
 		return max(1, (int) ($this->is_amendment ?? 1));

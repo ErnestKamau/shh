@@ -25,6 +25,8 @@ class BatchWorkflowDocumentAttachmentService
 
     public const TEST_REPORT_TITLE = 'Test Report';
 
+    public const DRAFT_TEST_REPORT_TITLE = 'Draft Test Report';
+
     public function attachForAcceptedBatch(SampleHeader $batch, ?string $userId = null): void
     {
         try {
@@ -156,26 +158,49 @@ class BatchWorkflowDocumentAttachmentService
     }
 
     /**
-     * Upsert the generated Test Request Report PDF onto the batch Attachments tab.
+     * Store a generated Test Report as its own attachment row so every snapshot stays retrievable.
      */
     public function attachTestReport(
         SampleHeader $batch,
         ?string $reportUrl = null,
         ?string $userId = null,
+        ?string $title = null,
+        bool $isDraft = false,
     ): ?string {
         $attachmentUrl = $this->resolveTestReportPublicUrl($batch, $reportUrl);
         if ($attachmentUrl === null) {
             return null;
         }
 
-        return $this->upsertBatchAttachment(
+        $typeLabel = $isDraft ? self::DRAFT_TEST_REPORT_TITLE : self::TEST_REPORT_TITLE;
+
+        return $this->createBatchAttachment(
             $batch,
-            self::TEST_REPORT_TITLE,
+            $title ?: $typeLabel,
             $attachmentUrl,
-            app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId(self::TEST_REPORT_TITLE),
+            app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId($typeLabel),
             $userId,
-            true,
+            ! $isDraft,
         );
+    }
+
+    public function testReportAttachmentTitle(
+        ?string $reportNumber = null,
+        ?string $language = null,
+        bool $isDraft = false,
+    ): string {
+        $title = $isDraft ? self::DRAFT_TEST_REPORT_TITLE : self::TEST_REPORT_TITLE;
+        $reportNumber = trim((string) $reportNumber);
+        if ($reportNumber !== '') {
+            $title .= ' · '.$reportNumber;
+        }
+
+        $language = strtoupper(trim((string) $language));
+        if ($language !== '') {
+            $title .= ' ('.$language.')';
+        }
+
+        return $title;
     }
 
     public function resolveTestReportPublicUrl(SampleHeader $batch, ?string $reportUrl = null): ?string
@@ -324,16 +349,41 @@ class BatchWorkflowDocumentAttachmentService
             ->first();
 
         if ($attachment === null) {
-            $attachment = new BatchAttachment();
-            $attachment->batch_id = $batch->id;
-            $attachment->uploaded_by = $this->resolveUploaderId($batch, $userId);
-            $attachment->title = $title;
-            $attachment->is_internal = 0;
-            $attachment->show_on_coa = $showOnCoa ? 1 : 0;
-        } elseif ($showOnCoa) {
+            return $this->createBatchAttachment(
+                $batch,
+                $title,
+                $attachmentUrl,
+                $attachmentTypeId,
+                $userId,
+                $showOnCoa,
+            );
+        }
+
+        if ($showOnCoa) {
             $attachment->show_on_coa = 1;
         }
 
+        $attachment->attachment_type = $attachmentTypeId;
+        $attachment->attachment_url = $attachmentUrl;
+        $attachment->save();
+
+        return $attachmentUrl;
+    }
+
+    private function createBatchAttachment(
+        SampleHeader $batch,
+        string $title,
+        string $attachmentUrl,
+        ?string $attachmentTypeId,
+        ?string $userId,
+        bool $showOnCoa = false,
+    ): string {
+        $attachment = new BatchAttachment();
+        $attachment->batch_id = $batch->id;
+        $attachment->uploaded_by = $this->resolveUploaderId($batch, $userId);
+        $attachment->title = $title;
+        $attachment->is_internal = 0;
+        $attachment->show_on_coa = $showOnCoa ? 1 : 0;
         $attachment->attachment_type = $attachmentTypeId;
         $attachment->attachment_url = $attachmentUrl;
         $attachment->save();

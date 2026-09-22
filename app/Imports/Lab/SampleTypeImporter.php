@@ -79,4 +79,33 @@ class SampleTypeImporter extends BaseImporter
 
         return true;
     }
+
+    protected function deleteRow(array $originalRow): bool
+    {
+        $code = trim((string) $this->fuzzyGet($originalRow, ['code', 'id', 'sample_type_code', 'matrix_code'], ''));
+        $name = trim((string) $this->fuzzyGet($originalRow, ['name', 'title', 'sample_type_name', 'matrix_name', 'matrix'], ''));
+
+        $query = SampleType::query()->where('company_id', $this->batch->company_id);
+        if ($code !== '') {
+            $query->where('code', $code);
+        } elseif ($name !== '') {
+            $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($name)]);
+        } else {
+            $this->batch->addError($this->rowNumber, 'Sample type code or name is required to delete.', $originalRow);
+
+            return false;
+        }
+
+        $type = $query->first();
+        if ($type === null) {
+            $this->batch->addWarning($this->rowNumber, 'Sample type not found for delete.', $originalRow);
+
+            return false;
+        }
+
+        $type->active = 0;
+        $type->save();
+
+        return true;
+    }
 }

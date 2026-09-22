@@ -2500,16 +2500,58 @@ class FormulaWorksheet extends Component
 
         if (!is_numeric($result)) {
             // Non-numeric result handling
-            if (strtoupper($result) == 'ND' && isset($standardValue->code)) {
-                if (in_array(strtoupper($standardValue->code), ['NS']))
-                    return '-';
-                if (in_array(strtoupper($standardValue->code), ['NIL', 'ND']))
+            $resultUpper = strtoupper(trim((string) $result));
+            $standardCode = isset($standardValue->code) ? strtoupper(trim((string) $standardValue->code)) : '';
+            $standardCodeNormalized = strtoupper(preg_replace('/[\s_\-]+/', ' ', $standardCode) ?? '');
+            $isNotDetectableStandard = in_array($standardCodeNormalized, [
+                'ND',
+                'NIL',
+                'NOT DETECTABLE',
+                'NOT DETECTED',
+                'NON DETECTABLE',
+                'NONE DETECTED',
+                'NONE DETECTABLE',
+            ], true);
+            $isNotDetectableResult = in_array(strtoupper(preg_replace('/[\s_\-]+/', ' ', $resultUpper) ?? ''), [
+                'ND',
+                'NIL',
+                'NOT DETECTABLE',
+                'NOT DETECTED',
+                'NON DETECTABLE',
+                'NONE DETECTED',
+                'NONE DETECTABLE',
+            ], true);
+            $isDetectedResult = in_array(strtoupper(preg_replace('/[\s_\-]+/', ' ', $resultUpper) ?? ''), [
+                'DETECTED',
+                'DETECTABLE',
+                'PRESENT',
+                'POSITIVE',
+                'FOUND',
+            ], true) && ! $isNotDetectableResult;
+
+            if ($isNotDetectableStandard) {
+                if ($isNotDetectableResult || $resultUpper === 'ABSENT' || $resultUpper === '0') {
                     return 'PASS';
+                }
+                if ($isDetectedResult || $resultUpper === 'TN') {
+                    return 'FAIL';
+                }
             }
-            if (strtoupper($result) == 'ABSENT' && isset($standardValue->code) && strtoupper($standardValue->code) == 'ABSENT') {
+            if ($resultUpper === 'ND' && $standardCode !== '') {
+                if (in_array($standardCode, ['NS'], true)) {
+                    return '-';
+                }
+                if (in_array($standardCode, ['NIL', 'ND'], true)) {
+                    return 'PASS';
+                }
+            }
+            if ($resultUpper === 'ABSENT' && $standardCode === 'ABSENT') {
                 return 'PASS';
             }
-            if (strtoupper($result) == 'PRESENT' && isset($standardValue->code) && strtoupper($standardValue->code) == 'ABSENT') {
+            if ($resultUpper === 'PRESENT' && $standardCode === 'ABSENT') {
+                return 'FAIL';
+            }
+            if ($isDetectedResult && $standardCode === 'ABSENT') {
                 return 'FAIL';
             }
             return '-';

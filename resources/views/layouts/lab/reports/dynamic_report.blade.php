@@ -298,6 +298,7 @@
         @elseif($displayType === 'attachment_summary')
         @include('layouts.lab.reports.partials.results_attachment_summary', ['custom_title' => $customTitle])
         @endif
+        @include('layouts.lab.reports.partials.remarks')
         @break
         @case('Methodology')
         @include('layouts.lab.reports.partials.methodology', ['custom_title' => $customTitle])

@@ -256,7 +256,7 @@
         margin-top: -1px;
     }
     .info-table + .detail-grid {
-        margin-top: 8px;
+        margin-top: -1px;
     }
     .detail-grid td {
         border: 1px solid #000;
@@ -275,13 +275,7 @@
     }
     .sample-detail-grid {
         margin-top: 6px;
-        margin-bottom: 4px;
-    }
-    .lab-section-banner {
-        margin-bottom: 6px;
-    }
-    .lab-section-banner td {
-        font-weight: normal;
+        margin-bottom: 0;
     }
     .sls-conditions {
         width: 100%;
@@ -361,6 +355,7 @@
         width: 100%;
         border-collapse: collapse;
         font-size: 9.5pt;
+        margin-top: 10px;
         margin-bottom: 10px;
     }
     .results-table th {
@@ -388,6 +383,13 @@
         text-align: left;
     }
     .results-table tr:nth-child(even) td { background: #fbfbfb; }
+    .results-table tr.results-lab-section td {
+        background: #fff;
+        text-align: left;
+        font-weight: normal;
+        padding: 5px 8px;
+        border: 1px solid #000;
+    }
     .results-table .analysis-group td {
         background: #efefef;
         font-weight: bold;
@@ -701,7 +703,7 @@
         padding: 3px 6px;
     }
     .info-table + .detail-grid {
-        margin-top: 6px;
+        margin-top: -1px;
     }
     .detail-grid {
         margin-bottom: 0;
@@ -711,7 +713,7 @@
     .detail-grid td {
         padding: 3px 5px;
     }
-    .lab-section-banner {
+    .sample-detail-grid {
         page-break-after: avoid;
     }
     .trr-sample-block + .trr-sample-block {
@@ -748,6 +750,7 @@
     }
     .results-table {
         font-size: 8pt;
+        margin-top: 8px;
         margin-bottom: 6px;
         page-break-inside: auto;
     }
@@ -967,6 +970,9 @@
 
             <table class="results-table">
                 <thead>
+                    @php
+                        $resultsColspan = 7;
+                    @endphp
                     <tr>
                         <th style="width:18%">{{ $labels['analyte'] }}</th>
                         <th style="width:12%">{{ $labels['results'] }}</th>
@@ -981,8 +987,15 @@
                     @php
                         $hasRows = false;
                         $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
-                        $resultsColspan = 7;
+                        $labSection = trim((string) (($sampleDetailContexts[$loop->index]['lab_section'] ?? '') ?: ''));
                     @endphp
+                    @if($labSection !== '')
+                    <tr class="results-lab-section">
+                        <td colspan="{{ $resultsColspan }}">
+                            <strong>{{ $labels['lab_section'] ?? 'Lab Section' }}</strong> : {{ $labSection }}
+                        </td>
+                    </tr>
+                    @endif
                     @foreach ($sample->getSampleByAnalysisType() as $atLevel)
                         @php $captured_results = $atLevel->getCapturedResults(); @endphp
                         @foreach ($captured_results as $cr)

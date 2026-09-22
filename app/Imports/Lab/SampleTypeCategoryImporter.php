@@ -52,4 +52,35 @@ class SampleTypeCategoryImporter extends BaseImporter
 
         return true;
     }
+
+    protected function deleteRow(array $originalRow): bool
+    {
+        $name = trim((string) $this->fuzzyGet($originalRow, [
+            'category_name',
+            'sample_type_category',
+            'name',
+            'category',
+        ], ''));
+
+        if ($name === '') {
+            $this->batch->addError($this->rowNumber, 'category_name is required to delete.', $originalRow);
+
+            return false;
+        }
+
+        $category = SampleTypeCategory::query()
+            ->whereRaw('LOWER(sample_type_category) = ?', [strtolower($name)])
+            ->first();
+
+        if ($category === null) {
+            $this->batch->addWarning($this->rowNumber, 'Sample type category not found for delete.', $originalRow);
+
+            return false;
+        }
+
+        $category->active = 0;
+        $category->save();
+
+        return true;
+    }
 }

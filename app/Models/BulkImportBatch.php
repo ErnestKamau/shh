@@ -21,6 +21,7 @@ class BulkImportBatch extends Model
         'error_rows',
         'errors_json',
         'upserted_summary',
+        'file_path',
         'started_at',
         'completed_at',
     ];

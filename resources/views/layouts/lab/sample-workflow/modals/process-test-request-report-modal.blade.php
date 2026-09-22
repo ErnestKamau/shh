@@ -354,6 +354,7 @@
                                         <th>By</th>
                                         <th>Date</th>
                                         <th>Notes</th>
+                                        <th class="text-center">File</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -371,6 +372,16 @@
                                         <td>{{ optional(\App\User::find($rev->generated_by))->name ?? '—' }}</td>
                                         <td>{{ $rev->created_at ? $rev->created_at->format('d/m/Y') : '—' }}</td>
                                         <td class="text-muted">{{ $rev->notes ? \Illuminate\Support\Str::limit($rev->notes, 40) : '—' }}</td>
+                                        <td class="text-center">
+                                            @php $storedFileUrl = $rev->storedFileUrl(); @endphp
+                                            @if($storedFileUrl)
+                                                <a href="{{ $storedFileUrl }}" target="_blank" class="btn btn-sm btn-light border" title="View stored report">
+                                                    <i class="mdi mdi-eye text-primary"></i>
+                                                </a>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                     @endforeach
                                 </tbody>

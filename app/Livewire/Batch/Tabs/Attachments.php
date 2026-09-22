@@ -157,7 +157,7 @@ class Attachments extends Component
 
         $exists = BatchAttachment::query()
             ->where('batch_id', $this->batch->id)
-            ->where('title', BatchWorkflowDocumentAttachmentService::TEST_REPORT_TITLE)
+            ->where('title', 'like', BatchWorkflowDocumentAttachmentService::TEST_REPORT_TITLE.'%')
             ->exists();
 
         if ($exists) {
@@ -719,7 +719,16 @@ class Attachments extends Component
 
     public function getReportAttachmentsProperty()
     {
-        $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02', 'DCEA 009', 'Test Report'];
+        $reportTitles = [
+            'Certificate of Analysis',
+            'Analysis Report',
+            'Case File',
+            'COA',
+            'GCLA 02',
+            'DCEA 009',
+            'Draft Test Report',
+            'Test Report',
+        ];
         $reports = $this->attachments->filter(function ($a) use ($reportTitles) {
             if ($a->show_on_coa) {
                 return true;
@@ -727,6 +736,8 @@ class Attachments extends Component
 
             $name = str_replace('_', ' ', strtolower($a->title));
             $type = str_replace('_', ' ', strtolower($a->attachtypename ?? ''));
+
+            // Match Draft Test Report before Test Report so type labels stay distinct.
             foreach ($reportTitles as $title) {
                 if (stripos($name, strtolower($title)) !== false || stripos($type, strtolower($title)) !== false) {
                     return true;

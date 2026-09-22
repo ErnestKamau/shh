@@ -49,10 +49,6 @@ class CommentsInterpretationsDefaultsService
             return '';
         }
 
-        if ($results->isEmpty()) {
-            return '';
-        }
-
         $outcomes = [];
         foreach ($standards as $index => $standard) {
             $passed = $this->standardPassed($results, $index);

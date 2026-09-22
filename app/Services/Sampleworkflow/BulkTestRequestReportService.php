@@ -181,6 +181,7 @@ final class BulkTestRequestReportService
                         (int) $batch->test_request_report_sequence,
                         $language,
                         $options,
+                        (string) $actor->id,
                     );
 
                     $reportNumber = app(AmendmentReportConfigurationService::class)

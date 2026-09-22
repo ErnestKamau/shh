@@ -1510,7 +1510,9 @@ SQL);
     public function getBatchesProperty()
     {
         return match ($this->status) {
-            'Finished Sample' => $this->finishedFilter['has_filter'] ? $this->getFinishedSampleBatches() : collect([]),
+            'Finished Sample', 'Completed Sample' => $this->status === 'Finished Sample' && ! $this->finishedFilter['has_filter']
+                ? collect([])
+                : $this->getFinishedSampleBatches(),
             'All Samples' => $this->getAllSampleBatches(),
             default => $this->getStatusBatches(),
         };
@@ -1839,7 +1841,7 @@ SQL);
     protected function getFinishedSampleBatches()
     {
         $query = $this->baseBatchQuery()
-            ->where('status', 'Finished Sample')
+            ->whereIn('status', getCompletedReportStatuses())
             ->orderBy('receipt_date', 'desc');
 
         if ($this->finishedFilter['sample_codes']) {

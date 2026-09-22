@@ -4,15 +4,19 @@ namespace App\Services\Sampleworkflow;
 
 use App\CapturedResult;
 use App\Exports\Sampleworkflow\BatchResultsTemplateExport;
+use App\Models\DataImportVersion;
 use App\Models\Sampleworkflow\LabSectionWorksheet;
 use App\SampleHeader;
+use App\Services\ImportVersioning\DataImportVersionService;
 use App\Services\ResultRemarkService;
 use App\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class BatchResultsExcelImportService
 {
@@ -23,6 +27,7 @@ final class BatchResultsExcelImportService
         private readonly RequestTestExportDataService $dataService,
         private readonly ResultRemarkService $remarkService,
         private readonly SampleWorkflowEventRecorder $eventRecorder,
+        private readonly DataImportVersionService $versionService,
     ) {}
 
     public function downloadTemplate(SampleHeader $batch)
@@ -63,14 +68,50 @@ final class BatchResultsExcelImportService
     }
 
     /**
+     * Store a binary Excel snapshot of the current batch results.
+     */
+    public function storeCurrentSnapshot(SampleHeader $batch, string $scopeKey, int $versionHint): string
+    {
+        $payload = $this->dataService->buildFromBatch($batch, includeResultColumn: true);
+        $relative = 'import-versions/'.DataImportVersion::SCOPE_BATCH_RESULTS.'/'
+            .$this->safeFilename($scopeKey).'/v'.$versionHint.'/pre-apply-snapshot.xlsx';
+
+        Storage::disk('public')->makeDirectory(dirname($relative));
+        Excel::store(
+            new BatchResultsTemplateExport($payload['flat_rows'] ?? [], 'Results'),
+            $relative,
+            'public',
+        );
+
+        return $relative;
+    }
+
+    /**
      * Import free-text results. Rejects the entire upload when any row fails validation.
      *
-     * @return array{updated: int, skipped: int}
+     * @return array{updated: int, skipped: int, cleared: int, version?: DataImportVersion|null}
      *
      * @throws ValidationException
      */
     public function import(SampleHeader $batch, UploadedFile $file, ?User $actingUser): array
     {
+        $result = $this->importFromPath($batch, $file, $actingUser, persistVersion: true);
+
+        return $result;
+    }
+
+    /**
+     * @return array{updated: int, skipped: int, cleared: int, version?: DataImportVersion|null}
+     *
+     * @throws ValidationException
+     */
+    public function importFromPath(
+        SampleHeader $batch,
+        UploadedFile|string $file,
+        ?User $actingUser,
+        bool $persistVersion = true,
+        ?string $notes = null,
+    ): array {
         $sheets = Excel::toArray(new class implements \Maatwebsite\Excel\Concerns\ToArray
         {
             public function array(array $array): array
@@ -87,46 +128,19 @@ final class BatchResultsExcelImportService
         }
 
         $headerRow = array_map(static fn ($value): string => trim((string) $value), array_shift($rows) ?? []);
-        $expected = [
-            BatchResultsTemplateExport::HEADING_ROW_KEY,
-            BatchResultsTemplateExport::HEADING_BATCH_CODE,
-            BatchResultsTemplateExport::HEADING_LAB_SECTION,
-            BatchResultsTemplateExport::HEADING_SAMPLE,
-            BatchResultsTemplateExport::HEADING_TEST,
-            BatchResultsTemplateExport::HEADING_ANALYSTS,
-            BatchResultsTemplateExport::HEADING_RESULT,
-        ];
-        $expectedWithWorksheet = [
-            BatchResultsTemplateExport::HEADING_ROW_KEY,
-            BatchResultsTemplateExport::HEADING_WORKSHEET_NUMBER,
-            BatchResultsTemplateExport::HEADING_BATCH_CODE,
-            BatchResultsTemplateExport::HEADING_LAB_SECTION,
-            BatchResultsTemplateExport::HEADING_SAMPLE,
-            BatchResultsTemplateExport::HEADING_TEST,
-            BatchResultsTemplateExport::HEADING_ANALYSTS,
-            BatchResultsTemplateExport::HEADING_RESULT,
-        ];
-
-        // Accept the previous template headers so in-flight downloads still import.
-        $legacyExpected = [
-            'Captured Result ID',
-            'Batch ID',
-            BatchResultsTemplateExport::HEADING_LAB_SECTION,
-            BatchResultsTemplateExport::HEADING_SAMPLE,
-            BatchResultsTemplateExport::HEADING_TEST,
-            BatchResultsTemplateExport::HEADING_ANALYSTS,
-            BatchResultsTemplateExport::HEADING_RESULT,
-        ];
-
-        $isLegacy = $headerRow === $legacyExpected;
-        $hasWorksheetColumn = $headerRow === $expectedWithWorksheet;
-        if ($headerRow !== $expected && ! $isLegacy && ! $hasWorksheetColumn) {
+        $layout = $this->resolveHeaderLayout($headerRow);
+        if ($layout === null) {
             throw ValidationException::withMessages([
                 'importFile' => 'Invalid Excel template. Download a fresh template from this batch and try again.',
             ]);
         }
 
-        $columnOffset = $hasWorksheetColumn ? 1 : 0;
+        $columnOffset = $layout['column_offset'];
+        $hasWorksheetColumn = $layout['has_worksheet'];
+        $hasActionColumn = $layout['has_action'];
+        $isLegacy = $layout['is_legacy'];
+        $actionIndex = $layout['action_index'];
+
         $batchId = (string) $batch->id;
         $batchCode = trim((string) ($batch->batch_code ?? ''));
         $errors = [];
@@ -163,7 +177,7 @@ final class BatchResultsExcelImportService
             }
         }
 
-        /** @var list<array{captured: CapturedResult, result: string, excel_row: int}> $pending */
+        /** @var list<array{captured: CapturedResult, result: string, clear: bool, excel_row: int}> $pending */
         $pending = [];
         $seenIds = [];
         $skipped = 0;
@@ -177,11 +191,15 @@ final class BatchResultsExcelImportService
             $sampleLabel = trim((string) ($row[3 + $columnOffset] ?? ''));
             $testLabel = trim((string) ($row[4 + $columnOffset] ?? ''));
             $result = trim((string) ($row[6 + $columnOffset] ?? ''));
+            $action = $hasActionColumn
+                ? strtolower(trim((string) ($row[$actionIndex] ?? '')))
+                : '';
 
             if ($capturedResultId === '' && $rowBatchRef === '' && $result === ''
                 && $labSectionLabel === ''
                 && $sampleLabel === ''
-                && $testLabel === '') {
+                && $testLabel === ''
+                && $action === '') {
                 continue;
             }
 
@@ -207,7 +225,8 @@ final class BatchResultsExcelImportService
                 }
             }
 
-            if ($result === '') {
+            $shouldClear = in_array($action, ['clear', 'delete'], true);
+            if (! $shouldClear && $result === '') {
                 $skipped++;
                 continue;
             }
@@ -236,7 +255,8 @@ final class BatchResultsExcelImportService
 
             $pending[] = [
                 'captured' => $captured,
-                'result' => $result,
+                'result' => $shouldClear ? '' : $result,
+                'clear' => $shouldClear,
                 'excel_row' => $excelRow,
             ];
         }
@@ -248,17 +268,65 @@ final class BatchResultsExcelImportService
         }
 
         if ($pending === []) {
-            return ['updated' => 0, 'skipped' => $skipped];
+            return ['updated' => 0, 'skipped' => $skipped, 'cleared' => 0, 'version' => null];
+        }
+
+        $scopeKey = (string) $batch->id;
+        $nextVersion = $this->versionService->nextVersionNumber(DataImportVersion::SCOPE_BATCH_RESULTS, $scopeKey);
+        $preSnapshotPath = null;
+        $storedUploadPath = null;
+
+        if ($persistVersion) {
+            $preSnapshotPath = $this->storeCurrentSnapshot($batch, $scopeKey, $nextVersion);
+            if ($file instanceof UploadedFile) {
+                $storedUploadPath = $this->versionService->storeUploadedFile(
+                    DataImportVersion::SCOPE_BATCH_RESULTS,
+                    $scopeKey,
+                    $file,
+                    $nextVersion,
+                    'upload.xlsx',
+                );
+            } else {
+                $contents = Storage::disk('public')->exists($file)
+                    ? (string) Storage::disk('public')->get($file)
+                    : (string) file_get_contents($file);
+                $storedUploadPath = $this->versionService->storeBinarySnapshot(
+                    DataImportVersion::SCOPE_BATCH_RESULTS,
+                    $scopeKey,
+                    $contents,
+                    $nextVersion,
+                    'upload.xlsx',
+                );
+            }
         }
 
         $actingUserId = $actingUser?->id !== null ? (string) $actingUser->id : null;
+        $cleared = 0;
+        $updated = 0;
 
-        DB::transaction(function () use ($pending, $actingUserId, $worksheetContext, $batch, $actingUser): void {
+        DB::transaction(function () use (
+            $pending,
+            $actingUserId,
+            $worksheetContext,
+            $batch,
+            $actingUser,
+            &$cleared,
+            &$updated,
+        ): void {
             foreach ($pending as $item) {
-                $attributes = ['result' => $item['result']];
-                $remark = $this->remarkService->autoRemarkForCapturedResult($item['captured'], $item['result']);
-                if ($remark !== null) {
-                    $attributes['remark'] = $remark;
+                $attributes = [
+                    'result' => $item['result'],
+                ];
+
+                if ($item['clear']) {
+                    $attributes['remark'] = null;
+                    $cleared++;
+                } else {
+                    $remark = $this->remarkService->autoRemarkForCapturedResult($item['captured'], $item['result']);
+                    if ($remark !== null) {
+                        $attributes['remark'] = $remark;
+                    }
+                    $updated++;
                 }
 
                 $this->captureService->applyOnSave(
@@ -301,10 +369,175 @@ final class BatchResultsExcelImportService
             }
         });
 
+        $version = null;
+        if ($persistVersion && $storedUploadPath !== null) {
+            $version = $this->versionService->recordAppliedVersion(
+                DataImportVersion::SCOPE_BATCH_RESULTS,
+                $scopeKey,
+                $storedUploadPath,
+                $preSnapshotPath,
+                [
+                    'updated' => $updated,
+                    'cleared' => $cleared,
+                    'skipped' => $skipped,
+                ],
+                [
+                    'company_id' => function_exists('getUserCompany') ? getUserCompany() : $actingUser?->company_id,
+                    'sample_header_id' => (string) $batch->id,
+                    'lab_section_worksheet_id' => $worksheetContext?->id,
+                    'notes' => $notes,
+                ],
+                $actingUser,
+            );
+        }
+
         return [
-            'updated' => count($pending),
+            'updated' => $updated,
             'skipped' => $skipped,
+            'cleared' => $cleared,
+            'version' => $version,
         ];
+    }
+
+    /**
+     * @return Collection<int, DataImportVersion>
+     */
+    public function listVersions(SampleHeader $batch): Collection
+    {
+        return $this->versionService->listVersions(DataImportVersion::SCOPE_BATCH_RESULTS, (string) $batch->id);
+    }
+
+    public function downloadVersion(DataImportVersion $version): StreamedResponse
+    {
+        return $this->versionService->downloadVersionFile(
+            $version,
+            'batch-results-v'.$version->version.'.xlsx',
+        );
+    }
+
+    /**
+     * Restore a previous version by re-applying its stored Excel (append-only history).
+     *
+     * @return array{updated: int, skipped: int, cleared: int, version?: DataImportVersion|null}
+     */
+    public function rollbackTo(SampleHeader $batch, DataImportVersion $version, ?User $actingUser): array
+    {
+        if ($version->scope !== DataImportVersion::SCOPE_BATCH_RESULTS
+            || $version->scope_key !== (string) $batch->id) {
+            throw ValidationException::withMessages([
+                'importFile' => 'That version does not belong to this batch.',
+            ]);
+        }
+
+        if (! $version->fileExists()) {
+            throw ValidationException::withMessages([
+                'importFile' => 'The selected version file is missing from storage.',
+            ]);
+        }
+
+        $absolute = $this->versionService->absolutePath($version->file_path);
+        $result = $this->importFromPath(
+            $batch,
+            $absolute,
+            $actingUser,
+            persistVersion: true,
+            notes: 'Restored from version '.$version->version,
+        );
+
+        if ($version->status !== DataImportVersion::STATUS_APPLIED) {
+            $this->versionService->markSupersededAsRolledBack($version);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{column_offset: int, has_worksheet: bool, has_action: bool, is_legacy: bool, action_index: int}|null
+     */
+    private function resolveHeaderLayout(array $headerRow): ?array
+    {
+        $expected = [
+            BatchResultsTemplateExport::HEADING_ROW_KEY,
+            BatchResultsTemplateExport::HEADING_BATCH_CODE,
+            BatchResultsTemplateExport::HEADING_LAB_SECTION,
+            BatchResultsTemplateExport::HEADING_SAMPLE,
+            BatchResultsTemplateExport::HEADING_TEST,
+            BatchResultsTemplateExport::HEADING_ANALYSTS,
+            BatchResultsTemplateExport::HEADING_RESULT,
+        ];
+        $expectedWithAction = array_merge($expected, [BatchResultsTemplateExport::HEADING_ACTION]);
+        $expectedWithWorksheet = [
+            BatchResultsTemplateExport::HEADING_ROW_KEY,
+            BatchResultsTemplateExport::HEADING_WORKSHEET_NUMBER,
+            BatchResultsTemplateExport::HEADING_BATCH_CODE,
+            BatchResultsTemplateExport::HEADING_LAB_SECTION,
+            BatchResultsTemplateExport::HEADING_SAMPLE,
+            BatchResultsTemplateExport::HEADING_TEST,
+            BatchResultsTemplateExport::HEADING_ANALYSTS,
+            BatchResultsTemplateExport::HEADING_RESULT,
+        ];
+        $expectedWithWorksheetAndAction = array_merge($expectedWithWorksheet, [BatchResultsTemplateExport::HEADING_ACTION]);
+        $legacyExpected = [
+            'Captured Result ID',
+            'Batch ID',
+            BatchResultsTemplateExport::HEADING_LAB_SECTION,
+            BatchResultsTemplateExport::HEADING_SAMPLE,
+            BatchResultsTemplateExport::HEADING_TEST,
+            BatchResultsTemplateExport::HEADING_ANALYSTS,
+            BatchResultsTemplateExport::HEADING_RESULT,
+        ];
+
+        if ($headerRow === $expectedWithWorksheetAndAction) {
+            return [
+                'column_offset' => 1,
+                'has_worksheet' => true,
+                'has_action' => true,
+                'is_legacy' => false,
+                'action_index' => 8,
+            ];
+        }
+
+        if ($headerRow === $expectedWithWorksheet) {
+            return [
+                'column_offset' => 1,
+                'has_worksheet' => true,
+                'has_action' => false,
+                'is_legacy' => false,
+                'action_index' => -1,
+            ];
+        }
+
+        if ($headerRow === $expectedWithAction) {
+            return [
+                'column_offset' => 0,
+                'has_worksheet' => false,
+                'has_action' => true,
+                'is_legacy' => false,
+                'action_index' => 7,
+            ];
+        }
+
+        if ($headerRow === $expected) {
+            return [
+                'column_offset' => 0,
+                'has_worksheet' => false,
+                'has_action' => false,
+                'is_legacy' => false,
+                'action_index' => -1,
+            ];
+        }
+
+        if ($headerRow === $legacyExpected) {
+            return [
+                'column_offset' => 0,
+                'has_worksheet' => false,
+                'has_action' => false,
+                'is_legacy' => true,
+                'action_index' => -1,
+            ];
+        }
+
+        return null;
     }
 
     private function resolveCapturedResult(string $batchId, string $rowKey, ?LabSectionWorksheet $worksheet): ?CapturedResult
