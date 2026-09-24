@@ -2896,13 +2896,23 @@ class SampleWorkFlowController extends Controller
         $batch = SampleHeader::find($batch_id);
 
         if ($batch->status == 'Samples In Lab' && $status == 'Sample Verification') {
-            $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($batch);
+            $reportLevel = $request->input('level');
+            $resultsBlockReason = app(BatchVerificationReadinessService::class)
+                ->blockingReason($batch, $reportLevel);
             if ($resultsBlockReason !== null) {
                 return redirect()->back()->with('error', $resultsBlockReason);
             }
         }
 
         if ($batch->status == 'Sample Verification' && $status == 'Sample Approval') {
+            $readiness = app(BatchVerificationReadinessService::class);
+            if (! $readiness->isPartialInterimBatch($batch)) {
+                $resultsBlockReason = $readiness->blockingReason($batch);
+                if ($resultsBlockReason !== null) {
+                    return redirect()->back()->with('error', $resultsBlockReason);
+                }
+            }
+
             $this->ensureLabManagerVerificationApprover($batch);
 
             // Validate verification approval order first
@@ -6318,6 +6328,9 @@ class SampleWorkFlowController extends Controller
         app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
             ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
 
+        // Keep Processed Results in sync with capture when the Test Report unlocks that tab.
+        app(ProcessedResultSyncService::class)->syncBatch((string) $batch->id);
+
         $redirectParams = array_merge([
             'batch_id' => $batch->id,
             'seq'      => $batch->test_request_report_sequence,
@@ -7142,7 +7155,9 @@ class SampleWorkFlowController extends Controller
         $previousWorkflow = $batch->status;
 
         if ($request->status == 'Sample Verification') {
-            $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($batch);
+            $reportLevel = $request->input('level');
+            $resultsBlockReason = app(BatchVerificationReadinessService::class)
+                ->blockingReason($batch, $reportLevel);
             if ($resultsBlockReason !== null) {
                 return redirect()->back()->with('error', $resultsBlockReason);
             }
@@ -7263,9 +7278,16 @@ class SampleWorkFlowController extends Controller
                 $request->status,
                 $request->comments ?? 'Moved to Sample Verification with assigned Technical Reviewer and Lab Manager.'
             );
-            $batch->report_status = '';
-            $batch->prelim_report_status = 0;
-            $batch->prelim_batch_status = '';
+            $reportLevel = (string) ($request->input('level') ?? BatchVerificationReadinessService::REPORT_LEVEL_FINAL);
+            if ($reportLevel === BatchVerificationReadinessService::REPORT_LEVEL_FINAL || $reportLevel === '') {
+                $batch->report_status = '';
+                $batch->prelim_report_status = 0;
+                $batch->prelim_batch_status = '';
+            } else {
+                $batch->report_status = '';
+                $batch->prelim_report_status = (int) $reportLevel;
+                $batch->prelim_batch_status = (string) $request->status;
+            }
             $batch->save();
 
             return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch moved to Sample Verification with assigned Technical Reviewer and Lab Manager');

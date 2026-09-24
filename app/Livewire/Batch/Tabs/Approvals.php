@@ -5,6 +5,7 @@ namespace App\Livewire\Batch\Tabs;
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\BatchVerificationReadinessService;
 use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
 use App\Services\StandardLimitDisplayService;
 use App\Services\WorkflowService;
@@ -190,6 +191,10 @@ class Approvals extends Component
 
     public function hasPendingDataCapture(): bool
     {
+        if (app(BatchVerificationReadinessService::class)->isPartialInterimBatch($this->batch)) {
+            return false;
+        }
+
         return CapturedResult::query()
             ->where('sample_header_id', $this->batch->id)
             ->whereNull('result')

@@ -169,6 +169,8 @@
                     <span class="badge badge-info batch-priority-pill">Prelim</span>
                 @elseif(isset($batch->id) && $batch->prelim_report_status == 2)
                     <span class="badge badge-secondary batch-priority-pill">Draft</span>
+                @elseif(isset($batch->id) && (int) $batch->prelim_report_status === 3)
+                    <span class="badge badge-warning batch-priority-pill">Partial / interim</span>
                 @else
                     @if(isset($batch->priority) && $batch->priority != "Normal")
                         <span class="batch-priority-pill" style="background:#fff5f5; color:#dc2626; border:1px solid #fecaca;">
@@ -389,7 +391,7 @@
                                                 data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process
                                                 Results</span></li> --}}
                                     @endif
-                                    @if((auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds)) && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification')
+                                    @if((auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds)) && $batch->prelim_batch_status == "Sample Verification" && in_array((int) $batch->prelim_report_status, [1, 3], true) && $status == 'Sample Verification')
                                         <li><span class="btn btn-sm dropdown-item" wire:click="openApprovalModal"
                                                 style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
                                                 Approval</span></li>
@@ -410,7 +412,7 @@
                                 @endif
                                 @if(isset($batch->status) && in_array($batch->status, ["Sample Verification", "Sample Approval", "Reports for Collection", "Reports In Payment"]) && Auth::user()->is_client == 0)
                                     @if($batch->status == "Sample Verification")
-                                        @if($notCaptured->count() == 0)
+                                        @if($notCaptured->count() == 0 || (int) ($batch->prelim_report_status ?? 0) === 3)
                                             @if(auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds))
                                                 <li><span class="dropdown-item">
                                                         <hr />
@@ -936,7 +938,11 @@
                                                 <option value="0">Final Report</option>
                                                 <option value="1">Preliminary Report</option>
                                                 <option value="2">Draft Report</option>
+                                                <option value="3">Partial / interim report</option>
                                             </select>
+                                            <small class="text-muted d-block mt-1">
+                                                Partial / interim allows verification when some tests are still pending (shown as TBA on the report). Final, Preliminary, and Draft still require all results.
+                                            </small>
                                         </div>
                                     </div>
 

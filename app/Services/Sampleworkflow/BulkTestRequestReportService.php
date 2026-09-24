@@ -156,6 +156,7 @@ final class BulkTestRequestReportService
                         ]);
 
                         $this->numbering->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
+                        app(ProcessedResultSyncService::class)->syncBatch((string) $batch->id);
 
                         $sequence = (int) $batch->test_request_report_sequence;
                         $stored = $this->pdfService->generateAndStore(
@@ -201,6 +202,7 @@ final class BulkTestRequestReportService
                     ]);
 
                     $this->numbering->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
+                    app(ProcessedResultSyncService::class)->syncBatch((string) $batch->id);
 
                     $stored = $this->pdfService->generateAndStore(
                         $batch->fresh(['customer', 'sample_type', 'samples']),

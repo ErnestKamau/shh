@@ -384,7 +384,11 @@ class Header extends Component
         $batch->refresh();
         $this->batch = $batch;
 
-        $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($batch);
+        $reportLevel = (string) ($this->verificationData['level'] ?? BatchVerificationReadinessService::REPORT_LEVEL_FINAL);
+        $readiness = app(BatchVerificationReadinessService::class);
+        $isPartialInterim = $readiness->isPartialInterimLevel($reportLevel);
+
+        $resultsBlockReason = $readiness->blockingReason($batch, $reportLevel);
         if ($resultsBlockReason !== null) {
             session()->flash('error', $resultsBlockReason);
 
@@ -406,11 +410,22 @@ class Header extends Component
         // Only block when attachment-based placeholder results are still pending.
         // Procedure/grouped worksheets may set has_procedure_worksheet while posting
         // substantive values (e.g. Positive/Negative) that do not need a file attachment.
+        // Partial / interim: ignore unfinished TBA rows that still need an attachment.
         $incompleteAttachmentResults = CapturedResult::query()
             ->where('sample_header_id', $batch->id)
             ->where('has_procedure_worksheet', true)
             ->get()
-            ->filter(fn (CapturedResult $result) => $result->requiresLinkedBatchAttachment());
+            ->filter(function (CapturedResult $result) use ($isPartialInterim, $readiness): bool {
+                if (! $result->requiresLinkedBatchAttachment()) {
+                    return false;
+                }
+
+                if ($isPartialInterim && ! $readiness->isEnteredResult($result)) {
+                    return false;
+                }
+
+                return true;
+            });
 
         if ($incompleteAttachmentResults->isNotEmpty()) {
             $count = $incompleteAttachmentResults->count();
@@ -449,19 +464,25 @@ class Header extends Component
 
         \App\Models\Lab\TatCaptured::where('sample_header_id', $batch->id)->update(['is_complete' => 1]);
 
-        $level = $this->verificationData['level'];
+        $level = $reportLevel;
         $status = 'Sample Verification';
+        $movesMainWorkflow = in_array($level, [
+            BatchVerificationReadinessService::REPORT_LEVEL_FINAL,
+            BatchVerificationReadinessService::REPORT_LEVEL_PARTIAL_INTERIM,
+        ], true);
 
-        if ($level == '0') {
+        if ($movesMainWorkflow) {
             app(BatchWorkflowStageSyncService::class)->applyWorkflowStatus(
                 $batch,
                 $status,
-                'Moved to Sample Verification from Samples In Lab.'
+                $isPartialInterim
+                    ? 'Moved to Sample Verification for Partial / interim report.'
+                    : 'Moved to Sample Verification from Samples In Lab.'
             );
         }
-        $batch->report_status = ($level == '0') ? (int) $level : $batch->report_status;
-        $batch->prelim_report_status = ($level != '0') ? (int) $level : $batch->prelim_report_status;
-        $batch->prelim_batch_status = ($level != '0') ? $status : $batch->prelim_batch_status;
+        $batch->report_status = ($level == BatchVerificationReadinessService::REPORT_LEVEL_FINAL) ? (int) $level : $batch->report_status;
+        $batch->prelim_report_status = ($level != BatchVerificationReadinessService::REPORT_LEVEL_FINAL) ? (int) $level : $batch->prelim_report_status;
+        $batch->prelim_batch_status = ($level != BatchVerificationReadinessService::REPORT_LEVEL_FINAL) ? $status : $batch->prelim_batch_status;
 
         $hasDeviation = (bool) ($this->verificationData['has_method_deviation'] ?? false);
         $batch->has_method_deviation = $hasDeviation;
@@ -469,14 +490,14 @@ class Header extends Component
             ? ($this->verificationData['method_deviation_reason'] ?? '')
             : null;
 
-        if ($level == '0') {
+        if ($level == BatchVerificationReadinessService::REPORT_LEVEL_FINAL) {
             $batch->report_status = null;
             $batch->prelim_report_status = 0;
             $batch->prelim_batch_status = null;
         }
 
-        if ($level != '2') {
-            $level != 0
+        if ($level != BatchVerificationReadinessService::REPORT_LEVEL_DRAFT) {
+            $level != BatchVerificationReadinessService::REPORT_LEVEL_FINAL
                 ? \App\BatchLabSectionApprover::where('batch_id', $batch->id)->delete()
                 : \App\BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim', 0)->delete();
 
@@ -497,7 +518,7 @@ class Header extends Component
                 $approvers->lab_section_ids = (string) $sectionId;
                 $approvers->batch_id = $batch->id;
                 $approvers->batch_status = $status;
-                $approvers->is_prelim = ($level != '0') ? 1 : 0;
+                $approvers->is_prelim = ($level != BatchVerificationReadinessService::REPORT_LEVEL_FINAL) ? 1 : 0;
                 $approvers->show_report = 1;
                 $approvers->approver_order = 1;
                 $approvers->is_technical_reviewer = 1;
@@ -520,7 +541,7 @@ class Header extends Component
                 $approvers->lab_section_ids = (string) $sectionId;
                 $approvers->batch_id = $batch->id;
                 $approvers->batch_status = $status;
-                $approvers->is_prelim = ($level != '0') ? 1 : 0;
+                $approvers->is_prelim = ($level != BatchVerificationReadinessService::REPORT_LEVEL_FINAL) ? 1 : 0;
                 $approvers->approval_date = now()->format('Y-m-d H:i:s');
                 $approvers->show_report = 0;
                 $approvers->save();
@@ -544,9 +565,10 @@ class Header extends Component
 
     public function openVerificationModal()
     {
-        $resultsBlockReason = app(BatchVerificationReadinessService::class)->blockingReason($this->batch);
-        if ($resultsBlockReason !== null) {
-            session()->flash('error', $resultsBlockReason);
+        $readiness = app(BatchVerificationReadinessService::class);
+        if (! $readiness->canOpenVerificationModal($this->batch)) {
+            $resultsBlockReason = $readiness->blockingReason($this->batch);
+            session()->flash('error', $resultsBlockReason ?? 'Capture sample results before sending to verification.');
 
             return;
         }
@@ -558,12 +580,21 @@ class Header extends Component
 
     public function getCanSendToVerificationProperty(): bool
     {
-        return app(BatchVerificationReadinessService::class)->canMoveToVerification($this->batch);
+        return app(BatchVerificationReadinessService::class)->canOpenVerificationModal($this->batch);
     }
 
     public function getVerificationResultsBlockReasonProperty(): ?string
     {
-        return app(BatchVerificationReadinessService::class)->blockingReason($this->batch);
+        $readiness = app(BatchVerificationReadinessService::class);
+        if ($readiness->canMoveToVerification($this->batch)) {
+            return null;
+        }
+
+        if ($readiness->hasEnteredResults($this->batch)) {
+            return 'Some results are still missing. Choose Partial / interim report to proceed, or capture all results for Final / Preliminary / Draft.';
+        }
+
+        return $readiness->blockingReason($this->batch);
     }
 
     /**

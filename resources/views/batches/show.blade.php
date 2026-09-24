@@ -1475,6 +1475,7 @@
 						$modal.find('.modal-body').append(success_tag);
 						if (typeof Livewire !== 'undefined') {
 							Livewire.dispatch('attachmentsUpdated');
+							Livewire.dispatch('resultsUpdated');
 						}
 
 						setTimeout(function () {

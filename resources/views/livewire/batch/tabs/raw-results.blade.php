@@ -54,27 +54,41 @@
                             <td class="font-weight-bold text-center">{{ $sampleCode }}</td>
                             @foreach($uniqueAnalytes as $analyte)
                                 @php
-                                    $result = $sampleResults->where('analyte_code', $analyte)->first();
+                                    $matches = $sampleResults->where('analyte_code', $analyte)->values();
+                                    // Prefer a row that already has a captured value when duplicates share analyte_code.
+                                    $result = $matches->first(function ($row) {
+                                        return $row->result !== null && $row->result !== '';
+                                    }) ?? $matches->first();
                                 @endphp
                                 <td class="parameter-cell" data-analyte="{{ $analyte }}" data-sample="{{ $sampleCode }}">
                                     @if($result)
                                         @php
                                             $hasResult = $result->result !== null && $result->result !== '';
-                                            $remarkBorder = $result->remark == 'FAIL' ? 'border-danger' : ($result->remark == 'PASS' ? 'border-success' : 'border-secondary');
-                                            $remarkText = $result->remark == 'FAIL' ? 'text-danger' : ($result->remark == 'PASS' ? 'text-success' : '');
+                                            $remarkLabel = format_result_remark($result->remark ?? null);
+                                            $isFail = is_non_conforming_remark($result->remark ?? null);
+                                            $isPass = is_conforming_remark($result->remark ?? null);
+                                            $remarkBorder = $isFail ? 'border-danger' : ($isPass ? 'border-success' : 'border-secondary');
+                                            $remarkText = $isFail ? 'text-danger' : ($isPass ? 'text-success' : '');
+                                            $limitDisplay = $result->standard_limit_display
+                                                ?? (filled($result->main_value) && ! in_array(trim((string) $result->main_value), ['NS', '-', '—', '–', 'N/A', 'n/a', 'NA'], true)
+                                                    ? $result->main_value
+                                                    : null);
                                         @endphp
                                         <div class="result-input-container mb-2">
                                             <div class="form-control form-control-sm bg-light {{ $remarkBorder }} {{ $remarkText }}"
-                                                 style="min-height: 31px;">
+                                                 style="min-height: 31px;"
+                                                 title="{{ $remarkLabel !== '' ? $remarkLabel : '' }}">
                                                 {{ $hasResult ? $result->result : '—' }}
                                             </div>
                                         </div>
                                         <div class="standard-limit-container">
                                             <span class="standard-limit-text text-muted small">
-                                                @if($result->standard_limit_display ?? $result->main_value)
-                                                    {{ $result->standard_limit_display ?? $result->main_value }}
-                                                @else
+                                                @if($limitDisplay)
+                                                    {{ $limitDisplay }}
+                                                @elseif($hasResult)
                                                     No limit set
+                                                @else
+                                                    —
                                                 @endif
                                             </span>
                                         </div>
@@ -84,7 +98,7 @@
                                                  style="min-height: 31px;">—</div>
                                         </div>
                                         <div class="standard-limit-container">
-                                            <span class="standard-limit-text text-muted small">No limit set</span>
+                                            <span class="standard-limit-text text-muted small">—</span>
                                         </div>
                                     @endif
                                 </td>
