@@ -333,19 +333,9 @@
                                             style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample
                                             Data</span></li>
                                     --}}
-                                    @if($this->canSendToVerification)
-                                        <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
-                                                style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
-                                                Verification</span></li>
-                                    @else
-                                        <li><span class="dropdown-item text-danger small" style="cursor: not-allowed;"
-                                                title="{{ $this->verificationResultsBlockReason }}">
-                                                <i class="mdi mdi-alert mr-2"></i> Send for Verification
-                                                @if($this->verificationResultsBlockReason)
-                                                    ({{ \Illuminate\Support\Str::limit($this->verificationResultsBlockReason, 60) }})
-                                                @endif
-                                            </span></li>
-                                    @endif
+                                    <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
+                                            style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
+                                            Verification</span></li>
                                 @endif
 
                                 @if(isset($batch->status) && Auth::user()->is_client == 0 && $status == 'Sample Verification')
@@ -934,7 +924,7 @@
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="cf-input-label">Report Status Level</label>
-                                            <select class="cf-form-control" wire:model="verificationData.level">
+                                            <select class="cf-form-control" wire:model.live="verificationData.level">
                                                 <option value="0">Final Report</option>
                                                 <option value="1">Preliminary Report</option>
                                                 <option value="2">Draft Report</option>
@@ -943,6 +933,12 @@
                                             <small class="text-muted d-block mt-1">
                                                 Partial / interim allows verification when some tests are still pending (shown as TBA on the report). Final, Preliminary, and Draft still require all results.
                                             </small>
+                                            @if($this->selectedVerificationLevelBlockReason)
+                                                <div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="font-size:0.78rem;">
+                                                    <i class="mdi mdi-alert-outline mr-1"></i>
+                                                    {{ $this->selectedVerificationLevelBlockReason }}
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
 
@@ -973,7 +969,8 @@
 
                         @if($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
                             <button type="button" class="btn btn-vw-primary btn-sm"
-                                wire:click="moveToVerification">
+                                wire:click="moveToVerification"
+                                @if($this->selectedVerificationLevelBlockReason) disabled title="{{ $this->selectedVerificationLevelBlockReason }}" @endif>
                                 <i class="mdi mdi-send-check-outline mr-1"></i> Submit to Verification
                             </button>
                         @endif

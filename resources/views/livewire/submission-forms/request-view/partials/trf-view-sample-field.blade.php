@@ -55,6 +55,7 @@
         'sample_condition' => 'mdi-shield-check-outline',
         'sample_temp' => 'mdi-thermometer',
         'field_sample_temp' => 'mdi-thermometer',
+        'thermometer_id' => 'mdi-thermometer',
         'test_category' => 'mdi-tag-outline',
         'sample_description' => 'mdi-text-box-outline',
         'test_requirements' => 'mdi-checkbox-marked-outline',
@@ -129,12 +130,33 @@
     } elseif ($fieldName === 'sample_description') {
         $display = trim(strip_tags((string) ($raw ?? '')));
         $display = $display !== '' ? $display : '—';
+    } elseif ($fieldName === 'thermometer_id') {
+        $display = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+            ->formatForDisplay($raw);
+        $display = $display !== '' ? $display : '—';
     } else {
         if (is_array($raw)) {
-            $display = '—';
+            $display = implode(', ', array_filter(array_map(
+                static fn ($item): string => is_scalar($item) ? trim((string) $item) : '',
+                $raw
+            )));
+            $display = $display !== '' ? $display : '—';
         } else {
             $string = trim((string) ($raw ?? ''));
-            $display = $string !== '' ? $string : '—';
+            if (str_starts_with($string, '[')) {
+                $decoded = json_decode($string, true);
+                if (is_array($decoded)) {
+                    $display = implode(', ', array_filter(array_map(
+                        static fn ($item): string => is_scalar($item) ? trim((string) $item) : '',
+                        $decoded
+                    )));
+                    $display = $display !== '' ? $display : '—';
+                } else {
+                    $display = $string !== '' ? $string : '—';
+                }
+            } else {
+                $display = $string !== '' ? $string : '—';
+            }
         }
     }
 @endphp

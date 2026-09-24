@@ -368,6 +368,11 @@ final class SubmissionFormInstanceSampleRowUpdateService
             return $raw === '' ? [] : [$raw];
         }
 
+        if ($fieldName === 'thermometer_id') {
+            return app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+                ->formatForDisplay($raw);
+        }
+
         return $raw;
     }
 

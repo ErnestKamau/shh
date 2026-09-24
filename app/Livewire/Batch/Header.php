@@ -565,14 +565,6 @@ class Header extends Component
 
     public function openVerificationModal()
     {
-        $readiness = app(BatchVerificationReadinessService::class);
-        if (! $readiness->canOpenVerificationModal($this->batch)) {
-            $resultsBlockReason = $readiness->blockingReason($this->batch);
-            session()->flash('error', $resultsBlockReason ?? 'Capture sample results before sending to verification.');
-
-            return;
-        }
-
         $this->prepareVerificationForm();
         $this->verificationActiveTab = 'assign_approvers';
         $this->showVerificationModal = true;
@@ -580,7 +572,7 @@ class Header extends Component
 
     public function getCanSendToVerificationProperty(): bool
     {
-        return app(BatchVerificationReadinessService::class)->canOpenVerificationModal($this->batch);
+        return true;
     }
 
     public function getVerificationResultsBlockReasonProperty(): ?string
@@ -595,6 +587,14 @@ class Header extends Component
         }
 
         return $readiness->blockingReason($this->batch);
+    }
+
+    public function getSelectedVerificationLevelBlockReasonProperty(): ?string
+    {
+        $reportLevel = (string) ($this->verificationData['level'] ?? BatchVerificationReadinessService::REPORT_LEVEL_FINAL);
+
+        return app(BatchVerificationReadinessService::class)
+            ->blockingReason($this->batch, $reportLevel);
     }
 
     /**
