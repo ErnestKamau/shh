@@ -31,7 +31,7 @@
                 Sample collection data
             </h5>
             <p class="rv-sample-collection-tab__hint mb-0">
-                Sampling date, location, transport, apparatus, and method captured for this request.
+                Sampling date, location, transport, apparatus, and method captured per sample.
             </p>
         </div>
         <div class="d-inline-flex align-items-center" style="gap: 6px;">

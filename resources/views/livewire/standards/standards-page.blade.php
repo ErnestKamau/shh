@@ -323,6 +323,12 @@
                         <button type="button" class="btn-close" wire:click="closeStandardModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        @if($message && $messageType === 'error')
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {{ $message }}
+                                <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+                            </div>
+                        @endif
                         <form wire:submit.prevent="saveStandard">
                             <div class="row">
                                 <div class="col-md-6">
@@ -404,6 +410,12 @@
                         <button type="button" class="btn-close" wire:click="closeStandardValueModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        @if($message && $messageType === 'error')
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {{ $message }}
+                                <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+                            </div>
+                        @endif
                         <form wire:submit.prevent="saveStandardValue">
                             <div class="row">
                                 <div class="col-md-6">

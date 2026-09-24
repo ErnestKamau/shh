@@ -167,6 +167,15 @@ class SubmissionFormElement extends Model implements Auditable
             return [];
         }
 
+        if ((string) ($this->name ?? '') === 'sampled_by') {
+            $options = [];
+            foreach (\App\Services\Sampleworkflow\SampledByParty::selectOptions() as $option) {
+                $options[$option['value']] = $option['label'];
+            }
+
+            return $options;
+        }
+
         if (! is_array($this->options)) {
             return [];
         }

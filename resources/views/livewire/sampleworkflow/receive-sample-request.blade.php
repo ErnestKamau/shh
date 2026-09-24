@@ -180,6 +180,16 @@
         .receive-walk-in-entity-modal {
             z-index: 1070 !important;
         }
+        .receive-walk-in-entity-modal.modal-backdrop,
+        .modal-backdrop.receive-walk-in-entity-modal {
+            position: fixed !important;
+            inset: 0 !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 1065 !important;
+        }
         .receive-walk-in-entity-modal + .modal-backdrop {
             z-index: 1065 !important;
         }
@@ -990,6 +1000,7 @@
         {{-- Remarks / reception notes removed for physical check-in; now a simple confirmation. --}}
 
     @if($showWalkInAddCustomerModal)
+        @teleport('body')
         <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="walk-in-add-customer-title">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -1043,9 +1054,11 @@
             </div>
         </div>
         <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+        @endteleport
     @endif
 
     @if($showWalkInAddUnitModal)
+        @teleport('body')
         <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="walk-in-add-unit-title">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -1081,9 +1094,11 @@
             </div>
         </div>
         <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+        @endteleport
     @endif
 
     @if($showWalkInAddContactModal)
+        @teleport('body')
         <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -1138,9 +1153,11 @@
             </div>
         </div>
         <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+        @endteleport
     @endif
 
     @if($showWalkInAddPointModal)
+        @teleport('body')
         <div class="modal fade show d-block receive-walk-in-entity-modal" tabindex="-1" role="dialog" aria-modal="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -1175,6 +1192,7 @@
             </div>
         </div>
         <div class="modal-backdrop fade show receive-walk-in-entity-modal"></div>
+        @endteleport
     @endif
 
     @if ($pageMode)

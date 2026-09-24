@@ -30,7 +30,12 @@
     @case('select')
         <select id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}" class="form-control form-control-sm">
             <option value="">Select option</option>
-            @foreach(($element->options ?? []) as $opt)
+            @php
+                $selectOptions = ($name === 'sampled_by')
+                    ? \App\Services\Sampleworkflow\SampledByParty::selectOptions()
+                    : ($element->options ?? []);
+            @endphp
+            @foreach($selectOptions as $opt)
                 @php
                     $optValue = is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : $opt;
                     $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;

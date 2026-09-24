@@ -12,7 +12,7 @@ use Carbon\Carbon;
  * Header mappings (form_data / enquiry → sample_headers):
  * - crm_contact_id, contact_person → crm_contact_id
  * - customer_email, email → schedule_customer_email
- * - sampled_by → sampling_officer_name
+ * - sampled_by (client|company) → sampling_officer_name + sampled_by_company_personnel
  * - sampling_time → radio_active_levels (H:i)
  * - sampling_location → crm_unit_name (when unit not already set)
  * - sample_rows[0].sample_description → description
@@ -41,20 +41,20 @@ class TrfSampleFieldMapper
     public function mapToSampleHeader(array $formData, array $enquiryContext = []): array
     {
         $mapped = [];
-        $customerId = $this->scalar($enquiryContext['crm_customer_id'] ?? $formData['crm_customer_id'] ?? null);
+        $customerId = $this->scalarValue($enquiryContext['crm_customer_id'] ?? $formData['crm_customer_id'] ?? null);
 
-        $contactId = $this->scalar($formData['crm_contact_id'] ?? $enquiryContext['crm_contact_id'] ?? null);
+        $contactId = $this->scalarValue($formData['crm_contact_id'] ?? $enquiryContext['crm_contact_id'] ?? null);
         if ($contactId === null) {
             $contactId = $this->resolveContactReference(
                 $customerId,
-                $this->scalar($formData['contact_person'] ?? null),
+                $this->scalarValue($formData['contact_person'] ?? null),
             );
         }
         if ($contactId !== null) {
             $mapped['crm_contact_id'] = $contactId;
         }
 
-        $email = $this->scalar(
+        $email = $this->scalarValue(
             $formData['customer_email'] ?? null,
             $formData['email'] ?? null,
             $formData['email_address'] ?? null,
@@ -67,15 +67,24 @@ class TrfSampleFieldMapper
             $mapped['schedule_customer_email'] = $email;
         }
 
-        $sampledBy = $this->scalar(
-            $formData['sampled_by'] ?? null,
-            $formData['customer_representative_name'] ?? null,
-        );
+        $sampledBy = $this->scalarValue($formData['sampled_by'] ?? null);
         if ($sampledBy !== null) {
-            $mapped['sampling_officer_name'] = $sampledBy;
+            $partyFlag = SampledByParty::companyPersonnelFlag($sampledBy);
+            if ($partyFlag !== null) {
+                $mapped['sampled_by_company_personnel'] = $partyFlag;
+                $mapped['sampling_officer_name'] = SampledByParty::displayLabel($sampledBy);
+            } else {
+                // Legacy free-text sampled_by values.
+                $mapped['sampling_officer_name'] = $sampledBy;
+            }
+        } else {
+            $representative = $this->scalarValue($formData['customer_representative_name'] ?? null);
+            if ($representative !== null) {
+                $mapped['sampling_officer_name'] = $representative;
+            }
         }
 
-        $samplingTime = $this->scalar($formData['sampling_time'] ?? null);
+        $samplingTime = $this->scalarValue($formData['sampling_time'] ?? null);
         if ($samplingTime !== null) {
             $parsed = $this->parseTime($samplingTime);
             if ($parsed !== null) {
@@ -83,10 +92,10 @@ class TrfSampleFieldMapper
             }
         }
 
-        $unitId = $this->scalar($enquiryContext['crm_unit_id'] ?? null);
-        $unitName = $this->scalar($enquiryContext['crm_unit_name'] ?? null);
+        $unitId = $this->scalarValue($enquiryContext['crm_unit_id'] ?? null);
+        $unitName = $this->scalarValue($enquiryContext['crm_unit_name'] ?? null);
         if ($unitId === null && ($unitName === null || $unitName === 'N/A')) {
-            $location = $this->scalar($formData['sampling_location'] ?? null);
+            $location = $this->scalarValue($formData['sampling_location'] ?? null);
             if ($location !== null) {
                 if (preg_match('/^[0-9a-f-]{36}$/i', $location)) {
                     $pointName = SamplePoint::query()->where('id', $location)->value('name');
@@ -110,11 +119,11 @@ class TrfSampleFieldMapper
             }
         }
 
-        $sampleTemp = $this->scalar($formData['sample_temperature'] ?? null);
+        $sampleTemp = $this->scalarValue($formData['sample_temperature'] ?? null);
         if ($sampleTemp === null && is_array($rows) && $rows !== []) {
             $firstRow = reset($rows);
             if (is_array($firstRow)) {
-                $sampleTemp = $this->scalar($firstRow['sample_temp'] ?? null);
+                $sampleTemp = $this->scalarValue($firstRow['sample_temp'] ?? null);
             }
         }
         if ($sampleTemp !== null) {
@@ -156,12 +165,12 @@ class TrfSampleFieldMapper
             $mapped['expiry_date'] = $expiryDate;
         }
 
-        $lotNo = $this->scalar($row['batch_number'] ?? $row['lot_no'] ?? null);
+        $lotNo = $this->scalarValue($row['batch_number'] ?? $row['lot_no'] ?? null);
         if ($lotNo !== null) {
             $mapped['batch_lot_no'] = $lotNo;
         }
 
-        $locationReference = $this->scalar(
+        $locationReference = $this->scalarValue(
             $row['sampling_location'] ?? null,
             $row['sampling_point'] ?? null,
             $row['location'] ?? null,
@@ -219,6 +228,13 @@ class TrfSampleFieldMapper
     public function mergeFillGaps(array $existing, array $fromTrf): array
     {
         foreach ($fromTrf as $key => $value) {
+            // Always apply the sampling-party flag when TRF provides it (including 0 = client).
+            if ($key === 'sampled_by_company_personnel' && ($value === 0 || $value === 1 || $value === '0' || $value === '1')) {
+                $existing[$key] = (int) $value;
+
+                continue;
+            }
+
             if ($value === null || $value === '') {
                 continue;
             }
@@ -348,7 +364,7 @@ class TrfSampleFieldMapper
             $value = $value['text'] ?? $value['html'] ?? $value[0] ?? null;
         }
 
-        $scalar = $this->scalar($value);
+        $scalar = $this->scalarValue($value);
         if ($scalar === null) {
             return null;
         }
@@ -358,7 +374,13 @@ class TrfSampleFieldMapper
         return $plain !== '' ? $plain : null;
     }
 
-    private function scalar(mixed ...$candidates): ?string
+    /**
+     * First non-empty scalar from candidates (arrays use the first leaf value).
+     *
+     * Per-sample TRF fields (e.g. sampling_location) are stored as list arrays;
+     * callers that need a form-level fallback should use this instead of (string) casts.
+     */
+    public function scalarValue(mixed ...$candidates): ?string
     {
         foreach ($candidates as $candidate) {
             if ($candidate === null) {

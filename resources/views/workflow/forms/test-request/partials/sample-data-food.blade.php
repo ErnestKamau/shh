@@ -135,9 +135,5 @@
             </td>
         </tr>
     @endforeach
-    @include('workflow.forms.test-request.partials.additional-details-rows', [
-        'sampleRows' => $sampleRows,
-        'colspan' => $foodColspan,
-    ])
     @include('workflow.forms.test-request.partials.footer-rows', ['footerColspan' => $foodColspan, 'variant' => 'food'])
 </table>

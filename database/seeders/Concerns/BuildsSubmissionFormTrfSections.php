@@ -385,6 +385,7 @@ trait BuildsSubmissionFormTrfSections
             'picture_of_samples',
         ]);
         $this->patchMiscellaneousSection($form);
+        $this->patchSubmitAndSignSection($form);
         $this->promoteCollectionFieldsToSampleRows($form);
     }
 
@@ -799,6 +800,7 @@ trait BuildsSubmissionFormTrfSections
                 'sample_sampling_point_description',
                 'sampling_apparatus',
                 'method_of_sampling',
+                'sampled_by',
             ], true)) {
                 $update['element_type'] = $payload['element_type'];
             }
@@ -1474,52 +1476,65 @@ trait BuildsSubmissionFormTrfSections
 
     protected function createSubmitAndSignSection(SubmissionForm $form, int $sortOrder): void
     {
-        if ($form->sections()->whereIn('title', ['Submit & sign', 'Submit and sign'])->exists()) {
-            return;
+        $section = $form->sections()
+            ->whereIn('title', ['Submit & sign', 'Submit and sign'])
+            ->first();
+
+        if ($section === null) {
+            $section = $form->sections()->create([
+                'title' => 'Submit & sign',
+                'description' => 'Statement of conformity, sampling party, and customer representative.',
+                'section_type' => 'regular',
+                'sort_order' => $sortOrder,
+            ]);
+        } else {
+            $section->update([
+                'title' => 'Submit & sign',
+                'description' => 'Statement of conformity, sampling party, and customer representative.',
+                'sort_order' => $sortOrder,
+            ]);
         }
 
-        $section = $form->sections()->create([
-            'title' => 'Submit & sign',
-            'description' => 'Statement of conformity, sampling officer, and customer representative.',
-            'section_type' => 'regular',
-            'sort_order' => $sortOrder,
-        ]);
+        $holder = $section->elementHolders()->where('holder_type', 'field')->first();
+        if ($holder === null) {
+            $holder = $section->elementHolders()->create([
+                'holder_type' => 'field',
+                'max_elements' => 10,
+                'sort_order' => 1,
+            ]);
+        }
 
-        $holder = $section->elementHolders()->create([
-            'holder_type' => 'field',
-            'max_elements' => 10,
-            'sort_order' => 1,
-        ]);
+        foreach ($this->submitAndSignTrfFields() as $field) {
+            $this->upsertScalarElement($holder, $field);
+        }
+    }
 
-        $fields = [
+    protected function patchSubmitAndSignSection(SubmissionForm $form, int $sortOrder = 5): void
+    {
+        $this->createSubmitAndSignSection($form, $sortOrder);
+    }
+
+    /**
+     * @return list<array{0: string, 1: string, 2: string, 3: int, 4?: list<array{value: string, label: string}>}>
+     */
+    protected function submitAndSignTrfFields(): array
+    {
+        return [
             ['radio', 'Statement of conformity required in reports', 'statement_of_conformity', 1, [
                 ['value' => 'yes', 'label' => 'Yes'],
                 ['value' => 'no', 'label' => 'No'],
                 ['value' => 'as_per_contract', 'label' => 'As per contract'],
                 ['value' => 'as_per_email', 'label' => 'As per email'],
             ]],
-            ['text', 'Sampled by (name and employee ID)', 'sampled_by', 2],
+            ['select', 'Sampled by', 'sampled_by', 2, [
+                ['value' => 'client', 'label' => 'Client'],
+                ['value' => 'company', 'label' => 'Company'],
+            ]],
             ['text', 'Customer representative name', 'customer_representative_name', 3],
             ['text', 'Customer representative contact number', 'customer_representative_contact', 4],
             ['signature', 'Customer representative signature', 'customer_representative_signature', 5],
             ['textarea', 'Remarks', 'remarks', 6],
         ];
-
-        foreach ($fields as $field) {
-            $payload = [
-                'element_type' => $field[0],
-                'label' => $field[1],
-                'name' => $field[2],
-                'is_required' => false,
-                'sort_order' => $field[3],
-            ];
-
-            if (in_array($field[0], ['select', 'checkbox', 'radio'], true) && isset($field[4])) {
-                $payload['options'] = $field[4];
-            }
-
-            $holder->elements()->create($payload);
-        }
     }
 
     /**

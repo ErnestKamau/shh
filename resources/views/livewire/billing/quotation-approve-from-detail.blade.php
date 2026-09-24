@@ -53,7 +53,6 @@
                                             <th style="width: 2.5rem;"></th>
                                             <th>Contact</th>
                                             <th>Company unit</th>
-                                            <th>Sampling location</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -67,13 +66,11 @@
                                                 </td>
                                                 <td>
                                                     <strong>{{ $recipient['name'] }}</strong>
-                                                    <div class="small text-muted">{{ $recipient['email'] }}</div>
                                                     @if(!empty($recipient['receive_quotations']))
                                                         <span class="badge badge-light border small">Receives quotations</span>
                                                     @endif
                                                 </td>
                                                 <td>{{ $recipient['company_unit'] }}</td>
-                                                <td>{{ $recipient['sampling_location'] }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>

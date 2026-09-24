@@ -200,6 +200,8 @@ final class SubmissionFormSchemaHelper
             'sample_quantity',
             'sample_quantity_unit',
             'sampling_point',
+            'sampling_point_manual',
+            'manual_sampling_point',
             'location',
             'batch_number',
             'state_of_sample',

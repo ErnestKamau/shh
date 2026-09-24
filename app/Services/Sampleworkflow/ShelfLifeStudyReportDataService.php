@@ -50,6 +50,7 @@ class ShelfLifeStudyReportDataService
             ) ?? '-';
 
             $sampleDeliveredBy = $this->firstNonEmpty(
+                \App\Services\Sampleworkflow\SampledByParty::displayLabel($valueMap['sampled_by'] ?? null) ?: null,
                 $valueMap['sampled_by'] ?? null,
                 $batch->submit_by ?? null,
             ) ?? '-';
@@ -157,7 +158,7 @@ class ShelfLifeStudyReportDataService
 
     /**
      * @param  array<string, string>  $valueMap
-     * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}}>
+     * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}|null}>
      */
     private function buildShelfLifeDetailRows(
         array $valueMap,
@@ -167,6 +168,11 @@ class ShelfLifeStudyReportDataService
     ): array {
         $declared = $this->display($condition?->declared_shelf_life);
         $storage = $this->display($condition?->storage_condition);
+
+        $additionalNotes = trim((string) ($valueMap['additional_notes'] ?? ''));
+        $showAdditionalNotes = $additionalNotes !== ''
+            && $additionalNotes !== '-'
+            && strcasecmp($additionalNotes, 'NP') !== 0;
 
         return [
             [
@@ -219,7 +225,9 @@ class ShelfLifeStudyReportDataService
             ],
             [
                 'left' => ['label' => 'transport_condition', 'value' => $valueMap['transport_condition'] ?? '-'],
-                'right' => ['label' => 'additional_notes', 'value' => $valueMap['additional_notes'] ?? ''],
+                'right' => $showAdditionalNotes
+                    ? ['label' => 'additional_notes', 'value' => $additionalNotes]
+                    : null,
             ],
         ];
     }

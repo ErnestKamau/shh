@@ -126,8 +126,54 @@
 		Livewire.on('walk-in-trf-step-changed', function () {
 			setTimeout(function () {
 				window.initTrfSignaturePads(true);
-				window.initWalkInLsSelect2();
+				if (typeof window.initWalkInLsSelect2 === 'function') {
+					window.initWalkInLsSelect2(null, true);
+				}
+				window.cleanupRftOrphanOverlays?.();
 			}, 250);
+		});
+		Livewire.on('trf-sync-copied-sample-fields', function () {
+			setTimeout(function () {
+				if (typeof window.initWalkInLsSelect2 === 'function') {
+					window.initWalkInLsSelect2(null, true);
+				}
+				window.cleanupRftOrphanOverlays?.();
+			}, 150);
+		});
+
+		window.cleanupRftOrphanOverlays = function () {
+			document.querySelectorAll('body > .rft-trf-params-modal').forEach(function (el) {
+				const owned = el.closest('[x-data]') || (el.__x && el.__x.$data);
+				const isOpen = el.style.display !== 'none' && getComputedStyle(el).display !== 'none';
+				const hasOwnerPicker = document.querySelector('.rft-param-picker [x-data], .rft-tests-picker');
+				if (isOpen && ! hasOwnerPicker) {
+					el.remove();
+				}
+			});
+
+			document.querySelectorAll('body > .select2-container--open').forEach(function (el) {
+				if (! el.querySelector('.select2-dropdown')) {
+					el.remove();
+				}
+			});
+
+			document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+				if (! document.querySelector('.modal.show, .modal.d-block')) {
+					el.remove();
+				}
+			});
+
+			if (! document.querySelector('.modal.show, .modal.d-block, .rft-trf-params-modal:not([style*="display: none"])')) {
+				document.body.classList.remove('modal-open');
+				document.body.style.removeProperty('overflow');
+				document.body.style.removeProperty('padding-right');
+			}
+		};
+
+		document.addEventListener('livewire:morph', function () {
+			setTimeout(function () {
+				window.cleanupRftOrphanOverlays?.();
+			}, 0);
 		});
 	});
 })();

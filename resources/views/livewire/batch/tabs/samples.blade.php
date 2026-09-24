@@ -174,56 +174,182 @@
     @endif
 
     {{-- Incomplete Captured Results --}}
-    @if(!empty($incompleteCapturedResults) && is_array($incompleteCapturedResults))
+    @php
+        $incompleteGrouped = $this->incompleteCapturedResultsGrouped;
+        $incompleteResultCount = is_array($incompleteCapturedResults) ? count($incompleteCapturedResults) : 0;
+    @endphp
+    @if($incompleteResultCount > 0)
         <div class="mb-3">
             <button type="button"
                 class="btn btn-danger btn-sm"
-                wire:click="openIncompleteResultsModal">
+                wire:click="openIncompleteResultsModal"
+                aria-haspopup="dialog">
                 <i class="mdi mdi-alert"></i>
                 Unfinished / missing results
-                <span class="badge badge-light text-danger ml-1">{{ count($incompleteCapturedResults) }}</span>
+                <span class="badge badge-light text-danger ml-1">{{ $incompleteResultCount }}</span>
             </button>
         </div>
     @endif
 
     @if($showIncompleteResultsModal)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-alert"></i> Unfinished / missing results
-                        </h5>
-                        <button type="button" class="close text-white" wire:click="closeIncompleteResultsModal">
-                            <span>&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        @forelse($this->incompleteCapturedResultsGrouped as $sampleCode => $items)
-                            <div class="mb-3">
-                                <h6 class="font-weight-bold mb-2">{{ format_sample_code($sampleCode) }}</h6>
-                                <ul class="mb-0 pl-3 small">
-                                    @foreach($items as $item)
-                                        <li>
-                                            {{ $item['analysis_type'] }} / {{ $item['parameter'] }}
-                                            <span class="text-muted">({{ $item['status'] }})</span>
-                                        </li>
-                                    @endforeach
-                                </ul>
+        <div class="modal fade show d-block incomplete-results-overlay"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="incomplete-results-title"
+             wire:keydown.escape.window="closeIncompleteResultsModal">
+            <div class="modal-dialog modal-dialog-centered incomplete-results-dialog" role="document">
+                <div class="modal-content incomplete-results-shell">
+                    <div class="ls-ui-kit">
+                        <div class="ls-modal-card ls-modal-card--wide incomplete-results-card"
+                             data-ls-modal-type="info-dossier">
+                            <div class="ls-modal-card__header">
+                                <div>
+                                    <p class="ls-modal-card__eyebrow">Results checklist</p>
+                                    <h3 class="ls-modal-card__title" id="incomplete-results-title">
+                                        Unfinished / missing results
+                                    </h3>
+                                    <p class="ls-modal-card__subtitle">
+                                        Capture a value for each row below before verification or approval.
+                                    </p>
+                                </div>
+                                <button type="button"
+                                    class="ls-modal-card__close"
+                                    wire:click="closeIncompleteResultsModal"
+                                    aria-label="Close">
+                                    <i class="mdi mdi-close" aria-hidden="true"></i>
+                                </button>
                             </div>
-                        @empty
-                            <p class="text-muted mb-0">No missing results found.</p>
-                        @endforelse
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary btn-sm" wire:click="closeIncompleteResultsModal">Close</button>
+
+                            <div class="ls-modal-card__body incomplete-results-body">
+                                @if($incompleteResultCount === 0)
+                                    @include('layouts.lab.partials.ls-ui.modals.ls-modal-empty', [
+                                        'title' => 'No missing results',
+                                        'text' => 'Every captured parameter in this batch has a result.',
+                                        'fallbackIcon' => 'mdi-check-circle-outline',
+                                    ])
+                                @else
+                                    @foreach($incompleteGrouped as $sampleCode => $items)
+                                        @php
+                                            $sampleItems = collect($items);
+                                        @endphp
+                                        <div class="ls-modal-panel">
+                                            <div class="incomplete-results-panel-head">
+                                                <h4 class="ls-modal-panel__title mb-0">
+                                                    <i class="mdi mdi-flask-outline" aria-hidden="true"></i>
+                                                    {{ format_sample_code($sampleCode) }}
+                                                </h4>
+                                            </div>
+
+                                            <div class="ls-table-wrap incomplete-results-table-wrap">
+                                                <table class="ls-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Lab section</th>
+                                                            <th>Analysis type</th>
+                                                            <th>Parameter</th>
+                                                            <th>Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach($sampleItems as $item)
+                                                            @php
+                                                                $statusLabel = (string) ($item['status'] ?? 'incomplete');
+                                                                $isNoAttachment = strcasecmp($statusLabel, 'No attachment') === 0;
+                                                                $labSectionLabel = trim((string) ($item['lab_section'] ?? ''));
+                                                            @endphp
+                                                            <tr>
+                                                                <td>{{ $labSectionLabel !== '' && $labSectionLabel !== 'N/A' ? $labSectionLabel : '—' }}</td>
+                                                                <td>
+                                                                    <span class="ls-table__stack-primary">{{ $item['analysis_type'] }}</span>
+                                                                </td>
+                                                                <td>{{ $item['parameter'] }}</td>
+                                                                <td>
+                                                                    <span class="ls-pill {{ $isNoAttachment ? 'ls-pill--inactive' : 'incomplete-results-status-pill' }}">
+                                                                        {{ $statusLabel }}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @endif
+                            </div>
+
+                            <div class="ls-modal-card__footer ls-modal-card__footer--split">
+                                <span class="small text-muted" style="font-size:0.7rem;">
+                                    Read only · finish gaps in Raw Results
+                                </span>
+                                <div class="d-flex align-items-center" style="gap:0.45rem;">
+                                    <button type="button"
+                                        class="ls-btn"
+                                        wire:click="closeIncompleteResultsModal">
+                                        Close
+                                    </button>
+                                    @if(in_array($batch->status ?? '', ['Sample Verification', 'Sample Approval', 'Samples In Lab'], true))
+                                        <button type="button"
+                                            class="ls-btn ls-btn--accent"
+                                            wire:click="closeIncompleteResultsModal"
+                                            onclick="(function(){ var tab = document.getElementById('raw-results-tab'); if (tab) { tab.click(); } })()">
+                                            <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+                                            View results
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+        <style>
+            .incomplete-results-overlay {
+                background-color: rgba(15, 23, 42, 0.45);
+                z-index: 1050;
+            }
+            .incomplete-results-dialog {
+                max-width: 40rem;
+                width: calc(100% - 1.5rem);
+                margin: 1rem auto;
+            }
+            .incomplete-results-shell {
+                border: none;
+                background: transparent;
+                box-shadow: none;
+            }
+            .incomplete-results-card {
+                max-width: none;
+                width: 100%;
+                max-height: calc(100vh - 3rem);
+                box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+            }
+            .incomplete-results-body {
+                overflow-y: auto;
+                flex: 1 1 auto;
+                min-height: 0;
+                max-height: min(62vh, 36rem);
+            }
+            .incomplete-results-panel-head {
+                margin-bottom: 0.55rem;
+            }
+            .incomplete-results-panel-head .ls-modal-panel__title {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+            }
+            .incomplete-results-table-wrap {
+                margin: 0;
+                border-radius: 8px;
+            }
+            .incomplete-results-status-pill {
+                background: #fee2e2;
+                color: #b91c1c;
+            }
+        </style>
     @endif
-
-    @include('livewire.batch.tabs.partials.lab-section-worksheets-panel')
 
     {{-- Sample Configuration Form (Livewire-driven) --}}
     <form wire:submit="saveSamples" class="workflow-board-panel batch-samples-panel">
@@ -251,13 +377,6 @@
                     wire:loading.attr="disabled">
                     <i class="mdi mdi-content-duplicate"></i> Duplicate
                 </button>
-                <button type="button" wire:click="viewParametersForSelected"
-                    class="btn btn-info btn-sm btn-action-sm text-white"
-                    wire:loading.attr="disabled"
-                    wire:target="viewParametersForSelected,viewParameters,viewSingleSampleParameters"
-                    title="Capture results for selected samples">
-                    <i class="mdi mdi-flask-outline"></i> Capture results
-                </button>
                 @if(in_array($batch->status ?? '', ['Sample Verification', 'Sample Approval', 'Samples In Lab'], true))
                     <button type="button"
                         class="btn btn-outline-primary btn-sm btn-action-sm"
@@ -269,24 +388,24 @@
             </div>
         </div>
         <div class="workflow-board-panel-body flush-top">
-        <div class="table-responsive">
-            <table class="table table-bordered table-sm workflow-table" style="font-size: 13px;">
+        <div class="table-responsive samples-config-table-wrap">
+            <table class="table table-bordered table-sm workflow-table samples-config-table" style="font-size: 13px;">
                 <thead>
                     <tr>
-                        <th style="width: 40px; text-align: center;">
+                        <th class="samples-sticky-col samples-sticky-col--check" style="width: 40px; text-align: center;">
                             <input type="checkbox" id="select-all-samples" title="Select All">
                         </th>
-                        <th style="width: 100px; text-align: center;">Sample Action</th>
-                        <th style="min-width: 180px;">Sample ID</th>
-                        <th style="min-width: 150px;">Analysis Type<sup class="text-danger">*</sup></th>
+                        <th class="samples-sticky-col samples-sticky-col--action" style="width: 160px; min-width: 160px; text-align: center;">Sample Action</th>
+                        <th class="samples-sticky-col samples-sticky-col--id" style="min-width: 180px;">Sample ID</th>
+                        <th style="min-width: 220px;">Analysis Type<sup class="text-danger">*</sup></th>
                         <th style="min-width: 150px;">Sample Type</th>
-                        <th style="min-width: 130px;">
+                        <th style="min-width: 260px;">
                             Specification<sup class="text-danger">*</sup>
                         </th>
-                        <th style="min-width: 130px;">
+                        <th style="min-width: 260px;">
                             Secondary Specification
                         </th>
-                        <th style="min-width: 120px;">Laboratory<sup class="text-danger">*</sup></th>
+                        <th style="min-width: 140px;">Lab section</th>
                         <th style="min-width: 120px;">Sample Condition</th>
                         <th style="min-width: 150px;">
                             Sampling Point
@@ -300,6 +419,20 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $standardSearchOptions = collect($standards ?? [])->map(function ($std) {
+                            $id = (string) ($std['id'] ?? '');
+                            if ($id === '') {
+                                return null;
+                            }
+                            $code = trim((string) ($std['code'] ?? ''));
+
+                            return [
+                                'value' => $id,
+                                'label' => $code !== '' ? $code : $id,
+                            ];
+                        })->filter()->values()->all();
+                    @endphp
                     @forelse($sampleForms as $index => $sampleForm)
                     @php
                     $isEditing = $editingRowIndex === $index;
@@ -308,16 +441,16 @@
                     <tr wire:key="sample-row-{{ $index }}"
                         class="{{ in_array($index, $selectedRows) ? 'table-active' : '' }}">
                         {{-- Selection Checkbox --}}
-                        <td class="text-center">
+                        <td class="text-center samples-sticky-col samples-sticky-col--check">
                             <input type="checkbox" wire:click="toggleRowSelection({{ $index }})" {{ in_array($index, $selectedRows) ? 'checked' : '' }} class="sample-row-checkbox">
                         </td>
 
-                        <td class="text-center">
+                        <td class="text-center samples-sticky-col samples-sticky-col--action">
                             <div class="d-flex justify-content-center align-items-center gap-2">
                                 {{-- View Parameters Icon --}}
                                 @if($sampleForm['id'])
                                 <button type="button" wire:click="viewSingleSampleParameters('{{ $sampleForm['sample_code'] }}')"
-                                    class="btn btn-sm btn-icon btn-light text-info mx-1" title="View Parameters">
+                                    class="btn btn-sm btn-icon btn-light text-info mx-1" title="Capture / view results">
                                     <i class="mdi mdi-eye"></i>
                                 </button>
                                 @endif
@@ -389,7 +522,7 @@
                         </td>
 
                         {{-- Sample Code (readonly) --}}
-                        <td style="min-width: 180px;">
+                        <td class="samples-sticky-col samples-sticky-col--id" style="min-width: 180px;">
                             <div class="d-flex align-items-center" style="gap:6px;">
                                 <input type="text" class="form-control form-control-sm"
                                     value="{{ format_sample_code($sampleForm['sample_code']) }}" readonly
@@ -403,7 +536,7 @@
                         </td>
 
                         {{-- Matrix (analysis types) --}}
-                        <td>
+                        <td class="samples-analysis-type-cell" style="vertical-align: top;">
                             @if($isReadOnly)
                             <div class="form-control form-control-sm readonly-input"
                                 style="height: auto; min-height: 31px;">
@@ -418,7 +551,7 @@
                                 @endif
                             </div>
                             @else
-                            <div class="tag-select-container" style="min-width: 200px;"
+                            <div class="tag-select-container samples-analysis-type-select" style="min-width: 180px;"
                                 wire:click="$set('showAnalysisTypeDropdown.{{ $index }}', true)">
                                 <div class="tag-select-input">
                                     @if(is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0)
@@ -433,7 +566,8 @@
                                     @endforeach
                                     @endif
 
-                                    <input type="text" wire:model.live="analysisTypeSearch" class="tag-input"
+                                    <input type="text" wire:model.live="analysisTypeSearch"
+                                        class="tag-input{{ (is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0 && empty($showAnalysisTypeDropdown[$index])) ? ' tag-input--collapsed' : '' }}"
                                         placeholder="{{ (is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0) ? '' : 'Search analysis type...' }}"
                                         autocomplete="off">
                                 </div>
@@ -457,7 +591,11 @@
                                     </div>
                                     @endforeach
                                     @else
-                                    <div class="p-3 text-center text-muted">No analysis type options found</div>
+                                    <div class="p-3 text-center text-muted">
+                                        {{ trim((string) ($sampleForm['sample_type_id'] ?? ($batch->sample_type_id ?? ''))) === ''
+                                            ? 'Select a sample type first'
+                                            : 'No analysis type options found' }}
+                                    </div>
                                     @endif
                                 </div>
                                 @endif
@@ -497,50 +635,62 @@
                         </td>
 
                         {{-- Specification --}}
-                        <td>
-                            <select class="form-control form-control-sm modern-select no-select2"
-                                wire:model="sampleForms.{{ $index }}.main_standard" required>
-                                <option value="">Select...</option>
-                                @foreach($standards as $std)
-                                <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
-                                @endforeach
-                            </select>
+                        <td style="min-width: 260px;">
+                            @php
+                                $selectedSpecId = trim((string) ($sampleForm['main_standard'] ?? ''));
+                            @endphp
+                            <div class="sample-spec-search-wrap" wire:key="sample-spec-{{ $index }}-{{ $selectedSpecId }}">
+                                @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+                                    'label' => null,
+                                    'lsId' => 'sample-spec-'.$index,
+                                    'lsName' => 'sample_main_standard_'.$index,
+                                    'placeholder' => 'Select…',
+                                    'options' => $standardSearchOptions,
+                                    'selected' => $selectedSpecId !== '' ? $selectedSpecId : null,
+                                    'required' => true,
+                                    'wireModel' => 'sampleForms.'.$index.'.main_standard',
+                                    'wireLive' => true,
+                                    'disableSuccess' => true,
+                                    'extraFieldClass' => 'mb-0',
+                                ])
+                            </div>
                             @error("sampleForms.$index.main_standard")
                             <small class="text-danger">{{ $message }}</small>
                             @enderror
                         </td>
 
                         {{-- Secondary Specification --}}
-                        <td>
-                            <select class="form-control form-control-sm modern-select no-select2"
-                                wire:model="sampleForms.{{ $index }}.secondary_standard">
-                                <option value="">Select...</option>
-                                @foreach($standards as $std)
-                                <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
-                                @endforeach
-                            </select>
+                        <td style="min-width: 260px;">
+                            @php
+                                $selectedSecondarySpecId = trim((string) ($sampleForm['secondary_standard'] ?? ''));
+                            @endphp
+                            <div class="sample-spec-search-wrap" wire:key="sample-secondary-spec-{{ $index }}-{{ $selectedSecondarySpecId }}">
+                                @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+                                    'label' => null,
+                                    'lsId' => 'sample-secondary-spec-'.$index,
+                                    'lsName' => 'sample_secondary_standard_'.$index,
+                                    'placeholder' => 'Select…',
+                                    'options' => $standardSearchOptions,
+                                    'selected' => $selectedSecondarySpecId !== '' ? $selectedSecondarySpecId : null,
+                                    'wireModel' => 'sampleForms.'.$index.'.secondary_standard',
+                                    'wireLive' => true,
+                                    'disableSuccess' => true,
+                                    'extraFieldClass' => 'mb-0',
+                                ])
+                            </div>
                         </td>
 
-                        {{-- Laboratory --}}
+                        {{-- Lab section (from analysis type(s); multi-type samples show multiple) --}}
                         <td>
-                            @if($isReadOnly)
-                            <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($labSections)->firstWhere('id', $sampleForm['lab_id'])['name'] ?? '-' }}"
-                                readonly>
-                            @else
-                            <select class="form-control form-control-sm modern-select no-select2"
-                                wire:model="sampleForms.{{ $index }}.lab_id"
-                                wire:key="sample-lab-{{ $index }}"
-                                required>
-                                <option value="">Select...</option>
-                                @foreach($labSections as $lab)
-                                <option value="{{ (string) $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
-                                @endforeach
-                            </select>
-                            @error("sampleForms.$index.lab_id")
-                            <small class="text-danger">{{ $message }}</small>
-                            @enderror
-                            @endif
+                            @php $rowLabSections = $this->labSectionLabelsForSampleIndex($index); @endphp
+                            <div class="d-flex flex-wrap align-items-center" style="gap: 4px; min-width: 120px;"
+                                title="Lab sections come from the sample's analysis types. Add/remove analysis types to change them.">
+                                @forelse($rowLabSections as $sectionLabel)
+                                    <span class="badge badge-light border font-weight-normal">{{ $sectionLabel }}</span>
+                                @empty
+                                    <span class="text-muted small">Select analysis type(s)</span>
+                                @endforelse
+                            </div>
                         </td>
 
                         {{-- Condition --}}
@@ -800,7 +950,11 @@
                                     </div>
                                     @endforeach
                                     @else
-                                    <div class="p-2 text-center text-muted">No analysis types found</div>
+                                    <div class="p-2 text-center text-muted">
+                                        {{ trim((string) ($stagingForm['sample_type_id'] ?? '')) === ''
+                                            ? 'Select a specimen type first'
+                                            : 'No analysis types found' }}
+                                    </div>
                                     @endif
                                 </div>
                                 @endif
@@ -857,15 +1011,49 @@
     @endif
     {{-- View Parameters Modal (Phase 5) --}}
     @if($showParametersModal)
+    @php
+        $parameterCarouselCodes = $parameterModalSampleCodes !== []
+            ? $parameterModalSampleCodes
+            : (filled($selectedSampleCode) ? [(string) $selectedSampleCode] : []);
+        $parameterCarouselCount = count($parameterCarouselCodes);
+        $parameterCarouselIndex = (int) $parameterModalSampleIndex;
+        $canGoPrevParameterSample = $parameterCarouselCount > 1 && $parameterCarouselIndex > 0;
+        $canGoNextParameterSample = $parameterCarouselCount > 1
+            && $parameterCarouselIndex < ($parameterCarouselCount - 1);
+        $prevParameterSampleCode = $canGoPrevParameterSample
+            ? (string) ($parameterCarouselCodes[$parameterCarouselIndex - 1] ?? '')
+            : '';
+        $nextParameterSampleCode = $canGoNextParameterSample
+            ? (string) ($parameterCarouselCodes[$parameterCarouselIndex + 1] ?? '')
+            : '';
+        $parameterSampleLabSections = collect($parameterLabSections ?? [])
+            ->map(static fn ($label): string => trim((string) $label))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    @endphp
     <div class="modal fade show d-block sample-parameters-modal" tabindex="-1" role="dialog"
         style="background: rgba(15, 23, 42, 0.45);" wire:keydown.escape.window="cancelViewParameters">
+        <button type="button"
+            class="spm-ext-nav spm-ext-nav--left {{ $canGoPrevParameterSample ? 'is-active' : 'is-disabled' }}"
+            @if($canGoPrevParameterSample) wire:click="previousParameterSample" @else disabled @endif
+            wire:loading.attr="disabled"
+            wire:target="previousParameterSample,nextParameterSample,switchParameterSample,viewParameters,viewSingleSampleParameters"
+            title="{{ $prevParameterSampleCode !== '' ? 'Previous: '.format_sample_code($prevParameterSampleCode) : 'Previous sample' }}"
+            aria-label="{{ $prevParameterSampleCode !== '' ? 'Previous sample '.format_sample_code($prevParameterSampleCode) : 'Previous sample' }}">
+            <i class="mdi mdi-chevron-left" aria-hidden="true"></i>
+            @if($prevParameterSampleCode !== '')
+                <span class="spm-ext-nav__cue">{{ format_sample_code($prevParameterSampleCode) }}</span>
+            @endif
+        </button>
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
-            <div class="modal-content sample-parameters-modal__content">
+            <div class="modal-content sample-parameters-modal__content ls-ui-kit">
                 <div class="modal-header border-0 sample-parameters-modal__header">
                     <div class="sample-parameters-modal__header-main">
                         <div class="min-w-0">
-                            <h5 class="modal-title mb-1">
-                                <i class="mdi mdi-flask-outline"></i>
+                            <p class="sample-parameters-modal__eyebrow mb-0">Capture results</p>
+                            <h5 class="modal-title sample-parameters-modal__title mb-1">
                                 Parameters for sample
                             </h5>
                             <p class="sample-parameters-modal__subtitle mb-0">
@@ -873,11 +1061,9 @@
                                 @if(!empty($sampleParameters))
                                     <span>{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
                                 @endif
-                                @if(count($parameterModalSampleCodes) > 1)
-                                    <span class="sample-parameters-modal__meta">
-                                        {{ $parameterModalSampleIndex + 1 }} of {{ count($parameterModalSampleCodes) }}
-                                    </span>
-                                @endif
+                                <span class="sample-parameters-modal__meta">
+                                    {{ min($parameterCarouselIndex + 1, max($parameterCarouselCount, 1)) }} of {{ max($parameterCarouselCount, 1) }}
+                                </span>
                             </p>
                         </div>
                         <div class="sample-parameters-modal__header-actions">
@@ -942,46 +1128,15 @@
                                     </div>
                                 </div>
                             @endif
-                            <button type="button" class="close sample-parameters-modal__close" wire:click="cancelViewParameters" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
+                            <button type="button"
+                                class="sample-parameters-modal__close"
+                                wire:click="cancelViewParameters"
+                                aria-label="Close">
+                                <i class="mdi mdi-close" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
                 </div>
-
-                @if(count($parameterModalSampleCodes) > 1)
-                    <div class="sample-parameters-modal__toolbar">
-                        <div class="d-flex align-items-center flex-wrap sample-parameters-modal__nav" style="gap: 0.35rem;">
-                            <button type="button"
-                                class="btn btn-sm btn-light border"
-                                wire:click="previousParameterSample"
-                                @disabled($parameterModalSampleIndex <= 0)
-                                wire:loading.attr="disabled"
-                                title="Previous sample">
-                                <i class="mdi mdi-chevron-left"></i>
-                            </button>
-                            <div class="sample-parameters-modal__tabs d-flex flex-wrap" style="gap: 0.25rem;">
-                                @foreach($parameterModalSampleCodes as $tabIndex => $tabCode)
-                                <button type="button"
-                                    class="btn btn-sm {{ (string) $selectedSampleCode === (string) $tabCode ? 'btn-primary' : 'btn-light border' }}"
-                                    wire:click="switchParameterSample('{{ $tabCode }}')"
-                                    wire:loading.attr="disabled"
-                                    wire:key="param-tab-{{ $tabCode }}">
-                                    {{ format_sample_code($tabCode) }}
-                                </button>
-                                @endforeach
-                            </div>
-                            <button type="button"
-                                class="btn btn-sm btn-light border"
-                                wire:click="nextParameterSample"
-                                @disabled($parameterModalSampleIndex >= count($parameterModalSampleCodes) - 1)
-                                wire:loading.attr="disabled"
-                                title="Next sample">
-                                <i class="mdi mdi-chevron-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                @endif
 
                 {{-- Loading Indicator --}}
                 <div wire:loading wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample,importParameterResults,parameterImportFile" class="text-center py-5">
@@ -992,6 +1147,14 @@
                 </div>
 
                 <div wire:loading.remove wire:target="viewParameters,viewParametersForSelected,viewSingleSampleParameters,switchParameterSample,nextParameterSample,previousParameterSample,importParameterResults,parameterImportFile" class="modal-body sample-parameters-modal__body">
+                    <div class="sample-parameters-modal__sections mb-3">
+                        <span class="sample-parameters-modal__sections-label">Lab sections</span>
+                        @forelse($parameterSampleLabSections as $sectionLabel)
+                            <span class="ls-pill ls-pill--info">{{ $sectionLabel }}</span>
+                        @empty
+                            <span class="sample-parameters-modal__sections-empty">Not assigned yet</span>
+                        @endforelse
+                    </div>
                     @if (session()->has('error'))
                     <div class="alert alert-danger border mb-3">
                         <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
@@ -1021,20 +1184,6 @@
                             Rows outside your lab section(s) are view-only.
                         </div>
                         @endif
-                        @if($parametersSectionFiltered)
-                        <div class="alert alert-light border mb-3 d-flex align-items-center flex-wrap" style="gap: 0.35rem;">
-                            <i class="mdi mdi-flask-outline text-primary"></i>
-                            @if(!empty($parameterLabSections))
-                                @foreach($parameterLabSections as $sectionLabel)
-                                    <span class="badge badge-light border font-weight-normal">{{ $sectionLabel }}</span>
-                                @endforeach
-                            @elseif(auth()->user()?->labsectionname)
-                                <span class="badge badge-light border font-weight-normal">{{ auth()->user()->labsectionname }}</span>
-                            @else
-                                <span class="text-muted">Lab section assigned</span>
-                            @endif
-                        </div>
-                        @endif
                     @endif
 
                     @if(!empty($sampleParameters))
@@ -1050,7 +1199,7 @@
                                     <th style="min-width: 100px;">Sample</th>
                                     <th style="min-width: 150px;">Analyte</th>
                                     <th style="min-width: 80px;">Symbol</th>
-                                    <th style="min-width: 70px;">Result</th>
+                                    <th style="min-width: 120px;">Result</th>
                                     <th style="min-width: 145px;">Start date</th>
                                     <th style="min-width: 145px;">End date</th>
                                     @if($uncertaintyRequired)
@@ -1073,7 +1222,7 @@
                                 <tr class="sample-parameters-group-row" wire:key="param-group-{{ md5((string) $analysisTypeName) }}">
                                     <td colspan="{{ $parameterColspan }}" class="sample-parameters-group-cell">
                                         <span class="sample-parameters-group-label">{{ $analysisTypeName }}</span>
-                                        <span class="badge badge-light border ml-1">{{ count($groupedParams) }}</span>
+                                        <span class="ls-pill ls-pill--inactive ml-1">{{ count($groupedParams) }}</span>
                                     </td>
                                 </tr>
                                 @foreach($groupedParams as $id => $param)
@@ -1108,15 +1257,12 @@
                                             @endforeach
                                         </select>
                                     </td>
-                                    <td style="min-width: 80px; max-width: 100px;">
-                                        <div class="input-group input-group-sm">
-                                            <input type="text"
-                                                class="form-control form-control-sm {{ $parametersDisabled ? '' : 'js-confirm-result' }}"
-                                                wire:model="parametersForm.{{ $id }}.result"
+                                    <td style="min-width: 120px;">
+                                            <div class="input-group input-group-sm">
+                                                <input type="text"
+                                                class="form-control form-control-sm"
+                                                wire:model.blur="parametersForm.{{ $id }}.result"
                                                 placeholder="Result"
-                                                data-row-id="{{ $id }}"
-                                                data-analyte="{{ $param['analyte_name'] ?? 'analyte' }}"
-                                                data-sample="{{ $param['sample_code'] ?? '' }}"
                                                 @if($parametersDisabled) readonly disabled @endif>
                                             @if(!empty($param['batch_attachment_url']) && strcasecmp($param['result'] ?? '', 'as attached') === 0)
                                             <div class="input-group-append">
@@ -1192,9 +1338,6 @@
                                             <option value="PASS">Conforming</option>
                                             <option value="FAIL">Non-Conforming</option>
                                         </select>
-                                        @if(! empty($parametersForm[$id]['specification_comment'] ?? $param['specification_comment'] ?? ''))
-                                            <small class="d-block text-muted mt-1">{{ $parametersForm[$id]['specification_comment'] ?? $param['specification_comment'] }}</small>
-                                        @endif
                                     </td>
                                     <td style="min-width: 120px;">
                                         @php
@@ -1231,27 +1374,35 @@
                                         </select>
                                     </td>
                                     <td><small>{{ $param['ltm_method_name'] }}</small></td>
-                                    <td style="min-width: 200px;">
+                                    <td style="min-width: 220px;">
                                         @php
-                                            $selectedEquipmentIds = array_values(array_map(
+                                            $selectedEquipmentIds = array_values(array_unique(array_map(
                                                 'strval',
                                                 $parametersForm[$id]['equipment_ids'] ?? ($param['equipment_ids'] ?? [])
-                                            ));
+                                            )));
+                                            $equipmentOptions = collect($modalLists['equipments'] ?? [])
+                                                ->mapWithKeys(fn ($eq) => [(string) $eq->id => (string) $eq->name])
+                                                ->all();
                                         @endphp
-                                        <div wire:ignore
-                                            class="param-equipment-select2-wrap"
+                                        <div class="param-equipment-select2-wrap"
+                                            wire:ignore
+                                            wire:key="param-equipment-{{ $id }}"
                                             data-param-id="{{ $id }}"
                                             data-initial='@json($selectedEquipmentIds)'>
-                                            <select class="form-control form-control-sm param-equipment-select2 no-select2"
-                                                multiple="multiple"
-                                                data-placeholder="Select equipment..."
-                                                @if($parametersDisabled) disabled @endif>
-                                                @foreach($modalLists['equipments'] as $eq)
-                                                <option value="{{ $eq->id }}" @selected(in_array((string) $eq->id, $selectedEquipmentIds, true))>
-                                                    {{ $eq->name }}
-                                                </option>
-                                                @endforeach
-                                            </select>
+                                            @include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-dropdown-search', [
+                                                'label' => null,
+                                                'id' => 'param-equipment-'.$id,
+                                                'name' => 'param_equipment_'.$id,
+                                                'placeholder' => 'Select equipment…',
+                                                'options' => $equipmentOptions,
+                                                'selected' => $selectedEquipmentIds,
+                                                'variant' => 'burgundy',
+                                                'multiple' => true,
+                                                'disabled' => (bool) $parametersDisabled,
+                                                'wireIgnore' => false,
+                                                'extraSelectClass' => 'param-equipment-select2 no-select2',
+                                                'selectedValuesJson' => json_encode($selectedEquipmentIds),
+                                            ])
                                         </div>
                                     </td>
                                     <td style="text-align: center;">
@@ -1307,14 +1458,14 @@
                     @endif
                 </div>
                 <div class="modal-footer border-0 sample-parameters-modal__footer">
-                    <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
+                    <button type="button" class="ls-btn" wire:click="cancelViewParameters">
                         Close
                     </button>
                     @if($this->hasEditableParameters && ! empty($sampleParameters))
-                    <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
+                    <button type="button" class="ls-btn ls-btn--accent" wire:click="saveParameters"
                         wire:loading.attr="disabled" wire:target="saveParameters">
                         <span wire:loading.remove wire:target="saveParameters">
-                            <i class="mdi mdi-content-save"></i> Save changes
+                            <i class="mdi mdi-content-save" aria-hidden="true"></i> Save changes
                         </span>
                         <span wire:loading wire:target="saveParameters">
                             <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -1325,6 +1476,18 @@
                 </div>
             </div>
         </div>
+        <button type="button"
+            class="spm-ext-nav spm-ext-nav--right {{ $canGoNextParameterSample ? 'is-active' : 'is-disabled' }}"
+            @if($canGoNextParameterSample) wire:click="nextParameterSample" @else disabled @endif
+            wire:loading.attr="disabled"
+            wire:target="previousParameterSample,nextParameterSample,switchParameterSample,viewParameters,viewSingleSampleParameters"
+            title="{{ $nextParameterSampleCode !== '' ? 'Next: '.format_sample_code($nextParameterSampleCode) : 'Next sample' }}"
+            aria-label="{{ $nextParameterSampleCode !== '' ? 'Next sample '.format_sample_code($nextParameterSampleCode) : 'Next sample' }}">
+            @if($nextParameterSampleCode !== '')
+                <span class="spm-ext-nav__cue">{{ format_sample_code($nextParameterSampleCode) }}</span>
+            @endif
+            <i class="mdi mdi-chevron-right" aria-hidden="true"></i>
+        </button>
     </div>
 
     @if($showResultImportVersionsModal)
@@ -1480,7 +1643,122 @@
     <style>
         .sample-parameters-modal .modal-dialog {
             max-width: min(96vw, 1280px);
+            width: calc(100% - 8.5rem);
             margin: 1.25rem auto;
+        }
+
+        .sample-parameters-modal .spm-ext-nav {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1065;
+            width: 3.5rem;
+            height: 7.5rem;
+            border: 0;
+            border-radius: 0.85rem;
+            background: rgba(30, 41, 59, 0.88);
+            color: #f8fafc;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+            transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+            padding: 0.5rem 0.25rem;
+        }
+
+        .sample-parameters-modal .spm-ext-nav i {
+            font-size: 2rem;
+            line-height: 1;
+        }
+
+        .sample-parameters-modal .spm-ext-nav--left {
+            left: 1.25rem;
+        }
+
+        .sample-parameters-modal .spm-ext-nav--right {
+            right: 1.25rem;
+        }
+
+        .sample-parameters-modal .spm-ext-nav.is-active:hover {
+            background: var(--color-primary, #6d0a0e);
+            transform: translateY(-50%) scale(1.03);
+        }
+
+        .sample-parameters-modal .spm-ext-nav.is-active {
+            background: var(--color-primary, #6d0a0e);
+            color: #fff;
+        }
+
+        .sample-parameters-modal .spm-ext-nav.is-disabled,
+        .sample-parameters-modal .spm-ext-nav:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .sample-parameters-modal .spm-ext-nav__cue {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: none;
+            color: inherit;
+            line-height: 1.2;
+            white-space: nowrap;
+            max-height: 5.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sample-parameters-modal__sections {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.55rem 0.7rem;
+            border-radius: 10px;
+            border: 1px solid var(--ls-blue-soft-border, #dbeafe);
+            background: var(--ls-blue-soft, #eff6ff);
+        }
+
+        .sample-parameters-modal__sections-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--ls-muted, #64748b);
+            margin-right: 0.15rem;
+        }
+
+        .sample-parameters-modal__sections-empty {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        @media (max-width: 991.98px) {
+            .sample-parameters-modal .modal-dialog {
+                width: calc(100% - 5.5rem);
+            }
+
+            .sample-parameters-modal .spm-ext-nav {
+                width: 2.75rem;
+                height: 5.5rem;
+            }
+
+            .sample-parameters-modal .spm-ext-nav--left {
+                left: 0.5rem;
+            }
+
+            .sample-parameters-modal .spm-ext-nav--right {
+                right: 0.5rem;
+            }
+
+            .sample-parameters-modal .spm-ext-nav__cue {
+                display: none;
+            }
         }
 
         .sample-parameters-modal__content {
@@ -1517,8 +1795,10 @@
         }
 
         .sample-parameters-modal__header {
-            padding: 0.9rem 1.15rem !important;
+            padding: 0.85rem 1.05rem !important;
             flex-shrink: 0;
+            background: linear-gradient(135deg, var(--ls-accent, #8b1e2d) 0%, color-mix(in srgb, var(--ls-accent, #8b1e2d) 78%, #1e293b) 100%);
+            color: #fff;
         }
 
         .sample-parameters-modal__header-main {
@@ -1529,13 +1809,31 @@
             width: 100%;
         }
 
+        .sample-parameters-modal__eyebrow {
+            margin: 0 0 0.2rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            opacity: 0.85;
+            color: #fff;
+        }
+
+        .sample-parameters-modal__title {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #fff;
+        }
+
         .sample-parameters-modal__subtitle {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             gap: 0.45rem;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.86);
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .sample-parameters-modal__code {
@@ -1561,17 +1859,27 @@
         }
 
         .sample-parameters-modal__close {
+            flex-shrink: 0;
+            width: 1.75rem;
+            height: 1.75rem;
             margin: 0;
-            padding: 0.2rem 0.45rem;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
             line-height: 1;
-            color: #fff !important;
+            opacity: 1;
             text-shadow: none;
-            opacity: 0.9;
         }
 
         .sample-parameters-modal__close:hover {
-            opacity: 1;
-            color: #fff !important;
+            background: rgba(255, 255, 255, 0.28);
+            color: #fff;
         }
 
         .sample-parameters-modal__excel-btn {
@@ -1619,13 +1927,6 @@
             font-weight: 500;
         }
 
-        .sample-parameters-modal__toolbar {
-            flex-shrink: 0;
-            padding: 0.65rem 1.15rem;
-            background: #fff;
-            border-bottom: 1px solid #eef2f7;
-        }
-
         .sample-parameters-modal__body {
             flex: 1 1 auto;
             min-height: 0;
@@ -1646,16 +1947,18 @@
         }
 
         .sample-parameters-group-cell {
-            background: #f1f5f9 !important;
+            background: #f8fafc !important;
             border-top: 1px solid #e2e8f0;
             border-bottom: 1px solid #e2e8f0;
-            padding: 0.55rem 0.75rem !important;
+            padding: 0.5rem 0.75rem !important;
         }
 
         .sample-parameters-group-label {
-            font-weight: 600;
-            color: #0f172a;
-            letter-spacing: 0.01em;
+            font-weight: 700;
+            font-size: 0.72rem;
+            color: var(--ls-ink, #0f172a);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
         }
 
         .sample-parameters-table {
@@ -1732,13 +2035,13 @@
         }
 
         .sample-parameters-modal__footer {
-            padding: 0.85rem 1.15rem;
-            background: #fff;
-            border-top: 1px solid #eef2f7;
+            padding: 0.75rem 1.05rem;
+            background: #fafbfc;
+            border-top: 1px solid var(--ls-border, #e2e8f0);
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.45rem;
             flex-shrink: 0;
         }
 
@@ -1752,63 +2055,73 @@
             box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
         }
 
+        .param-equipment-select2-wrap {
+            min-width: 200px;
+            max-width: 320px;
+        }
+
+        .param-equipment-select2-wrap .ls-field {
+            margin: 0;
+            gap: 0;
+        }
+
         .param-equipment-select2-wrap .select2-container {
             width: 100% !important;
         }
 
-        .sample-parameters-table .select2-selection--multiple {
-            min-height: 30px !important;
-            height: auto !important;
-            border-radius: var(--radius-sm, 6px);
-            border-color: var(--color-border, #e2e8f0);
-            background: #fff;
-            padding: 0.1rem 0.25rem;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
+        .sample-spec-search-wrap {
+            min-width: 240px;
+            max-width: 320px;
+            width: 100%;
         }
 
-        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__rendered {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            padding: 0;
+        .sample-spec-search-wrap .ls-field {
             margin: 0;
+            gap: 0;
         }
 
-        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            margin: 0.1rem 0.2rem 0.1rem 0;
-            padding: 0.05rem 0.3rem 0.05rem 0.35rem;
-            font-size: 0.65rem;
-            line-height: 1.25;
+        .samples-config-table .sample-spec-search-wrap .ls-combo__control {
+            min-height: 32px;
+        }
+
+        /* Glass burgundy chips for equipment (LS ls-select2-multi-dropdown-search) */
+        .sample-parameters-table .ls-select2-multi.ls-select2-burgundy .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            margin: 0 !important;
+            padding: 0.12rem 0.4rem 0.12rem 0.3rem !important;
+            font-size: 0.68rem !important;
+            line-height: 1.2 !important;
             font-weight: 600;
-            background: var(--color-primary-soft);
-            border: 1px solid var(--color-primary-border-soft);
-            border-radius: 999px;
-            color: var(--color-primary);
+            border-radius: 6px !important;
+            color: var(--ls-accent, #8b1e2d) !important;
+            background: color-mix(in srgb, var(--ls-accent, #8b1e2d) 18%, transparent) !important;
+            border: 1px solid color-mix(in srgb, var(--ls-accent, #8b1e2d) 38%, transparent) !important;
+            box-shadow:
+                inset 0 1px 0 color-mix(in srgb, #ffffff 45%, transparent),
+                0 1px 2px color-mix(in srgb, var(--ls-accent, #8b1e2d) 12%, transparent);
+            backdrop-filter: blur(10px) saturate(1.25);
+            -webkit-backdrop-filter: blur(10px) saturate(1.25);
         }
 
-        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
-            font-size: 0.7rem;
-            margin-right: 0.15rem;
+        .sample-parameters-table .ls-select2-multi.ls-select2-burgundy .select2-selection__choice__remove {
+            color: color-mix(in srgb, var(--ls-accent, #8b1e2d) 75%, #64748b) !important;
+            background: transparent !important;
         }
 
-        .sample-parameters-table .select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
-            margin-top: 0;
-            height: 22px;
-            min-height: 22px;
-            font-size: 0.75rem;
+        .sample-parameters-table .ls-select2-multi.ls-select2-burgundy .select2-selection__choice__remove:hover {
+            color: var(--ls-accent, #8b1e2d) !important;
         }
 
-        .sample-parameters-table .select2-container--default.select2-container--focus .select2-selection--multiple,
-        .sample-parameters-table .select2-container--default.select2-container--open .select2-selection--multiple {
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px var(--color-primary-focus);
+        .sample-parameters-table .ls-select2-multi .select2-container--default .select2-selection--multiple {
+            min-height: 30px !important;
+            border: 1.5px solid color-mix(in srgb, var(--ls-accent, #8b1e2d) 42%, #cbd5e1) !important;
+            background: color-mix(in srgb, var(--ls-accent, #8b1e2d) 4%, #ffffff) !important;
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ls-accent, #8b1e2d) 8%, transparent);
         }
 
-        .sample-parameters-modal__tabs .btn {
-            font-size: 0.75rem;
-            padding: 0.2rem 0.55rem;
+        .sample-parameters-table .ls-select2-multi .select2-container--default.select2-container--focus .select2-selection--multiple,
+        .sample-parameters-table .ls-select2-multi .select2-container--default.select2-container--open .select2-selection--multiple {
+            border-color: var(--ls-accent, #8b1e2d) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--ls-accent, #8b1e2d) 18%, transparent) !important;
         }
     </style>
     @endif
@@ -2293,6 +2606,61 @@
             background: #555;
         }
 
+        /* Sticky identity columns on Samples configuration (checkbox / action / sample id) */
+        .samples-config-table-wrap {
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        .samples-config-table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .samples-config-table .samples-sticky-col {
+            position: sticky;
+            z-index: 2;
+            background: #fff;
+        }
+
+        .samples-config-table thead .samples-sticky-col {
+            z-index: 4;
+            background: #f8f9fa;
+        }
+
+        .samples-config-table .samples-sticky-col--check {
+            left: 0;
+            width: 40px;
+            min-width: 40px;
+            max-width: 40px;
+        }
+
+        .samples-config-table .samples-sticky-col--action {
+            left: 40px;
+            width: 160px;
+            min-width: 160px;
+            max-width: 180px;
+        }
+
+        .samples-config-table .samples-sticky-col--id {
+            left: 200px;
+            min-width: 180px;
+            box-shadow: 2px 0 4px -2px rgba(15, 23, 42, 0.18);
+        }
+
+        .samples-config-table tbody tr.table-active .samples-sticky-col,
+        .samples-config-table tbody tr.table-active .samples-sticky-col--id {
+            background: #e8f2ff;
+        }
+
+        .samples-config-table tbody tr:hover .samples-sticky-col {
+            background: #f8fafc;
+        }
+
+        .samples-config-table tbody tr.table-active:hover .samples-sticky-col {
+            background: #e8f2ff;
+        }
+
         /* Tag Select Container Styling (for Analysis Type Dropdown) */
         .tag-select-container {
             position: relative;
@@ -2303,9 +2671,9 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 6px;
-            min-height: 38px;
-            padding: 4px 10px;
+            gap: 4px;
+            min-height: 31px;
+            padding: 2px 6px;
             background: #fff;
             border: 1.5px solid #cbd5e1;
             border-radius: 8px;
@@ -2328,14 +2696,15 @@
         .tag-badge {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            padding: 3px 8px;
+            gap: 3px;
+            padding: 2px 6px;
             background-color: #eff6ff;
             color: #1e40af;
             border: 1px solid #bfdbfe;
             border-radius: 6px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
+            line-height: 1.25;
             white-space: nowrap;
             transition: all 0.15s ease;
         }
@@ -2346,7 +2715,7 @@
 
         .tag-badge i {
             cursor: pointer;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             color: #1e40af;
             opacity: 0.7;
             transition: all 0.15s ease;
@@ -2358,14 +2727,42 @@
         }
 
         .tag-input {
-            flex: 1;
-            min-width: 100px;
+            flex: 1 1 60px;
+            min-width: 60px;
             border: none;
             outline: none;
-            padding: 2px 4px;
-            font-size: 0.85rem;
+            padding: 1px 2px;
+            font-size: 0.8rem;
+            line-height: 1.25;
+            height: 22px;
             background: transparent;
             color: #1e293b;
+        }
+
+        /* Avoid an empty search row under selected pills in the samples table. */
+        .samples-analysis-type-select .tag-input--collapsed {
+            flex: 0 0 0;
+            min-width: 0;
+            width: 0;
+            height: 0;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .samples-analysis-type-select .tag-select-input {
+            align-content: flex-start;
+        }
+
+        td.samples-analysis-type-cell,
+        td.samples-analysis-type-cell .samples-analysis-type-select {
+            vertical-align: top;
+        }
+
+        td.samples-analysis-type-cell .sample-gw-pill {
+            margin-top: 2px;
         }
 
         .tag-dropdown {
@@ -3257,179 +3654,8 @@
 
     @script
     <script>
-        if (!window.__batchSamplesResultConfirmBound) {
-            window.__batchSamplesResultConfirmBound = true;
-
-            const askResultConfirmation = function (message, expected) {
-                return new Promise(function (resolve) {
-                    const existing = document.getElementById('js-result-confirm-overlay');
-                    if (existing) {
-                        existing.remove();
-                    }
-
-                    const overlay = document.createElement('div');
-                    overlay.id = 'js-result-confirm-overlay';
-                    overlay.setAttribute('role', 'dialog');
-                    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2000;display:flex;align-items:center;justify-content:center;';
-                    overlay.innerHTML =
-                        '<div style="background:#fff;border-radius:12px;padding:1.25rem;width:min(420px,92vw);box-shadow:0 20px 40px rgba(0,0,0,.2);">' +
-                            '<div style="font-weight:600;margin-bottom:.35rem;">Confirm result</div>' +
-                            '<div class="js-result-confirm-message" style="color:#64748b;font-size:.875rem;margin-bottom:.75rem;"></div>' +
-                            '<div class="js-result-confirm-error alert alert-danger py-2 px-3 mb-2 d-none" style="font-size:.85rem;"></div>' +
-                            '<input type="text" class="form-control" id="js-result-confirm-input" autocomplete="off" placeholder="Re-enter result">' +
-                            '<div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem;">' +
-                                '<button type="button" class="btn btn-light" id="js-result-confirm-cancel">Cancel</button>' +
-                                '<button type="button" class="btn btn-primary" id="js-result-confirm-ok">OK</button>' +
-                            '</div>' +
-                        '</div>';
-
-                    overlay.querySelector('.js-result-confirm-message').textContent = message;
-                    document.body.appendChild(overlay);
-
-                    const input = overlay.querySelector('#js-result-confirm-input');
-                    const errorEl = overlay.querySelector('.js-result-confirm-error');
-                    const finish = function (value) {
-                        overlay.remove();
-                        resolve(value);
-                    };
-                    const showMismatch = function () {
-                        errorEl.textContent = "Result confirmation didn't match captured result!";
-                        errorEl.classList.remove('d-none');
-                        input.value = '';
-                        input.classList.add('is-invalid');
-                        input.focus();
-                    };
-                    const tryAccept = function () {
-                        const value = (input.value || '').trim();
-                        if (value !== String(expected).trim()) {
-                            showMismatch();
-                            return;
-                        }
-                        finish(value);
-                    };
-
-                    overlay.querySelector('#js-result-confirm-cancel').addEventListener('click', function () {
-                        finish(null);
-                    });
-                    overlay.querySelector('#js-result-confirm-ok').addEventListener('click', tryAccept);
-                    overlay.addEventListener('click', function (event) {
-                        if (event.target === overlay) {
-                            finish(null);
-                        }
-                    });
-                    input.addEventListener('input', function () {
-                        input.classList.remove('is-invalid');
-                        errorEl.classList.add('d-none');
-                    });
-                    input.addEventListener('keydown', function (event) {
-                        if (event.key === 'Enter') {
-                            event.preventDefault();
-                            tryAccept();
-                        }
-                        if (event.key === 'Escape') {
-                            event.preventDefault();
-                            finish(null);
-                        }
-                    });
-
-                    setTimeout(function () {
-                        input.focus();
-                    }, 0);
-                });
-            };
-
-            const confirmResultInput = async function (el) {
-                if (!(el instanceof HTMLInputElement) || !el.classList.contains('js-confirm-result')) {
-                    return;
-                }
-
-                if (el.dataset.confirming === '1') {
-                    return;
-                }
-
-                const wireRoot = el.closest('[wire\\:id]');
-                if (!wireRoot || typeof Livewire === 'undefined' || typeof Livewire.find !== 'function') {
-                    return;
-                }
-
-                const component = Livewire.find(wireRoot.getAttribute('wire:id'));
-                if (!component) {
-                    return;
-                }
-
-                const current = (el.value || '').trim();
-                const analyte = el.dataset.analyte || 'analyte';
-                const sample = el.dataset.sample || '';
-                const rowId = el.dataset.rowId;
-
-                if (!rowId) {
-                    return;
-                }
-
-                if (current === '') {
-                    delete el.dataset.confirmedValue;
-                    await component.call('clearParameterResult', rowId);
-                    return;
-                }
-
-                if (el.dataset.confirmedValue === current) {
-                    return;
-                }
-
-                el.dataset.confirming = '1';
-
-                try {
-                    const confirmation = await askResultConfirmation(
-                        'Please confirm the result for ' + analyte + (sample ? ' in sample ' + sample : '') + ':',
-                        current
-                    );
-
-                    if (confirmation !== null && confirmation.trim() === current) {
-                        el.dataset.confirmedValue = current;
-                        await component.call('applyConfirmedResult', rowId, current);
-                    } else {
-                        el.value = '';
-                        delete el.dataset.confirmedValue;
-                        await component.call('clearParameterResult', rowId);
-                    }
-                } finally {
-                    delete el.dataset.confirming;
-                }
-            };
-
-            document.addEventListener('focusout', function (event) {
-                const el = event.target;
-                if (!(el instanceof HTMLInputElement) || !el.classList.contains('js-confirm-result')) {
-                    return;
-                }
-
-                const next = event.relatedTarget;
-                if (next instanceof Element) {
-                    if (next.id === 'js-result-confirm-input' || next.closest('#js-result-confirm-overlay')) {
-                        return;
-                    }
-                }
-
-                confirmResultInput(el);
-            });
-
-            document.addEventListener('keydown', function (event) {
-                if (event.key !== 'Enter') {
-                    return;
-                }
-
-                const el = event.target;
-                if (!(el instanceof HTMLInputElement) || !el.classList.contains('js-confirm-result')) {
-                    return;
-                }
-
-                event.preventDefault();
-                confirmResultInput(el);
-            });
-        }
-
         // Select2 must not own ordinary Livewire selects (see .cursor/rules frontend ownership).
-        // Equipment multi-select is an explicit Select2 (wire:ignore) exception.
+        // Equipment multi-select is an explicit Select2 (wire:ignore) exception via ls-select2-multi-dropdown-search.
         const releaseLivewireSelects = () => {
             if (!window.jQuery || !window.jQuery.fn.select2) {
                 return;
@@ -3440,7 +3666,8 @@
             window.jQuery('.batch-samples-panel select.no-select2').each(function () {
                 const $select = window.jQuery(this);
 
-                if ($select.hasClass('param-equipment-select2')) {
+                if ($select.hasClass('param-equipment-select2')
+                    || $select.hasClass('ls-select2-multi-dropdown-search-el')) {
                     return;
                 }
 
@@ -3461,6 +3688,106 @@
             }
         };
 
+        const clampLsSelect2Search = ($el) => {
+            const $container = $el.next('.select2-container');
+            $container.find('.select2-search--inline .select2-search__field').attr(
+                'style',
+                'width:0!important;min-width:0!important;max-width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;'
+            );
+            $container.css({ maxWidth: '100%', overflow: 'hidden' });
+        };
+
+        const uniqueStringIds = (values) => {
+            const seen = {};
+            const out = [];
+            (Array.isArray(values) ? values : (values ? [values] : [])).forEach((value) => {
+                const id = String(value ?? '').trim();
+                if (id === '' || seen[id]) {
+                    return;
+                }
+                seen[id] = true;
+                out.push(id);
+            });
+            return out;
+        };
+
+        const destroyParamEquipmentSelect2 = ($el) => {
+            $el.off('change.paramEquipmentSelect2');
+            $el.off('select2:open.lsDdSearch select2:close.lsDdSearch select2:select.lsDdSearch select2:unselect.lsDdSearch');
+            if ($el.data('select2') || $el.hasClass('select2-hidden-accessible')) {
+                try {
+                    $el.select2('destroy');
+                } catch (e) {
+                    // already destroyed
+                }
+            }
+            // Remove orphaned containers left by Livewire morph / double init.
+            $el.siblings('.select2-container').remove();
+        };
+
+        const wireLsMultiDropdownSearch = ($el) => {
+            $el.off('select2:open.lsDdSearch select2:close.lsDdSearch select2:select.lsDdSearch select2:unselect.lsDdSearch')
+                .on('select2:open.lsDdSearch', function () {
+                    clampLsSelect2Search($el);
+                    const $dropdown = window.jQuery('.select2-container--open .select2-dropdown');
+                    const select2Instance = $el.data('select2');
+                    const syncNativeSearch = (q) => {
+                        // Single-select uses .select2-search--dropdown (often visually hidden);
+                        // multi-select uses inline search in the selection.
+                        let $hidden = $dropdown.find('.select2-search--dropdown .select2-search__field');
+                        if (!$hidden.length && select2Instance && select2Instance.$selection) {
+                            $hidden = select2Instance.$selection.find('.select2-search__field');
+                        }
+                        if (!$hidden.length) {
+                            $hidden = window.jQuery('.select2-container--open .select2-search--inline .select2-search__field');
+                        }
+                        if (!$hidden.length) {
+                            return;
+                        }
+                        $hidden.val(q);
+                        // Select2 listens to keyup on its native search field — do not call
+                        // select2Instance.trigger('query') (conflicts with Livewire proxies).
+                        $hidden.trigger('input').trigger('keyup');
+                    };
+                    const $existing = $dropdown.find('.ls-dd-search');
+                    if ($existing.length) {
+                        const $existingInput = $existing.find('input');
+                        $existingInput.val('');
+                        syncNativeSearch('');
+                        $existingInput.trigger('focus');
+                        return;
+                    }
+                    const $box = window.jQuery('<div class="ls-dd-search"><i class="mdi mdi-magnify" aria-hidden="true"></i><input type="search" placeholder="Search…" autocomplete="off"></div>');
+                    $dropdown.prepend($box);
+                    const $input = $box.find('input');
+                    $input.on('input keyup', function () {
+                        syncNativeSearch($input.val() || '');
+                    });
+                    setTimeout(function () {
+                        $input.trigger('focus');
+                    }, 0);
+                })
+                .on('select2:close.lsDdSearch select2:select.lsDdSearch select2:unselect.lsDdSearch', function () {
+                    clampLsSelect2Search($el);
+                });
+        };
+
+        const readParamEquipmentInitial = ($el, $wrap) => {
+            // Prefer the live select value when Select2 was already active (user edits).
+            let initial = uniqueStringIds($el.val() || []);
+            if (initial.length) {
+                return initial;
+            }
+
+            try {
+                initial = JSON.parse($wrap.attr('data-initial') || '[]');
+            } catch (e) {
+                initial = [];
+            }
+
+            return uniqueStringIds(initial);
+        };
+
         const initParamEquipmentSelect2 = () => {
             if (!window.jQuery || !window.jQuery.fn.select2) {
                 return;
@@ -3471,62 +3798,146 @@
                 return;
             }
 
-            $modal.find('select.param-equipment-select2').each(function () {
+            const $dropdownParent = $modal.find('.modal-content').first().length
+                ? $modal.find('.modal-content').first()
+                : $modal;
+
+            // Collapse Livewire morph leftovers: keep one select per wrap.
+            $modal.find('.param-equipment-select2-wrap').each(function () {
+                const $wrap = window.jQuery(this);
+                const $selects = $wrap.find('select.param-equipment-select2');
+                if ($selects.length <= 1) {
+                    return;
+                }
+                $selects.slice(1).each(function () {
+                    destroyParamEquipmentSelect2(window.jQuery(this));
+                    window.jQuery(this).closest('.ls-field').remove();
+                });
+            });
+
+            $modal.find('select.param-equipment-select2.ls-select2-multi-dropdown-search-el').each(function () {
                 const $el = window.jQuery(this);
                 const $wrap = $el.closest('.param-equipment-select2-wrap');
+                const alreadyReady = $el.hasClass('select2-hidden-accessible')
+                    && $el.data('select2')
+                    && $el.next('.select2-container').length === 1
+                    && $wrap.find('.select2-container').length === 1;
 
-                // Already owned by Select2 — do not destroy/reinit on every Livewire
-                // commit (that reset selection back to stale data-initial).
-                if ($el.hasClass('select2-hidden-accessible')) {
+                // Healthy instance — leave it alone so user edits are not reset.
+                if (alreadyReady) {
+                    clampLsSelect2Search($el);
                     return;
                 }
 
+                const initial = readParamEquipmentInitial($el, $wrap);
+                destroyParamEquipmentSelect2($el);
+
                 $el.select2({
                     width: '100%',
-                    placeholder: $el.data('placeholder') || 'Select equipment...',
+                    placeholder: $el.data('placeholder') || 'Select equipment…',
                     allowClear: true,
                     closeOnSelect: false,
-                    dropdownParent: $modal.find('.modal-content').first().length
-                        ? $modal.find('.modal-content').first()
-                        : $modal,
+                    dropdownParent: $dropdownParent,
+                    dropdownCssClass: 'ls-select2-dropdown-search',
+                    templateResult: function (data) {
+                        if (!data.id) {
+                            return data.text;
+                        }
+                        const selected = ($el.val() || []).indexOf(String(data.id)) !== -1;
+                        const $row = window.jQuery('<span class="ls-select2-meta-row"><span class="ls-select2-check">' + (selected ? '✓' : '') + '</span><span class="ls-select2-meta-row__label"></span></span>');
+                        $row.find('.ls-select2-meta-row__label').text(data.text);
+                        return $row;
+                    },
+                    escapeMarkup: function (m) { return m; },
                 });
 
-                let initial = [];
-                try {
-                    initial = JSON.parse($wrap.attr('data-initial') || '[]');
-                } catch (e) {
-                    initial = [];
-                }
+                wireLsMultiDropdownSearch($el);
+                clampLsSelect2Search($el);
 
-                if (!Array.isArray(initial)) {
-                    initial = initial ? [String(initial)] : [];
-                }
-
-                $el.val(initial.map(String)).trigger('change.select2');
+                // Suppress Livewire sync while applying the initial selection.
+                $el.data('paramEquipmentSuppressSync', true);
+                $el.val(initial).trigger('change.select2');
+                $el.data('paramEquipmentSuppressSync', false);
+                $wrap.attr('data-initial', JSON.stringify(initial));
 
                 $el.off('change.paramEquipmentSelect2').on('change.paramEquipmentSelect2', function () {
-                    const paramId = String($wrap.data('param-id') || '');
-                    if (!paramId) {
+                    if ($el.data('paramEquipmentSuppressSync')) {
                         return;
                     }
 
-                    const vals = ($el.val() || []).map(String);
+                    const paramId = String($wrap.data('param-id') || '');
+                    if (!paramId || !window.Livewire) {
+                        return;
+                    }
+
+                    const vals = uniqueStringIds($el.val() || []);
+                    if (JSON.stringify(($el.val() || []).map(String)) !== JSON.stringify(vals)) {
+                        $el.data('paramEquipmentSuppressSync', true);
+                        $el.val(vals).trigger('change.select2');
+                        $el.data('paramEquipmentSuppressSync', false);
+                    }
+
                     $wrap.attr('data-initial', JSON.stringify(vals));
-                    $wire.set('parametersForm.' + paramId + '.equipment_ids', vals);
+                    const componentEl = $el.closest('[wire\\:id]')[0];
+                    if (!componentEl) {
+                        return;
+                    }
+                    const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                    if (component) {
+                        component.set('parametersForm.' + paramId + '.equipment_ids', vals);
+                    }
                 });
             });
         };
 
         const syncParamSelectWidgets = () => {
+            if (!window.jQuery || !window.jQuery.fn.select2) {
+                return false;
+            }
+
             releaseLivewireSelects();
-            queueMicrotask(initParamEquipmentSelect2);
+            initParamEquipmentSelect2();
+            return true;
         };
 
-        syncParamSelectWidgets();
-        document.addEventListener('livewire:navigated', syncParamSelectWidgets);
-        Livewire.hook('commit', ({ succeed }) => {
-            succeed(() => queueMicrotask(syncParamSelectWidgets));
-        });
+        const bootParamSelectWidgets = (attempt = 0) => {
+            let done = false;
+            try {
+                done = syncParamSelectWidgets();
+            } catch (e) {
+                console.error('[Samples] Select2 boot error', e);
+                done = false;
+            }
+            if (done || attempt >= 40) {
+                return;
+            }
+            window.setTimeout(function () {
+                bootParamSelectWidgets(attempt + 1);
+            }, 50);
+        };
+
+        // Keep a stable window pointer so a single hook registration always calls the latest boot.
+        window.__bootSamplesParamEquipmentSelect2 = bootParamSelectWidgets;
+
+        if (!window.__samplesParamEquipmentSelect2Bound) {
+            window.__samplesParamEquipmentSelect2Bound = true;
+            document.addEventListener('livewire:navigated', () => {
+                if (typeof window.__bootSamplesParamEquipmentSelect2 === 'function') {
+                    window.__bootSamplesParamEquipmentSelect2();
+                }
+            });
+            Livewire.hook('commit', ({ succeed }) => {
+                succeed(() => {
+                    if (typeof window.__bootSamplesParamEquipmentSelect2 === 'function') {
+                        window.__bootSamplesParamEquipmentSelect2();
+                    }
+                });
+            });
+        }
+
+        window.setTimeout(function () {
+            bootParamSelectWidgets();
+        }, 0);
     </script>
     @endscript
 </div>

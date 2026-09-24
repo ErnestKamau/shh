@@ -146,6 +146,71 @@ class TestRequestReportDataServiceTest extends TestCase
         $this->assertSame('sterile_bag', $rows[1]['sampling_apparatus']);
     }
 
+    public function test_enrich_sample_rows_keeps_existing_array_field_values(): void
+    {
+        $service = new TestRequestReportDataService(
+            new TestRequestFormReportDataBuilder(),
+            new TrfSampleFieldMapper(),
+        );
+
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('enrichSampleRowsWithIndexedCollectionFields');
+        $method->setAccessible(true);
+
+        $existingMethod = ['APHA' => true, 'DM' => true];
+        $existingDetails = [
+            ['label' => 'Lot code', 'value' => 'L-42'],
+        ];
+
+        $rows = $method->invoke($service, [
+            [
+                'method_of_sampling' => $existingMethod,
+                'additional_details' => $existingDetails,
+            ],
+            [
+                'method_of_sampling' => [],
+                'additional_details' => [],
+            ],
+        ], [
+            'method_of_sampling' => ['ASTM', 'ISO'],
+            'additional_details' => [
+                [['label' => 'Color', 'value' => 'Clear']],
+                [['label' => 'Grade', 'value' => 'A']],
+            ],
+        ]);
+
+        $this->assertSame($existingMethod, $rows[0]['method_of_sampling']);
+        $this->assertSame($existingDetails, $rows[0]['additional_details']);
+        $this->assertSame('ISO', $rows[1]['method_of_sampling']);
+        $this->assertSame([['label' => 'Grade', 'value' => 'A']], $rows[1]['additional_details']);
+    }
+
+    public function test_group_result_rows_by_lab_section_keeps_sections_separate(): void
+    {
+        $service = new TestRequestReportDataService(
+            new TestRequestFormReportDataBuilder(),
+            new TrfSampleFieldMapper(),
+        );
+
+        $microId = '550e8400-e29b-41d4-a716-446655440000';
+        $chemId = '550e8400-e29b-41d4-a716-446655440001';
+
+        $grouped = $service->groupResultRowsByLabSection([
+            ['lab_section_id' => $chemId, 'lab_section_name' => 'Chemistry', 'analyte' => 'pH'],
+            ['lab_section_id' => $microId, 'lab_section_name' => 'Microbiology', 'analyte' => 'E. coli'],
+            ['lab_section_id' => $microId, 'lab_section_name' => 'Microbiology', 'analyte' => 'Coliforms'],
+            ['lab_section_id' => '', 'lab_section_name' => '', 'analyte' => 'Unknown'],
+        ]);
+
+        $this->assertCount(3, $grouped);
+        $this->assertSame('Chemistry', $grouped[0]['name']);
+        $this->assertSame(['pH'], array_column($grouped[0]['rows'], 'analyte'));
+        $this->assertSame('Lab Section', $grouped[1]['name']);
+        $this->assertSame(['Unknown'], array_column($grouped[1]['rows'], 'analyte'));
+        $this->assertSame('Microbiology', $grouped[2]['name']);
+        $this->assertSame(['E. coli', 'Coliforms'], array_column($grouped[2]['rows'], 'analyte'));
+    }
+
     public function test_normalize_report_additional_details_keeps_filled_pairs_only(): void
     {
         $service = new TestRequestReportDataService(
@@ -160,6 +225,8 @@ class TestRequestReportDataServiceTest extends TestCase
         $details = $method->invoke($service, [
             ['label' => 'Lot code', 'value' => 'L-42'],
             ['label' => '', 'value' => ''],
+            ['label' => 'Color', 'value' => ''],
+            ['label' => '', 'value' => 'Clear'],
             ['label' => 'Color', 'value' => 'Clear'],
         ]);
 
@@ -167,5 +234,110 @@ class TestRequestReportDataServiceTest extends TestCase
             ['label' => 'Lot code', 'value' => 'L-42'],
             ['label' => 'Color', 'value' => 'Clear'],
         ], $details);
+    }
+
+    public function test_format_sample_temperature_for_report_appends_degree_celsius(): void
+    {
+        $service = new TestRequestReportDataService(
+            new TestRequestFormReportDataBuilder(),
+            new TrfSampleFieldMapper(),
+        );
+
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('formatSampleTemperatureForReport');
+        $method->setAccessible(true);
+
+        $this->assertSame('25-27 °C', $method->invoke($service, '25-27'));
+        $this->assertSame('25 °C', $method->invoke($service, '25 °C'));
+        $this->assertSame('25 °C', $method->invoke($service, '25 C'));
+        $this->assertSame('NP', $method->invoke($service, 'NP'));
+    }
+
+    public function test_append_additional_detail_rows_omits_incomplete_pairs(): void
+    {
+        $service = new TestRequestReportDataService(
+            new TestRequestFormReportDataBuilder(),
+            new TrfSampleFieldMapper(),
+        );
+
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('appendAdditionalDetailRows');
+        $method->setAccessible(true);
+
+        $rows = $method->invoke($service, [
+            [
+                'left' => ['label' => 'transport_condition', 'value' => 'Ambient'],
+                'right' => ['label' => 'sampling_method', 'value' => 'SOP'],
+            ],
+        ], [
+            ['label' => 'Lot code', 'value' => 'L-42'],
+            ['label' => 'Skip me', 'value' => ''],
+        ]);
+
+        $this->assertCount(2, $rows);
+        $this->assertSame('Lot code', $rows[1]['left']['label']);
+        $this->assertSame('L-42', $rows[1]['left']['value']);
+        $this->assertNull($rows[1]['right']);
+    }
+
+    public function test_append_additional_detail_rows_pairs_into_left_and_right_columns(): void
+    {
+        $service = new TestRequestReportDataService(
+            new TestRequestFormReportDataBuilder(),
+            new TrfSampleFieldMapper(),
+        );
+
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('appendAdditionalDetailRows');
+        $method->setAccessible(true);
+
+        $rows = $method->invoke($service, [
+            [
+                'left' => ['label' => 'transport_condition', 'value' => 'chiller'],
+                'right' => ['label' => 'sampling_method', 'value' => 'apha,astm'],
+            ],
+        ], [
+            ['label' => 'TestField', 'value' => 'Value 1'],
+            ['label' => 'TestField2', 'value' => 'Value2'],
+            ['label' => 'Extra', 'value' => 'Alone'],
+        ]);
+
+        $this->assertCount(3, $rows);
+        $this->assertSame('TestField', $rows[1]['left']['label']);
+        $this->assertSame('Value 1', $rows[1]['left']['value']);
+        $this->assertSame('TestField2', $rows[1]['right']['label']);
+        $this->assertSame('Value2', $rows[1]['right']['value']);
+        $this->assertSame('Extra', $rows[2]['left']['label']);
+        $this->assertNull($rows[2]['right']);
+    }
+
+    public function test_normalize_sample_detail_cell_humanizes_option_list_values(): void
+    {
+        $service = new TestRequestReportDataService(
+            new TestRequestFormReportDataBuilder(),
+            new TrfSampleFieldMapper(),
+        );
+
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('normalizeSampleDetailCell');
+        $method->setAccessible(true);
+
+        $container = $method->invoke($service, [
+            'label' => 'container_type',
+            'value' => 'sterile_bag,sterile_bottle',
+        ]);
+        $this->assertSame('sterile bag, sterile bottle', $container['value']);
+
+        $sampling = $method->invoke($service, [
+            'label' => 'sampling_method',
+            'value' => 'apha,astm',
+        ]);
+        $this->assertSame('apha, astm', $sampling['value']);
+
+        $other = $method->invoke($service, [
+            'label' => 'lot_no',
+            'value' => 'LOT_001',
+        ]);
+        $this->assertSame('LOT_001', $other['value']);
     }
 }

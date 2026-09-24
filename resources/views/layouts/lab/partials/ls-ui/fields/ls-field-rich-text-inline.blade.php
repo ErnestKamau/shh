@@ -1,13 +1,21 @@
 {{--
 	ls-field-rich-text-inline — full-column rich text (card / form rows).
-	Props: $label, $name, $id, $value (HTML), $hint, $error, $required, $disabled,
-	       $compact (bool), $wireModel, $editorId, $placeholder
-	Demo: omit $wireModel — renders static chrome (gallery). With $wireModel + $editorId, wire TinyMCE via Alpine.
+	Props: $label, $name / $lsName, $id / $lsId, $value / $lsValue (HTML),
+	       $hint, $error, $required, $disabled, $compact (bool),
+	       $wireModel (Livewire), $enableEditor (bool — TinyMCE without Livewire),
+	       $editorId, $placeholder
+	Demo: omit $wireModel and $enableEditor — static chrome (gallery).
+	Production: pass $wireModel and/or $enableEditor (+ $name for classic forms).
 --}}
 @php
-	$id = $id ?? ($name ?? 'ls-rich-'.uniqid());
+	$name = $lsName ?? $name ?? null;
+	$id = $lsId ?? $id ?? ($name ?? 'ls-rich-'.uniqid());
 	$editorId = $editorId ?? ($id.'-editor');
-	$html = (string) ($value ?? '<p>Composite sample from line 3 — retain cold chain notes and batch reference on label.</p>');
+	$rawValue = $lsValue ?? $value ?? null;
+	$html = is_string($rawValue) || is_numeric($rawValue)
+		? (string) $rawValue
+		: (string) ($rawValue ?? '<p>Composite sample from line 3 — retain cold chain notes and batch reference on label.</p>');
+	$useEditor = ! empty($wireModel) || ! empty($enableEditor);
 	$isLive = ! empty($wireModel);
 	$stateClass = ($error ?? null) ? 'is-error' : '';
 	if (! empty($disabled)) {
@@ -24,22 +32,22 @@
 		</label>
 	@endif
 
-	<div class="ls-rich-text__shell" @if($isLive) wire:ignore @endif>
-		@if($isLive)
+	<div class="ls-rich-text__shell" @if($useEditor) wire:ignore @endif>
+		@if($useEditor)
 			<div
 				x-data="lsRichTextInline({
 					editorId: @js($editorId),
-					wireKey: @js($wireModel),
+					wireKey: @js($wireModel ?? null),
 				})"
 				x-init="mount()"
 				x-on:trf-destroy-editors.window="destroy()"
 			>
 				<textarea
 					id="{{ $editorId }}"
-					name="{{ $name ?? $id }}"
+					@if(! empty($name)) name="{{ $name }}" @endif
 					class="ls-rich-text__textarea"
 					placeholder="{{ $placeholder ?? '' }}"
-				>{!! $html !!}</textarea>
+				>{{ $html }}</textarea>
 			</div>
 		@else
 			<div class="ls-rich-text__toolbar" role="toolbar" aria-label="Formatting">

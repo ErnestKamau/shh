@@ -33,6 +33,7 @@ class SubmissionFormTrfFoodSeeder extends Seeder
             ]);
             $this->patchSampleRowsSection($form, $this->foodTrfRowFields());
             $this->patchMiscellaneousSection($form);
+            $this->patchSubmitAndSignSection($form);
             $this->promoteCollectionFieldsToSampleRows($form, [
                 ['value' => 'air_sampler', 'label' => 'Air sampler'],
             ]);

@@ -677,6 +677,107 @@ class SampleAnalysisSetupService
     }
 
     /**
+     * Keep captured/result lab_section_id aligned with analysis element → analysis type master data.
+     *
+     * Call when sample analysis types change so existing rows do not keep a stale section.
+     *
+     * @return int Number of captured_results rows updated
+     */
+    public function syncCapturedResultLabSectionsForSampleDetail(SampleDetails $detail): int
+    {
+        $detailId = trim((string) ($detail->id ?? ''));
+        if ($detailId === '' || ! Str::isUuid($detailId)) {
+            return 0;
+        }
+
+        $capturedRows = CapturedResult::query()
+            ->where('sample_detail_id', $detailId)
+            ->get(['id', 'analysis_type_id', 'analysis_element_id', 'analyte_id', 'lab_section_id']);
+
+        if ($capturedRows->isEmpty()) {
+            return 0;
+        }
+
+        $analysisTypeIds = $capturedRows
+            ->pluck('analysis_type_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn (string $id): bool => $id !== '' && Str::isUuid($id))
+            ->unique()
+            ->values()
+            ->all();
+
+        $typesById = $analysisTypeIds === []
+            ? collect()
+            : AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->get(['id', 'lab_section_id'])
+                ->keyBy(fn (AnalysisType $type) => (string) $type->id);
+
+        $elementIds = $capturedRows
+            ->pluck('analysis_element_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn (string $id): bool => $id !== '' && Str::isUuid($id))
+            ->unique()
+            ->values()
+            ->all();
+
+        $elementsById = $elementIds === []
+            ? collect()
+            : AnalysisElements::query()
+                ->whereIn('id', $elementIds)
+                ->get(['id', 'analysis_type_id', 'analyte_id', 'lab_section_id'])
+                ->keyBy(fn (AnalysisElements $element) => (string) $element->id);
+
+        $fallbackElementsByTypeAnalyte = AnalysisElements::query()
+            ->whereIn('analysis_type_id', $analysisTypeIds)
+            ->where('active', 1)
+            ->get(['id', 'analysis_type_id', 'analyte_id', 'lab_section_id'])
+            ->groupBy(fn (AnalysisElements $element) => (string) $element->analysis_type_id.'|'.(string) $element->analyte_id);
+
+        $updated = 0;
+
+        foreach ($capturedRows as $captured) {
+            $typeId = trim((string) ($captured->analysis_type_id ?? ''));
+            $elementId = trim((string) ($captured->analysis_element_id ?? ''));
+            $analyteId = trim((string) ($captured->analyte_id ?? ''));
+
+            $element = $elementId !== '' ? $elementsById->get($elementId) : null;
+            if ($element === null && $typeId !== '' && $analyteId !== '') {
+                $element = $fallbackElementsByTypeAnalyte->get($typeId.'|'.$analyteId)?->first();
+            }
+
+            $type = $typeId !== '' ? $typesById->get($typeId) : null;
+            $resolvedSectionId = $this->resolveValidLabSectionId($element?->lab_section_id)
+                ?? $this->resolveValidLabSectionId($type?->lab_section_id);
+
+            if ($resolvedSectionId === null) {
+                continue;
+            }
+
+            if ((string) ($captured->lab_section_id ?? '') === $resolvedSectionId) {
+                continue;
+            }
+
+            CapturedResult::query()
+                ->whereKey($captured->id)
+                ->update(['lab_section_id' => $resolvedSectionId]);
+
+            Result::query()
+                ->where('sample_detail_id', $detailId)
+                ->where('analysis_type_id', $typeId !== '' ? $typeId : $captured->analysis_type_id)
+                ->when(
+                    $analyteId !== '',
+                    fn ($query) => $query->where('analyte_id', $analyteId)
+                )
+                ->update(['lab_section_id' => $resolvedSectionId]);
+
+            $updated++;
+        }
+
+        return $updated;
+    }
+
+    /**
      * Roll unique analysis-type lab sections onto the batch header (2/polucon style).
      */
     public function syncBatchLabSectionIdsFromAnalysisTypes(SampleHeader $header): ?string
@@ -734,5 +835,81 @@ class SampleAnalysisSetupService
         }
 
         return $csv;
+    }
+
+    /**
+     * Unique sample_type_ids used by samples on this batch (ordered by name).
+     *
+     * @return list<string>
+     */
+    public function sampleTypeIdsFromSamples(SampleHeader $header): array
+    {
+        $ids = SampleDetails::query()
+            ->where('sample_header_id', $header->id)
+            ->whereNotNull('sample_type_id')
+            ->pluck('sample_type_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return \App\SampleType::query()
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function sampleTypeLabelsFromSamples(SampleHeader $header): array
+    {
+        $ids = $this->sampleTypeIdsFromSamples($header);
+        if ($ids === []) {
+            return [];
+        }
+
+        return \App\SampleType::query()
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($type) => [
+                'id' => (string) $type->id,
+                'name' => (string) $type->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Keep sample_headers.sample_type_id as a valid primary among sample rows.
+     * Prefer the current primary when it still appears on a sample; otherwise first by name.
+     */
+    public function syncBatchSampleTypeIdFromSamples(SampleHeader $header): ?string
+    {
+        $ids = $this->sampleTypeIdsFromSamples($header);
+        if ($ids === []) {
+            return $header->sample_type_id !== null && $header->sample_type_id !== ''
+                ? (string) $header->sample_type_id
+                : null;
+        }
+
+        $current = trim((string) ($header->sample_type_id ?? ''));
+        $primary = in_array($current, $ids, true) ? $current : $ids[0];
+
+        if ((string) ($header->sample_type_id ?? '') !== $primary) {
+            $header->sample_type_id = $primary;
+            $header->save();
+        }
+
+        return $primary;
     }
 }

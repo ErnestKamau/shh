@@ -1827,6 +1827,9 @@ class SampleWorkFlowController extends Controller
         $workflowstages = [];
         $workflows = getSampleWorflowStages();
         $sample_types = getSampleTypes();
+        if (isset($batch->id)) {
+            $sample_types = mergeSampleTypesUsedByBatch($sample_types, $batch);
+        }
         $samplingMethodTypeId = $methodTypeResolver->resolvePointerConfigValue('sampling_method_type_id');
         $samplingmethods = $samplingMethodTypeId !== null
             ? AnalysisMethod::where('active', 1)->where('method_type_id', $samplingMethodTypeId)->get()
@@ -6243,8 +6246,12 @@ class SampleWorkFlowController extends Controller
             'show_mu_percent' => $request->boolean('show_mu_percent') ? 1 : 0,
         ];
 
-        // Section-scoped print: do not bump revision or replace the official full Test Report.
-        if ($filterLabSectionIds !== []) {
+        $isSectionOnly = $filterLabSectionIds !== [];
+        $validSampleIds = [];
+
+        // Section-scoped generate: validate scope, then bump revision like a full report.
+        // PDF still streams only (does not replace the stored official full Test Report file).
+        if ($isSectionOnly) {
             $jobSectionIds = collect($batch->labSectionsForDisplay())
                 ->pluck('id')
                 ->map(static fn ($id): string => (string) $id)
@@ -6279,15 +6286,6 @@ class SampleWorkFlowController extends Controller
             if (! $hasSectionResults) {
                 return redirect()->back()->with('error', 'No test results found for the selected lab section(s) and samples.');
             }
-
-            return redirect()->route('generateTestRequestReport', array_merge([
-                'batch_id' => $batch->id,
-                'seq' => max(1, (int) ($batch->test_request_report_sequence ?? 0)),
-                'lang' => $request->language,
-                'mode' => 'pdf',
-                'lab_section_ids' => implode(',', $filterLabSectionIds),
-                'sample_ids' => implode(',', $validSampleIds),
-            ], $columnOptions));
         }
 
         $ammendment = BatchAmmendment::resolveForBatch($batch);
@@ -6308,7 +6306,7 @@ class SampleWorkFlowController extends Controller
             $notes = (string) $ammendment->reason;
         }
 
-        // Record revision
+        // Record revision (full and section-scoped Generate Report).
         \App\Models\TestRequestReportRevision::create([
             'batch_id'     => $batch->id,
             'revision_no'  => $batch->test_request_report_sequence,
@@ -6320,12 +6318,19 @@ class SampleWorkFlowController extends Controller
         app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
             ->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
 
-        return redirect()->route('generateTestRequestReport', array_merge([
+        $redirectParams = array_merge([
             'batch_id' => $batch->id,
             'seq'      => $batch->test_request_report_sequence,
             'lang'     => $request->language,
             'mode'     => 'pdf',
-        ], $columnOptions));
+        ], $columnOptions);
+
+        if ($isSectionOnly) {
+            $redirectParams['lab_section_ids'] = implode(',', $filterLabSectionIds);
+            $redirectParams['sample_ids'] = implode(',', $validSampleIds);
+        }
+
+        return redirect()->route('generateTestRequestReport', $redirectParams);
     }
 
     public function processShelfLifeStudyReport(Request $request)
@@ -6458,10 +6463,6 @@ class SampleWorkFlowController extends Controller
             $dompdf = $pdf->getDomPDF();
             app(\App\Services\Reports\ReportWatermarkService::class)->applyToDompdf($dompdf);
 
-            if ($isPreviewPdf) {
-                $this->applyTestRequestReportPreviewWatermark($dompdf);
-            }
-
             $filename = ($isPreviewPdf ? 'SLSR_PREVIEW_' : 'SLSR_').$reportNumber.'.pdf';
 
             if (! $isPreviewPdf) {
@@ -6484,8 +6485,7 @@ class SampleWorkFlowController extends Controller
         }
 
         // Bare report document for the in-app preview iframe (no revision bump).
-        // Keep isPreviewMode so the Draft Preview watermark still renders; hide the
-        // in-document chrome because the outer shell already provides it.
+        // Hide the in-document chrome because the outer shell already provides it.
         if ($isPreviewDoc) {
             return view(
                 'layouts.lab.sample-workflow.report-formats.shelf_life_study_report',
@@ -6894,7 +6894,7 @@ class SampleWorkFlowController extends Controller
         }
 
         if ($isSectionOnlyPrint) {
-            // Section-only prints reuse the current (or requested) revision number — no provisional bump.
+            // Prefer seq from processTestRequestReport (already bumped). Fall back to current sequence.
             $sequence = $request->has('seq')
                 ? max(1, (int) $request->query('seq'))
                 : max(1, (int) ($batch->test_request_report_sequence ?? 0));
@@ -7020,7 +7020,7 @@ class SampleWorkFlowController extends Controller
                 'batchBackUrl',
                 'reportNumber'
             ), [
-                // preview-pdf keeps the draft watermark; official pdf does not
+                // preview-pdf keeps draft title; official pdf does not
                 'isPreviewMode' => $isPreviewPdf,
             ]);
 
@@ -7037,10 +7037,6 @@ class SampleWorkFlowController extends Controller
             // DomPDF 3 page_script paints immediately onto existing pages — render first.
             $pdf->render();
             app(\App\Services\Reports\ReportWatermarkService::class)->applyToDompdf($dompdf);
-
-            if ($isPreviewPdf) {
-                $this->applyTestRequestReportPreviewWatermark($dompdf);
-            }
 
             // Section-only prints stream only — do not persist / attach / bump official URL.
             if ($isSectionOnlyPrint) {
@@ -7124,8 +7120,7 @@ class SampleWorkFlowController extends Controller
         }
 
         // Bare report document for the in-app preview iframe (no revision bump).
-        // Keep isPreviewMode so the Draft Preview watermark still renders; hide the
-        // in-document chrome because the outer shell already provides it.
+        // Hide the in-document chrome because the outer shell already provides it.
         if ($isPreviewDoc) {
             return view(
                 'layouts.lab.sample-workflow.report-formats.test_request_report',
@@ -7139,38 +7134,6 @@ class SampleWorkFlowController extends Controller
         }
 
         return view('layouts.lab.sample-workflow.report-formats.test_request_report', $reportViewData);
-    }
-
-    /**
-     * Diagonal "DRAFT PREVIEW" mark on every DomPDF page (preview-pdf only).
-     */
-    private function applyTestRequestReportPreviewWatermark(\Dompdf\Dompdf $dompdf): void
-    {
-        $canvas = $dompdf->getCanvas();
-
-        $canvas->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics): void {
-            $font = $fontMetrics->getFont('DejaVu Sans', 'bold')
-                ?: $fontMetrics->getFont('Helvetica', 'bold');
-
-            if (! $font) {
-                return;
-            }
-
-            $text = 'DRAFT PREVIEW';
-            $size = 46.0;
-            $angle = -28.0;
-            $color = [0.55, 0.60, 0.66];
-
-            $pageWidth = $canvas->get_width();
-            $pageHeight = $canvas->get_height();
-            $textWidth = $fontMetrics->getTextWidth($text, $font, $size);
-            $x = ($pageWidth - $textWidth) / 2;
-            $y = $pageHeight / 2;
-
-            $canvas->set_opacity(0.12);
-            $canvas->text($x, $y, $text, $font, $size, $color, 0.0, 0.0, $angle);
-            $canvas->set_opacity(1.0);
-        });
     }
 
     public function moveToVerificationApprovalLevel(Request $request)
@@ -7779,6 +7742,9 @@ class SampleWorkFlowController extends Controller
         $workflowstages = [];
         $workflows = getSampleWorflowStages();
         $sample_types = getSampleTypes();
+        if (isset($batch->id)) {
+            $sample_types = mergeSampleTypesUsedByBatch($sample_types, $batch);
+        }
         $samplingmethods = getSamplingMethods();
         $interlabs = [];
         $disposal_date = '';

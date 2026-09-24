@@ -36,7 +36,7 @@ class TestRequestReportDataService
      */
     public function build(SampleHeader $batch, string $reportNumber, array $options = []): array
     {
-        $batch->loadMissing(['customer', 'sample_type', 'samples', 'receivingofficer']);
+        $batch->loadMissing(['customer.country', 'sample_type', 'samples', 'receivingofficer']);
 
         app(StatementOfConformityService::class)->ensureForBatch($batch);
 
@@ -127,12 +127,14 @@ class TestRequestReportDataService
             $formData['weight'] ?? null,
         ) ?? '-';
 
-        $sampleTemperature = $this->firstNonEmptyFromMixed(
-            $batch->condition_quality_sample ?? null,
-            $firstRawRow['sample_temp'] ?? null,
-            $firstNormalizedRow['sample_temp'] ?? null,
-            $formData['sample_temperature'] ?? null,
-        ) ?? '-';
+        $sampleTemperature = $this->formatSampleTemperatureForReport(
+            $this->firstNonEmptyFromMixed(
+                $batch->condition_quality_sample ?? null,
+                $firstRawRow['sample_temp'] ?? null,
+                $firstNormalizedRow['sample_temp'] ?? null,
+                $formData['sample_temperature'] ?? null,
+            ) ?? 'NP',
+        );
 
         $transportCondition = $this->firstNonEmptyFromMixed(
             $this->selectedCheckboxLabels($collection['transport_condition'] ?? null),
@@ -152,23 +154,17 @@ class TestRequestReportDataService
             $batch->crm_unit_id ?? null,
         ) ?? '-';
 
-        $additionalNotes = $this->firstNonEmptyFromMixed(
-            $formData['remarks'] ?? null,
-            is_array($trfPayload) ? ($trfPayload['signatures']['remarks'] ?? null) : null,
-        ) ?? '-';
-
-        $originCountry = $this->firstResolvedCountryLabel(
-            $formData['origin_country'] ?? null,
-            $formData['country_of_origin'] ?? null,
-            $firstRawRow['origin_country'] ?? null,
-            $firstRawRow['country_of_origin'] ?? null,
-        ) ?? '-';
-
-        $samplePreservation = $this->firstNonEmptyFromMixed(
-            $firstRawRow['preservation'] ?? null,
-            $firstRawRow['storage_condition'] ?? null,
-            $formData['sample_preservation'] ?? null,
-            $this->scalarValue($firstRawRow['state_of_sample'] ?? null),
+        $originCountry = $this->firstNonEmptyFromMixed(
+            $batch->customer?->country?->name ?? null,
+            $sfi?->crmCustomer?->country?->name ?? null,
+            $this->firstResolvedCountryLabel(
+                $batch->customer?->country_id ?? null,
+                $sfi?->crmCustomer?->country_id ?? null,
+                $formData['origin_country'] ?? null,
+                $formData['country_of_origin'] ?? null,
+                $firstRawRow['origin_country'] ?? null,
+                $firstRawRow['country_of_origin'] ?? null,
+            ),
         ) ?? '-';
 
         $mfgDate = $this->formatReportDate(
@@ -330,9 +326,7 @@ class TestRequestReportDataService
                 'transportCondition' => $transportCondition,
                 'samplingMethod' => $samplingMethod,
                 'samplingLocation' => $samplingLocation,
-                'additionalNotes' => $additionalNotes,
                 'originCountry' => $originCountry,
-                'samplePreservation' => $samplePreservation,
                 'approvalDate' => $approvalDate,
             ],
             $capturedResults,
@@ -367,11 +361,9 @@ class TestRequestReportDataService
             'sampleWeight' => $sampleWeight,
             'containerType' => $containerType,
             'sampleTemperature' => $sampleTemperature,
-            'samplePreservation' => $samplePreservation,
             'transportCondition' => $transportCondition,
             'samplingMethod' => $samplingMethod,
             'samplingLocation' => $samplingLocation,
-            'additionalNotes' => $additionalNotes,
             'originCountry' => $originCountry,
             'sampleDescription' => $sampleDescription,
             'dateReceived' => $dateReceived,
@@ -418,6 +410,43 @@ class TestRequestReportDataService
             ->map(static fn ($id): string => trim((string) $id))
             ->filter(static fn (string $id): bool => $id !== '' && \Illuminate\Support\Str::isUuid($id))
             ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Group result rows into one section per lab section (no mixing under a shared header).
+     *
+     * @param  list<array{lab_section_id?: string|null, lab_section_name?: string|null}>  $rows
+     * @return list<array{id: string, name: string, rows: list<array<string, mixed>>}>
+     */
+    public function groupResultRowsByLabSection(array $rows, string $fallbackSectionName = 'Lab Section'): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        return collect($rows)
+            ->map(static function (array $row) use ($fallbackSectionName): array {
+                $sectionId = trim((string) ($row['lab_section_id'] ?? ''));
+                $sectionName = trim((string) ($row['lab_section_name'] ?? ''));
+
+                $row['lab_section_id'] = $sectionId !== '' ? $sectionId : '__unassigned__';
+                $row['lab_section_name'] = $sectionName !== '' ? $sectionName : $fallbackSectionName;
+
+                return $row;
+            })
+            ->groupBy('lab_section_id')
+            ->map(static function ($groupedRows): array {
+                $first = $groupedRows->first();
+
+                return [
+                    'id' => (string) ($first['lab_section_id'] ?? '__unassigned__'),
+                    'name' => (string) ($first['lab_section_name'] ?? 'Lab Section'),
+                    'rows' => $groupedRows->values()->all(),
+                ];
+            })
+            ->sortBy(static fn (array $section): string => mb_strtolower($section['name']))
             ->values()
             ->all();
     }
@@ -606,10 +635,12 @@ class TestRequestReportDataService
                 $normalizedRow['qty'] ?? null,
             ) ?? '-';
 
-            $sampleTemperature = $this->trfValueOrNp(
-                $rawRow['sample_temp'] ?? null,
-                $rawRow['field_sample_temp'] ?? null,
-                $normalizedRow['sample_temp'] ?? null,
+            $sampleTemperature = $this->formatSampleTemperatureForReport(
+                $this->trfValueOrNp(
+                    $rawRow['sample_temp'] ?? null,
+                    $rawRow['field_sample_temp'] ?? null,
+                    $normalizedRow['sample_temp'] ?? null,
+                ),
             );
 
             $samplingPoint = $this->trfValueOrNp(
@@ -648,15 +679,15 @@ class TestRequestReportDataService
                 $rawRow['container_type'] ?? null,
             );
 
-            $preservation = $this->trfValueOrNp(
-                $rawRow['preservation'] ?? null,
-                $rawRow['storage_condition'] ?? null,
-                $this->scalarValue($rawRow['state_of_sample'] ?? null),
-            );
-
             $sampledBy = $this->trfValueOrNp(
                 $rawRow['sampled_by'] ?? null,
             );
+            if ($sampledBy !== 'N/P' && $sampledBy !== '-') {
+                $resolvedSampledBy = \App\Services\Sampleworkflow\SampledByParty::displayLabel($sampledBy);
+                if ($resolvedSampledBy !== '') {
+                    $sampledBy = $resolvedSampledBy;
+                }
+            }
 
             $additionalDetails = $this->normalizeReportAdditionalDetails(
                 $rawRow['additional_details'] ?? null,
@@ -678,10 +709,6 @@ class TestRequestReportDataService
             }
 
             $sampleResults = $capturedResults->where('sample_detail_id', $sample->id);
-            $additionalNotes = (string) ($shared['additionalNotes'] ?? '');
-            if ($additionalNotes === '-') {
-                $additionalNotes = '';
-            }
 
             $samplePhotoDataUri = '';
             $sampleDetail = $sampleDetailsById->get((string) $sample->id);
@@ -751,10 +778,6 @@ class TestRequestReportDataService
                     [
                         'left' => ['label' => 'transport_condition', 'value' => $transportCondition],
                         'right' => ['label' => 'sampling_method', 'value' => $samplingMethod],
-                    ],
-                    [
-                        'left' => ['label' => 'additional_notes', 'value' => $additionalNotes],
-                        'right' => ['label' => 'sample_preservation', 'value' => $preservation],
                     ],
                 ];
             }
@@ -899,13 +922,16 @@ class TestRequestReportDataService
      */
     private function normalizeSampleDetailCell(array $cell): array
     {
+        $label = (string) ($cell['label'] ?? '');
         $value = trim((string) ($cell['value'] ?? ''));
         if (! $this->isReportValuePresent($value)) {
             $value = 'NP';
+        } elseif ($this->isOptionListDetailLabel($label)) {
+            $value = $this->formatReportOptionListDisplay($value);
         }
 
         $normalized = [
-            'label' => (string) ($cell['label'] ?? ''),
+            'label' => $label,
             'value' => $value,
         ];
 
@@ -916,8 +942,48 @@ class TestRequestReportDataService
         return $normalized;
     }
 
+    /**
+     * TRF multi-select option keys stored as slugs (e.g. sterile_bag,apha).
+     */
+    private function isOptionListDetailLabel(string $label): bool
+    {
+        return in_array($label, [
+            'container_type',
+            'sampling_method',
+            'transport_condition',
+            'sample_condition',
+        ], true);
+    }
+
+    /**
+     * Humanize comma-separated TRF option values for report display.
+     * Example: "sterile_bag,sterile_bottle" → "sterile bag, sterile bottle".
+     */
+    private function formatReportOptionListDisplay(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '' || ! $this->isReportValuePresent($trimmed)) {
+            return $trimmed;
+        }
+
+        $parts = preg_split('/\s*,\s*/', $trimmed) ?: [];
+        $formatted = [];
+        foreach ($parts as $part) {
+            $part = trim(str_replace('_', ' ', (string) $part));
+            if ($part !== '') {
+                $formatted[] = $part;
+            }
+        }
+
+        return $formatted === [] ? $trimmed : implode(', ', $formatted);
+    }
+
     private function isReportValuePresent(mixed $value): bool
     {
+        if (is_array($value)) {
+            return $value !== [];
+        }
+
         $trimmed = trim((string) ($value ?? ''));
 
         if ($trimmed === '') {
@@ -954,7 +1020,7 @@ class TestRequestReportDataService
         }
 
         return SubmissionFormInstance::query()
-            ->with(['values.element', 'submissionForm', 'crmCustomer'])
+            ->with(['values.element', 'submissionForm', 'crmCustomer.country'])
             ->find($batch->submission_form_instance_id);
     }
 
@@ -1767,6 +1833,27 @@ class TestRequestReportDataService
         return $this->firstNonEmptyFromMixed(...$candidates) ?? 'NP';
     }
 
+    /**
+     * Append °C when a TRF temperature value is present and does not already include it.
+     */
+    private function formatSampleTemperatureForReport(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '' || ! $this->isReportValuePresent($trimmed) || strcasecmp($trimmed, 'NP') === 0) {
+            return $trimmed === '' ? 'NP' : $trimmed;
+        }
+
+        if (preg_match('/(?:°\s*C|℃)\s*$/iu', $trimmed) === 1) {
+            return preg_replace('/\s*(?:°\s*C|℃)\s*$/iu', ' °C', $trimmed) ?? ($trimmed.' °C');
+        }
+
+        if (preg_match('/\bC\s*$/u', $trimmed) === 1 && preg_match('/°/u', $trimmed) !== 1) {
+            return preg_replace('/\s*C\s*$/u', ' °C', $trimmed) ?? ($trimmed.' °C');
+        }
+
+        return $trimmed.' °C';
+    }
+
     private function trfDateOrNp(mixed ...$candidates): string
     {
         $formatted = $this->formatReportDate(...$candidates);
@@ -1871,12 +1958,12 @@ class TestRequestReportDataService
 
                 $label = trim((string) ($row['label'] ?? ''));
                 $value = trim((string) ($row['value'] ?? ''));
-                if ($label === '' && $value === '') {
+                if ($label === '' || $value === '') {
                     continue;
                 }
 
                 $details[] = [
-                    'label' => $label !== '' ? $label : 'Detail',
+                    'label' => $label,
                     'value' => $value,
                 ];
             }
@@ -1896,19 +1983,24 @@ class TestRequestReportDataService
      */
     private function appendAdditionalDetailRows(array $rows, array $additionalDetails): array
     {
+        $pending = [];
         foreach ($additionalDetails as $detail) {
             $label = trim((string) ($detail['label'] ?? ''));
             $value = trim((string) ($detail['value'] ?? ''));
-            if ($label === '' && $value === '') {
+            if ($label === '' || $value === '') {
                 continue;
             }
 
+            $pending[] = [
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+
+        for ($index = 0, $count = count($pending); $index < $count; $index += 2) {
             $rows[] = [
-                'left' => [
-                    'label' => $label !== '' ? $label : 'Detail',
-                    'value' => $value !== '' ? $value : '-',
-                ],
-                'right' => null,
+                'left' => $pending[$index],
+                'right' => $pending[$index + 1] ?? null,
             ];
         }
 
@@ -1921,7 +2013,7 @@ class TestRequestReportDataService
     private function selectedCheckboxLabels(mixed $checkboxGroup): string
     {
         if (! is_array($checkboxGroup)) {
-            return $this->scalarValue($checkboxGroup);
+            return $this->formatReportOptionListDisplay($this->scalarValue($checkboxGroup));
         }
 
         if (array_keys($checkboxGroup) !== range(0, count($checkboxGroup) - 1)) {
@@ -1932,10 +2024,10 @@ class TestRequestReportDataService
                 }
             }
 
-            return implode(', ', $selected);
+            return $this->formatReportOptionListDisplay(implode(', ', $selected));
         }
 
-        return $this->scalarValue($checkboxGroup);
+        return $this->formatReportOptionListDisplay($this->scalarValue($checkboxGroup));
     }
 
     private function scalarValue(mixed $value): string

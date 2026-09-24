@@ -558,6 +558,74 @@ class RequestViewPagePresenterTest extends TestCase
         return [$form, $instance, $enquiry];
     }
 
+    public function test_parameter_groups_include_lab_section_after_method(): void
+    {
+        [$form, $instance] = $this->createBareFormAndInstance();
+
+        $labSection = \App\SampleAnalysisStage::query()->create([
+            'name' => 'Chemical',
+            'code' => 'CHEM-RV',
+            'active' => 1,
+            'is_sample_stage' => 0,
+            'sample_workflow' => null,
+            'level' => 1,
+        ]);
+
+        $analysisType = \App\AnalysisType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Chemical',
+            'code' => 'CHEM-TYPE-RV',
+            'lab_section_id' => $labSection->id,
+            'active' => 1,
+        ]);
+
+        $analyte = \App\Analyte::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Total Protein',
+            'code' => 'TP-RV',
+            'active' => 1,
+        ]);
+
+        $element = \App\AnalysisElements::query()->create([
+            'id' => (string) Str::uuid7(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'lab_section_id' => $labSection->id,
+            'reporting_unit' => 'g/100g',
+            'reporting_time' => 7,
+            'active' => 1,
+            'level' => 1,
+        ]);
+
+        $presenter = new RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $form,
+            commercialEnquiry: null,
+        );
+
+        $card = $presenter->testSamplesCard([
+            [
+                'row_index' => 0,
+                'customer_sample_id' => 'S-1',
+                'sample_type_name' => 'Food',
+                'analysis_type_name' => 'Chemical',
+                'attributes' => [
+                    'analysis_element_ids' => [(string) $element->id],
+                ],
+            ],
+        ]);
+
+        $parameter = $card['samples'][0]['parameter_groups'][0]['parameters'][0] ?? null;
+        $this->assertIsArray($parameter);
+        $this->assertSame('Total Protein', $parameter['name']);
+        $this->assertSame('Chemical', $parameter['lab_section']);
+        $this->assertArrayHasKey('method', $parameter);
+        $this->assertSame(
+            ['name', 'report_display_name', 'method', 'lab_section', 'reporting_unit', 'tat', 'loq', 'code'],
+            array_keys($parameter)
+        );
+    }
+
     /**
      * @return array{0: SubmissionForm, 1: SubmissionFormInstance}
      */

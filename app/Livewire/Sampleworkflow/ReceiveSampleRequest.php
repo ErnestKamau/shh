@@ -2332,31 +2332,101 @@ class ReceiveSampleRequest extends Component
     }
 
     /**
-     * Copy collection fields from sample 1 (index 0) onto another sample row.
+     * Copy all sample-card fields from sample 1 (index 0) onto every sample below it.
      */
-    public function copyCollectionFromFirstSample(int $targetRowIndex): void
+    public function copyFirstSampleToAllBelow(): void
     {
-        if ($targetRowIndex <= 0) {
+        $rowCount = $this->schemaRowCount();
+        if ($rowCount <= 1) {
             return;
         }
 
-        foreach (SubmissionFormSchemaHelper::sampleCollectionFieldNames() as $fieldName) {
-            if (! array_key_exists($fieldName, $this->formData) || ! is_array($this->formData[$fieldName])) {
-                continue;
-            }
+        $fieldNames = array_values(array_unique(array_merge(
+            $this->schemaRowFieldNames(),
+            SubmissionFormSchemaHelper::sampleCollectionFieldNames(),
+            SubmissionFormSchemaHelper::sampleRowAnchorFieldNames(),
+            SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames(),
+            [
+                'sample_quantity',
+                'sample_quantity_unit',
+                'additional_details',
+                'thermometer_id',
+                'equipment_id',
+                'sample_type_id',
+                'sample_type',
+                'sampling_location',
+                'sampling_point',
+                'sampling_point_manual',
+                'manual_sampling_point',
+                'state_of_sample',
+            ],
+        )));
 
-            if (! array_key_exists(0, $this->formData[$fieldName])) {
-                continue;
-            }
+        foreach ($fieldNames as $fieldName) {
+            $this->ensureWalkInIndexedRowFieldForCopy($fieldName, $rowCount);
+        }
 
-            $source = $this->formData[$fieldName][0];
-            $this->formData[$fieldName][$targetRowIndex] = is_array($source)
-                ? json_decode(json_encode($source), true)
-                : $source;
+        for ($targetRowIndex = 1; $targetRowIndex < $rowCount; $targetRowIndex++) {
+            foreach ($fieldNames as $fieldName) {
+                if (! array_key_exists($fieldName, $this->formData) || ! is_array($this->formData[$fieldName])) {
+                    continue;
+                }
+
+                if (! array_key_exists(0, $this->formData[$fieldName])) {
+                    continue;
+                }
+
+                $source = $this->formData[$fieldName][0];
+                $this->formData[$fieldName][$targetRowIndex] = is_array($source)
+                    ? json_decode(json_encode($source), true)
+                    : $source;
+            }
         }
 
         $this->dispatch('trf-reinit-parameter-selects');
-        TrfToast::dispatch($this, 'success', 'Collection details copied from Sample 1.');
+        $this->dispatch('trf-sync-copied-sample-fields', rowCount: $rowCount);
+        TrfToast::dispatch($this, 'success', 'Sample 1 details copied to all samples below.');
+    }
+
+    /**
+     * Promote scalar / short row fields to indexed arrays so copy can write every sample slot.
+     */
+    private function ensureWalkInIndexedRowFieldForCopy(string $field, int $rowCount): void
+    {
+        if (! array_key_exists($field, $this->formData)) {
+            return;
+        }
+
+        $existing = $this->formData[$field];
+        if (! is_array($existing)) {
+            $existing = $existing !== null && $existing !== '' ? [$existing] : [''];
+        }
+
+        $emptyValue = in_array($field, [
+            'parameters',
+            'parameter',
+            'analysis_type_id',
+            'analysis_type',
+            'analysis_types',
+            'sample_type_id',
+            'sample_type',
+            'test_category',
+            'test_requirements',
+            'sample_condition',
+            'method_of_sampling',
+            'transport_condition',
+            'sampling_apparatus',
+            'additional_details',
+            'thermometer_id',
+            'equipment_id',
+            'extra_sampling_equipment',
+        ], true) ? [] : '';
+
+        while (count($existing) < $rowCount) {
+            $existing[] = is_array($emptyValue) ? [] : $emptyValue;
+        }
+
+        $this->formData[$field] = $existing;
     }
 
     /**
@@ -3008,9 +3078,17 @@ class ReceiveSampleRequest extends Component
             $this->formData[$element->name] = $existing;
         }
 
-        $this->ensureWalkInCanonicalQtyFields($this->schemaRowCount());
-        $this->ensureWalkInSampleTypeField($this->schemaRowCount());
-        $this->ensureAdditionalDetailsFormField($this->schemaRowCount());
+        $rowCount = $this->schemaRowCount();
+        foreach (array_merge(
+            SubmissionFormSchemaHelper::sampleCollectionFieldNames(),
+            ['sampling_point_manual', 'manual_sampling_point', 'state_of_sample', 'sample_type_id', 'sample_type'],
+        ) as $fieldName) {
+            $this->ensureWalkInIndexedRowFieldForCopy($fieldName, $rowCount);
+        }
+
+        $this->ensureWalkInCanonicalQtyFields($rowCount);
+        $this->ensureWalkInSampleTypeField($rowCount);
+        $this->ensureAdditionalDetailsFormField($rowCount);
         $this->appendWaterTrfSyntheticRowDefaults();
         $this->appendWasteWaterTrfSyntheticRowDefaults();
 
@@ -3441,10 +3519,15 @@ class ReceiveSampleRequest extends Component
     {
         $this->formData['contact_person'] = '';
         $this->clearContactCommunicationFields();
-        $this->formData['sampling_location'] = '';
 
         foreach (['sampling_point', 'sampling_location', 'location'] as $fieldName) {
-            if (! isset($this->formData[$fieldName]) || ! is_array($this->formData[$fieldName])) {
+            if (! array_key_exists($fieldName, $this->formData)) {
+                continue;
+            }
+
+            if (! is_array($this->formData[$fieldName])) {
+                $this->formData[$fieldName] = '';
+
                 continue;
             }
 
@@ -4835,19 +4918,14 @@ class ReceiveSampleRequest extends Component
                 if (is_array($raw) && $this->walkInUsesIndexedSampleRows()) {
                     $encodedRows = [];
                     foreach (array_values($raw) as $sampleIndex => $sampleValue) {
-                        $ids = is_array($sampleValue)
-                            ? array_map(
-                                static fn ($id): string => is_array($id)
-                                    ? trim((string) ($id['id'] ?? $id['equipment_id'] ?? ''))
-                                    : trim((string) $id),
-                                array_values($sampleValue)
-                            )
-                            : [trim((string) $sampleValue)];
+                        $ids = $this->flattenWalkInScalarList($sampleValue);
                         $encodedRows[$sampleIndex] = $resolver->encodeIds($ids) ?? '';
                     }
                     $payload['thermometer_id'] = $encodedRows;
                 } else {
-                    $payload['thermometer_id'] = $resolver->encodeIds(is_array($raw) ? $raw : [$raw]) ?? '';
+                    $payload['thermometer_id'] = $resolver->encodeIds(
+                        $this->flattenWalkInScalarList(is_array($raw) ? $raw : [$raw])
+                    ) ?? '';
                 }
 
                 unset($payload['Equipment_ID'], $payload['equipment_id'], $payload['Equipment ID']);

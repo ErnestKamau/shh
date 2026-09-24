@@ -175,16 +175,24 @@
                                                         <div class="col-12 mb-2">
                                                             <div class="rft-sample-section-label rft-sample-section-label--collection">Sample collection</div>
                                                         </div>
-                                                        @foreach($collectionFields as $field)
-                                                            @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
-                                                                'field' => $field,
-                                                                'draft' => $draft,
-                                                                'sampleIndex' => $sampleIndex,
-                                                                'colClass' => in_array((string) ($field['name'] ?? ''), ['sample_sampling_point_description', 'extra_sampling_equipment'], true)
-                                                                    ? 'col-12'
-                                                                    : 'col-md-4',
-                                                            ])
-                                                        @endforeach
+                                                        <div class="col-12 mb-3">
+                                                            <div class="rv-trf-sample-collection-grid">
+                                                                @foreach($collectionFields as $field)
+                                                                    @php
+                                                                        $collectionFieldName = (string) ($field['name'] ?? '');
+                                                                        $collectionSpanFull = in_array($collectionFieldName, ['sample_sampling_point_description', 'extra_sampling_equipment'], true);
+                                                                    @endphp
+                                                                    <div class="rv-trf-sample-collection-grid__cell{{ $collectionSpanFull ? ' rv-trf-sample-collection-grid__cell--full' : '' }}">
+                                                                        @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
+                                                                            'field' => $field,
+                                                                            'draft' => $draft,
+                                                                            'sampleIndex' => $sampleIndex,
+                                                                            'hideOuterCol' => true,
+                                                                        ])
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        </div>
                                                         <div class="col-12 mb-2 mt-2">
                                                             <div class="rft-sample-section-label rft-sample-section-label--sample">Sample &amp; test information</div>
                                                         </div>
@@ -194,7 +202,7 @@
                                                             'field' => $sampleTypeField,
                                                             'draft' => $draft,
                                                             'sampleIndex' => $sampleIndex,
-                                                            'colClass' => 'col-md-6',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endif
                                                     @if($analysisTypeField)
@@ -202,7 +210,7 @@
                                                             'field' => $analysisTypeField,
                                                             'draft' => $draft,
                                                             'sampleIndex' => $sampleIndex,
-                                                            'colClass' => 'col-md-6',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endif
                                                     @if($parametersField)
@@ -223,35 +231,33 @@
                                                             'field' => $field,
                                                             'draft' => $draft,
                                                             'sampleIndex' => $sampleIndex,
-                                                            'colClass' => $fieldName === 'sample_description' ? 'col-12' : 'col-md-6',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endforeach
 
-                                                    @if($testCategoryField || $conditionField || $tempField)
-                                                        @if($testCategoryField)
-                                                            @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
-                                                                'field' => $testCategoryField,
-                                                                'draft' => $draft,
-                                                                'sampleIndex' => $sampleIndex,
-                                                                'colClass' => 'col-md-4',
-                                                            ])
-                                                        @endif
-                                                        @if($conditionField)
-                                                            @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
-                                                                'field' => $conditionField,
-                                                                'draft' => $draft,
-                                                                'sampleIndex' => $sampleIndex,
-                                                                'colClass' => 'col-md-4',
-                                                            ])
-                                                        @endif
-                                                        @if($tempField)
-                                                            @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
-                                                                'field' => $tempField,
-                                                                'draft' => $draft,
-                                                                'sampleIndex' => $sampleIndex,
-                                                                'colClass' => 'col-md-4',
-                                                            ])
-                                                        @endif
+                                                    @if($testCategoryField)
+                                                        @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
+                                                            'field' => $testCategoryField,
+                                                            'draft' => $draft,
+                                                            'sampleIndex' => $sampleIndex,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($conditionField)
+                                                        @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
+                                                            'field' => $conditionField,
+                                                            'draft' => $draft,
+                                                            'sampleIndex' => $sampleIndex,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($tempField)
+                                                        @include('livewire.submission-forms.request-view.partials.trf-view-sample-field', [
+                                                            'field' => $tempField,
+                                                            'draft' => $draft,
+                                                            'sampleIndex' => $sampleIndex,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
                                                     @endif
 
                                                     @if($descriptionField)
@@ -259,7 +265,7 @@
                                                             'field' => $descriptionField,
                                                             'draft' => $draft,
                                                             'sampleIndex' => $sampleIndex,
-                                                            'colClass' => 'col-12',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endif
                                                 </div>

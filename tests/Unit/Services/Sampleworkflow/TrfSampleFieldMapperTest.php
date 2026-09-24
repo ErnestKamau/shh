@@ -2,31 +2,26 @@
 
 namespace Tests\Unit\Services\Sampleworkflow;
 
+use App\Services\Sampleworkflow\SampledByParty;
 use App\Services\Sampleworkflow\TrfSampleFieldMapper;
 use PHPUnit\Framework\TestCase;
 
 class TrfSampleFieldMapperTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->markTestSkipped('TRF layer deprecated — see docs/deprecation/TRF_LAYER_MANIFEST.md');
-    }
-
     private TrfSampleFieldMapper $mapper;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->mapper = new TrfSampleFieldMapper();
+        $this->mapper = new TrfSampleFieldMapper;
     }
 
-    public function test_map_to_sample_header_maps_contact_email_and_sampled_by(): void
+    public function test_map_to_sample_header_maps_client_sampled_by_to_flag(): void
     {
         $mapped = $this->mapper->mapToSampleHeader([
             'crm_contact_id' => 'contact-uuid-1',
             'customer_email' => 'client@example.test',
-            'sampled_by' => 'Thomas Mueller',
+            'sampled_by' => SampledByParty::CLIENT,
             'sampling_time' => '14:30',
             'sampling_location' => 'Jebel Ali Plant',
             'sample_rows' => [
@@ -36,10 +31,45 @@ class TrfSampleFieldMapperTest extends TestCase
 
         $this->assertSame('contact-uuid-1', $mapped['crm_contact_id']);
         $this->assertSame('client@example.test', $mapped['schedule_customer_email']);
-        $this->assertSame('Thomas Mueller', $mapped['sampling_officer_name']);
+        $this->assertSame(0, $mapped['sampled_by_company_personnel']);
+        $this->assertSame('Client', $mapped['sampling_officer_name']);
         $this->assertSame('14:30', $mapped['radio_active_levels']);
         $this->assertSame('Jebel Ali Plant', $mapped['crm_unit_name']);
         $this->assertSame('Chocolate spread batch A', $mapped['description']);
+    }
+
+    public function test_map_to_sample_header_maps_company_sampled_by_to_flag(): void
+    {
+        $mapped = $this->mapper->mapToSampleHeader([
+            'sampled_by' => SampledByParty::COMPANY,
+        ]);
+
+        $this->assertSame(1, $mapped['sampled_by_company_personnel']);
+        $this->assertSame('Laboratory', $mapped['sampling_officer_name']);
+    }
+
+    public function test_map_to_sample_header_keeps_legacy_free_text_sampled_by(): void
+    {
+        $mapped = $this->mapper->mapToSampleHeader([
+            'sampled_by' => 'Thomas Mueller',
+        ]);
+
+        $this->assertSame('Thomas Mueller', $mapped['sampling_officer_name']);
+        $this->assertArrayNotHasKey('sampled_by_company_personnel', $mapped);
+    }
+
+    public function test_merge_fill_gaps_always_applies_sampling_party_flag(): void
+    {
+        $merged = $this->mapper->mergeFillGaps([
+            'sampled_by_company_personnel' => 1,
+            'sampling_officer_name' => 'Existing Officer',
+        ], [
+            'sampled_by_company_personnel' => 0,
+            'sampling_officer_name' => 'Client',
+        ]);
+
+        $this->assertSame(0, $merged['sampled_by_company_personnel']);
+        $this->assertSame('Existing Officer', $merged['sampling_officer_name']);
     }
 
     public function test_map_to_sample_detail_maps_food_row_fields(): void

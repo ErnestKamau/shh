@@ -84,15 +84,15 @@
                 </button>
                 </div>
                 <div class="rft-sample-row-card__header-actions">
-                    @if($rowIndex > 0)
+                    @if($rowIndex === 0 && $rowCount > 1)
                         <button
                             type="button"
                             class="btn btn-sm btn-outline-secondary btn-action-sm"
-                            wire:click="copyCollectionFromFirstSample({{ $rowIndex }})"
-                            title="Copy collection details from Sample 1"
+                            wire:click="copyFirstSampleToAllBelow"
+                            title="Copy Sample 1 details to all samples below"
+                            aria-label="Copy Sample 1 details to all samples below"
                         >
                             <i class="mdi mdi-content-copy"></i>
-                            <span class="d-none d-md-inline">Copy collection</span>
                         </button>
                     @endif
                     @if($rowCount > 1)

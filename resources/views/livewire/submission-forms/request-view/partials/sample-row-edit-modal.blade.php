@@ -152,7 +152,7 @@
                     @else
                         <div class="rv-trf-edit-section">
                             <h5 class="rv-trf-edit-section-title ls-type-label">Sample Details</h5>
-                            <p class="rv-trf-edit-section-hint ls-type-caption">Open a sample to edit collection details and sample/test information. Use “Copy collection from Sample 1” when samples share the same collection data.</p>
+                            <p class="rv-trf-edit-section-hint ls-type-caption">Open a sample to edit collection details and sample/test information. Use the copy icon on Sample 1 to fill all samples below.</p>
                             <div class="rv-trf-sample-list">
                                 @forelse($trfEditSampleSummaries as $sampleSummary)
                                     @php
@@ -164,16 +164,27 @@
                                          x-data="{ open: {{ $isExpanded ? 'true' : 'false' }} }"
                                          x-on:trf-sample-card-toggled.window="if ($event.detail.rowIndex === {{ $sampleIndex }}) open = !!$event.detail.open"
                                          :class="{ 'is-expanded': open }">
-                                        <button type="button"
-                                            class="rv-trf-sample-card-toggle ls-trf-sample-panel__header"
-                                            @click="
-                                                open = !open;
-                                                $wire.expandTrfSample({{ $sampleIndex }}, open);
-                                            "
-                                            :aria-expanded="open ? 'true' : 'false'">
-                                            <span class="ls-trf-sample-panel__title">{{ $sampleSummary['summary'] }}</span>
-                                            <i class="mdi ls-soft-card__chevron" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
-                                        </button>
+                                        <div class="ls-trf-sample-panel__header d-flex align-items-center">
+                                            <button type="button"
+                                                class="rv-trf-sample-card-toggle flex-grow-1 border-0 bg-transparent text-left p-0"
+                                                @click="
+                                                    open = !open;
+                                                    $wire.expandTrfSample({{ $sampleIndex }}, open);
+                                                "
+                                                :aria-expanded="open ? 'true' : 'false'">
+                                                <span class="ls-trf-sample-panel__title">{{ $sampleSummary['summary'] }}</span>
+                                                <i class="mdi ls-soft-card__chevron" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+                                            </button>
+                                            @if($sampleIndex === 0 && count($trfEditSampleSummaries) > 1)
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary btn-action-sm ml-2"
+                                                    wire:click="copyTrfEditFirstSampleToAllBelow"
+                                                    title="Copy Sample 1 details to all samples below"
+                                                    aria-label="Copy Sample 1 details to all samples below">
+                                                    <i class="mdi mdi-content-copy"></i>
+                                                </button>
+                                            @endif
+                                        </div>
 
                                         @if($isExpanded)
                                             @php
@@ -212,50 +223,39 @@
                                                         <div class="col-12 mb-2">
                                                             <div class="rft-sample-section-label rft-sample-section-label--collection">Sample collection</div>
                                                         </div>
-                                                        @if($sampleIndex > 0)
-                                                            <div class="col-12 mb-2">
-                                                                <button type="button"
-                                                                    class="btn btn-sm btn-outline-secondary"
-                                                                    wire:click="copyTrfEditCollectionFromFirstSample({{ $sampleIndex }})">
-                                                                    <i class="mdi mdi-content-copy"></i> Copy collection from Sample 1
-                                                                </button>
+                                                        <div class="col-12 mb-3">
+                                                            <div class="rv-trf-sample-collection-grid">
+                                                                @foreach($collectionFields as $field)
+                                                                    @php
+                                                                        $collectionFieldName = (string) ($field['name'] ?? '');
+                                                                        $collectionSpanFull = in_array($collectionFieldName, ['sample_sampling_point_description', 'extra_sampling_equipment'], true);
+                                                                    @endphp
+                                                                    <div class="rv-trf-sample-collection-grid__cell{{ $collectionSpanFull ? ' rv-trf-sample-collection-grid__cell--full' : '' }}">
+                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                                            'field' => $field,
+                                                                            'hideOuterCol' => true,
+                                                                        ])
+                                                                    </div>
+                                                                @endforeach
                                                             </div>
-                                                        @endif
-                                                        @foreach($collectionFields as $field)
-                                                            @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                'field' => $field,
-                                                                'colClass' => in_array((string) ($field['name'] ?? ''), ['sample_sampling_point_description', 'extra_sampling_equipment'], true)
-                                                                    ? 'col-12'
-                                                                    : 'col-md-4',
-                                                            ])
-                                                        @endforeach
+                                                        </div>
                                                         <div class="col-12 mb-2 mt-2">
                                                             <div class="rft-sample-section-label rft-sample-section-label--sample">Sample &amp; test information</div>
                                                         </div>
                                                     @endif
 
-                                                    {{-- Catalog: sample type | tests (dropdown) --}}
-                                                    @if($sampleTypeField || $parametersField)
-                                                        <div class="col-12 mb-3">
-                                                            <div class="rv-trf-catalog-row rv-trf-catalog-row--type-tests">
-                                                                @if($sampleTypeField)
-                                                                    <div class="rv-trf-catalog-row__cell">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $sampleTypeField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                                @if($parametersField)
-                                                                    <div class="rv-trf-catalog-row__cell">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $parametersField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                            </div>
-                                                        </div>
+                                                    {{-- Catalog: sample type in grid; tests full width --}}
+                                                    @if($sampleTypeField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $sampleTypeField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($parametersField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $parametersField,
+                                                            'colClass' => 'col-12',
+                                                        ])
                                                     @endif
 
                                                     {{-- Mid fields (batch, production date, etc.) --}}
@@ -268,7 +268,7 @@
                                                         @endif
 
                                                         @if($fieldName === 'sampling_point_manual')
-                                                            <div class="col-md-6 mb-3">
+                                                            <div class="col-md-4 mb-3">
                                                                 @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                                     'field' => $field,
                                                                     'hideOuterCol' => true,
@@ -278,7 +278,7 @@
                                                         @endif
 
                                                         @if($fieldName === 'sample_quantity')
-                                                            <div class="col-md-6 mb-3">
+                                                            <div class="col-md-4 mb-3">
                                                                 <label class="ls-field__label">Qty / Unit</label>
                                                                 @include('livewire.submission-forms.request-view.partials.sample-row-qty-unit')
                                                             </div>
@@ -291,53 +291,41 @@
 
                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                             'field' => $field,
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endforeach
 
                                                     @if($isWaterTrf && $fieldsByName->has('test_requirements'))
                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                             'field' => $fieldsByName->get('test_requirements'),
-                                                            'colClass' => 'col-md-6',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endif
 
-                                                    {{-- One row: Test category | Sample condition | Sample Temp --}}
-                                                    @if($testCategoryField || $conditionField || $tempField)
-                                                        <div class="col-12 mb-3">
-                                                            <div class="rv-trf-category-condition-temp-row">
-                                                                @if($testCategoryField)
-                                                                    <div class="rv-trf-category-condition-temp-row__category">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $testCategoryField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                                @if($conditionField)
-                                                                    <div class="rv-trf-category-condition-temp-row__condition">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $conditionField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                                @if($tempField)
-                                                                    <div class="rv-trf-category-condition-temp-row__temp">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $tempField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                            </div>
-                                                        </div>
+                                                    @if($testCategoryField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $testCategoryField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($conditionField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $conditionField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($tempField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $tempField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
                                                     @endif
 
                                                     {{-- Description last --}}
                                                     @if($descriptionField)
                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                             'field' => $descriptionField,
-                                                            'colClass' => 'col-12',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endif
                                                 </div>

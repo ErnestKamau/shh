@@ -93,7 +93,7 @@ class AnalysisElements extends Model implements Auditable
 
   public function labSection()
   {
-      return $this->belongsTo(\App\LabSection::class, 'lab_section_id');
+      return $this->belongsTo(SampleAnalysisStage::class, 'lab_section_id');
   }
 
   public function method(){

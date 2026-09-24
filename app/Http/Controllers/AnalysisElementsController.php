@@ -93,7 +93,23 @@ class AnalysisElementsController extends Controller
     $element->reporting_time = $request->report_time;
     $element->show_on_report = $request->show_on_report ?? 0;
     $element->is_manual = $request->is_manual ?? 0;
-    $element->lab_section_id = $request->lab_section_id;
+    $analysisType = AnalysisType::find($request->analysis_type_id);
+    $typeLabSectionId = $analysisType?->lab_section_id;
+    $requestedLabSectionId = $request->lab_section_id;
+    if (
+        filled($typeLabSectionId)
+        && filled($requestedLabSectionId)
+        && (string) $requestedLabSectionId !== (string) $typeLabSectionId
+    ) {
+        return redirect()->back()->with(
+            'error',
+            'Analysis element lab section must match the analysis type lab section.'
+        );
+    }
+
+    $element->lab_section_id = filled($typeLabSectionId)
+        ? (string) $typeLabSectionId
+        : ($requestedLabSectionId ?: null);
     $element->remark_is_manual = $request->remark_is_manual ?? 0;
     $element->ltm_method_id = $request->ltm_method_id;
     $element->is_formular_required = $request->is_formular_required;

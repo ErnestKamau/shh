@@ -363,6 +363,23 @@
         padding: 5px 8px;
         border: 1px solid #000;
     }
+    .results-section-heading {
+        margin: 12px 0 0;
+        padding: 5px 8px;
+        background: #efe8e8;
+        border: 1px solid #000;
+        border-bottom: 0;
+        font-size: 9.5pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #222;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .results-section-heading + .results-table {
+        margin-top: 0;
+    }
     .results-table .analysis-group td {
         background: #efefef;
         font-weight: bold;
@@ -452,8 +469,8 @@
     .sig-company-line { font-size: 11pt; margin-bottom: 6px; color: #111; }
     .sig-image-box {
         display: inline-block;
-        border: 1px solid #7eb6d9;
-        padding: 4px 10px;
+        border: none;
+        padding: 4px 0;
         min-width: 140px;
         min-height: 42px;
         margin-top: 2px;
@@ -823,10 +840,6 @@
     'forPdf' => !empty($isPdfMode),
 ])
 
-@if(!empty($isPreviewMode) && empty($isEmbedded) && empty($isPdfMode))
-    <div class="trr-preview-watermark" aria-hidden="true"><span>Draft Preview</span></div>
-@endif
-
 @php
     $amendmentRevision = (int) ($ammendment?->version_number ?? ($batch->is_amendment ?? 0));
     $display = $amendmentDisplay ?? [];
@@ -902,123 +915,131 @@
                 'sampleIndex' => $loop->index,
             ])
 
-            <table class="results-table">
-                <thead>
-                    @php
-                            $includeReferenceMethod = !empty($includeReferenceMethod);
-                            $isBrazilExportationReport = !empty($isBrazilExportationReport);
-                            $optShowSpecification = isset($showSpecification)
-                                ? !empty($showSpecification)
-                                : ! $isBrazilExportationReport;
-                            $optShowSpecificationStandard = isset($showSpecificationStandard)
-                                ? !empty($showSpecificationStandard)
-                                : ! $isBrazilExportationReport;
-                            $optShowMuPercent = isset($showMuPercent)
-                                ? !empty($showMuPercent)
-                                : ! $isBrazilExportationReport;
+            @php
+                $includeReferenceMethod = !empty($includeReferenceMethod);
+                $isBrazilExportationReport = !empty($isBrazilExportationReport);
+                $optShowSpecification = isset($showSpecification)
+                    ? !empty($showSpecification)
+                    : ! $isBrazilExportationReport;
+                $optShowSpecificationStandard = isset($showSpecificationStandard)
+                    ? !empty($showSpecificationStandard)
+                    : ! $isBrazilExportationReport;
+                $optShowMuPercent = isset($showMuPercent)
+                    ? !empty($showMuPercent)
+                    : ! $isBrazilExportationReport;
 
-                            $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
-                            $isPresentReportValue = static function (mixed $value): bool {
-                                $trimmed = trim((string) ($value ?? ''));
-                                if ($trimmed === '') {
-                                    return false;
-                                }
+                $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
+                $isPresentReportValue = static function (mixed $value): bool {
+                    $trimmed = trim((string) ($value ?? ''));
+                    if ($trimmed === '') {
+                        return false;
+                    }
 
-                                return ! in_array($trimmed, ['-', '—', '–', 'N/A', 'n/a', 'NA'], true);
-                            };
-                            $sampleResultRows = [];
-                            $filterLabSectionIds = collect($filterLabSectionIds ?? [])
-                                ->map(static fn ($id): string => trim((string) $id))
-                                ->filter()
-                                ->values()
-                                ->all();
-                            if ($filterLabSectionIds === [] && filled($filterLabSectionId ?? null)) {
-                                $filterLabSectionIds = [trim((string) $filterLabSectionId)];
-                            }
-                            foreach ($sample->getSampleByAnalysisType() as $atLevel) {
-                                foreach ($atLevel->getCapturedResults() as $cr) {
-                                    if ($filterLabSectionIds !== []
-                                        && ! in_array((string) ($cr->lab_section_id ?? ''), $filterLabSectionIds, true)) {
-                                        continue;
-                                    }
-                                    $analysisMethod = $cr->method() ?: $cr->ltmethod;
-                                    $sampleResultRows[] = [
-                                        'cr' => $cr,
-                                        'loq' => $loqByCapturedResultId[$cr->id] ?? '-',
-                                        'spec' => $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
-                                        'spec_standard' => $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
-                                        'mu' => $measureUncertaintyByCapturedResultId[$cr->id] ?? '-',
-                                        'reference_method' => $analysisMethod?->referencemethod?->name ?? null,
-                                    ];
-                                }
-                            }
+                    return ! in_array($trimmed, ['-', '—', '–', 'N/A', 'n/a', 'NA'], true);
+                };
+                $sampleResultRows = [];
+                $filterLabSectionIds = collect($filterLabSectionIds ?? [])
+                    ->map(static fn ($id): string => trim((string) $id))
+                    ->filter()
+                    ->values()
+                    ->all();
+                if ($filterLabSectionIds === [] && filled($filterLabSectionId ?? null)) {
+                    $filterLabSectionIds = [trim((string) $filterLabSectionId)];
+                }
+                foreach ($sample->getSampleByAnalysisType() as $atLevel) {
+                    foreach ($atLevel->getCapturedResults() as $cr) {
+                        if ($filterLabSectionIds !== []
+                            && ! in_array((string) ($cr->lab_section_id ?? ''), $filterLabSectionIds, true)) {
+                            continue;
+                        }
+                        $analysisMethod = $cr->method() ?: $cr->ltmethod;
+                        $sectionId = trim((string) ($cr->lab_section_id ?? ''));
+                        $sectionName = trim((string) ($cr->labSection?->name ?? ''));
+                        if ($sectionName === '') {
+                            $sectionName = $labels['lab_section'] ?? 'Lab Section';
+                        }
+                        $sampleResultRows[] = [
+                            'cr' => $cr,
+                            'lab_section_id' => $sectionId !== '' ? $sectionId : '__unassigned__',
+                            'lab_section_name' => $sectionName,
+                            'loq' => $loqByCapturedResultId[$cr->id] ?? '-',
+                            'spec' => $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
+                            'spec_standard' => $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
+                            'mu' => $measureUncertaintyByCapturedResultId[$cr->id] ?? '-',
+                            'reference_method' => $analysisMethod?->referencemethod?->name ?? null,
+                        ];
+                    }
+                }
 
-                            $hasLoqValues = collect($sampleResultRows)->contains(
-                                fn ($row) => $isPresentReportValue($row['loq'] ?? null)
-                            );
-                            $hasSpecValues = collect($sampleResultRows)->contains(
-                                fn ($row) => $isPresentReportValue($row['spec'] ?? null)
-                            );
-                            $hasSpecStandardValues = collect($sampleResultRows)->contains(
-                                fn ($row) => $isPresentReportValue($row['spec_standard'] ?? null)
-                            );
-                            $hasMuValues = collect($sampleResultRows)->contains(
-                                fn ($row) => $isPresentReportValue($row['mu'] ?? null)
-                            );
-                            $hasReferenceMethodValues = collect($sampleResultRows)->contains(
-                                fn ($row) => $isPresentReportValue($row['reference_method'] ?? null)
-                            );
+                // One table per lab section — never mix sections under a shared header.
+                $resultsByLabSection = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
+                    ->groupResultRowsByLabSection(
+                        $sampleResultRows,
+                        (string) ($labels['lab_section'] ?? 'Lab Section'),
+                    );
+            @endphp
 
-                            // Omit columns when every cell would be blank / placeholder.
-                            $includeLoqCol = $hasLoqValues;
-                            $includeSpecCol = $optShowSpecification && $hasSpecValues;
-                            $includeSpecStandardCol = $optShowSpecificationStandard && $hasSpecStandardValues;
-                            $includeMuCol = $optShowMuPercent && $hasMuValues;
-                            $includeReferenceMethodCol = $includeReferenceMethod && $hasReferenceMethodValues;
+            @forelse ($resultsByLabSection as $section)
+                @php
+                    $sectionRows = $section['rows'];
+                    $hasLoqValues = collect($sectionRows)->contains(
+                        fn ($row) => $isPresentReportValue($row['loq'] ?? null)
+                    );
+                    $hasSpecValues = collect($sectionRows)->contains(
+                        fn ($row) => $isPresentReportValue($row['spec'] ?? null)
+                    );
+                    $hasSpecStandardValues = collect($sectionRows)->contains(
+                        fn ($row) => $isPresentReportValue($row['spec_standard'] ?? null)
+                    );
+                    $hasMuValues = collect($sectionRows)->contains(
+                        fn ($row) => $isPresentReportValue($row['mu'] ?? null)
+                    );
+                    $hasReferenceMethodValues = collect($sectionRows)->contains(
+                        fn ($row) => $isPresentReportValue($row['reference_method'] ?? null)
+                    );
 
-                            $resultsColspan = 4
-                                + ($includeLoqCol ? 1 : 0)
-                                + ($includeSpecCol ? 1 : 0)
-                                + ($includeSpecStandardCol ? 1 : 0)
-                                + ($includeMuCol ? 1 : 0)
-                                + ($includeReferenceMethodCol ? 1 : 0);
-                    @endphp
-                    <tr>
-                        <th style="width:{{ $includeReferenceMethodCol ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
-                        <th style="width:10%">{{ $labels['results'] }}</th>
-                        <th style="width:7%">{{ $labels['unit'] }}</th>
-                        @if($includeLoqCol)
-                        <th style="width:7%">{{ $labels['loq'] ?? 'LOQ' }}</th>
-                        @endif
-                        @if($includeSpecCol)
-                        <th style="width:12%">{{ $labels['specification'] }}</th>
-                        @endif
-                        @if($includeSpecStandardCol)
-                        <th style="width:12%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
-                        @endif
-                        @if($includeMuCol)
-                        <th style="width:6%">{{ $labels['mu_percent'] }}</th>
-                        @endif
-                        <th style="width:{{ $includeReferenceMethodCol ? '17%' : '19%' }}">{{ $labels['method'] }}</th>
-                        @if($includeReferenceMethodCol)
-                        <th style="width:14%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
-                        @endif
-                    </tr>
-                </thead>
-                <tbody>
-                    @php
-                        $hasRows = $sampleResultRows !== [];
-                        $labSection = trim((string) (($sampleDetailContexts[$loop->index]['lab_section'] ?? '') ?: ''));
-                    @endphp
-                    @if($labSection !== '')
-                    <tr class="results-lab-section">
-                        <td colspan="{{ $resultsColspan }}">
-                            <strong>{{ $labels['lab_section'] ?? 'Lab Section' }}</strong> : {{ $labSection }}
-                        </td>
-                    </tr>
-                    @endif
-                    @foreach ($sampleResultRows as $row)
-                        @php $cr = $row['cr']; @endphp
+                    // Column set is decided per lab section so Microbiology / Chemistry stay distinct.
+                    $includeLoqCol = $hasLoqValues;
+                    $includeSpecCol = $optShowSpecification && $hasSpecValues;
+                    $includeSpecStandardCol = $optShowSpecificationStandard && $hasSpecStandardValues;
+                    $includeMuCol = $optShowMuPercent && $hasMuValues;
+                    $includeReferenceMethodCol = $includeReferenceMethod && $hasReferenceMethodValues;
+
+                    $resultsColspan = 4
+                        + ($includeLoqCol ? 1 : 0)
+                        + ($includeSpecCol ? 1 : 0)
+                        + ($includeSpecStandardCol ? 1 : 0)
+                        + ($includeMuCol ? 1 : 0)
+                        + ($includeReferenceMethodCol ? 1 : 0);
+                @endphp
+                <div class="results-section-heading">{{ $section['name'] }}</div>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th style="width:{{ $includeReferenceMethodCol ? '15%' : '17%' }}">{{ $labels['analyte'] }}</th>
+                            <th style="width:10%">{{ $labels['results'] }}</th>
+                            <th style="width:7%">{{ $labels['unit'] }}</th>
+                            @if($includeLoqCol)
+                            <th style="width:7%">{{ $labels['loq'] ?? 'LOQ' }}</th>
+                            @endif
+                            @if($includeSpecCol)
+                            <th style="width:12%">{{ $labels['specification'] }}</th>
+                            @endif
+                            @if($includeSpecStandardCol)
+                            <th style="width:12%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
+                            @endif
+                            @if($includeMuCol)
+                            <th style="width:6%">{{ $labels['mu_percent'] }}</th>
+                            @endif
+                            <th style="width:{{ $includeReferenceMethodCol ? '17%' : '19%' }}">{{ $labels['method'] }}</th>
+                            @if($includeReferenceMethodCol)
+                            <th style="width:14%">{{ $labels['reference_method'] ?? 'Reference Method' }}</th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($sectionRows as $row)
+                            @php $cr = $row['cr']; @endphp
                             <tr>
                                 <td>
                                     {!! isset($cr->isitalic) && $cr->isitalic == 1 ? '<em>' . e($cr->analyte_code) . '</em>' : e($cr->analyte_code) !!}@if((int) ($cr->analyte_status_contracted ?? 0) === 1)<sup style="color:#c00;font-weight:bold;">¹</sup>@endif@if((int) ($cr->analyte_accredited ?? 1) === 0)<span style="color:#c00;font-weight:bold;">*</span>@endif
@@ -1044,16 +1065,28 @@
                                 <td>{{ !empty($row['reference_method']) ? strtoupper($row['reference_method']) : '-' }}</td>
                                 @endif
                             </tr>
-                    @endforeach
-                    @if(!$hasRows)
-                    <tr>
-                        <td colspan="{{ $resultsColspan }}" style="text-align:center;color:#888;font-style:italic;padding:8px;">
-                            {{ $labels['no_results'] }}
-                        </td>
-                    </tr>
-                    @endif
-                </tbody>
-            </table>
+                        @endforeach
+                    </tbody>
+                </table>
+            @empty
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th style="width:17%">{{ $labels['analyte'] }}</th>
+                            <th style="width:10%">{{ $labels['results'] }}</th>
+                            <th style="width:7%">{{ $labels['unit'] }}</th>
+                            <th style="width:19%">{{ $labels['method'] }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="4" style="text-align:center;color:#888;font-style:italic;padding:8px;">
+                                {{ $labels['no_results'] }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            @endforelse
 
             @if($sample->header_body)
             <div class="sample-remarks">

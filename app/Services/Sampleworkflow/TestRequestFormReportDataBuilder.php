@@ -173,7 +173,16 @@ class TestRequestFormReportDataBuilder
             'wasteWaterFields' => $wasteWaterFields,
             'signatures' => [
                 'statement_of_conformity' => $conformity,
-                'sampled_by' => (string) ($formData['sampled_by'] ?? $creator?->name ?? ''),
+                'sampled_by' => (static function () use ($formData, $creator): string {
+                    $raw = $formData['sampled_by'] ?? null;
+                    if ($raw === null || $raw === '') {
+                        return (string) ($creator?->name ?? '');
+                    }
+
+                    $label = \App\Services\Sampleworkflow\SampledByParty::displayLabel($raw);
+
+                    return $label !== '' ? $label : (string) $raw;
+                })(),
                 'customer_rep_name' => (string) ($formData['customer_rep_name'] ?? ''),
                 'customer_rep_signature' => (string) ($formData['customer_rep_signature'] ?? $formData['customer_representative_signature'] ?? ''),
                 'customer_rep_contact' => (string) ($formData['customer_rep_contact'] ?? ''),

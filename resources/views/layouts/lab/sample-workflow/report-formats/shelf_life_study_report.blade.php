@@ -390,6 +390,23 @@
         padding: 5px 8px;
         border: 1px solid #000;
     }
+    .results-section-heading {
+        margin: 12px 0 0;
+        padding: 5px 8px;
+        background: #efe8e8;
+        border: 1px solid #000;
+        border-bottom: 0;
+        font-size: 9.5pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #222;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .results-section-heading + .results-table {
+        margin-top: 0;
+    }
     .results-table .analysis-group td {
         background: #efefef;
         font-weight: bold;
@@ -479,8 +496,8 @@
     .sig-company-line { font-size: 11pt; margin-bottom: 6px; color: #111; }
     .sig-image-box {
         display: inline-block;
-        border: 1px solid #7eb6d9;
-        padding: 4px 10px;
+        border: none;
+        padding: 4px 0;
         min-width: 140px;
         min-height: 42px;
         margin-top: 2px;
@@ -849,10 +866,6 @@
     'forPdf' => !empty($isPdfMode),
 ])
 
-@if(!empty($isPreviewMode) && empty($isEmbedded) && empty($isPdfMode))
-    <div class="trr-preview-watermark" aria-hidden="true"><span>Draft Preview</span></div>
-@endif
-
 @php
     $amendmentRevision = (int) ($ammendment?->version_number ?? ($batch->is_amendment ?? 0));
     $display = $amendmentDisplay ?? [];
@@ -968,40 +981,55 @@
                 </tbody>
             </table>
 
-            <table class="results-table">
-                <thead>
-                    @php
-                        $resultsColspan = 7;
-                    @endphp
-                    <tr>
-                        <th style="width:18%">{{ $labels['analyte'] }}</th>
-                        <th style="width:12%">{{ $labels['results'] }}</th>
-                        <th style="width:8%">{{ $labels['unit'] }}</th>
-                        <th style="width:14%">{{ $labels['specification'] }}</th>
-                        <th style="width:16%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
-                        <th style="width:18%">{{ $labels['method'] }}</th>
-                        <th style="width:14%">{{ $labels['conclusion'] ?? 'Conclusion' }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @php
-                        $hasRows = false;
-                        $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
-                        $labSection = trim((string) (($sampleDetailContexts[$loop->index]['lab_section'] ?? '') ?: ''));
-                    @endphp
-                    @if($labSection !== '')
-                    <tr class="results-lab-section">
-                        <td colspan="{{ $resultsColspan }}">
-                            <strong>{{ $labels['lab_section'] ?? 'Lab Section' }}</strong> : {{ $labSection }}
-                        </td>
-                    </tr>
-                    @endif
-                    @foreach ($sample->getSampleByAnalysisType() as $atLevel)
-                        @php $captured_results = $atLevel->getCapturedResults(); @endphp
-                        @foreach ($captured_results as $cr)
+            @php
+                $standardLimitDisplay = app(\App\Services\StandardLimitDisplayService::class);
+                $sampleResultRows = [];
+                foreach ($sample->getSampleByAnalysisType() as $atLevel) {
+                    foreach ($atLevel->getCapturedResults() as $cr) {
+                        $sectionId = trim((string) ($cr->lab_section_id ?? ''));
+                        $sectionName = trim((string) ($cr->labSection?->name ?? ''));
+                        if ($sectionName === '') {
+                            $sectionName = $labels['lab_section'] ?? 'Lab Section';
+                        }
+                        $sampleResultRows[] = [
+                            'cr' => $cr,
+                            'lab_section_id' => $sectionId !== '' ? $sectionId : '__unassigned__',
+                            'lab_section_name' => $sectionName,
+                            'conclusion' => $conclusionByCapturedResultId[$cr->id] ?? '—',
+                            'spec' => $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
+                            'spec_standard' => $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-',
+                        ];
+                    }
+                }
+
+                $resultsByLabSection = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
+                    ->groupResultRowsByLabSection(
+                        $sampleResultRows,
+                        (string) ($labels['lab_section'] ?? 'Lab Section'),
+                    );
+
+                $resultsColspan = 7;
+            @endphp
+
+            @forelse ($resultsByLabSection as $section)
+                <div class="results-section-heading">{{ $section['name'] }}</div>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th style="width:18%">{{ $labels['analyte'] }}</th>
+                            <th style="width:12%">{{ $labels['results'] }}</th>
+                            <th style="width:8%">{{ $labels['unit'] }}</th>
+                            <th style="width:14%">{{ $labels['specification'] }}</th>
+                            <th style="width:16%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
+                            <th style="width:18%">{{ $labels['method'] }}</th>
+                            <th style="width:14%">{{ $labels['conclusion'] ?? 'Conclusion' }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($section['rows'] as $row)
                             @php
-                                $hasRows = true;
-                                $conclusion = $conclusionByCapturedResultId[$cr->id] ?? '—';
+                                $cr = $row['cr'];
+                                $conclusion = $row['conclusion'];
                             @endphp
                             <tr>
                                 <td>
@@ -1011,28 +1039,38 @@
                                     {{ ($cr->result_reporting_symbol ?? '') . ($cr->result !== null && $cr->result !== '' ? $cr->result : '-') }}
                                 </td>
                                 <td>{{ resolveReportingUnitLabel($cr->reporting_unit_id ?? null) }}</td>
-                                <td>
-                                    {{ $standardLimitDisplay->forCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
-                                </td>
-                                <td>
-                                    {{ $standardLimitDisplay->standardNameForCapturedResult($cr, $sample->main_standard ?? null) ?? '-' }}
-                                </td>
+                                <td>{{ $row['spec'] }}</td>
+                                <td>{{ $row['spec_standard'] }}</td>
                                 <td>{{ strtoupper($cr->method()?->name ?? $cr->ltmethod?->name ?? '-') }}</td>
                                 <td class="{{ strtoupper((string) $conclusion) === 'FAIL' ? 'fail' : (strtoupper((string) $conclusion) === 'PASS' ? 'pass' : '') }}">
                                     {{ $conclusion }}
                                 </td>
                             </tr>
                         @endforeach
-                    @endforeach
-                    @if(!$hasRows)
-                    <tr>
-                        <td colspan="{{ $resultsColspan }}" style="text-align:center;color:#888;font-style:italic;padding:8px;">
-                            {{ $labels['no_results'] }}
-                        </td>
-                    </tr>
-                    @endif
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            @empty
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th style="width:18%">{{ $labels['analyte'] }}</th>
+                            <th style="width:12%">{{ $labels['results'] }}</th>
+                            <th style="width:8%">{{ $labels['unit'] }}</th>
+                            <th style="width:14%">{{ $labels['specification'] }}</th>
+                            <th style="width:16%">{{ $labels['standard_name'] ?? 'Specification Standard' }}</th>
+                            <th style="width:18%">{{ $labels['method'] }}</th>
+                            <th style="width:14%">{{ $labels['conclusion'] ?? 'Conclusion' }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="{{ $resultsColspan }}" style="text-align:center;color:#888;font-style:italic;padding:8px;">
+                                {{ $labels['no_results'] }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            @endforelse
 
             @if($sample->header_body)
             <div class="sample-remarks">

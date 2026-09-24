@@ -769,13 +769,67 @@
 
 	#receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
 		flex: 1 1 auto;
-		padding: 1.35rem 1.75rem 1.5rem;
+		padding: 1.1rem 1.75rem 0.85rem;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-body {
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 auto;
+		min-height: 0;
+		height: 100%;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake {
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake > .d-flex,
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake > .dr-success-banner {
+		flex: 0 0 auto;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .dr-select-trf {
+		flex: 1 1 auto;
 		min-height: 0;
 	}
 
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard-shell {
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard {
+		flex: 0 0 auto;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard__steps {
+		margin-bottom: 0.85rem;
+	}
+
+	#receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard__panel {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
 	#receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-footer {
-		padding: 1rem 0 0.25rem;
-		margin-top: 0.5rem;
+		flex: 0 0 auto;
+		margin-top: 0.35rem !important;
+		padding-top: 0.55rem !important;
+		padding-bottom: 0 !important;
 	}
 
 	#receive-sample-modal .dr-ext-nav {
@@ -876,7 +930,7 @@
 		}
 
 		#receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
-			padding: 1.1rem 1.15rem 1.25rem;
+			padding: 0.95rem 1.15rem 0.75rem;
 		}
 
 		#receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header {
@@ -7342,6 +7396,17 @@
 						});
 					}
 				}, 120);
+			});
+
+			Livewire.on('trf-sync-copied-sample-fields', function () {
+				setTimeout(function () {
+					if (typeof window.initWalkInLsSelect2 === 'function') {
+						window.initWalkInLsSelect2(null, true);
+					}
+					if (typeof window.initWalkInTrfParameterSelects === 'function') {
+						window.initWalkInTrfParameterSelects();
+					}
+				}, 150);
 			});
 
 			Livewire.on('trf-reset-all-parameter-selects', function () {

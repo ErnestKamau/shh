@@ -68,6 +68,7 @@
                                         <th>Name</th>
                                         <th>Report display</th>
                                         <th>Method</th>
+                                        <th>Lab section</th>
                                         <th>Reporting unit</th>
                                         <th>TAT</th>
                                         <th>LOQ</th>
@@ -79,6 +80,7 @@
                                             <td x-text="param.name"></td>
                                             <td x-text="param.report_display_name"></td>
                                             <td x-text="param.method"></td>
+                                            <td x-text="param.lab_section || '—'"></td>
                                             <td x-text="param.reporting_unit"></td>
                                             <td x-text="param.tat"></td>
                                             <td x-text="param.loq"></td>

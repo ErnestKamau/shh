@@ -31,7 +31,16 @@ class Info extends Component
     /** @var Collection<int, CustomerContact> */
     public Collection $customerContacts;
 
-    protected $listeners = ['batchUpdated' => '$refresh'];
+    protected $listeners = ['batchUpdated' => 'onBatchUpdated'];
+
+    public function onBatchUpdated(): void
+    {
+        $this->batch->refresh();
+        $this->selectedModeOfPayment = $this->resolveModeOfPaymentForCustomer(
+            $this->batch->crm_customer_id ? (string) $this->batch->crm_customer_id : null
+        );
+        $this->customerContacts = $this->loadCustomerContacts();
+    }
 
     public function mount(
         SampleHeader $batch,
@@ -66,6 +75,9 @@ class Info extends Component
 
         $this->backfillContactFieldsFromSubmissionForm();
         $this->customerContacts = $this->loadCustomerContacts();
+        app(\App\Services\Sampleworkflow\SampleAnalysisSetupService::class)
+            ->syncBatchSampleTypeIdFromSamples($this->batch);
+        $this->batch->refresh();
     }
 
     private function loadCustomerContacts(): Collection
@@ -153,8 +165,12 @@ class Info extends Component
         $exportationSampleInfo = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class)
             ->exportationSampleInfoForBatch($this->batch);
 
+        $batchSampleTypes = app(\App\Services\Sampleworkflow\SampleAnalysisSetupService::class)
+            ->sampleTypeLabelsFromSamples($this->batch);
+
         return view('livewire.batch.info', [
             'exportationSampleInfo' => $exportationSampleInfo,
+            'batchSampleTypes' => $batchSampleTypes,
         ]);
     }
 }

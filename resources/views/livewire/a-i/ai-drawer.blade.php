@@ -102,17 +102,17 @@
     </div>
 
     <template x-teleport="body">
-        <div x-show="open" style="display: none;">
-            {{-- Backdrop --}}
+        <div x-show="open" x-cloak style="display: none;">
+            {{-- Backdrop (visibility controlled only by parent x-show) --}}
             <div
-                class="ai-drawer-backdrop show" 
+                class="ai-drawer-backdrop"
                 @click="open = false"
                 style="z-index: 1000000 !important;"
             ></div>
 
             {{-- Main Drawer --}}
             <div
-                class="ai-drawer open" 
+                class="ai-drawer"
                 id="ai-drawer-container"
                 style="z-index: 1000001 !important;"
                 x-transition:enter="transition ease-out duration-300"
@@ -182,8 +182,9 @@
         .ai-drawer-trigger { width: 60px; height: 60px; background: linear-gradient(135deg, #a72b2a, #d9534f); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(167, 43, 42, 0.35); cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); color: white; font-size: 24px; }
         .ai-drawer-trigger:hover { transform: scale(1.1); box-shadow: 0 12px 25px rgba(167, 43, 42, 0.45); }
         .ai-drawer-trigger.active { transform: scale(0); opacity: 0; pointer-events: none; }
-        .ai-drawer-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(2px); }
+        .ai-drawer-backdrop { position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(2px); }
         .ai-drawer { position: fixed; top: 0; right: 0; width: 550px; height: 100vh; background: #fff; box-shadow: -10px 0 40px rgba(0,0,0,0.15); display: flex; flex-direction: column; }
+        [x-cloak] { display: none !important; }
         .ai-drawer-header { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; }
         .ai-logo-small { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
         .ai-drawer-body { flex: 1; overflow-y: auto; padding: 20px; background-color: #f8fafc; display: flex; flex-direction: column; gap: 15px; }

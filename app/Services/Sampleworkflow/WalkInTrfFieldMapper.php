@@ -38,13 +38,18 @@ final class WalkInTrfFieldMapper
             $readonly = false;
         }
 
+        $options = $element->options ?? [];
+        if ($name === 'sampled_by') {
+            $options = SampledByParty::selectOptions();
+        }
+
         return [
             'name' => $name,
             'label' => $label,
             'type' => $type,
             'required' => (bool) ($element->is_required ?? false),
             'readonly' => $readonly,
-            'options' => $element->options ?? [],
+            'options' => $options,
         ];
     }
 }

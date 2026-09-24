@@ -72,4 +72,93 @@ class TrfCollectionPerSamplePromotionTest extends TestCase
         $this->assertSame('10:15', $result['sampling_time']);
         $this->assertSame('EQ-1', $result['thermometer_id']);
     }
+
+    public function test_request_view_context_rail_reads_collection_fields_from_sample_rows(): void
+    {
+        $form = new \App\Models\SubmissionForm([
+            'id' => (string) \Illuminate\Support\Str::uuid7(),
+            'name' => 'Food TRF',
+            'document_code' => 'TRF-FOOD',
+        ]);
+        $instance = new \App\Models\SubmissionFormInstance([
+            'id' => (string) \Illuminate\Support\Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'status' => 'submitted',
+            'title' => 'Portal request',
+        ]);
+        $instance->setRelation('batches', collect());
+        $instance->setRelation('crmCustomer', null);
+
+        $presenter = new \App\Services\SubmissionForm\RequestViewPagePresenter(
+            instance: $instance,
+            submissionForm: $form,
+            commercialEnquiry: null,
+        );
+
+        $rail = $presenter->contextRail([
+            'sections' => [
+                [
+                    'title' => 'Sample collection data',
+                    'section_type' => 'regular',
+                    'element_holders' => [
+                        ['holder_type' => 'field', 'elements' => []],
+                    ],
+                ],
+                [
+                    'title' => 'Test & sample information',
+                    'section_type' => 'rows_section',
+                    'element_holders' => [
+                        [
+                            'holder_type' => 'rows',
+                            'elements' => [
+                                [
+                                    'name' => 'sampling_date',
+                                    'label' => 'Sampling date',
+                                    'element_type' => 'date',
+                                    'saved_values' => [
+                                        ['value' => '2026-09-22', 'display_value' => '2026-09-22', 'array_index' => 0],
+                                        ['value' => '2026-09-22', 'display_value' => '2026-09-22', 'array_index' => 1],
+                                    ],
+                                ],
+                                [
+                                    'name' => 'sampling_location',
+                                    'label' => 'Sampling location',
+                                    'element_type' => 'text',
+                                    'saved_values' => [
+                                        ['value' => 'Line A', 'display_value' => 'Line A', 'array_index' => 0],
+                                        ['value' => 'Line B', 'display_value' => 'Line B', 'array_index' => 1],
+                                    ],
+                                ],
+                                [
+                                    'name' => 'sample_description',
+                                    'label' => 'Sample description',
+                                    'element_type' => 'textarea',
+                                    'saved_values' => [
+                                        ['value' => 'Chicken', 'display_value' => 'Chicken', 'array_index' => 0],
+                                    ],
+                                ],
+                                [
+                                    'name' => 'thermometer_id',
+                                    'label' => 'Equipment ID',
+                                    'element_type' => 'text',
+                                    'saved_values' => [
+                                        ['value' => '["1234"]', 'display_value' => '["1234"]', 'array_index' => 0],
+                                        ['value' => '["1234"]', 'display_value' => '["1234"]', 'array_index' => 1],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], []);
+
+        $byName = collect($rail['sample_collection'])->keyBy('name');
+
+        $this->assertCount(3, $rail['sample_collection']);
+        $this->assertSame('2026-09-22', $byName['sampling_date']['value']);
+        $this->assertSame('Sample 1: Line A · Sample 2: Line B', $byName['sampling_location']['value']);
+        $this->assertSame('1234', $byName['thermometer_id']['value']);
+        $this->assertFalse($byName->has('sample_description'));
+    }
 }

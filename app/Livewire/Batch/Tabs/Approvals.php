@@ -75,6 +75,8 @@ class Approvals extends Component
     public function getApproversProperty()
     {
         return $this->batch->approvers()
+            // Clear relationship default (created_at desc) so chronology wins.
+            ->reorder()
             ->when($this->search, function($query) {
                 $query->where(function($q) {
                     $q->where('approvername', 'like', '%' . $this->search . '%')
@@ -84,7 +86,10 @@ class Approvals extends Component
                       ->orWhere('workflow', 'like', '%' . $this->search . '%');
                 });
             })
-            ->orderBy('created_at', 'desc')
+            // First action first; pending (null date) last.
+            ->orderByRaw('CASE WHEN approval_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('approval_date', 'asc')
+            ->orderBy('created_at', 'asc')
             ->paginate($this->perPage);
     }
 

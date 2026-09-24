@@ -26,8 +26,17 @@ class SafeEncrypted implements CastsAttributes
             return $value;
         }
 
+        if (is_array($value)) {
+            return collect($value)
+                ->flatten()
+                ->filter(static fn ($item): bool => is_scalar($item) || $item === null)
+                ->map(static fn ($item): string => (string) ($item ?? ''))
+                ->filter(static fn (string $item): bool => $item !== '')
+                ->implode(', ');
+        }
+
         if (! is_string($value) || ! str_starts_with($value, 'eyJ')) {
-            return $value;
+            return is_scalar($value) ? (string) $value : '';
         }
 
         $current = $value;
@@ -61,7 +70,16 @@ class SafeEncrypted implements CastsAttributes
             $guard++;
         }
 
-        return $current;
+        if (is_array($current)) {
+            return collect($current)
+                ->flatten()
+                ->filter(static fn ($item): bool => is_scalar($item) || $item === null)
+                ->map(static fn ($item): string => (string) ($item ?? ''))
+                ->filter(static fn (string $item): bool => $item !== '')
+                ->implode(', ');
+        }
+
+        return is_scalar($current) || $current === null ? $current : (string) $current;
     }
 
     public function set(Model $model, string $key, mixed $value, array $attributes): mixed

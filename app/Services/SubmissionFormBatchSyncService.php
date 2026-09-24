@@ -335,10 +335,19 @@ class SubmissionFormBatchSyncService
             }
         }
 
-        if (array_key_exists('sampling_officer_name', $headerData)) {
+        if (array_key_exists('sampled_by', $headerData)) {
+            $sampledBy = $getSingleValue($headerData['sampled_by'] ?? null);
+            $partyFlag = \App\Services\Sampleworkflow\SampledByParty::companyPersonnelFlag($sampledBy);
+            if ($partyFlag !== null) {
+                $attributes['sampled_by_company_personnel'] = $partyFlag;
+                $attributes['sampling_officer_name'] = \App\Services\Sampleworkflow\SampledByParty::displayLabel($sampledBy);
+            } elseif ($sampledBy !== null && $sampledBy !== '') {
+                $attributes['sampling_officer_name'] = $sampledBy;
+            }
+        }
+
+        if (array_key_exists('sampling_officer_name', $headerData) && ! array_key_exists('sampling_officer_name', $attributes)) {
             $attributes['sampling_officer_name'] = $getSingleValue($headerData['sampling_officer_name'] ?? null);
-        } elseif (array_key_exists('sampled_by', $headerData)) {
-            $attributes['sampling_officer_name'] = $getSingleValue($headerData['sampled_by'] ?? null);
         }
 
         if (array_key_exists('radio_active_levels', $headerData)) {
@@ -377,6 +386,12 @@ class SubmissionFormBatchSyncService
         ]);
 
         foreach ($trfMapped as $key => $value) {
+            if ($key === 'sampled_by_company_personnel' && ($value === 0 || $value === 1 || $value === '0' || $value === '1')) {
+                $proposed[$key] = (int) $value;
+
+                continue;
+            }
+
             if ($value === null || $value === '') {
                 continue;
             }
@@ -428,6 +443,7 @@ class SubmissionFormBatchSyncService
         $intKeys = [
             'crm_customer_id', 'crm_contact_id', 'sampling_method_id', 'require_mu', 'quote_id',
             'is_routine', 'routine_frequency', 'is_client_order', 'receiving_officer',
+            'sampled_by_company_personnel',
         ];
 
         $normCurrent = $this->normalizeHeaderValueForCompare($current, $key, $dateKeys, $intKeys);

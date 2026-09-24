@@ -128,6 +128,11 @@
             @break
             
         @case('select')
+            @php
+                $selectOptions = ((string) ($element->name ?? '') === 'sampled_by')
+                    ? \App\Services\Sampleworkflow\SampledByParty::selectOptions()
+                    : ($element->options ?? []);
+            @endphp
             <select class="form-control" 
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
@@ -136,7 +141,7 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select an option...' }}</option>
                 @endif
-                @foreach($element->options ?? [] as $option)
+                @foreach($selectOptions as $option)
                     <option value="{{ $option['value'] ?? $option }}" 
                             {{ ($fieldValue == ($option['value'] ?? $option)) ? 'selected' : '' }}>
                         {{ $option['label'] ?? $option }}

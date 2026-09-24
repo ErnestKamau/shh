@@ -14,41 +14,134 @@ class StandardLimitDisplayService
     private array $standardAnalyteCache = [];
 
     /**
-     * Resolve the display string for a captured result's main standard limit.
+     * Resolve the display string for a captured result's effective standard limit.
+     * Prefers main, then secondary, then third when the analyte only exists on a later specification.
      */
     public function forCapturedResult(CapturedResult $captured, string|int|null $fallbackStandardId = null): ?string
     {
-        $standardId = $captured->main_standard_id
-            ?: $fallbackStandardId
-            ?: $captured->sample?->main_standard;
+        return $this->resolveCapturedResultSpecification($captured, $fallbackStandardId)['limit'];
+    }
 
-        $fromStandard = $this->format($standardId, $captured->analyte_id, null, $captured->main_standard_id);
+    /**
+     * Resolve the standard name (or code) for the specification that supplies the limit.
+     */
+    public function standardNameForCapturedResult(CapturedResult $captured, string|int|null $fallbackStandardId = null): ?string
+    {
+        return $this->resolveCapturedResultSpecification($captured, $fallbackStandardId)['name'];
+    }
 
-        $mainValue = $captured->main_value;
-        if ($mainValue && $mainValue !== 'NS') {
-            if ($fromStandard !== null && $this->isLimitTypeOnly((string) $mainValue)) {
+    /**
+     * Pick the first usable specification among main → secondary → third.
+     *
+     * @return array{standard_id: ?string, name: ?string, limit: ?string}
+     */
+    public function resolveCapturedResultSpecification(
+        CapturedResult $captured,
+        string|int|null $fallbackStandardId = null,
+    ): array {
+        $sample = $captured->relationLoaded('sample')
+            ? $captured->sample
+            : $captured->sample()->first();
+
+        $candidates = [
+            [
+                'standard_id' => $captured->main_standard_id
+                    ?: $fallbackStandardId
+                    ?: $sample?->main_standard,
+                'captured_fk' => $captured->main_standard_id,
+                'stored_value' => $captured->main_value,
+            ],
+            [
+                'standard_id' => $captured->secondary_standard_id ?: $sample?->secondary_standard,
+                'captured_fk' => $captured->secondary_standard_id,
+                'stored_value' => $captured->secondary_value,
+            ],
+            [
+                'standard_id' => $captured->third_standard_id ?: $sample?->third_standard_id,
+                'captured_fk' => $captured->third_standard_id,
+                'stored_value' => null,
+            ],
+        ];
+
+        $seen = [];
+        $firstAssignedId = null;
+
+        foreach ($candidates as $candidate) {
+            $standardId = $this->nonEmptyId($candidate['standard_id'] ?? null);
+            if ($standardId === null) {
+                continue;
+            }
+
+            if ($firstAssignedId === null) {
+                $firstAssignedId = $standardId;
+            }
+
+            if (isset($seen[$standardId])) {
+                continue;
+            }
+            $seen[$standardId] = true;
+
+            $limit = $this->limitForSpecificationCandidate(
+                $standardId,
+                $captured->analyte_id,
+                $candidate['stored_value'] ?? null,
+                $candidate['captured_fk'] ?? null,
+            );
+
+            if ($limit === null) {
+                continue;
+            }
+
+            return [
+                'standard_id' => $standardId,
+                'name' => $this->resolveStandardDisplayName($standardId),
+                'limit' => $limit,
+            ];
+        }
+
+        return [
+            'standard_id' => $firstAssignedId,
+            'name' => $firstAssignedId !== null ? $this->resolveStandardDisplayName($firstAssignedId) : null,
+            'limit' => null,
+        ];
+    }
+
+    private function limitForSpecificationCandidate(
+        string|int|null $standardId,
+        string|int|null $analyteId,
+        mixed $storedValue,
+        string|int|null $capturedStandardForeignKey = null,
+    ): ?string {
+        $fromStandard = $this->format($standardId, $analyteId, null, $capturedStandardForeignKey);
+        $stored = $this->usableStoredLimitValue($storedValue);
+
+        if ($stored !== null) {
+            if ($fromStandard !== null && $this->isLimitTypeOnly($stored)) {
                 return $fromStandard;
             }
 
-            return (string) $mainValue;
+            return $stored;
         }
 
         return $fromStandard;
     }
 
-    /**
-     * Resolve the standard name (or code) for a captured result.
-     */
-    public function standardNameForCapturedResult(CapturedResult $captured, string|int|null $fallbackStandardId = null): ?string
+    private function usableStoredLimitValue(mixed $value): ?string
     {
-        $standardId = $captured->main_standard_id
-            ?: $fallbackStandardId
-            ?: $captured->sample?->main_standard;
-
-        if (! $standardId) {
+        if ($value === null || $value === false) {
             return null;
         }
 
+        $trimmed = trim((string) $value);
+        if ($trimmed === '' || in_array($trimmed, ['NS', '-', '—', '–', 'N/A', 'n/a', 'NA'], true)) {
+            return null;
+        }
+
+        return $trimmed;
+    }
+
+    protected function resolveStandardDisplayName(string|int $standardId): ?string
+    {
         $standard = Standards::query()->find($standardId);
         if (! $standard) {
             return null;

@@ -94,6 +94,7 @@ class AmspecDubaiTrfCategoryBindSeeder extends Seeder
         ]);
         $this->patchSampleRowsSection($form, $this->foodTrfRowFields());
         $this->patchMiscellaneousSection($form);
+        $this->patchSubmitAndSignSection($form);
         $this->promoteCollectionFieldsToSampleRows($form, [
             ['value' => 'air_sampler', 'label' => 'Air sampler'],
         ]);
@@ -118,6 +119,7 @@ class AmspecDubaiTrfCategoryBindSeeder extends Seeder
         $this->patchCollectionDataSection($form, true);
         $this->patchSampleRowsSection($form, $this->waterTrfRowFields());
         $this->patchMiscellaneousSection($form);
+        $this->patchSubmitAndSignSection($form);
         $this->promoteCollectionFieldsToSampleRows($form);
 
         $this->command?->info('Visible TRF '.self::WATER_DOCUMENT_CODE.' → '.implode(', ', self::WATER_CATEGORIES).'.');

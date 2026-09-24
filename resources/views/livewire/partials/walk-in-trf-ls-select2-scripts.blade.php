@@ -15,9 +15,21 @@
 			return $rvModal;
 		}
 
-		const $shell = $el.closest('.walk-in-trf-wizard-shell, .workflow-board-panel, .trf-ls-theme');
+		// Prefer the wizard shell; it is position:relative in page mode so Select2
+		// absolute dropdowns do not attach to body or inflate #main-container-body.
+		const $shell = $el.closest('.walk-in-trf-wizard-shell');
 		if ($shell.length) {
 			return $shell;
+		}
+
+		const $panel = $el.closest('.workflow-board-panel');
+		if ($panel.length) {
+			return $panel;
+		}
+
+		const $theme = $el.closest('.trf-ls-theme');
+		if ($theme.length) {
+			return $theme;
 		}
 
 		return $(document.body);
@@ -359,7 +371,7 @@
 
 	window.initOneWalkInSelect2 = initOneWalkInSelect2;
 
-	window.initWalkInLsSelect2 = function (scope) {
+	window.initWalkInLsSelect2 = function (scope, forceReinit) {
 		if (! $ || ! $.fn.select2) {
 			return;
 		}
@@ -371,7 +383,11 @@
 					const prev = JSON.stringify($el.data('walkInLsBoundValues') || []);
 					const next = JSON.stringify($el.val() || []);
 					const optsChanged = $el.data('walkInLsOptionSig') !== String($el.find('option').length);
-					if (prev === next && ! optsChanged) {
+					const storedParent = $el.data('select2')?.options?.options?.dropdownParent;
+					const parentDetached = storedParent && storedParent.length && ! storedParent[0].isConnected;
+					const parentIsBody = storedParent && storedParent[0] === document.body;
+					const shouldKeep = ! forceReinit && prev === next && ! optsChanged && ! parentDetached && ! parentIsBody;
+					if (shouldKeep) {
 						return;
 					}
 					$el.off('change.walkInLs').off('.lsDdSearch').select2('destroy');

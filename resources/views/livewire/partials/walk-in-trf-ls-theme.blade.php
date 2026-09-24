@@ -49,6 +49,18 @@
 		border: 0 !important;
 		padding: 0 !important;
 		min-height: 0 !important;
+		/* Select2 dropdownParent + absolute menus need a local containing block
+		   without becoming a nested scrollport (ls-ui-kit sets overflow-x: clip). */
+		position: relative;
+		overflow: visible !important;
+		overflow-x: visible !important;
+		overflow-y: visible !important;
+	}
+
+	.rft-page-shell.ls-ui-kit {
+		overflow: visible !important;
+		overflow-x: visible !important;
+		overflow-y: visible !important;
 	}
 
 	.trf-ls-theme .walk-in-trf-wizard__panel--samples {

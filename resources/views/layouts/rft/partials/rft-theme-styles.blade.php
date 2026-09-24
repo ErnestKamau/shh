@@ -2095,7 +2095,7 @@
 
 	/* TRF tests modal — quotation parameters console styling */
 	.rft-trf-params-modal {
-		position: fixed;
+		position: fixed !important;
 		inset: 0;
 		z-index: 2200;
 		display: flex;
@@ -2104,6 +2104,11 @@
 		padding: 1rem;
 		background: rgba(15, 23, 42, 0.45);
 		pointer-events: auto;
+	}
+
+	.rft-trf-params-modal[x-cloak],
+	.rft-trf-params-modal[style*="display: none"] {
+		display: none !important;
 	}
 
 	.rft-trf-params-modal__dialog {

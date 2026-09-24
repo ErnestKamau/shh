@@ -132,7 +132,32 @@ final class BulkTestRequestReportService
                             throw new \RuntimeException('no results for selected lab section');
                         }
 
-                        $sequence = max(1, (int) ($batch->test_request_report_sequence ?? 0));
+                        // Section-scoped: still advance revision like a full generate.
+                        $ammendment = BatchAmmendment::resolveForBatch($batch);
+                        $wasInAmendment = (int) ($batch->in_ammendment_proccess ?? 0) === 1;
+
+                        $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+                        $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+                        $batch->test_request_report_sequence = max($nextFromSequence, $amendmentVersion);
+
+                        if ($wasInAmendment) {
+                            $batch->in_ammendment_proccess = 0;
+                        }
+                        $batch->save();
+
+                        $notes = $ammendment ? (string) $ammendment->reason : null;
+
+                        TestRequestReportRevision::query()->create([
+                            'batch_id' => $batch->id,
+                            'revision_no' => $batch->test_request_report_sequence,
+                            'language' => $language,
+                            'notes' => $notes !== '' ? $notes : null,
+                            'generated_by' => $actor->id,
+                        ]);
+
+                        $this->numbering->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
+
+                        $sequence = (int) $batch->test_request_report_sequence;
                         $stored = $this->pdfService->generateAndStore(
                             $batch->fresh(['customer', 'sample_type', 'samples']),
                             $sequence,
@@ -143,6 +168,7 @@ final class BulkTestRequestReportService
                         $reportNumber = app(AmendmentReportConfigurationService::class)
                             ->formatReportNumber((string) $batch->batch_code, $sequence);
 
+                        // Do not overwrite the stored official full Test Report file URL.
                         return [
                             'batch_id' => (string) $batch->id,
                             'batch_code' => (string) $batch->batch_code,
