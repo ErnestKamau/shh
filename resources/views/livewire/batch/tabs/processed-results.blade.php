@@ -42,13 +42,23 @@
                         </thead>
                         <tbody>
                             @foreach($processedResults as $result)
+                            @php
+                                $displayResult = $result->result;
+                                if ($displayResult === null || $displayResult === '') {
+                                    $displayResult = $result->captured->result ?? '';
+                                }
+                                $displayRemark = $result->remarks;
+                                if ($displayRemark === null || $displayRemark === '') {
+                                    $displayRemark = $result->captured->remark ?? null;
+                                }
+                            @endphp
                             <tr>
                                 <td>{{ $result->captured->sample->sample_code ?? 'N/A' }}</td>
                                 <td>{{ $result->captured->analysis_type->name ?? 'N/A' }}</td>
                                 <td>{{ $result->analyte_code ?? 'N/A' }}</td>
-                                <td><strong>{{ $result->result }}</strong></td>
+                                <td><strong>{{ $displayResult }}</strong></td>
                                 <td>{{ $result->captured->operator->name ?? 'N/A' }}</td>
-                                <td><small>{{ format_result_remark($result->remarks ?? null) ?: ($result->remarks ?? '-') }}</small></td>
+                                <td><small>{{ format_result_remark($displayRemark) ?: ($displayRemark ?? '-') }}</small></td>
                             </tr>
                             @endforeach
                         </tbody>

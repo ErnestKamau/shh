@@ -169,6 +169,8 @@
                     <span class="badge badge-info batch-priority-pill">Prelim</span>
                 @elseif(isset($batch->id) && $batch->prelim_report_status == 2)
                     <span class="badge badge-secondary batch-priority-pill">Draft</span>
+                @elseif(isset($batch->id) && (int) $batch->prelim_report_status === 3)
+                    <span class="badge badge-warning batch-priority-pill">Partial / interim</span>
                 @else
                     @if(isset($batch->priority) && $batch->priority != "Normal")
                         <span class="batch-priority-pill" style="background:#fff5f5; color:#dc2626; border:1px solid #fecaca;">
@@ -259,30 +261,7 @@
                             aria-labelledby="batchActionsDropdownToggle"
                             @click="if ($event.target.closest('.dropdown-item, [data-toggle=\'modal\'], form')) { open = false; }">
 
-                                @if(isset($batch->status) && in_array($batch->status, ['Samples In Lab', 'Reports In Payment', 'Reports for Collection'], true) && Auth::user()->is_client == 0)
-                                    <li>
-                                        <a href="{{ route('batch.request-test-worksheet-pdf', ['batch' => $batch->id]) }}"
-                                           class="dropdown-item" target="_blank">
-                                            <i class="mdi mdi-file-pdf-box mr-2"></i> Generate tests PDF
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{{ route('batch.request-test-worksheet-print', ['batch' => $batch->id]) }}"
-                                           class="dropdown-item" target="_blank">
-                                            <i class="mdi mdi-printer mr-2"></i> Print tests PDF
-                                        </a>
-                                    </li>
-                                    @if($batch->status === 'Samples In Lab')
-                                        <li>
-                                            <a href="#raw-results"
-                                               class="dropdown-item"
-                                               onclick="event.preventDefault(); var tab = document.getElementById('raw-results-tab'); if (tab) { tab.click(); }">
-                                                <i class="mdi mdi-eye-outline mr-2"></i> View results
-                                            </a>
-                                        </li>
-                                    @endif
-                                    <li><hr class="dropdown-divider"></li>
-                                @endif
+                                {{-- Generate tests PDF / Print tests PDF / View results removed from Actions --}}
                                 @if(isset($batch->id))
                                     @if(isCompletedReportStatus($batch->status) && filled($batch->batch_report_url))
                                     <?php            $reportpath = '/storage' . $batch->batch_report_url; ?>
@@ -312,6 +291,7 @@
                                             </span>
                                         </li>
                                     @endif
+                                    {{--
                                     @if($batch->schedule_analysis_sent == '')
                                         <li>
                                             <span class="btn btn-sm dropdown-item" wire:click="$set('showSendScheduleModal', true)"
@@ -320,6 +300,7 @@
                                             </span>
                                         </li>
                                     @endif
+                                    --}}
                                     <li>
                                         <span class="btn btn-sm dropdown-item" wire:click="$set('showPaymentReminderModal', true)"
                                             style="cursor: pointer;">
@@ -352,19 +333,9 @@
                                             style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample
                                             Data</span></li>
                                     --}}
-                                    @if($this->canSendToVerification)
-                                        <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
-                                                style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
-                                                Verification</span></li>
-                                    @else
-                                        <li><span class="dropdown-item text-danger small" style="cursor: not-allowed;"
-                                                title="{{ $this->verificationResultsBlockReason }}">
-                                                <i class="mdi mdi-alert mr-2"></i> Send for Verification
-                                                @if($this->verificationResultsBlockReason)
-                                                    ({{ \Illuminate\Support\Str::limit($this->verificationResultsBlockReason, 60) }})
-                                                @endif
-                                            </span></li>
-                                    @endif
+                                    <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
+                                            style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
+                                            Verification</span></li>
                                 @endif
 
                                 @if(isset($batch->status) && Auth::user()->is_client == 0 && $status == 'Sample Verification')
@@ -410,7 +381,7 @@
                                                 data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process
                                                 Results</span></li> --}}
                                     @endif
-                                    @if((auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds)) && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification')
+                                    @if((auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds)) && $batch->prelim_batch_status == "Sample Verification" && in_array((int) $batch->prelim_report_status, [1, 3], true) && $status == 'Sample Verification')
                                         <li><span class="btn btn-sm dropdown-item" wire:click="openApprovalModal"
                                                 style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
                                                 Approval</span></li>
@@ -431,7 +402,7 @@
                                 @endif
                                 @if(isset($batch->status) && in_array($batch->status, ["Sample Verification", "Sample Approval", "Reports for Collection", "Reports In Payment"]) && Auth::user()->is_client == 0)
                                     @if($batch->status == "Sample Verification")
-                                        @if($notCaptured->count() == 0)
+                                        @if($notCaptured->count() == 0 || (int) ($batch->prelim_report_status ?? 0) === 3)
                                             @if(auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds))
                                                 <li><span class="dropdown-item">
                                                         <hr />
@@ -953,11 +924,21 @@
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="cf-input-label">Report Status Level</label>
-                                            <select class="cf-form-control" wire:model="verificationData.level">
+                                            <select class="cf-form-control" wire:model.live="verificationData.level">
                                                 <option value="0">Final Report</option>
                                                 <option value="1">Preliminary Report</option>
                                                 <option value="2">Draft Report</option>
+                                                <option value="3">Partial / interim report</option>
                                             </select>
+                                            <small class="text-muted d-block mt-1">
+                                                Partial / interim allows verification when some tests are still pending (shown as TBA on the report). Final, Preliminary, and Draft still require all results.
+                                            </small>
+                                            @if($this->selectedVerificationLevelBlockReason)
+                                                <div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="font-size:0.78rem;">
+                                                    <i class="mdi mdi-alert-outline mr-1"></i>
+                                                    {{ $this->selectedVerificationLevelBlockReason }}
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
 
@@ -988,7 +969,8 @@
 
                         @if($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
                             <button type="button" class="btn btn-vw-primary btn-sm"
-                                wire:click="moveToVerification">
+                                wire:click="moveToVerification"
+                                @if($this->selectedVerificationLevelBlockReason) disabled title="{{ $this->selectedVerificationLevelBlockReason }}" @endif>
                                 <i class="mdi mdi-send-check-outline mr-1"></i> Submit to Verification
                             </button>
                         @endif
@@ -1210,16 +1192,16 @@
     @endif
 
     @include('layouts.lab.sample-workflow.modals.process-test-request-report-modal', ['batch' => $batch])
-</div>
 
-<script>
-    if (!window.hasOpenNewTabListener) {
-        window.hasOpenNewTabListener = true;
-        window.addEventListener('open-new-tab', function(event) {
-            var url = event.detail.url || event.detail;
-            if (url) {
-                window.open(url, '_blank');
-            }
-        });
-    }
-</script>
+    <script>
+        if (!window.hasOpenNewTabListener) {
+            window.hasOpenNewTabListener = true;
+            window.addEventListener('open-new-tab', function(event) {
+                var url = event.detail.url || event.detail;
+                if (url) {
+                    window.open(url, '_blank');
+                }
+            });
+        }
+    </script>
+</div>

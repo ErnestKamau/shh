@@ -8,6 +8,15 @@ use Illuminate\Support\Collection;
 
 class BatchVerificationReadinessService
 {
+    public const REPORT_LEVEL_FINAL = '0';
+
+    public const REPORT_LEVEL_PRELIMINARY = '1';
+
+    public const REPORT_LEVEL_DRAFT = '2';
+
+    /** Partial / interim report — distinct from Preliminary and Draft. */
+    public const REPORT_LEVEL_PARTIAL_INTERIM = '3';
+
     /**
      * Placeholder / unfinished values that do not count as entered results.
      *
@@ -27,14 +36,34 @@ class BatchVerificationReadinessService
      * Whether the batch may be moved from Samples In Lab to Sample Verification.
      *
      * Batches with only "no result capture" analysis types are allowed through.
-     * Batches that need result capture must have every capturable result entered.
+     * Batches that need result capture must have every capturable result entered
+     * unless the selected report level is Partial / interim.
      */
-    public function canMoveToVerification(SampleHeader|string $batch): bool
+    public function canMoveToVerification(SampleHeader|string $batch, string|int|null $reportLevel = null): bool
     {
-        return $this->blockingReason($batch) === null;
+        return $this->blockingReason($batch, $reportLevel) === null;
     }
 
-    public function blockingReason(SampleHeader|string $batch): ?string
+    /**
+     * Whether the Send for Verification action may open (user can still pick Partial / interim).
+     */
+    public function canOpenVerificationModal(SampleHeader|string $batch): bool
+    {
+        return $this->canMoveToVerification($batch)
+            || $this->hasEnteredResults($batch);
+    }
+
+    public function isPartialInterimLevel(string|int|null $reportLevel): bool
+    {
+        return (string) $reportLevel === self::REPORT_LEVEL_PARTIAL_INTERIM;
+    }
+
+    public function isPartialInterimBatch(SampleHeader $batch): bool
+    {
+        return (int) ($batch->prelim_report_status ?? 0) === (int) self::REPORT_LEVEL_PARTIAL_INTERIM;
+    }
+
+    public function blockingReason(SampleHeader|string $batch, string|int|null $reportLevel = null): ?string
     {
         $batchId = $batch instanceof SampleHeader ? (string) $batch->id : (string) $batch;
 
@@ -42,17 +71,19 @@ class BatchVerificationReadinessService
             CapturedResult::query()
                 ->where('sample_header_id', $batchId)
                 ->whereValidUuidAnalyteId()
-                ->get(['id', 'result', 'has_no_result_capture'])
+                ->get(['id', 'result', 'has_no_result_capture']),
+            $reportLevel
         );
     }
 
     /**
      * @param  Collection<int, CapturedResult>|iterable<int, CapturedResult>  $rows
      */
-    public function blockingReasonForResults(iterable $rows): ?string
+    public function blockingReasonForResults(iterable $rows, string|int|null $reportLevel = null): ?string
     {
         $collection = $rows instanceof Collection ? $rows : collect($rows);
         $capturable = $collection->filter(fn (CapturedResult $row): bool => $this->requiresResultCapture($row));
+        $allowPartial = $this->isPartialInterimLevel($reportLevel);
 
         if ($capturable->isEmpty()) {
             if ($collection->isEmpty()) {
@@ -67,12 +98,18 @@ class BatchVerificationReadinessService
         $missing = $capturable->count() - $entered;
 
         if ($entered === 0) {
-            return 'No results have been entered for this batch. Capture all sample results before sending to verification.';
+            return $allowPartial
+                ? 'Enter at least one sample result before sending a Partial / interim report to verification.'
+                : 'No results have been entered for this batch. Capture all sample results before sending to verification.';
+        }
+
+        if ($allowPartial) {
+            return null;
         }
 
         if ($missing > 0) {
             return sprintf(
-                '%d sample result(s) are still missing. Capture all results before sending to verification.',
+                '%d sample result(s) are still missing. Capture all results before sending to verification, or choose Partial / interim report.',
                 $missing
             );
         }

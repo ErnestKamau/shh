@@ -518,6 +518,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         $trfRows = [];
         $formSamplingLocation = null;
         $crmCustomerId = (string) ($header->crm_customer_id ?? '');
+        $trfMapper = app(TrfSampleFieldMapper::class);
         if ($header->submission_form_instance_id) {
             $sfi = SubmissionFormInstance::query()
                 ->with('values.element')
@@ -525,13 +526,11 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             if ($sfi !== null) {
                 $formData = app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)
                     ->valuesMapFromInstance($sfi);
-                $trfRows = app(TrfSampleFieldMapper::class)->sampleRowsFromFormData($formData);
-                $formSamplingLocation = isset($formData['sampling_location'])
-                    ? (string) $formData['sampling_location']
-                    : null;
+                $trfRows = $trfMapper->sampleRowsFromFormData($formData);
+                // sampling_location is per-sample (list); use first non-empty as form-level fallback.
+                $formSamplingLocation = $trfMapper->scalarValue($formData['sampling_location'] ?? null);
             }
         }
-        $trfMapper = app(TrfSampleFieldMapper::class);
 
         $allAnalysisTypeIds = collect($detailPlans)
             ->flatMap(fn (array $plan) => $plan['analysis_type_ids'] ?? [])

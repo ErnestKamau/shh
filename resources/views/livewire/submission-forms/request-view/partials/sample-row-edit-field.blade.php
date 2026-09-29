@@ -4,25 +4,36 @@
     $fieldLabel = $field['label'] ?? $fieldName;
     $fieldOptions = is_array($field['options'] ?? null) ? $field['options'] : [];
     $selectOptions = $editingRowSelectOptions[$fieldName] ?? [];
+    $isAdditionalDetails = $fieldName === 'additional_details';
     $colClass = $colClass ?? (
-        in_array($fieldType, ['textarea', 'rich_text', 'analysis_elements_select'], true) || $fieldName === 'sample_description'
+        in_array($fieldType, ['analysis_elements_select'], true)
+            || in_array($fieldName, ['parameters'], true)
             ? 'col-12'
-            : 'col-md-6'
+            : 'col-md-4'
     );
-    $selectedParameters = collect($editingRowFields['parameters'] ?? [])
-        ->map(fn ($value) => (string) $value)
+    $selectedParameters = collect(is_array($editingRowFields['parameters'] ?? null) ? $editingRowFields['parameters'] : [])
+        ->flatten()
+        ->map(fn ($value) => is_scalar($value) ? (string) $value : '')
         ->filter(fn (string $value) => $value !== '')
         ->values()
         ->all();
-    $selectedSampleTypes = collect($editingRowFields['sample_type_id'] ?? [])
-        ->when(is_string($editingRowFields['sample_type_id'] ?? null), fn ($c) => collect(explode(',', (string) ($editingRowFields['sample_type_id'] ?? ''))))
-        ->map(fn ($value) => (string) $value)
+    $selectedSampleTypes = collect(
+        is_array($editingRowFields['sample_type_id'] ?? null)
+            ? $editingRowFields['sample_type_id']
+            : (filled($editingRowFields['sample_type_id'] ?? null) ? explode(',', (string) $editingRowFields['sample_type_id']) : [])
+    )
+        ->flatten()
+        ->map(fn ($value) => is_scalar($value) ? (string) $value : '')
         ->filter(fn (string $value) => $value !== '')
         ->values()
         ->all();
-    $selectedAnalysisTypes = collect($editingRowFields['analysis_type_id'] ?? [])
-        ->when(is_string($editingRowFields['analysis_type_id'] ?? null), fn ($c) => collect(explode(',', (string) ($editingRowFields['analysis_type_id'] ?? ''))))
-        ->map(fn ($value) => (string) $value)
+    $selectedAnalysisTypes = collect(
+        is_array($editingRowFields['analysis_type_id'] ?? null)
+            ? $editingRowFields['analysis_type_id']
+            : (filled($editingRowFields['analysis_type_id'] ?? null) ? explode(',', (string) $editingRowFields['analysis_type_id']) : [])
+    )
+        ->flatten()
+        ->map(fn ($value) => is_scalar($value) ? (string) $value : '')
         ->filter(fn (string $value) => $value !== '')
         ->values()
         ->all();
@@ -47,10 +58,24 @@
     $usesLsSelectInclude = in_array($fieldName, ['parameters', 'sample_type_id', 'analysis_type_id'], true);
     $isTempField = in_array($fieldName, ['sample_temp', 'field_sample_temp'], true);
     $isStateOfSample = $fieldName === 'state_of_sample';
+    $rawFieldValue = $editingRowFields[$fieldName] ?? null;
+    $fieldValueIsCheckboxMap = is_array($rawFieldValue)
+        && \App\Services\SubmissionForm\SubmissionFormSchemaHelper::selectedCheckboxKeys($rawFieldValue) !== null;
+    $selectedScalar = '';
+    if ($fieldValueIsCheckboxMap) {
+        $selectedScalar = (string) ((\App\Services\SubmissionForm\SubmissionFormSchemaHelper::selectedCheckboxKeys($rawFieldValue)[0] ?? ''));
+    } elseif (is_array($rawFieldValue)) {
+        $firstScalar = collect($rawFieldValue)
+            ->flatten()
+            ->first(fn ($value) => is_scalar($value) && trim((string) $value) !== '');
+        $selectedScalar = is_scalar($firstScalar) ? (string) $firstScalar : '';
+    } elseif (is_scalar($rawFieldValue) || $rawFieldValue === null) {
+        $selectedScalar = (string) ($rawFieldValue ?? '');
+    }
 @endphp
 
 <div class="{{ ($hideOuterCol ?? false) ? '' : $colClass.' mb-3' }}">
-    @if(! ($hideLabel ?? false) && ! $usesLsSelectInclude && ! $isTempField && ! $isStateOfSample)
+    @if(! ($hideLabel ?? false) && ! $usesLsSelectInclude && ! $isTempField && ! $isStateOfSample && ! $isAdditionalDetails)
         <label class="ls-field__label" for="edit-row-{{ $fieldName }}">
             {{ $fieldLabel }}
             @if($field['required'] ?? false)
@@ -59,7 +84,56 @@
         </label>
     @endif
 
-    @if($fieldName === 'sample_description' || $fieldType === 'rich_text')
+    @if($isAdditionalDetails)
+        @php
+            $detailRows = $this->editingRowAdditionalDetails();
+        @endphp
+        <div class="rft-additional-details" wire:key="edit-row-additional-details-{{ $editingRowIndex ?? 0 }}">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="rft-sample-section-label rft-sample-section-label--sample mb-0 border-0 pt-0">
+                    {{ $fieldLabel !== '' ? $fieldLabel : 'Additional details' }}
+                </div>
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    title="Add detail"
+                    aria-label="Add additional detail"
+                    wire:click="addEditingRowAdditionalDetail"
+                >
+                    <i class="mdi mdi-plus" aria-hidden="true"></i> Add
+                </button>
+            </div>
+            @forelse($detailRows as $detailIndex => $detail)
+                <div class="rft-additional-details__row mb-2" wire:key="edit-row-additional-detail-{{ $editingRowIndex ?? 0 }}-{{ $detailIndex }}">
+                    <input
+                        type="text"
+                        class="form-control form-control-sm rft-additional-details__label"
+                        wire:model.defer="editingRowFields.additional_details.{{ $detailIndex }}.label"
+                        placeholder="Label"
+                        aria-label="Detail label"
+                    >
+                    <input
+                        type="text"
+                        class="form-control form-control-sm rft-additional-details__value"
+                        wire:model.defer="editingRowFields.additional_details.{{ $detailIndex }}.value"
+                        placeholder="Value"
+                        aria-label="Detail value"
+                    >
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        title="Remove"
+                        aria-label="Remove detail"
+                        wire:click="removeEditingRowAdditionalDetail({{ (int) $detailIndex }})"
+                    >
+                        <i class="mdi mdi-close" aria-hidden="true"></i>
+                    </button>
+                </div>
+            @empty
+                <p class="text-muted small mb-0">Optional — add custom label/value fields for this sample.</p>
+            @endforelse
+        </div>
+    @elseif($fieldName === 'sample_description' || $fieldType === 'rich_text')
         @include('livewire.partials.submission-rich-text-editor', [
             'wirePrefix' => 'editingRowFields.sample_description',
             'fieldId' => 'edit-row-sample-desc-'.($editingRowIndex ?? 0),
@@ -77,7 +151,7 @@
                     wire:model.defer="editingRowFields.{{ $fieldName }}"></textarea>
             </div>
         </div>
-    @elseif($fieldType === 'checkbox' || $isTestRequirements)
+    @elseif($fieldType === 'checkbox' || $isTestRequirements || $fieldValueIsCheckboxMap)
         <div class="d-flex flex-wrap rv-test-requirements-checkboxes" style="gap: 12px;">
             @foreach($checkboxOptions as $optionKey => $optionText)
                 <label class="form-check mb-0">
@@ -119,7 +193,7 @@
                 'value' => (string) $value,
                 'label' => (string) $label,
             ])->values()->all();
-            $stateSelected = (string) ($editingRowFields[$fieldName] ?? '');
+            $stateSelected = $selectedScalar;
             $stateSelectedLabel = $checkboxOptions[$stateSelected] ?? $stateSelected;
         @endphp
         <div
@@ -227,7 +301,7 @@
                             'parameters' => in_array($optionValue, $selectedParameters, true),
                             'sample_type_id' => in_array($optionValue, $selectedSampleTypes, true),
                             'analysis_type_id' => in_array($optionValue, $selectedAnalysisTypes, true),
-                            default => (string) ($editingRowFields[$fieldName] ?? '') === $optionValue,
+                            default => $selectedScalar === $optionValue,
                         };
                     @endphp
                     <option value="{{ $optionValue }}" @selected($isSelected)>
@@ -256,14 +330,14 @@
             </div>
         </div>
     @elseif(in_array($fieldType, ['select', 'radio'], true) && $checkboxOptions !== [])
-        <div class="ls-field {{ filled($editingRowFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+        <div class="ls-field {{ $selectedScalar !== '' ? 'is-success' : '' }}">
             <div class="ls-field__control">
                 <select id="edit-row-{{ $fieldName }}"
                     class="ls-field__input"
                     wire:model.defer="editingRowFields.{{ $fieldName }}">
                     <option value="">— Select —</option>
                     @foreach($checkboxOptions as $optionKey => $optionText)
-                        <option value="{{ $optionKey }}" @selected((string) ($editingRowFields[$fieldName] ?? '') === (string) $optionKey)>
+                        <option value="{{ $optionKey }}" @selected($selectedScalar === (string) $optionKey)>
                             {{ $optionText }}
                         </option>
                     @endforeach
@@ -271,11 +345,12 @@
             </div>
         </div>
     @else
-        <div class="ls-field {{ filled($editingRowFields[$fieldName] ?? null) ? 'is-success' : '' }}">
+        <div class="ls-field {{ $selectedScalar !== '' ? 'is-success' : '' }}">
             <div class="ls-field__control">
                 <input id="edit-row-{{ $fieldName }}"
                     type="text"
                     class="ls-field__input"
+                    value="{{ $selectedScalar }}"
                     wire:model.defer="editingRowFields.{{ $fieldName }}">
             </div>
         </div>

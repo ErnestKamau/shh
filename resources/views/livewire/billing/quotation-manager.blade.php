@@ -451,7 +451,7 @@
                         </p>
                         <h6 class="font-weight-bold mb-2" style="color:#1e3a8a;">Who will receive this quotation</h6>
                         <p class="small text-muted mb-2">
-                            Contacts with “Receive quotations” are pre-selected. Company unit and sampling location come from CRM.
+                            Contacts with “Receive quotations” are pre-selected. Company unit comes from CRM.
                         </p>
                         @if(count($approveRecipientOptions) === 0)
                             <div class="alert alert-warning py-2 small mb-3">
@@ -465,7 +465,6 @@
                                             <th style="width: 2.5rem;"></th>
                                             <th>Contact</th>
                                             <th>Company unit</th>
-                                            <th>Sampling location</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -479,13 +478,11 @@
                                                 </td>
                                                 <td>
                                                     <strong>{{ $recipient['name'] }}</strong>
-                                                    <div class="small text-muted">{{ $recipient['email'] }}</div>
                                                     @if(!empty($recipient['receive_quotations']))
                                                         <span class="badge badge-light border small">Receives quotations</span>
                                                     @endif
                                                 </td>
                                                 <td>{{ $recipient['company_unit'] }}</td>
-                                                <td>{{ $recipient['sampling_location'] }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>

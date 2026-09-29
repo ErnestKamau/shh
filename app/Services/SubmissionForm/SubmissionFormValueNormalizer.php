@@ -70,6 +70,20 @@ final class SubmissionFormValueNormalizer
                 continue;
             }
 
+            // Legacy batch scalars for fields that are now per-sample rows → index 0.
+            if (in_array((string) $fieldName, $rowElementNames, true)) {
+                $existing = $formData[$fieldName] ?? [];
+                if (! is_array($existing)) {
+                    $existing = [];
+                }
+                if (! array_key_exists(0, $existing) || $existing[0] === null || $existing[0] === '') {
+                    $existing[0] = $value->value;
+                }
+                $formData[$fieldName] = $existing;
+
+                continue;
+            }
+
             $formData[$fieldName] = $value->value;
         }
 
@@ -294,11 +308,34 @@ final class SubmissionFormValueNormalizer
                     continue;
                 }
 
+                if ($field === 'additional_details') {
+                    if (is_string($value) && trim($value) !== '') {
+                        $decoded = json_decode($value, true);
+                        $rows[$rowIndex][$field] = is_array($decoded) ? $decoded : [];
+                    } elseif (is_array($value)) {
+                        $rows[$rowIndex][$field] = array_values(array_filter(
+                            $value,
+                            static fn ($row): bool => is_array($row)
+                        ));
+                    } else {
+                        $rows[$rowIndex][$field] = [];
+                    }
+
+                    continue;
+                }
+
                 if (is_array($value)) {
                     $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
-                    $rows[$rowIndex][$field] = $selectedKeys !== null
-                        ? implode(',', $selectedKeys)
-                        : implode(',', array_map('strval', $value));
+                    if ($selectedKeys !== null) {
+                        $rows[$rowIndex][$field] = implode(',', $selectedKeys);
+                    } elseif (array_is_list($value) && $this->allScalarValues($value)) {
+                        $rows[$rowIndex][$field] = implode(',', array_map(
+                            static fn ($item): string => trim((string) $item),
+                            $value,
+                        ));
+                    } else {
+                        $rows[$rowIndex][$field] = $value;
+                    }
                 } else {
                     $rows[$rowIndex][$field] = $value;
                 }
@@ -360,33 +397,69 @@ final class SubmissionFormValueNormalizer
     private function normalizeIndexedMultiSelectForStorage(string $field, array $values): array
     {
         $out = [];
+        $isMultiSelect = in_array($field, SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames(), true);
+
         foreach ($values as $index => $value) {
-            if (is_array($value)) {
-                $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
-
-                if ($selectedKeys !== null) {
-                    $out[(int) $index] = implode(',', $selectedKeys);
-
-                    continue;
-                }
-
-                $flat = [];
-                foreach ($value as $item) {
-                    if ($item === null || $item === '') {
-                        continue;
-                    }
-                    $flat[] = (string) $item;
-                }
-                $out[(int) $index] = in_array($field, SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames(), true)
-                    ? implode(',', $flat)
-                    : $value;
-            } else {
+            if (! is_array($value)) {
                 $out[(int) $index] = $value;
+
+                continue;
             }
+
+            $selectedKeys = SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
+
+            if ($selectedKeys !== null) {
+                $out[(int) $index] = implode(',', $selectedKeys);
+
+                continue;
+            }
+
+            // Structured per-row payloads (additional_details, equipment id lists, etc.)
+            // must stay as arrays — never coerce nested rows with (string).
+            if (! $isMultiSelect) {
+                $out[(int) $index] = $value;
+
+                continue;
+            }
+
+            $flat = $this->flattenNestedScalarList($value);
+            $out[(int) $index] = implode(',', $flat);
         }
         ksort($out);
 
         return $out;
+    }
+
+    /**
+     * Flatten nested Livewire row values (e.g. `[['uuid']]`) into scalar strings.
+     *
+     * @return list<string>
+     */
+    private function flattenNestedScalarList(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (! is_array($value)) {
+            $scalar = trim((string) $value);
+
+            return $scalar !== '' ? [$scalar] : [];
+        }
+
+        // Associative checkbox / detail maps are not multi-select id lists.
+        if ($value !== [] && ! array_is_list($value)) {
+            return [];
+        }
+
+        $scalars = [];
+        foreach ($value as $item) {
+            foreach ($this->flattenNestedScalarList($item) as $scalar) {
+                $scalars[] = $scalar;
+            }
+        }
+
+        return array_values(array_unique($scalars));
     }
 
     /**

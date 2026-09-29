@@ -27,7 +27,7 @@
     $showLabel = ! ($hideLabel ?? false);
 @endphp
 
-<div wire:key="walk-in-sample-type-{{ $fieldId }}-{{ $rowIndex ?? 'x' }}">
+<div wire:key="walk-in-sample-type-{{ $fieldId }}-{{ $rowIndex ?? 'x' }}-{{ implode('_', $selectedIds) }}">
 @include('layouts.lab.partials.ls-ui.select2.ls-select2-multi-dropdown-search', [
     'label' => $showLabel ? ($label ?? 'Sample type') : null,
     'id' => 'field_'.$fieldId,

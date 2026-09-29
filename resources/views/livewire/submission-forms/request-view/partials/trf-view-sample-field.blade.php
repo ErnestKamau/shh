@@ -16,6 +16,7 @@
     $draft = is_array($draft ?? null) ? $draft : [];
     $raw = $draft[$fieldName] ?? null;
     $sampleIndex = (int) ($sampleIndex ?? 0);
+    $isAdditionalDetails = $fieldName === 'additional_details';
 
     $checkboxOptions = [];
     foreach ($fieldOptions as $optionValue => $optionLabel) {
@@ -37,7 +38,15 @@
         'sample_type_id' => 'mdi-test-tube',
         'analysis_type_id' => 'mdi-microscope',
         'parameters' => 'mdi-flask-outline',
+        'sampling_date' => 'mdi-calendar',
+        'sampling_time' => 'mdi-clock-outline',
+        'date_received' => 'mdi-calendar-check',
+        'sampling_location' => 'mdi-map-marker',
         'sampling_point_manual' => 'mdi-map-marker-outline',
+        'sampling_apparatus' => 'mdi-flask-outline',
+        'transport_condition' => 'mdi-truck-outline',
+        'method_of_sampling' => 'mdi-clipboard-list-outline',
+        'reason_of_collection' => 'mdi-comment-question-outline',
         'state_of_sample' => 'mdi-cube-outline',
         'production_date' => 'mdi-calendar',
         'expiration_date' => 'mdi-calendar-end',
@@ -46,9 +55,11 @@
         'sample_condition' => 'mdi-shield-check-outline',
         'sample_temp' => 'mdi-thermometer',
         'field_sample_temp' => 'mdi-thermometer',
+        'thermometer_id' => 'mdi-thermometer',
         'test_category' => 'mdi-tag-outline',
         'sample_description' => 'mdi-text-box-outline',
         'test_requirements' => 'mdi-checkbox-marked-outline',
+        'additional_details' => 'mdi-playlist-plus',
     ];
     $icon = $iconByName[$fieldName] ?? 'mdi-form-textbox';
 
@@ -65,8 +76,31 @@
 
     $display = '—';
     $chipSelected = [];
+    $additionalDetailRows = [];
 
-    if ($isCatalog) {
+    if ($isAdditionalDetails) {
+        $decoded = $raw;
+        if (is_string($decoded) && trim($decoded) !== '') {
+            $json = json_decode($decoded, true);
+            $decoded = is_array($json) ? $json : [];
+        }
+        if (is_array($decoded)) {
+            foreach (array_values($decoded) as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $detailLabel = trim((string) ($row['label'] ?? ''));
+                $detailValue = trim((string) ($row['value'] ?? ''));
+                if ($detailLabel === '' && $detailValue === '') {
+                    continue;
+                }
+                $additionalDetailRows[] = [
+                    'label' => $detailLabel !== '' ? $detailLabel : 'Detail',
+                    'value' => $detailValue !== '' ? $detailValue : '—',
+                ];
+            }
+        }
+    } elseif ($isCatalog) {
         $labels = $resolveCatalogLabels($fieldName, $raw);
         $display = $labels === [] ? '—' : implode(', ', $labels);
         $chipSelected = $labels;
@@ -96,17 +130,61 @@
     } elseif ($fieldName === 'sample_description') {
         $display = trim(strip_tags((string) ($raw ?? '')));
         $display = $display !== '' ? $display : '—';
+    } elseif ($fieldName === 'thermometer_id') {
+        $display = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
+            ->formatForDisplay($raw);
+        $display = $display !== '' ? $display : '—';
     } else {
         if (is_array($raw)) {
-            $display = '—';
+            $display = implode(', ', array_filter(array_map(
+                static fn ($item): string => is_scalar($item) ? trim((string) $item) : '',
+                $raw
+            )));
+            $display = $display !== '' ? $display : '—';
         } else {
             $string = trim((string) ($raw ?? ''));
-            $display = $string !== '' ? $string : '—';
+            if (str_starts_with($string, '[')) {
+                $decoded = json_decode($string, true);
+                if (is_array($decoded)) {
+                    $display = implode(', ', array_filter(array_map(
+                        static fn ($item): string => is_scalar($item) ? trim((string) $item) : '',
+                        $decoded
+                    )));
+                    $display = $display !== '' ? $display : '—';
+                } else {
+                    $display = $string !== '' ? $string : '—';
+                }
+            } else {
+                $display = $string !== '' ? $string : '—';
+            }
         }
     }
 @endphp
 
 @if($fieldName !== '')
+    @if($isAdditionalDetails)
+        <div class="{{ trim(($hideOuterCol ?? false) ? 'mb-3' : (($colClass ?? 'col-md-4').' mb-3')) }}">
+            <div class="rft-additional-details rft-additional-details--view">
+                <div class="rft-sample-section-label rft-sample-section-label--sample mb-2 border-0 pt-0">
+                    {{ $fieldLabel !== '' ? $fieldLabel : 'Additional details' }}
+                </div>
+                @forelse($additionalDetailRows as $detailIndex => $detail)
+                    <div class="mb-2" wire:key="trf-view-s{{ $sampleIndex }}-additional-{{ $detailIndex }}">
+                        @include('layouts.lab.partials.ls-ui.fields.ls-field-affix', [
+                            'label' => $detail['label'],
+                            'id' => 'trf-view-s'.$sampleIndex.'-additional-'.$detailIndex,
+                            'name' => 'trf_view_s'.$sampleIndex.'_additional_'.$detailIndex,
+                            'value' => $detail['value'],
+                            'prefix' => '<i class="mdi mdi-playlist-plus"></i>',
+                            'disabled' => true,
+                        ])
+                    </div>
+                @empty
+                    <p class="ls-type-caption text-muted mb-0">—</p>
+                @endforelse
+            </div>
+        </div>
+    @else
     <div class="{{ trim($colClass.' mb-3') }}">
         @if($isCatalog && $chipSelected !== [])
             <div class="ls-field is-disabled">
@@ -163,4 +241,5 @@
             ])
         @endif
     </div>
+    @endif
 @endif

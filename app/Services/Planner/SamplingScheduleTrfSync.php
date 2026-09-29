@@ -35,6 +35,7 @@ final class SamplingScheduleTrfSync
         'sample_quantity',
         'number_of_samples',
         'qty',
+        'sampled_by',
     ];
 
     /**
@@ -130,9 +131,11 @@ final class SamplingScheduleTrfSync
             $values['remarks'] = $description;
         }
 
+        // Lab schedule assignments mean company personnel sampled — store the stable select key,
+        // not the person or company display name (labels resolve at render time).
         $personnelName = $this->resolvePersonnelName($schedule);
         if ($personnelName !== '') {
-            $values['sampled_by'] = $personnelName;
+            $values['sampled_by'] = \App\Services\Sampleworkflow\SampledByParty::COMPANY;
         }
 
         $customerValues = $this->customerFieldValuesFromSchedule($schedule);

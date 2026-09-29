@@ -18,7 +18,13 @@ class TestRequestReportPdfService
     ) {}
 
     /**
-     * @param  array{include_reference_method?: bool, show_specification?: bool, show_specification_standard?: bool, show_mu_percent?: bool}  $options
+     * @param  array{
+     *     include_reference_method?: bool,
+     *     show_specification?: bool,
+     *     show_specification_standard?: bool,
+     *     show_mu_percent?: bool,
+     *     lab_section_id?: string|null
+     * }  $options
      * @return array{relative_path: string, online_url: string, filename: string, language: string}
      */
     public function generateAndStore(
@@ -34,15 +40,22 @@ class TestRequestReportPdfService
         $showSpecification = (bool) ($options['show_specification'] ?? true);
         $showSpecificationStandard = (bool) ($options['show_specification_standard'] ?? true);
         $showMuPercent = (bool) ($options['show_mu_percent'] ?? true);
+        $filterLabSectionId = $this->reportDataService->normalizeLabSectionId($options['lab_section_id'] ?? null);
+        $filterLabSectionIds = $this->reportDataService->normalizeLabSectionIds(
+            $options['lab_section_ids'] ?? $filterLabSectionId
+        );
 
         $jobNumber = (string) $batch->batch_code;
         $reportNumber = $this->amendmentReportConfig->formatReportNumber($jobNumber, max(1, $sequence));
 
-        $reportData = $this->reportDataService->build($batch, $reportNumber);
+        $reportData = $this->reportDataService->build($batch, $reportNumber, [
+            'lab_section_ids' => $filterLabSectionIds,
+            'sample_ids' => $options['sample_ids'] ?? null,
+        ]);
         $labels = $this->labelsFor($language);
         $isRTL = $language === 'ar';
 
-        $verificationUrl = route('generateTestRequestReport', [
+        $verificationUrlParams = [
             'batch_id' => $batch->id,
             'seq' => $sequence,
             'lang' => $language,
@@ -51,7 +64,11 @@ class TestRequestReportPdfService
             'show_specification' => $showSpecification ? 1 : 0,
             'show_specification_standard' => $showSpecificationStandard ? 1 : 0,
             'show_mu_percent' => $showMuPercent ? 1 : 0,
-        ]);
+        ];
+        if ($filterLabSectionIds !== []) {
+            $verificationUrlParams['lab_section_ids'] = implode(',', $filterLabSectionIds);
+        }
+        $verificationUrl = route('generateTestRequestReport', $verificationUrlParams);
 
         $footerQrCode = '';
         if (class_exists(\SimpleSoftwareIO\QrCode\Facades\QrCode::class)) {
@@ -237,7 +254,6 @@ class TestRequestReportPdfService
                 'weight' => 'كمية العينة',
                 'sampled_by' => 'أخذ العينة بواسطة',
                 'sample_temperature' => 'درجة حرارة العينة',
-                'sample_preservation' => 'حفظ العينة',
                 'production_date' => 'تاريخ الإنتاج',
                 'expiry_date' => 'تاريخ الانتهاء',
                 'lot_no' => 'رقم الدُفعة',
@@ -311,7 +327,6 @@ class TestRequestReportPdfService
                 'weight' => 'Quantidade da Amostra',
                 'sampled_by' => 'Amostrado por',
                 'sample_temperature' => 'Temperatura da Amostra',
-                'sample_preservation' => 'Preservação da Amostra',
                 'production_date' => 'Data de Produção',
                 'expiry_date' => 'Data de Validade',
                 'lot_no' => 'N.º de Lote',
@@ -385,7 +400,6 @@ class TestRequestReportPdfService
                 'weight' => 'Sample Quantity',
                 'sampled_by' => 'Sampled By',
                 'sample_temperature' => 'Sample Temperature',
-                'sample_preservation' => 'Sample Preservation',
                 'production_date' => 'Production Date',
                 'expiry_date' => 'Expiry Date',
                 'lot_no' => 'Lot No.',

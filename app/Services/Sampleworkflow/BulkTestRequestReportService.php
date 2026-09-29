@@ -22,7 +22,13 @@ final class BulkTestRequestReportService
 
     /**
      * @param  list<string>  $batchIds
-     * @param  array{include_reference_method?: bool, show_specification?: bool, show_specification_standard?: bool, show_mu_percent?: bool}  $options
+     * @param  array{
+     *     include_reference_method?: bool,
+     *     show_specification?: bool,
+     *     show_specification_standard?: bool,
+     *     show_mu_percent?: bool,
+     *     lab_section_id?: string|null
+     * }  $options
      * @return array{
      *     generated: list<array{batch_id: string, batch_code: string, report_number: string, online_url: string, filename: string}>,
      *     skipped: list<string>,
@@ -43,6 +49,9 @@ final class BulkTestRequestReportService
         $skipped = [];
         $customerId = null;
         $customerName = null;
+        $filterLabSectionIds = app(TestRequestReportDataService::class)
+            ->normalizeLabSectionIds($options['lab_section_ids'] ?? ($options['lab_section_id'] ?? null));
+        $isSectionOnlyPrint = $filterLabSectionIds !== [];
 
         if ($ids === []) {
             return [
@@ -103,7 +112,73 @@ final class BulkTestRequestReportService
             }
 
             try {
-                $result = DB::transaction(function () use ($batch, $actor, $language, $options): array {
+                $result = DB::transaction(function () use ($batch, $actor, $language, $options, $isSectionOnlyPrint, $filterLabSectionIds): array {
+                    if ($isSectionOnlyPrint) {
+                        $jobSectionIds = collect($batch->labSectionsForDisplay())
+                            ->pluck('id')
+                            ->map(static fn ($id): string => (string) $id)
+                            ->all();
+
+                        if (array_diff($filterLabSectionIds, $jobSectionIds) !== []) {
+                            throw new \RuntimeException('lab section not on this job');
+                        }
+
+                        $hasSectionResults = \App\CapturedResult::query()
+                            ->where('sample_header_id', $batch->id)
+                            ->whereIn('lab_section_id', $filterLabSectionIds)
+                            ->exists();
+
+                        if (! $hasSectionResults) {
+                            throw new \RuntimeException('no results for selected lab section');
+                        }
+
+                        // Section-scoped: still advance revision like a full generate.
+                        $ammendment = BatchAmmendment::resolveForBatch($batch);
+                        $wasInAmendment = (int) ($batch->in_ammendment_proccess ?? 0) === 1;
+
+                        $nextFromSequence = ((int) ($batch->test_request_report_sequence ?? 0)) + 1;
+                        $amendmentVersion = max(1, (int) ($batch->is_amendment ?? 1));
+                        $batch->test_request_report_sequence = max($nextFromSequence, $amendmentVersion);
+
+                        if ($wasInAmendment) {
+                            $batch->in_ammendment_proccess = 0;
+                        }
+                        $batch->save();
+
+                        $notes = $ammendment ? (string) $ammendment->reason : null;
+
+                        TestRequestReportRevision::query()->create([
+                            'batch_id' => $batch->id,
+                            'revision_no' => $batch->test_request_report_sequence,
+                            'language' => $language,
+                            'notes' => $notes !== '' ? $notes : null,
+                            'generated_by' => $actor->id,
+                        ]);
+
+                        $this->numbering->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
+                        app(ProcessedResultSyncService::class)->syncBatch((string) $batch->id);
+
+                        $sequence = (int) $batch->test_request_report_sequence;
+                        $stored = $this->pdfService->generateAndStore(
+                            $batch->fresh(['customer', 'sample_type', 'samples']),
+                            $sequence,
+                            $language,
+                            array_merge($options, ['lab_section_ids' => $filterLabSectionIds]),
+                        );
+
+                        $reportNumber = app(AmendmentReportConfigurationService::class)
+                            ->formatReportNumber((string) $batch->batch_code, $sequence);
+
+                        // Do not overwrite the stored official full Test Report file URL.
+                        return [
+                            'batch_id' => (string) $batch->id,
+                            'batch_code' => (string) $batch->batch_code,
+                            'report_number' => $reportNumber,
+                            'online_url' => $stored['online_url'],
+                            'filename' => $stored['filename'],
+                        ];
+                    }
+
                     $ammendment = BatchAmmendment::resolveForBatch($batch);
                     $wasInAmendment = (int) ($batch->in_ammendment_proccess ?? 0) === 1;
 
@@ -127,6 +202,7 @@ final class BulkTestRequestReportService
                     ]);
 
                     $this->numbering->syncReportNumbersForBatch($batch, (int) $batch->test_request_report_sequence);
+                    app(ProcessedResultSyncService::class)->syncBatch((string) $batch->id);
 
                     $stored = $this->pdfService->generateAndStore(
                         $batch->fresh(['customer', 'sample_type', 'samples']),

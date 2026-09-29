@@ -4,7 +4,6 @@
         $fieldsByName = collect($trfEditSampleDefinitions)->keyBy(fn (array $field): string => (string) ($field['name'] ?? ''));
         $slides = [
             'customer' => 'Customer',
-            'collection' => 'Collection',
             'samples' => 'Samples',
         ];
         $slideKeys = array_keys($slides);
@@ -37,7 +36,7 @@
                 <div class="rv-modal-header">
                     <div>
                         <h4 class="rv-modal-title mb-1">Edit request details</h4>
-                        <p class="rv-trf-edit-subtitle mb-0">Update customer, collection, and sample information. Changes save together.</p>
+                        <p class="rv-trf-edit-subtitle mb-0">Update customer and sample information (including per-sample collection details). Changes save together.</p>
                     </div>
                     <button type="button" class="rv-modal-close" wire:click="closeTrfEditor" aria-label="Close">
                         <i class="mdi mdi-close" aria-hidden="true"></i>
@@ -150,130 +149,10 @@
                                 </div>
                             </div>
                         </div>
-                    @elseif($trfEditSlide === 'collection')
-                        <div class="rv-trf-edit-section">
-                            <h5 class="rv-trf-edit-section-title ls-type-label">Sample Collection Data</h5>
-                            <div class="row rv-trf-collection-grid">
-                                @if($this->isWasteWaterTrf())
-                                    @include('livewire.submission-forms.request-view.partials.rv-trf-waste-water-collection-section', [
-                                        'readOnly' => false,
-                                    ])
-                                @else
-                                @php
-                                    $collectionByName = collect($trfEditCollectionDefinitions)
-                                        ->keyBy(fn (array $field): string => (string) ($field['name'] ?? ''));
-                                    $priorityCollectionNames = [
-                                        'sampling_date',
-                                        'sampling_time',
-                                        'date_received',
-                                        'sampling_location',
-                                        'transport_condition',
-                                        'reason_of_collection',
-                                        'sampling_apparatus',
-                                        'method_of_sampling',
-                                        'thermometer_id',
-                                    ];
-                                @endphp
-
-                                {{-- Shared 3-column tracks so left/right edges stay aligned across rows --}}
-                                <div class="col-12">
-                                    <div class="rv-trf-collection-trio">
-                                        @foreach([
-                                            ['sampling_date', null],
-                                            ['sampling_time', null],
-                                            ['date_received', null],
-                                        ] as [$name, $optionGridClass])
-                                            @if($collectionByName->has($name))
-                                                @include('livewire.submission-forms.request-view.partials.trf-edit-collection-field', [
-                                                    'field' => $collectionByName->get($name),
-                                                    'colClass' => '',
-                                                    'hideOuterCol' => true,
-                                                    'outerColExtraClass' => $name === 'date_received' ? 'rv-trf-collection-col--right' : ($name === 'sampling_date' ? 'rv-trf-collection-col--left' : 'rv-trf-collection-col--mid'),
-                                                ])
-                                            @else
-                                                <div class="{{ $name === 'date_received' ? 'rv-trf-collection-col--right' : ($name === 'sampling_date' ? 'rv-trf-collection-col--left' : 'rv-trf-collection-col--mid') }}" aria-hidden="true"></div>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                    <div class="rv-trf-collection-trio">
-                                        @foreach([
-                                            ['sampling_location', null],
-                                            ['transport_condition', 'rv-trf-option-grid rv-trf-option-grid--transport'],
-                                            ['reason_of_collection', 'rv-trf-option-grid rv-trf-option-grid--compact'],
-                                        ] as [$name, $optionGridClass])
-                                            @if($collectionByName->has($name))
-                                                @include('livewire.submission-forms.request-view.partials.trf-edit-collection-field', [
-                                                    'field' => $collectionByName->get($name),
-                                                    'colClass' => '',
-                                                    'hideOuterCol' => true,
-                                                    'outerColExtraClass' => $name === 'reason_of_collection' ? 'rv-trf-collection-col--right' : ($name === 'sampling_location' ? 'rv-trf-collection-col--left' : 'rv-trf-collection-col--mid'),
-                                                    'optionGridClass' => $optionGridClass,
-                                                ])
-                                            @else
-                                                <div class="{{ $name === 'reason_of_collection' ? 'rv-trf-collection-col--right' : ($name === 'sampling_location' ? 'rv-trf-collection-col--left' : 'rv-trf-collection-col--mid') }}" aria-hidden="true"></div>
-                                            @endif
-                                        @endforeach
-                                    </div>
-
-                                    @if($collectionByName->has('sampling_apparatus') || $collectionByName->has('method_of_sampling') || $collectionByName->has('thermometer_id'))
-                                        <div class="rv-trf-collection-trio rv-trf-collection-trio--bottom">
-                                            <div class="rv-trf-collection-col--left">
-                                                @if($collectionByName->has('sampling_apparatus'))
-                                                    @include('livewire.submission-forms.request-view.partials.trf-edit-collection-field', [
-                                                        'field' => $collectionByName->get('sampling_apparatus'),
-                                                        'colClass' => '',
-                                                        'hideOuterCol' => true,
-                                                        'optionGridClass' => 'rv-trf-option-grid rv-trf-option-grid--apparatus',
-                                                    ])
-                                                @endif
-                                                @if($collectionByName->has('thermometer_id'))
-                                                    <div class="mt-3">
-                                                        @include('livewire.submission-forms.request-view.partials.trf-edit-collection-field', [
-                                                            'field' => $collectionByName->get('thermometer_id'),
-                                                            'colClass' => '',
-                                                            'hideOuterCol' => true,
-                                                        ])
-                                                    </div>
-                                                @endif
-                                            </div>
-                                            <div class="rv-trf-collection-col--mid" aria-hidden="true"></div>
-                                            <div class="rv-trf-collection-col--right">
-                                                @if($collectionByName->has('method_of_sampling'))
-                                                    @include('livewire.submission-forms.request-view.partials.trf-edit-collection-field', [
-                                                        'field' => $collectionByName->get('method_of_sampling'),
-                                                        'colClass' => '',
-                                                        'hideOuterCol' => true,
-                                                        'optionGridClass' => 'rv-trf-option-grid rv-trf-option-grid--method',
-                                                    ])
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @endif
-                                </div>
-
-                                @foreach($trfEditCollectionDefinitions as $field)
-                                    @php $name = (string) ($field['name'] ?? ''); @endphp
-                                    @if($name === '' || in_array($name, $priorityCollectionNames, true))
-                                        @continue
-                                    @endif
-                                    @include('livewire.submission-forms.request-view.partials.trf-edit-collection-field', [
-                                        'field' => $field,
-                                        'colClass' => 'col-md-6',
-                                    ])
-                                @endforeach
-
-                                @if(count($trfEditCollectionDefinitions) === 0)
-                                    <div class="col-12">
-                                        <p class="text-muted mb-0 small">No sample collection fields on this form.</p>
-                                    </div>
-                                @endif
-                                @endif
-                            </div>
-                        </div>
                     @else
                         <div class="rv-trf-edit-section">
                             <h5 class="rv-trf-edit-section-title ls-type-label">Sample Details</h5>
-                            <p class="rv-trf-edit-section-hint ls-type-caption">Open a sample to edit its details. You can edit sample data, state of sample , condition and tests to be perfomed</p>
+                            <p class="rv-trf-edit-section-hint ls-type-caption">Open a sample to edit collection details and sample/test information. Use the copy icon on Sample 1 to fill all samples below.</p>
                             <div class="rv-trf-sample-list">
                                 @forelse($trfEditSampleSummaries as $sampleSummary)
                                     @php
@@ -285,20 +164,32 @@
                                          x-data="{ open: {{ $isExpanded ? 'true' : 'false' }} }"
                                          x-on:trf-sample-card-toggled.window="if ($event.detail.rowIndex === {{ $sampleIndex }}) open = !!$event.detail.open"
                                          :class="{ 'is-expanded': open }">
-                                        <button type="button"
-                                            class="rv-trf-sample-card-toggle ls-trf-sample-panel__header"
-                                            @click="
-                                                open = !open;
-                                                $wire.expandTrfSample({{ $sampleIndex }}, open);
-                                            "
-                                            :aria-expanded="open ? 'true' : 'false'">
-                                            <span class="ls-trf-sample-panel__title">{{ $sampleSummary['summary'] }}</span>
-                                            <i class="mdi ls-soft-card__chevron" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
-                                        </button>
+                                        <div class="ls-trf-sample-panel__header d-flex align-items-center">
+                                            <button type="button"
+                                                class="rv-trf-sample-card-toggle flex-grow-1 border-0 bg-transparent text-left p-0"
+                                                @click="
+                                                    open = !open;
+                                                    $wire.expandTrfSample({{ $sampleIndex }}, open);
+                                                "
+                                                :aria-expanded="open ? 'true' : 'false'">
+                                                <span class="ls-trf-sample-panel__title">{{ $sampleSummary['summary'] }}</span>
+                                                <i class="mdi ls-soft-card__chevron" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+                                            </button>
+                                            @if($sampleIndex === 0 && count($trfEditSampleSummaries) > 1)
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary btn-action-sm ml-2"
+                                                    wire:click="copyTrfEditFirstSampleToAllBelow"
+                                                    title="Copy Sample 1 details to all samples below"
+                                                    aria-label="Copy Sample 1 details to all samples below">
+                                                    <i class="mdi mdi-content-copy"></i>
+                                                </button>
+                                            @endif
+                                        </div>
 
                                         @if($isExpanded)
                                             @php
-                                                $skipInLoop = [
+                                                $collectionFieldNames = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::sampleCollectionFieldNames();
+                                                $skipInLoop = array_merge([
                                                     'sample_quantity_unit',
                                                     'sample_type_id',
                                                     'analysis_type_id',
@@ -308,7 +199,7 @@
                                                     'sample_temp',
                                                     'field_sample_temp',
                                                     'test_category',
-                                                ];
+                                                ], $collectionFieldNames);
                                                 if ($this->isWasteWaterTrf()) {
                                                     $skipInLoop[] = 'picture_of_samples';
                                                 }
@@ -319,34 +210,52 @@
                                                 $conditionField = $fieldsByName->get('sample_condition');
                                                 $tempField = $fieldsByName->get('sample_temp') ?? $fieldsByName->get('field_sample_temp');
                                                 $descriptionField = $fieldsByName->get('sample_description');
+                                                $collectionFields = collect($trfEditSampleDefinitions)
+                                                    ->filter(fn (array $field): bool => in_array((string) ($field['name'] ?? ''), $collectionFieldNames, true))
+                                                    ->values();
                                             @endphp
                                             <div class="rv-trf-sample-card-body"
                                                  wire:key="trf-sample-body-{{ $sampleIndex }}"
                                                  x-show="open"
                                                  x-cloak>
                                                 <div class="row">
-                                                    {{-- Catalog: sample type | tests (dropdown) --}}
-                                                    @if($sampleTypeField || $parametersField)
+                                                    @if($collectionFields->isNotEmpty())
+                                                        <div class="col-12 mb-2">
+                                                            <div class="rft-sample-section-label rft-sample-section-label--collection">Sample collection</div>
+                                                        </div>
                                                         <div class="col-12 mb-3">
-                                                            <div class="rv-trf-catalog-row rv-trf-catalog-row--type-tests">
-                                                                @if($sampleTypeField)
-                                                                    <div class="rv-trf-catalog-row__cell">
+                                                            <div class="rv-trf-sample-collection-grid">
+                                                                @foreach($collectionFields as $field)
+                                                                    @php
+                                                                        $collectionFieldName = (string) ($field['name'] ?? '');
+                                                                        $collectionSpanFull = in_array($collectionFieldName, ['sample_sampling_point_description', 'extra_sampling_equipment'], true);
+                                                                    @endphp
+                                                                    <div class="rv-trf-sample-collection-grid__cell{{ $collectionSpanFull ? ' rv-trf-sample-collection-grid__cell--full' : '' }}">
                                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $sampleTypeField,
+                                                                            'field' => $field,
                                                                             'hideOuterCol' => true,
                                                                         ])
                                                                     </div>
-                                                                @endif
-                                                                @if($parametersField)
-                                                                    <div class="rv-trf-catalog-row__cell">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $parametersField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
+                                                                @endforeach
                                                             </div>
                                                         </div>
+                                                        <div class="col-12 mb-2 mt-2">
+                                                            <div class="rft-sample-section-label rft-sample-section-label--sample">Sample &amp; test information</div>
+                                                        </div>
+                                                    @endif
+
+                                                    {{-- Catalog: sample type in grid; tests full width --}}
+                                                    @if($sampleTypeField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $sampleTypeField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($parametersField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $parametersField,
+                                                            'colClass' => 'col-12',
+                                                        ])
                                                     @endif
 
                                                     {{-- Mid fields (batch, production date, etc.) --}}
@@ -359,7 +268,7 @@
                                                         @endif
 
                                                         @if($fieldName === 'sampling_point_manual')
-                                                            <div class="col-md-6 mb-3">
+                                                            <div class="col-md-4 mb-3">
                                                                 @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                                     'field' => $field,
                                                                     'hideOuterCol' => true,
@@ -369,7 +278,7 @@
                                                         @endif
 
                                                         @if($fieldName === 'sample_quantity')
-                                                            <div class="col-md-6 mb-3">
+                                                            <div class="col-md-4 mb-3">
                                                                 <label class="ls-field__label">Qty / Unit</label>
                                                                 @include('livewire.submission-forms.request-view.partials.sample-row-qty-unit')
                                                             </div>
@@ -382,53 +291,41 @@
 
                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                             'field' => $field,
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endforeach
 
                                                     @if($isWaterTrf && $fieldsByName->has('test_requirements'))
                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                             'field' => $fieldsByName->get('test_requirements'),
-                                                            'colClass' => 'col-md-6',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endif
 
-                                                    {{-- One row: Test category | Sample condition | Sample Temp --}}
-                                                    @if($testCategoryField || $conditionField || $tempField)
-                                                        <div class="col-12 mb-3">
-                                                            <div class="rv-trf-category-condition-temp-row">
-                                                                @if($testCategoryField)
-                                                                    <div class="rv-trf-category-condition-temp-row__category">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $testCategoryField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                                @if($conditionField)
-                                                                    <div class="rv-trf-category-condition-temp-row__condition">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $conditionField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                                @if($tempField)
-                                                                    <div class="rv-trf-category-condition-temp-row__temp">
-                                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
-                                                                            'field' => $tempField,
-                                                                            'hideOuterCol' => true,
-                                                                        ])
-                                                                    </div>
-                                                                @endif
-                                                            </div>
-                                                        </div>
+                                                    @if($testCategoryField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $testCategoryField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($conditionField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $conditionField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
+                                                    @endif
+                                                    @if($tempField)
+                                                        @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
+                                                            'field' => $tempField,
+                                                            'colClass' => 'col-md-4',
+                                                        ])
                                                     @endif
 
                                                     {{-- Description last --}}
                                                     @if($descriptionField)
                                                         @include('livewire.submission-forms.request-view.partials.sample-row-edit-field', [
                                                             'field' => $descriptionField,
-                                                            'colClass' => 'col-12',
+                                                            'colClass' => 'col-md-4',
                                                         ])
                                                     @endif
                                                 </div>

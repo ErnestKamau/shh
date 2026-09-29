@@ -314,8 +314,67 @@
 
     #receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
         flex: 1 1 auto;
-        padding: 1.35rem 1.75rem 1.5rem;
+        padding: 1.1rem 1.75rem 0.85rem;
         min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake > .d-flex,
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake > .dr-success-banner {
+        flex: 0 0 auto;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .dr-select-trf {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard-shell {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard {
+        flex: 0 0 auto;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard__steps {
+        margin-bottom: 0.85rem;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .direct-registration-intake .walk-in-trf-wizard__panel {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-footer {
+        flex: 0 0 auto;
+        margin-top: 0.35rem !important;
+        padding-top: 0.55rem !important;
+        padding-bottom: 0 !important;
     }
 
     #receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header {
@@ -644,7 +703,7 @@
         background: #fff;
         border: 1px solid #e2e8f0;
         border-radius: 14px;
-        padding: 1rem 1.1rem 1.15rem;
+        padding: 0.85rem 1.1rem 0.9rem;
         box-shadow: 0 12px 28px rgba(138, 149, 158, 0.1);
     }
 
@@ -659,7 +718,7 @@
         }
 
         #receive-sample-modal.receive-sample-modal--direct-registration .modal-body {
-            padding: 1.1rem 1.15rem 1.25rem;
+            padding: 0.95rem 1.15rem 0.75rem;
         }
 
         #receive-sample-modal.receive-sample-modal--direct-registration .receive-sample-modal-header {

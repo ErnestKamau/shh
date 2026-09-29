@@ -2,8 +2,11 @@
 
 namespace App\Livewire\Batch\Tabs;
 
+use App\CapturedResult;
 use App\Models\TestRequestReportRevision;
+use App\Result;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\ProcessedResultSyncService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -17,6 +20,8 @@ class ProcessedResults extends Component
     public int $perPage = 10;
 
     protected $paginationTheme = 'bootstrap';
+
+    protected $listeners = ['resultsUpdated' => '$refresh'];
 
     public function mount(SampleHeader $batch): void
     {
@@ -34,18 +39,24 @@ class ProcessedResults extends Component
             return new LengthAwarePaginator([], 0, $this->perPage, 1);
         }
 
-        return \App\Result::with(['captured', 'captured.sample', 'captured.analysis_type', 'captured.operator'])
+        $this->healProcessedResultsFromCapture();
+
+        return Result::with(['captured', 'captured.sample', 'captured.analysis_type', 'captured.operator'])
             ->where('sample_header_id', $this->batch->id)
-            ->when($this->search, function($query) {
-                $query->where(function($q) {
-                    $q->where('result', 'like', '%' . $this->search . '%')
-                      ->orWhere('remarks', 'like', '%' . $this->search . '%')
-                      ->orWhereHas('captured.sample', function($sample) {
-                          $sample->where('sample_code', 'like', '%' . $this->search . '%');
-                      })
-                      ->orWhereHas('captured.analysis_type', function($analysis) {
-                          $analysis->where('name', 'like', '%' . $this->search . '%');
-                      });
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->where('result', 'like', '%'.$this->search.'%')
+                        ->orWhere('remarks', 'like', '%'.$this->search.'%')
+                        ->orWhereHas('captured.sample', function ($sample) {
+                            $sample->where('sample_code', 'like', '%'.$this->search.'%');
+                        })
+                        ->orWhereHas('captured.analysis_type', function ($analysis) {
+                            $analysis->where('name', 'like', '%'.$this->search.'%');
+                        })
+                        ->orWhereHas('captured', function ($captured) {
+                            $captured->where('result', 'like', '%'.$this->search.'%')
+                                ->orWhere('remark', 'like', '%'.$this->search.'%');
+                        });
                 });
             })
             ->orderBy('sample_detail_id', 'asc')
@@ -58,6 +69,31 @@ class ProcessedResults extends Component
             'processedResults' => $this->processedResults,
             'hasOfficialTestReport' => $this->batchHasOfficialTestReport(),
         ]);
+    }
+
+    /**
+     * Backfill Result rows from CapturedResult when the Test Report unlocked
+     * this tab before Process Results / TRR sync ran.
+     */
+    private function healProcessedResultsFromCapture(): void
+    {
+        $needsHeal = Result::query()
+            ->where('sample_header_id', $this->batch->id)
+            ->where(function ($query) {
+                $query->whereNull('result')
+                    ->orWhere('result', '');
+            })
+            ->whereHas('captured', function ($query) {
+                $query->whereNotNull('result')
+                    ->where('result', '!=', '');
+            })
+            ->exists();
+
+        if (! $needsHeal) {
+            return;
+        }
+
+        app(ProcessedResultSyncService::class)->syncBatch((string) $this->batch->id);
     }
 
     private function batchHasOfficialTestReport(): bool

@@ -775,6 +775,120 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertSet('formData.parameters.0', [(string) $sharedAnalyte->name]);
     }
 
+    public function test_copy_first_sample_to_all_below_copies_type_location_point_and_state(): void
+    {
+        $sampleType = $this->createSampleType('Food', 'SMP-FOOD-COPY');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $this->createWalkInCustomerDetailsSection($portalForm);
+
+        $section = SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $portalForm->id,
+            'title' => 'Test & sample information',
+            'section_type' => 'rows_section',
+            'sort_order' => 1,
+        ]);
+
+        $holder = SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'rows',
+            'sort_order' => 0,
+        ]);
+
+        $rowFields = [
+            ['sample_type_select', 'Sample type', 'sample_type_id'],
+            ['text', 'Sampling location', 'sampling_location'],
+            ['text', 'Sampling Point', 'sampling_point_manual'],
+            ['text', 'State of sample', 'state_of_sample'],
+            ['rich_text', 'Sample description', 'sample_description'],
+        ];
+
+        foreach ($rowFields as $index => [$type, $label, $name]) {
+            SubmissionFormElement::query()->create([
+                'id' => (string) Str::uuid7(),
+                'submission_form_element_holder_id' => $holder->id,
+                'element_type' => $type,
+                'label' => $label,
+                'name' => $name,
+                'sort_order' => $index,
+            ]);
+        }
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Copy Customer',
+                'sample_type_id' => [[(string) $sampleType->id], []],
+                'sampling_location' => ['loc-point-1', ''],
+                'sampling_point_manual' => ['RUIRU', ''],
+                'state_of_sample' => ['Solid', ''],
+                'sample_description' => ['First sample', ''],
+            ])
+            ->call('copyFirstSampleToAllBelow')
+            ->assertSet('formData.sample_type_id.1', [(string) $sampleType->id])
+            ->assertSet('formData.sampling_location.1', 'loc-point-1')
+            ->assertSet('formData.sampling_point_manual.1', 'RUIRU')
+            ->assertSet('formData.state_of_sample.1', 'Solid')
+            ->assertSet('formData.sample_description.1', 'First sample')
+            ->assertDispatched('trf-sync-copied-sample-fields');
+    }
+
+    public function test_copy_first_sample_promotes_scalar_sampling_location_before_copy(): void
+    {
+        $sampleType = $this->createSampleType('Food', 'SMP-FOOD-COPY-SCALAR');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $this->createWalkInCustomerDetailsSection($portalForm);
+
+        $section = SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $portalForm->id,
+            'title' => 'Test & sample information',
+            'section_type' => 'rows_section',
+            'sort_order' => 1,
+        ]);
+
+        $holder = SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'rows',
+            'sort_order' => 0,
+        ]);
+
+        foreach ([
+            ['text', 'Sampling location', 'sampling_location'],
+            ['rich_text', 'Sample description', 'sample_description'],
+        ] as $index => [$type, $label, $name]) {
+            SubmissionFormElement::query()->create([
+                'id' => (string) Str::uuid7(),
+                'submission_form_element_holder_id' => $holder->id,
+                'element_type' => $type,
+                'label' => $label,
+                'name' => $name,
+                'sort_order' => $index,
+            ]);
+        }
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Copy Customer',
+                'sampling_location' => 'Shared Location',
+                'sample_description' => ['First sample', ''],
+            ])
+            ->call('copyFirstSampleToAllBelow')
+            ->assertSet('formData.sampling_location.0', 'Shared Location')
+            ->assertSet('formData.sampling_location.1', 'Shared Location');
+    }
+
     private function createTemplateForm(): SubmissionForm
     {
         return SubmissionForm::query()->create([

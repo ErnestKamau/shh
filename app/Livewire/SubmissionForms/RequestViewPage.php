@@ -1452,7 +1452,11 @@ class RequestViewPage extends Component
             return;
         }
 
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             $slide = 'customer';
         }
 
@@ -1522,25 +1526,7 @@ class RequestViewPage extends Component
                     if ($name === '') {
                         continue;
                     }
-                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
-                        $draft[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
-                            $draft[$name] ?? null,
-                        );
-                    }
-                    if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
-                        || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
-                        $draft[$name] = $this->normalizeRowSelectValues($draft[$name] ?? null);
-                    }
-                    if ($type === 'analysis_elements_select' || $name === 'parameters') {
-                        $current = $draft[$name] ?? '';
-                        if (is_string($current) && str_contains($current, ',')) {
-                            $draft[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
-                        } elseif (is_string($current) && $current !== '') {
-                            $draft[$name] = [$current];
-                        } elseif (! is_array($current)) {
-                            $draft[$name] = [];
-                        }
-                    }
+                    $draft = $this->normalizeSampleRowDraftField($draft, $name, $type);
                 }
                 $this->trfEditSampleDrafts[$index] = $draft;
             }
@@ -1581,7 +1567,11 @@ class RequestViewPage extends Component
     {
         $this->authorizeFormAccess(auth()->user());
 
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             $slide = 'customer';
         }
 
@@ -1650,25 +1640,7 @@ class RequestViewPage extends Component
                     if ($name === '') {
                         continue;
                     }
-                    if ($type === 'checkbox' || in_array($name, ['test_requirements', 'test_category'], true)) {
-                        $draft[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
-                            $draft[$name] ?? null,
-                        );
-                    }
-                    if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
-                        || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
-                        $draft[$name] = $this->normalizeRowSelectValues($draft[$name] ?? null);
-                    }
-                    if ($type === 'analysis_elements_select' || $name === 'parameters') {
-                        $current = $draft[$name] ?? '';
-                        if (is_string($current) && str_contains($current, ',')) {
-                            $draft[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
-                        } elseif (is_string($current) && $current !== '') {
-                            $draft[$name] = [$current];
-                        } elseif (! is_array($current)) {
-                            $draft[$name] = [];
-                        }
-                    }
+                    $draft = $this->normalizeSampleRowDraftField($draft, $name, $type);
                 }
                 $this->trfEditSampleDrafts[$index] = $draft;
             }
@@ -1713,7 +1685,11 @@ class RequestViewPage extends Component
 
     public function setTrfViewSlide(string $slide): void
     {
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             return;
         }
 
@@ -1723,7 +1699,11 @@ class RequestViewPage extends Component
 
     public function setTrfEditSlide(string $slide): void
     {
-        if (! in_array($slide, ['customer', 'collection', 'samples'], true)) {
+        if ($slide === 'collection') {
+            $slide = 'samples';
+        }
+
+        if (! in_array($slide, ['customer', 'samples'], true)) {
             return;
         }
 
@@ -1820,6 +1800,29 @@ class RequestViewPage extends Component
         $this->editingRowSelectOptions = $this->buildSampleRowSelectOptions($this->editingRowFields);
         $this->dispatch('trf-sample-card-toggled', rowIndex: $rowIndex, open: true);
         $this->dispatch('trf-sample-card-opened', rowIndex: $rowIndex);
+    }
+
+    public function copyTrfEditFirstSampleToAllBelow(): void
+    {
+        if (! array_key_exists(0, $this->trfEditSampleDrafts) || count($this->trfEditSampleDrafts) <= 1) {
+            return;
+        }
+
+        $this->persistExpandedSampleDraft();
+
+        $source = $this->trfEditSampleDrafts[0];
+        foreach (array_keys($this->trfEditSampleDrafts) as $targetRowIndex) {
+            $targetRowIndex = (int) $targetRowIndex;
+            if ($targetRowIndex <= 0) {
+                continue;
+            }
+
+            $this->trfEditSampleDrafts[$targetRowIndex] = json_decode(json_encode($source), true);
+
+            if ($this->trfEditExpandedSampleIndex === $targetRowIndex) {
+                $this->editingRowFields = $this->trfEditSampleDrafts[$targetRowIndex];
+            }
+        }
     }
 
     public function closeTrfEditor(): void
@@ -2026,13 +2029,158 @@ class RequestViewPage extends Component
         return [
             'sampling_apparatus',
             'method_of_sampling',
-            'reason_of_collection',
             'transport_condition',
             'sampling_technique',
             'sampling_source',
             'sample_types_ww',
             'field_data_requirements',
         ];
+    }
+
+    private function usesCheckboxGroupEditor(string $name, string $type): bool
+    {
+        if ($type === 'checkbox') {
+            return true;
+        }
+
+        return in_array($name, [
+            'test_requirements',
+            'test_category',
+            'sample_condition',
+            'sampling_apparatus',
+            'method_of_sampling',
+            'transport_condition',
+            'sampling_technique',
+            'sampling_source',
+            'sample_types_ww',
+            'field_data_requirements',
+        ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $draft
+     * @return array<string, mixed>
+     */
+    private function normalizeSampleRowDraftField(array $draft, string $name, string $type): array
+    {
+        if ($this->usesCheckboxGroupEditor($name, $type)) {
+            $draft[$name] = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::checkboxGroupValueMap(
+                $draft[$name] ?? null,
+            );
+
+            return $draft;
+        }
+
+        if ($name === 'additional_details') {
+            $draft[$name] = $this->decodeAdditionalDetailsRows($draft[$name] ?? null);
+
+            return $draft;
+        }
+
+        if (in_array($name, ['sample_type_id', 'analysis_type_id'], true)
+            || in_array($type, ['sample_type_select', 'analysis_type_select'], true)) {
+            $draft[$name] = $this->normalizeRowSelectValues($draft[$name] ?? null);
+
+            return $draft;
+        }
+
+        if ($type === 'analysis_elements_select' || $name === 'parameters') {
+            $current = $draft[$name] ?? '';
+            if (is_string($current) && str_contains($current, ',')) {
+                $draft[$name] = array_values(array_filter(array_map('trim', explode(',', $current))));
+            } elseif (is_string($current) && $current !== '') {
+                $draft[$name] = [$current];
+            } elseif (! is_array($current)) {
+                $draft[$name] = [];
+            }
+
+            return $draft;
+        }
+
+        if (in_array($type, ['select', 'radio'], true) || in_array($name, ['reason_of_collection', 'state_of_sample'], true)) {
+            $draft[$name] = $this->scalarDraftValue($draft[$name] ?? null);
+        }
+
+        return $draft;
+    }
+
+    /**
+     * @return list<array{label: string, value: string}>
+     */
+    public function editingRowAdditionalDetails(): array
+    {
+        return $this->decodeAdditionalDetailsRows($this->editingRowFields['additional_details'] ?? null);
+    }
+
+    public function addEditingRowAdditionalDetail(): void
+    {
+        $rows = $this->editingRowAdditionalDetails();
+        $rows[] = ['label' => '', 'value' => ''];
+        $this->editingRowFields['additional_details'] = $rows;
+        $this->persistExpandedSampleDraft();
+    }
+
+    public function removeEditingRowAdditionalDetail(int $detailIndex): void
+    {
+        $rows = $this->editingRowAdditionalDetails();
+        if (! isset($rows[$detailIndex])) {
+            return;
+        }
+
+        unset($rows[$detailIndex]);
+        $this->editingRowFields['additional_details'] = array_values($rows);
+        $this->persistExpandedSampleDraft();
+    }
+
+    /**
+     * @return list<array{label: string, value: string}>
+     */
+    private function decodeAdditionalDetailsRows(mixed $value): array
+    {
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach (array_values($value) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $rows[] = [
+                'label' => trim((string) ($row['label'] ?? '')),
+                'value' => trim((string) ($row['value'] ?? '')),
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function scalarDraftValue(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if (is_array($value)) {
+            $selected = \App\Services\SubmissionForm\SubmissionFormSchemaHelper::selectedCheckboxKeys($value);
+            if ($selected !== null) {
+                return (string) ($selected[0] ?? '');
+            }
+
+            $first = collect($value)
+                ->flatten()
+                ->first(fn ($item) => is_scalar($item) && trim((string) $item) !== '');
+
+            return is_scalar($first) ? (string) $first : '';
+        }
+
+        return is_scalar($value) ? (string) $value : '';
     }
 
     public function isWaterTrf(): bool

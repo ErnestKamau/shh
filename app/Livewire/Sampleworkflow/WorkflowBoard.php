@@ -306,6 +306,8 @@ class WorkflowBoard extends Component
 
     public bool $bulkTestReportShowMuPercent = true;
 
+    public string $bulkTestReportLabSectionId = '';
+
     /** @var list<array{batch_id: string, batch_code: string, report_number: string, online_url: string, filename: string}> */
     public array $bulkTestReportGenerated = [];
 
@@ -4005,6 +4007,7 @@ SQL);
         $this->bulkTestReportShowSpecification = ! $isBrazil;
         $this->bulkTestReportShowSpecificationStandard = ! $isBrazil;
         $this->bulkTestReportShowMuPercent = ! $isBrazil;
+        $this->bulkTestReportLabSectionId = '';
     }
 
     /**
@@ -4473,6 +4476,12 @@ SQL);
                 'show_specification' => $this->bulkTestReportShowSpecification,
                 'show_specification_standard' => $this->bulkTestReportShowSpecificationStandard,
                 'show_mu_percent' => $this->bulkTestReportShowMuPercent,
+                'lab_section_id' => $this->bulkTestReportLabSectionId !== ''
+                    ? $this->bulkTestReportLabSectionId
+                    : null,
+                'lab_section_ids' => $this->bulkTestReportLabSectionId !== ''
+                    ? [$this->bulkTestReportLabSectionId]
+                    : null,
             ],
         );
 

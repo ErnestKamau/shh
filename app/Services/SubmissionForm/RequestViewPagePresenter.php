@@ -2,10 +2,12 @@
 
 namespace App\Services\SubmissionForm;
 
+use App\AnalysisElements;
 use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
+use App\SampleAnalysisStage;
 use App\SampleHeader;
 use Illuminate\Support\Str;
 
@@ -487,29 +489,113 @@ class RequestViewPagePresenter
      */
     private function sampleCollectionRailFields(array $formData): array
     {
-        $fields = [];
+        $fieldsByName = [];
 
         foreach ($formData['sections'] ?? [] as $section) {
             $titleKey = strtolower(trim((string) ($section['title'] ?? '')));
-            if ($titleKey !== 'sample collection data') {
+            $sectionType = (string) ($section['section_type'] ?? '');
+            $isCollectionSection = SubmissionFormSchemaHelper::isSampleCollectionSectionTitle($titleKey)
+                || $titleKey === 'sample collection data';
+            $isRowsSection = $sectionType === 'rows_section';
+
+            if (! $isCollectionSection && ! $isRowsSection) {
                 continue;
             }
 
-            foreach ($this->filledFieldsFromSection($section) as $field) {
-                $name = strtolower(trim((string) ($field['name'] ?? '')));
-                if (in_array($name, SubmissionFormSchemaHelper::miscellaneousTrfFieldNames(), true)) {
+            foreach ($section['element_holders'] ?? [] as $holder) {
+                $holderType = (string) ($holder['holder_type'] ?? '');
+
+                if ($isRowsSection || $holderType === 'rows') {
+                    foreach ($holder['elements'] ?? [] as $element) {
+                        $name = strtolower(trim((string) ($element['name'] ?? '')));
+                        if ($name === '' || ! SubmissionFormSchemaHelper::isSampleCollectionFieldName($name)) {
+                            continue;
+                        }
+                        if (in_array($name, SubmissionFormSchemaHelper::miscellaneousTrfFieldNames(), true)) {
+                            continue;
+                        }
+
+                        $display = $this->collectionFieldDisplayAcrossRows($element);
+                        if ($this->isEmptyDisplayValue($display)) {
+                            continue;
+                        }
+
+                        $fieldsByName[$name] = [
+                            'label' => (string) ($element['label'] ?? $element['name'] ?? 'Field'),
+                            'value' => $display,
+                            'name' => (string) ($element['name'] ?? $name),
+                        ];
+                    }
+
                     continue;
                 }
 
-                $fields[] = [
-                    'label' => $field['label'],
-                    'value' => $field['value'],
-                    'name' => $field['name'] ?? null,
-                ];
+                foreach ($this->filledFieldsFromSection([
+                    'element_holders' => [$holder],
+                ]) as $field) {
+                    $name = strtolower(trim((string) ($field['name'] ?? '')));
+                    if (in_array($name, SubmissionFormSchemaHelper::miscellaneousTrfFieldNames(), true)) {
+                        continue;
+                    }
+
+                    $fieldsByName[$name !== '' ? $name : (string) count($fieldsByName)] = [
+                        'label' => $field['label'],
+                        'value' => $field['value'],
+                        'name' => $field['name'] ?? null,
+                    ];
+                }
             }
         }
 
-        return $fields;
+        return array_values($fieldsByName);
+    }
+
+    /**
+     * Summarise a per-sample collection field for the Sample collection tab.
+     * Identical values across samples collapse to one label; differing values stay labelled per sample.
+     *
+     * @param  array<string, mixed>  $element
+     */
+    private function collectionFieldDisplayAcrossRows(array $element): string
+    {
+        $savedValues = $element['saved_values'] ?? [];
+        if (! is_array($savedValues) || $savedValues === []) {
+            return '';
+        }
+
+        $byIndex = [];
+        foreach ($savedValues as $saved) {
+            if (! is_array($saved)) {
+                continue;
+            }
+
+            $index = (int) ($saved['array_index'] ?? count($byIndex));
+            $slice = $element;
+            $slice['saved_values'] = [$saved];
+            $display = $this->elementDisplayValue($slice);
+            if ($this->isEmptyDisplayValue($display)) {
+                continue;
+            }
+
+            $byIndex[$index] = $display;
+        }
+
+        if ($byIndex === []) {
+            return '';
+        }
+
+        ksort($byIndex);
+        $unique = array_values(array_unique($byIndex));
+        if (count($unique) === 1) {
+            return $unique[0];
+        }
+
+        $parts = [];
+        foreach ($byIndex as $index => $display) {
+            $parts[] = 'Sample '.((int) $index + 1).': '.$display;
+        }
+
+        return implode(' · ', $parts);
     }
 
     private function sourceChannelLabel(): ?string
@@ -614,7 +700,7 @@ class RequestViewPagePresenter
      *         sample_description_html: string,
      *         has_description: bool,
      *         test_codes: list<string>,
-     *         parameter_groups: list<array{analysis_type: string, parameters: list<array{code: string, name: string}>}>,
+     *         parameter_groups: list<array{analysis_type: string, parameters: list<array{code: string, name: string, report_display_name?: string, method?: string, lab_section?: string, reporting_unit?: string, tat?: string, loq?: string}>}>,
      *         extra_columns: list<array{label: string, value: string}>,
      *         details: list<array{label: string, value: string}>
      *     }>,
@@ -1112,7 +1198,7 @@ class RequestViewPagePresenter
 
     /**
      * @param  array<string, mixed>  $line
-     * @return list<array{analysis_type: string, parameters: list<array{code: string, name: string}>}>
+     * @return list<array{analysis_type: string, parameters: list<array{code: string, name: string, report_display_name?: string, method?: string, lab_section?: string, reporting_unit?: string, tat?: string, loq?: string}>}>
      */
     private function resolveParameterGroupsForLine(array $line): array
     {
@@ -1135,10 +1221,26 @@ class RequestViewPagePresenter
         $groups = [];
 
         if ($ids !== []) {
-                $elements = \App\AnalysisElements::query()
-                ->with(['analyte', 'analysis_type', 'mmethod', 'ltmethod', 'labSection'])
+            $elements = AnalysisElements::query()
+                ->with(['analyte', 'analysis_type', 'mmethod', 'ltmethod'])
                 ->whereIn('id', array_values(array_unique($ids)))
                 ->get();
+
+            $stageIds = $elements
+                ->map(static fn (AnalysisElements $element): string => trim((string) ($element->lab_section_id ?? '')))
+                ->merge(
+                    $elements->map(static fn (AnalysisElements $element): string => trim((string) ($element->analysis_type?->lab_section_id ?? '')))
+                )
+                ->filter(static fn (string $id): bool => $id !== '')
+                ->unique()
+                ->values()
+                ->all();
+
+            $stageNamesById = $stageIds === []
+                ? collect()
+                : SampleAnalysisStage::query()
+                    ->whereIn('id', $stageIds)
+                    ->pluck('name', 'id');
 
             foreach ($elements as $element) {
                 $analysisType = trim((string) ($element->analysis_type?->name ?? $line['analysis_type_name'] ?? 'Parameters'));
@@ -1152,6 +1254,12 @@ class RequestViewPagePresenter
                     $reportDisplay = trim((string) ($element->analyte?->plainReportDisplay() ?? $element->analyte?->code ?? ''));
                 }
                 $methodName = trim((string) ($element->mmethod?->name ?? $element->ltmethod?->name ?? ''));
+                $elementStageId = trim((string) ($element->lab_section_id ?? ''));
+                $typeStageId = trim((string) ($element->analysis_type?->lab_section_id ?? ''));
+                $labSection = trim((string) (
+                    ($elementStageId !== '' ? ($stageNamesById[$elementStageId] ?? '') : '')
+                    ?: ($typeStageId !== '' ? ($stageNamesById[$typeStageId] ?? '') : '')
+                ));
                 $reportingUnit = trim((string) ($element->reporting_unit ?? ''));
                 $tat = $element->reporting_time !== null && $element->reporting_time !== ''
                     ? (string) $element->reporting_time
@@ -1175,6 +1283,7 @@ class RequestViewPagePresenter
                     'name' => $name !== '' ? $name : $reportDisplay,
                     'report_display_name' => $reportDisplay !== '' ? $reportDisplay : '—',
                     'method' => $methodName !== '' ? $methodName : '—',
+                    'lab_section' => $labSection !== '' ? $labSection : '—',
                     'reporting_unit' => $reportingUnit !== '' ? $reportingUnit : '—',
                     'tat' => $tat !== '' ? $tat.'d' : '—',
                     'loq' => $loq !== '' ? $loq : '—',
@@ -1771,8 +1880,23 @@ class RequestViewPagePresenter
         $name = strtolower(trim((string) ($element['name'] ?? '')));
         $display = $saved['display_value'] ?? $saved['value'] ?? '';
 
+        if ($name === 'sampled_by') {
+            $raw = is_scalar($display) ? (string) $display : (string) ($saved['value'] ?? '');
+            $label = \App\Services\Sampleworkflow\SampledByParty::displayLabel($raw);
+            if ($label !== '') {
+                return $label;
+            }
+        }
+
         if ($name === 'extra_sampling_equipment') {
             return $this->formatExtraSamplingEquipmentDisplay($display);
+        }
+
+        if (is_string($display)) {
+            $decoded = json_decode($display, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $display = $decoded;
+            }
         }
 
         if (is_array($display)) {

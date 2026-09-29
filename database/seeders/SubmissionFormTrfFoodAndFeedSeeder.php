@@ -30,6 +30,10 @@ class SubmissionFormTrfFoodAndFeedSeeder extends Seeder
             ]);
             $this->patchSampleRowsSection($form, $this->foodTrfRowFields());
             $this->patchMiscellaneousSection($form);
+            $this->patchSubmitAndSignSection($form);
+            $this->promoteCollectionFieldsToSampleRows($form, [
+                ['value' => 'air_sampler', 'label' => 'Air sampler'],
+            ]);
         } else {
             $this->createCustomerDetailsSection($form, 1);
             $this->createCollectionDataSection($form, 2, true, [
@@ -40,6 +44,9 @@ class SubmissionFormTrfFoodAndFeedSeeder extends Seeder
             $this->createMiscellaneousSection($form, 4);
 
             $this->createSubmitAndSignSection($form, 5);
+            $this->promoteCollectionFieldsToSampleRows($form, [
+                ['value' => 'air_sampler', 'label' => 'Air sampler'],
+            ]);
         }
 
         $this->clearCaches();

@@ -1906,7 +1906,50 @@ function getSupplierByID($id)
 
 function getSampleTypes()
 {
-	return App\SampleType::where('active', '1')->orderBy('name')->get();
+	// Avoid default SampleType::$with analysis_types — dropdowns only need id/name (+ conditions).
+	return App\SampleType::without(['analysis_types'])
+		->with('sample_condition')
+		->where('active', '1')
+		->orderBy('name')
+		->get();
+}
+
+/**
+ * Ensure batch dropdown includes sample types already used on the header or sample rows.
+ *
+ * @param  \Illuminate\Support\Collection<int, \App\SampleType>  $sampleTypes
+ * @return \Illuminate\Support\Collection<int, \App\SampleType>
+ */
+function mergeSampleTypesUsedByBatch($sampleTypes, $batch)
+{
+	$usedIds = collect([
+		(string) ($batch->sample_type_id ?? ''),
+	])->filter();
+
+	if (! empty($batch->id)) {
+		$usedIds = $usedIds->merge(
+			App\SampleDetails::query()
+				->where('sample_header_id', $batch->id)
+				->whereNotNull('sample_type_id')
+				->pluck('sample_type_id')
+				->map(fn ($id) => (string) $id)
+		);
+	}
+
+	$usedIds = $usedIds->filter()->unique()->values();
+	$existingIds = collect($sampleTypes)->pluck('id')->map(fn ($id) => (string) $id);
+	$missingIds = $usedIds->diff($existingIds)->values();
+
+	if ($missingIds->isEmpty()) {
+		return $sampleTypes;
+	}
+
+	$extra = App\SampleType::without(['analysis_types'])
+		->with('sample_condition')
+		->whereIn('id', $missingIds->all())
+		->get();
+
+	return collect($sampleTypes)->concat($extra)->sortBy('name')->values();
 }
 function getInventorySubs()
 {

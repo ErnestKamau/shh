@@ -116,6 +116,7 @@
             class="rft-trf-params-modal"
             x-show="open"
             x-cloak
+            style="display: none;"
             :data-rft-params-row="rowIndex"
             @click.self="cancelPanel()"
             @keydown.escape.window="if (open) cancelPanel()"

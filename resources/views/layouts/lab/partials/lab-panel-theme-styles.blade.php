@@ -241,7 +241,8 @@
 		padding: 14px 16px;
 	}
 
-	.lab-panel-theme .batch-details-checkboxes-panel .control-label {
+	.lab-panel-theme .batch-details-checkboxes-panel .control-label,
+	.lab-panel-theme .batch-details-checkboxes-panel .ls-check {
 		font-size: var(--text-sm);
 		font-weight: var(--font-medium);
 		color: var(--workflow-text-main);

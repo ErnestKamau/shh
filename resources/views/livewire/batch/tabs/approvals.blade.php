@@ -89,10 +89,10 @@
                         <tr>
                             <th>#</th>
                             <th>Actions</th>
-                            <th>Status</th>
-                            <th>{{ $approvalDateLabel }}</th>
                             <th>{{ $approverColumnLabel }}</th>
                             <th>Title</th>
+                            <th>Status</th>
+                            <th>{{ $approvalDateLabel }}</th>
                             <th>Remark</th>
                             <th>Lab Sections</th>
                         </tr>
@@ -153,14 +153,23 @@
                                 </div>
                             </td>
                             <td>
+                                {{ $approver->approvername }}<br>
+                                <small class="text-muted">{{ $approver->approver_type }}</small>
+                            </td>
+                            <td>{{ $approver->title }}</td>
+                            <td>
                                 @if($approver->status == 0)
                                 <span class="badge badge-primary badge-pill p-2">
                                     <i class="mdi mdi-decagram"></i> {{ $awaitingApprovalLabel }}
                                 </span>
                                 @elseif($approver->status == 1)
-                                @if($approver->batch_status == "Sample Verification" && $approver->show_report == 1)
+                                @if($approver->batch_status == "Sample Verification" && ($approver->title === 'Analyst' || (int) $approver->show_report === 0))
                                 <span class="badge badge-success badge-pill p-2">
-                                    <i class="mdi mdi-thumb-up-outline"></i> Checked
+                                    <i class="mdi mdi-flask-outline"></i> Analysed
+                                </span>
+                                @elseif($approver->batch_status == "Sample Verification" && $approver->show_report == 1)
+                                <span class="badge badge-success badge-pill p-2">
+                                    <i class="mdi mdi-thumb-up-outline"></i> Verified
                                 </span>
                                 @else
                                 <span class="badge badge-success badge-pill p-2">
@@ -179,11 +188,6 @@
                                 @endif
                             </td>
                             <td>{{ $approver->approval_date }}</td>
-                            <td>
-                                {{ $approver->approvername }}<br>
-                                <small class="text-muted">{{ $approver->approver_type }}</small>
-                            </td>
-                            <td>{{ $approver->title }}</td>
                             <td>
                                 <small>{{ $approver->remark }}</small>
                             </td>
@@ -220,10 +224,10 @@
                         <tr>
                             <th>#</th>
                             <th>Actions</th>
-                            <th>Status</th>
-                            <th>{{ $approvalDateLabel }}</th>
                             <th>{{ $approverColumnLabel }}</th>
                             <th>Title</th>
+                            <th>Status</th>
+                            <th>{{ $approvalDateLabel }}</th>
                             <th>Remark</th>
                             <th>Lab Sections</th>
                         </tr>

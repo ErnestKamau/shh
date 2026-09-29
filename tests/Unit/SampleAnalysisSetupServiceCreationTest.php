@@ -264,4 +264,193 @@ class SampleAnalysisSetupServiceCreationTest extends TestCase
         $this->assertSame($sectionId, $csv);
         $this->assertSame($sectionId, (string) $batch->fresh()->lab_section_ids);
     }
+
+    public function test_sync_captured_result_lab_sections_updates_stale_section_from_analysis_type(): void
+    {
+        if (! extension_loaded('pdo_pgsql') && config('database.default') === 'pgsql') {
+            $this->markTestSkipped('pgsql unavailable in this environment');
+        }
+
+        $companyId = (string) Str::uuid();
+        $labId = (string) Str::uuid();
+        $oldSectionId = (string) Str::uuid();
+        $newSectionId = (string) Str::uuid();
+
+        DB::table('labs')->insert([
+            'id' => $labId,
+            'company_id' => $companyId,
+            'name' => 'Sync Lab',
+            'code' => 'SL',
+            'active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ([
+            [$oldSectionId, 'OLD', 'OLD'],
+            [$newSectionId, 'NEW', 'NEW'],
+        ] as [$id, $name, $code]) {
+            DB::table('sample_analysis_stages')->insert([
+                'id' => $id,
+                'lab_id' => $labId,
+                'company_id' => $companyId,
+                'name' => $name,
+                'code' => $code,
+                'active' => true,
+                'is_sample_stage' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $analysisType = \App\AnalysisType::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Type '.Str::random(4),
+            'code' => 'TY-'.Str::upper(Str::random(4)),
+            'lab_id' => $labId,
+            'lab_section_id' => $newSectionId,
+            'active' => 1,
+        ]);
+
+        $analyte = Analyte::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Analyte '.Str::random(4),
+            'code' => 'AN-'.Str::upper(Str::random(4)),
+            'company_id' => $companyId,
+            'active' => 1,
+        ]);
+
+        $element = AnalysisElements::query()->create([
+            'id' => (string) Str::uuid(),
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'lab_section_id' => $newSectionId,
+            'company_id' => $companyId,
+            'active' => 1,
+            'level' => 1,
+        ]);
+
+        $batch = SampleHeader::query()->create([
+            'batch_code' => 'CRS-'.Str::random(4),
+            'status' => 'Samples In Lab',
+        ]);
+
+        $detail = SampleDetails::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_code' => 'CRS-001',
+            'analysis_type_id' => $analysisType->id,
+        ]);
+
+        $captured = CapturedResult::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_detail_id' => $detail->id,
+            'sample_detail_code' => $detail->sample_code,
+            'analysis_type_id' => $analysisType->id,
+            'analysis_element_id' => $element->id,
+            'analyte_id' => $analyte->id,
+            'lab_section_id' => $oldSectionId,
+        ]);
+
+        Result::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_detail_id' => $detail->id,
+            'sample_detail_code' => $detail->sample_code,
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => $analyte->id,
+            'lab_section_id' => $oldSectionId,
+        ]);
+
+        $updated = app(SampleAnalysisSetupService::class)
+            ->syncCapturedResultLabSectionsForSampleDetail($detail);
+
+        $this->assertSame(1, $updated);
+        $this->assertSame($newSectionId, (string) $captured->fresh()->lab_section_id);
+        $this->assertSame(
+            $newSectionId,
+            (string) Result::query()->where('sample_detail_id', $detail->id)->value('lab_section_id')
+        );
+    }
+
+    public function test_sync_batch_sample_type_id_keeps_primary_when_still_on_a_sample(): void
+    {
+        if (! extension_loaded('pdo_pgsql') && config('database.default') === 'pgsql') {
+            $this->markTestSkipped('pgsql unavailable in this environment');
+        }
+
+        $nonseafood = \App\SampleType::query()->create([
+            'name' => 'Nonseafood '.Str::random(4),
+            'code' => 'NS-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+        $seafood = \App\SampleType::query()->create([
+            'name' => 'Seafood '.Str::random(4),
+            'code' => 'SF-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $batch = SampleHeader::query()->create([
+            'batch_code' => 'ST-'.Str::random(4),
+            'status' => 'Samples In Lab',
+            'sample_type_id' => $nonseafood->id,
+        ]);
+
+        SampleDetails::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_code' => '001',
+            'sample_type_id' => $nonseafood->id,
+        ]);
+        SampleDetails::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_code' => '002',
+            'sample_type_id' => $seafood->id,
+        ]);
+
+        $service = app(SampleAnalysisSetupService::class);
+        $primary = $service->syncBatchSampleTypeIdFromSamples($batch->fresh());
+        $labels = $service->sampleTypeLabelsFromSamples($batch->fresh());
+
+        $this->assertSame((string) $nonseafood->id, $primary);
+        $this->assertSame((string) $nonseafood->id, (string) $batch->fresh()->sample_type_id);
+        $this->assertCount(2, $labels);
+        $this->assertEqualsCanonicalizing(
+            [(string) $nonseafood->id, (string) $seafood->id],
+            array_column($labels, 'id')
+        );
+    }
+
+    public function test_sync_batch_sample_type_id_switches_when_primary_no_longer_on_samples(): void
+    {
+        if (! extension_loaded('pdo_pgsql') && config('database.default') === 'pgsql') {
+            $this->markTestSkipped('pgsql unavailable in this environment');
+        }
+
+        $stale = \App\SampleType::query()->create([
+            'name' => 'Stale '.Str::random(4),
+            'code' => 'ST-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+        $seafood = \App\SampleType::query()->create([
+            'name' => 'Seafood '.Str::random(4),
+            'code' => 'SF-'.Str::upper(Str::random(4)),
+            'active' => 1,
+        ]);
+
+        $batch = SampleHeader::query()->create([
+            'batch_code' => 'ST2-'.Str::random(4),
+            'status' => 'Samples In Lab',
+            'sample_type_id' => $stale->id,
+        ]);
+
+        SampleDetails::query()->create([
+            'sample_header_id' => $batch->id,
+            'sample_code' => '001',
+            'sample_type_id' => $seafood->id,
+        ]);
+
+        $primary = app(SampleAnalysisSetupService::class)
+            ->syncBatchSampleTypeIdFromSamples($batch->fresh());
+
+        $this->assertSame((string) $seafood->id, $primary);
+        $this->assertSame((string) $seafood->id, (string) $batch->fresh()->sample_type_id);
+    }
 }

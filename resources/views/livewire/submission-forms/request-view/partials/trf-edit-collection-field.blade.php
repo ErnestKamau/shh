@@ -155,7 +155,7 @@
                 'value' => (string) ($trfEditCollectionFields[$fieldName] ?? ''),
             ])
         @elseif($fieldType === 'checkbox' || in_array($fieldName, [
-            'sampling_apparatus', 'method_of_sampling', 'reason_of_collection', 'transport_condition',
+            'sampling_apparatus', 'method_of_sampling', 'transport_condition',
             'sampling_technique', 'sampling_source', 'sample_types_ww', 'field_data_requirements',
         ], true))
             <div class="{{ $optionGridClass }}">

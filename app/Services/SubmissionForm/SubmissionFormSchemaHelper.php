@@ -111,14 +111,13 @@ final class SubmissionFormSchemaHelper
     }
 
     /**
-     * Sampling location belongs on collection (section 2), never on per-sample rows.
+     * Legacy free-text location aliases superseded by sampling_location (CRM) + sampling_point_manual.
      *
      * @return list<string>
      */
     public static function deprecatedTrfRowLocationFieldNames(): array
     {
         return [
-            'sampling_location',
             'location',
             'sampling_point',
             'sampling_point_other',
@@ -127,16 +126,66 @@ final class SubmissionFormSchemaHelper
         ];
     }
 
+    /**
+     * Sample-collection fields that live on each sample row (formerly batch section 2).
+     *
+     * @return list<string>
+     */
+    public static function sampleCollectionFieldNames(): array
+    {
+        return [
+            'sampling_date',
+            'sampling_time',
+            'date_received',
+            'sampling_location',
+            'transport_condition',
+            'reason_of_collection',
+            'sampling_apparatus',
+            'method_of_sampling',
+            'thermometer_id',
+            'sample_sampling_point_description',
+            'ph_meter_id',
+            'chlorine_meter_id',
+            'sampling_apparatus_others',
+            'extra_sampling_equipment',
+            'sampling_technique',
+            'sampling_source',
+            'sample_types_ww',
+            'field_data_requirements',
+            'field_data_quantity',
+            'field_data_appearance',
+            'field_data_color',
+            'field_data_odor',
+            'field_data_ph',
+            'field_data_temperature',
+            'field_data_free_chlorine',
+        ];
+    }
+
+    public static function isSampleCollectionSectionTitle(?string $title): bool
+    {
+        return mb_strtolower(trim((string) $title)) === 'sample collection data';
+    }
+
+    public static function isSampleCollectionFieldName(?string $name): bool
+    {
+        return in_array((string) $name, self::sampleCollectionFieldNames(), true);
+    }
+
     public static function shouldExcludeFromSampleRowEditor(SubmissionFormElement $element): bool
     {
         $name = (string) ($element->name ?? '');
-        $type = (string) ($element->element_type ?? '');
 
         if (in_array($name, self::deprecatedTrfRowLocationFieldNames(), true)) {
             return true;
         }
 
-        return in_array($type, ['sample_point_select', 'customer_sample_point_select'], true);
+        // CRM sampling_location is now a per-sample collection field.
+        if ($name === 'sampling_location' || (string) ($element->element_type ?? '') === 'customer_sample_point_select') {
+            return false;
+        }
+
+        return in_array((string) ($element->element_type ?? ''), ['sample_point_select'], true);
     }
 
     /**
@@ -151,6 +200,8 @@ final class SubmissionFormSchemaHelper
             'sample_quantity',
             'sample_quantity_unit',
             'sampling_point',
+            'sampling_point_manual',
+            'manual_sampling_point',
             'location',
             'batch_number',
             'state_of_sample',
@@ -462,11 +513,20 @@ final class SubmissionFormSchemaHelper
         $holderOrder = (int) ($element->holder?->sort_order ?? 0);
         $elementOrder = (int) ($element->sort_order ?? 0);
         $updatedAt = $element->updated_at?->getTimestamp() ?? 0;
+        $hiddenPenalty = self::isBuilderHiddenSection($section) || self::isBuilderHiddenElement($element)
+            ? 5_000_000_000_000
+            : 0;
+        $rowsBonus = ((string) ($section->section_type ?? '') === 'rows_section'
+            && self::isSampleCollectionFieldName($element->name ?? null))
+            ? 2_000_000_000_000
+            : 0;
 
         return ($sectionOrder * 1_000_000_000)
             + ($holderOrder * 1_000_000)
             + ($elementOrder * 1_000)
-            + $updatedAt;
+            + $updatedAt
+            + $rowsBonus
+            - $hiddenPenalty;
     }
 
     /**

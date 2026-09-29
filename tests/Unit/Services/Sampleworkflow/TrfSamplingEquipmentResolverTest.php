@@ -42,5 +42,6 @@ class TrfSamplingEquipmentResolverTest extends TestCase
         $this->assertSame('AMS/C/INS/116', $resolver->formatForPdf('AMS/C/INS/116'));
         $this->assertSame('', $resolver->formatForPdf(null));
         $this->assertSame('A, B', $resolver->formatForPdf('["A","B"]'));
+        $this->assertSame('1234', $resolver->formatForDisplay('["1234"]'));
     }
 }

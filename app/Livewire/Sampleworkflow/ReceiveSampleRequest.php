@@ -275,6 +275,7 @@ class ReceiveSampleRequest extends Component
             );
         }
 
+        $this->ensureAdditionalDetailsFormField(max(1, $this->schemaRowCount()));
         $this->hydrateSamplingEquipmentIdRows();
 
         if ($instance->crmCustomer) {
@@ -356,6 +357,7 @@ class ReceiveSampleRequest extends Component
 
         $this->ensureWaterTrfSyntheticFormFields($submissionForm);
         $this->ensureWasteWaterTrfSyntheticFormFields($submissionForm);
+        $this->ensureAdditionalDetailsFormField(1);
         $this->hydrateSamplingEquipmentIdRows();
     }
 
@@ -369,7 +371,8 @@ class ReceiveSampleRequest extends Component
 
         $sections = app(SubmissionFormSchemaHelper::class)->uniqueSections($form)
             ->reject(fn ($section) => ($section->title ?? '') === 'TRF storage')
-            ->reject(fn ($section) => SubmissionFormSchemaHelper::isBuilderHiddenSection($section));
+            ->reject(fn ($section) => SubmissionFormSchemaHelper::isBuilderHiddenSection($section))
+            ->reject(fn ($section) => SubmissionFormSchemaHelper::isSampleCollectionSectionTitle($section->title ?? null));
 
         return $sections->values();
     }
@@ -1465,7 +1468,7 @@ class ReceiveSampleRequest extends Component
                 }
 
                 // Legacy Qty / Unit — always represented as Qty/Unit → sample_quantity (+ unit).
-                if (in_array($name, ['number_of_samples', 'sample_quantity_unit'], true)) {
+                if (in_array($name, ['number_of_samples', 'sample_quantity_unit', 'additional_details'], true)) {
                     return false;
                 }
 
@@ -1681,34 +1684,47 @@ class ReceiveSampleRequest extends Component
         $take($findByNames(['analysis_type_id', 'analysis_type', 'analysis_types']));
 
         if ($this->usesWaterSampleCardLayout()) {
-            return $this->buildWaterSampleCardLayout(
+            return $this->prependSampleCollectionBlock(
+                $this->buildWaterSampleCardLayout(
+                    $take,
+                    $findQty,
+                    $findTemp,
+                    $findByNames,
+                    $sampleTypeColumn,
+                ),
                 $take,
-                $findQty,
-                $findTemp,
                 $findByNames,
-                $sampleTypeColumn,
             );
         }
 
         if ($this->usesFoodSampleCardLayout()) {
-            return $this->buildFoodSampleCardLayout(
+            return $this->prependSampleCollectionBlock(
+                $this->buildFoodSampleCardLayout(
+                    $take,
+                    $findQty,
+                    $findByNames,
+                    $sampleTypeColumn,
+                ),
                 $take,
-                $findQty,
                 $findByNames,
-                $sampleTypeColumn,
             );
         }
 
         if ($this->usesWasteWaterSampleCardLayout()) {
-            return $this->buildWasteWaterSampleCardLayout(
+            return $this->prependSampleCollectionBlock(
+                $this->buildWasteWaterSampleCardLayout(
+                    $take,
+                    $findQty,
+                    $findByNames,
+                    $sampleTypeColumn,
+                    $tableColumns,
+                    $hiddenFields,
+                    $columnName,
+                    $usedNames,
+                ),
                 $take,
-                $findQty,
                 $findByNames,
-                $sampleTypeColumn,
-                $tableColumns,
-                $hiddenFields,
-                $columnName,
-                $usedNames,
+                wasteWater: true,
             );
         }
 
@@ -1724,9 +1740,9 @@ class ReceiveSampleRequest extends Component
                 $take($findByNames(['expiration_date'])),
             ],
             [
-                $take($findByNames(['sampling_point', 'sampling_location'])),
                 $take($findByNames(['sampling_point_manual', 'manual_sampling_point'])),
                 $take($findByNames(['test_category', 'test_requirements'])),
+                null,
             ],
         ];
 
@@ -1751,10 +1767,13 @@ class ReceiveSampleRequest extends Component
             if (isset($usedNames[$name]) || in_array($name, $hiddenFields, true)) {
                 continue;
             }
+            if (SubmissionFormSchemaHelper::isSampleCollectionFieldName($name)) {
+                continue;
+            }
             $extraColumns[] = $column;
         }
 
-        return [
+        return $this->prependSampleCollectionBlock([
             'layout_variant' => 'default',
             'grid_rows' => array_map(
                 static fn (array $row): array => [
@@ -1771,6 +1790,209 @@ class ReceiveSampleRequest extends Component
             'parameters_column' => null,
             'description_column' => $descriptionColumn,
             'extra_columns' => $extraColumns,
+        ], $take, $findByNames);
+    }
+
+    /**
+     * @param  array<string, mixed>  $layout
+     * @param  callable(?array): ?array  $take
+     * @param  callable(list<string>): ?array  $findByNames
+     * @return array<string, mixed>
+     */
+    private function prependSampleCollectionBlock(
+        array $layout,
+        callable $take,
+        callable $findByNames,
+        bool $wasteWater = false,
+    ): array {
+        $samplingDate = $take($findByNames(['sampling_date']));
+        $samplingTime = $take($findByNames(['sampling_time']));
+        $dateReceived = $take($findByNames(['date_received']));
+        $samplingLocation = $take($findByNames(['sampling_location']));
+        if ($samplingLocation !== null) {
+            $samplingLocation['label'] = 'Sampling location';
+        }
+        $transport = $take($findByNames(['transport_condition']));
+        if ($transport !== null) {
+            $transport['option_cols'] = 1;
+        }
+        $reason = $take($findByNames(['reason_of_collection']));
+        if ($reason !== null) {
+            $reason['option_cols'] = 2;
+        }
+        $apparatus = $take($findByNames(['sampling_apparatus']));
+        if ($apparatus !== null) {
+            $apparatus['option_cols'] = 2;
+        }
+        $method = $take($findByNames(['method_of_sampling']));
+        if ($method !== null) {
+            $method['option_cols'] = 2;
+        }
+        $thermometer = $take($findByNames(['thermometer_id', 'equipment_id']));
+        if ($thermometer !== null) {
+            $thermometer['label'] = $wasteWater ? 'Thermometer ID' : 'Equipment ID';
+            $thermometer['is_equipment_id'] = ! $wasteWater;
+            if ($apparatus !== null) {
+                $apparatus['nested'] = $thermometer;
+                $thermometer = null;
+            }
+        }
+
+        $collectionRows = [
+            ['type' => 'section', 'label' => 'Sample collection', 'group' => 'collection'],
+            [
+                'type' => 'fields',
+                'cols' => 3,
+                'group' => 'collection',
+                'columns' => [$samplingDate, $samplingTime, $dateReceived],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 3,
+                'group' => 'collection',
+                'columns' => [$samplingLocation, $transport, $reason],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 2,
+                'group' => 'collection',
+                'columns' => [$apparatus, $method],
+            ],
+        ];
+
+        if ($wasteWater) {
+            $collectionRows = array_merge($collectionRows, $this->wasteWaterCollectionExtraRows($take, $findByNames));
+        }
+
+        // Drop empty collection rows/columns so missing schema never renders shimmer placeholders.
+        $collectionRows = array_values(array_filter(array_map(static function (array $row): ?array {
+            if (($row['type'] ?? '') !== 'fields') {
+                return $row;
+            }
+
+            $columns = array_values(array_filter(
+                $row['columns'] ?? [],
+                static fn ($column): bool => is_array($column) && isset($column['element'])
+            ));
+
+            if ($columns === []) {
+                return null;
+            }
+
+            $row['columns'] = $columns;
+            $row['cols'] = min(3, max(1, count($columns)));
+
+            return $row;
+        }, $collectionRows)));
+
+        $hasCollectionFields = collect($collectionRows)->contains(
+            static fn (array $row): bool => ($row['type'] ?? '') === 'fields'
+        );
+
+        if (! $hasCollectionFields) {
+            $layout['has_collection_block'] = false;
+
+            return $layout;
+        }
+
+        $sampleRows = $layout['grid_rows'] ?? [];
+        $hasSampleContent = $sampleRows !== []
+            || ($layout['catalog_row'] ?? null) !== null
+            || ($layout['description_column'] ?? null) !== null
+            || ($layout['extra_columns'] ?? []) !== [];
+
+        $prefix = $collectionRows;
+        if ($hasSampleContent) {
+            $prefix[] = ['type' => 'section', 'label' => 'Sample & test information', 'group' => 'sample'];
+        }
+
+        $layout['grid_rows'] = array_merge($prefix, $sampleRows);
+        $layout['has_collection_block'] = true;
+
+        // Drop collection leftovers from extras.
+        $layout['extra_columns'] = array_values(array_filter(
+            $layout['extra_columns'] ?? [],
+            static fn (array $column): bool => ! SubmissionFormSchemaHelper::isSampleCollectionFieldName(
+                (string) (($column['field']['name'] ?? '') !== ''
+                    ? $column['field']['name']
+                    : ($column['element']->name ?? ''))
+            )
+        ));
+
+        return $layout;
+    }
+
+    /**
+     * @param  callable(?array): ?array  $take
+     * @param  callable(list<string>): ?array  $findByNames
+     * @return list<array<string, mixed>>
+     */
+    private function wasteWaterCollectionExtraRows(callable $take, callable $findByNames): array
+    {
+        $desc = $take($findByNames(['sample_sampling_point_description']));
+        $phMeter = $take($findByNames(['ph_meter_id']));
+        $chlorineMeter = $take($findByNames(['chlorine_meter_id']));
+        $apparatusOthers = $take($findByNames(['sampling_apparatus_others']));
+        $extraEquipment = $take($findByNames(['extra_sampling_equipment']));
+        $technique = $take($findByNames(['sampling_technique']));
+        $source = $take($findByNames(['sampling_source']));
+        $sampleTypesWw = $take($findByNames(['sample_types_ww']));
+        $fieldReq = $take($findByNames(['field_data_requirements']));
+
+        $fieldQty = $take($findByNames(['field_data_quantity']));
+        $fieldAppearance = $take($findByNames(['field_data_appearance']));
+        $fieldColor = $take($findByNames(['field_data_color']));
+        $fieldOdor = $take($findByNames(['field_data_odor']));
+        $fieldPh = $take($findByNames(['field_data_ph']));
+        $fieldTemp = $take($findByNames(['field_data_temperature']));
+        $fieldChlorine = $take($findByNames(['field_data_free_chlorine']));
+
+        return [
+            [
+                'type' => 'fields',
+                'cols' => 1,
+                'group' => 'collection',
+                'columns' => [$desc],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 3,
+                'group' => 'collection',
+                'columns' => [$phMeter, $chlorineMeter, $apparatusOthers],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 3,
+                'group' => 'collection',
+                'columns' => [$technique, $source, $sampleTypesWw],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 2,
+                'group' => 'collection',
+                'columns' => [$fieldReq, $extraEquipment],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 3,
+                'group' => 'collection',
+                'compact' => true,
+                'columns' => [$fieldQty, $fieldAppearance, $fieldColor],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 3,
+                'group' => 'collection',
+                'compact' => true,
+                'columns' => [$fieldOdor, $fieldPh, $fieldTemp],
+            ],
+            [
+                'type' => 'fields',
+                'cols' => 1,
+                'group' => 'collection',
+                'compact' => true,
+                'columns' => [$fieldChlorine],
+            ],
         ];
     }
 
@@ -1984,32 +2206,54 @@ class ReceiveSampleRequest extends Component
             || array_key_exists('equipment_id', $this->formData);
     }
 
-    public function addSamplingEquipmentIdRow(): void
+    public function addSamplingEquipmentIdRow(?int $sampleRowIndex = null): void
     {
         if (! $this->usesSamplingEquipmentIdPicker()) {
             return;
         }
 
         $this->normalizeSamplingEquipmentFormKey();
-        $rows = $this->samplingEquipmentIdRows();
+
+        if ($sampleRowIndex === null) {
+            $rows = $this->samplingEquipmentIdRows();
+            $rows[] = '';
+            $this->formData['thermometer_id'] = $rows;
+
+            return;
+        }
+
+        $rows = $this->samplingEquipmentIdRowsForSample($sampleRowIndex);
         $rows[] = '';
-        $this->formData['thermometer_id'] = $rows;
+        $this->formData['thermometer_id'][$sampleRowIndex] = $rows;
     }
 
-    public function removeSamplingEquipmentIdRow(int $index): void
+    public function removeSamplingEquipmentIdRow(int $index, ?int $sampleRowIndex = null): void
     {
         if (! $this->usesSamplingEquipmentIdPicker()) {
             return;
         }
 
         $this->normalizeSamplingEquipmentFormKey();
-        $rows = $this->samplingEquipmentIdRows();
+
+        if ($sampleRowIndex === null) {
+            $rows = $this->samplingEquipmentIdRows();
+            if (! isset($rows[$index]) || count($rows) <= 1) {
+                return;
+            }
+
+            unset($rows[$index]);
+            $this->formData['thermometer_id'] = array_values($rows);
+
+            return;
+        }
+
+        $rows = $this->samplingEquipmentIdRowsForSample($sampleRowIndex);
         if (! isset($rows[$index]) || count($rows) <= 1) {
             return;
         }
 
         unset($rows[$index]);
-        $this->formData['thermometer_id'] = array_values($rows);
+        $this->formData['thermometer_id'][$sampleRowIndex] = array_values($rows);
     }
 
     /**
@@ -2021,6 +2265,12 @@ class ReceiveSampleRequest extends Component
         $resolver = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class);
 
         if (is_array($this->formData['thermometer_id'] ?? null)) {
+            // Per-sample shape: [0 => ['EQ1'], 1 => ['EQ2']] — do not flatten as batch rows.
+            $first = $this->formData['thermometer_id'][0] ?? null;
+            if (is_array($first) || $this->walkInUsesIndexedSampleRows()) {
+                return $this->samplingEquipmentIdRowsForSample(0);
+            }
+
             $rows = array_map(
                 static fn ($id): string => trim((string) $id),
                 array_values($this->formData['thermometer_id'])
@@ -2030,6 +2280,29 @@ class ReceiveSampleRequest extends Component
         }
 
         return $resolver->rowsForForm($this->formData['thermometer_id'] ?? null);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function samplingEquipmentIdRowsForSample(int $sampleRowIndex): array
+    {
+        $this->normalizeSamplingEquipmentFormKey();
+        $resolver = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class);
+        $raw = $this->formData['thermometer_id'][$sampleRowIndex] ?? null;
+
+        if (is_array($raw)) {
+            $rows = array_map(
+                static fn ($id): string => is_array($id)
+                    ? trim((string) ($id['id'] ?? $id['equipment_id'] ?? ''))
+                    : trim((string) $id),
+                array_values($raw)
+            );
+
+            return $rows === [] ? [''] : $rows;
+        }
+
+        return $resolver->rowsForForm($raw);
     }
 
     private function hydrateSamplingEquipmentIdRows(): void
@@ -2044,7 +2317,207 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
+        if ($this->walkInUsesIndexedSampleRows()) {
+            $rowCount = max(1, $this->schemaRowCount());
+            $normalized = [];
+            for ($index = 0; $index < $rowCount; $index++) {
+                $normalized[$index] = $this->samplingEquipmentIdRowsForSample($index);
+            }
+            $this->formData['thermometer_id'] = $normalized;
+
+            return;
+        }
+
         $this->formData['thermometer_id'] = $this->samplingEquipmentIdRows();
+    }
+
+    /**
+     * Copy all sample-card fields from sample 1 (index 0) onto every sample below it.
+     */
+    public function copyFirstSampleToAllBelow(): void
+    {
+        $rowCount = $this->schemaRowCount();
+        if ($rowCount <= 1) {
+            return;
+        }
+
+        $fieldNames = array_values(array_unique(array_merge(
+            $this->schemaRowFieldNames(),
+            SubmissionFormSchemaHelper::sampleCollectionFieldNames(),
+            SubmissionFormSchemaHelper::sampleRowAnchorFieldNames(),
+            SubmissionFormSchemaHelper::sampleRowMultiSelectFieldNames(),
+            [
+                'sample_quantity',
+                'sample_quantity_unit',
+                'additional_details',
+                'thermometer_id',
+                'equipment_id',
+                'sample_type_id',
+                'sample_type',
+                'sampling_location',
+                'sampling_point',
+                'sampling_point_manual',
+                'manual_sampling_point',
+                'state_of_sample',
+            ],
+        )));
+
+        foreach ($fieldNames as $fieldName) {
+            $this->ensureWalkInIndexedRowFieldForCopy($fieldName, $rowCount);
+        }
+
+        for ($targetRowIndex = 1; $targetRowIndex < $rowCount; $targetRowIndex++) {
+            foreach ($fieldNames as $fieldName) {
+                if (! array_key_exists($fieldName, $this->formData) || ! is_array($this->formData[$fieldName])) {
+                    continue;
+                }
+
+                if (! array_key_exists(0, $this->formData[$fieldName])) {
+                    continue;
+                }
+
+                $source = $this->formData[$fieldName][0];
+                $this->formData[$fieldName][$targetRowIndex] = is_array($source)
+                    ? json_decode(json_encode($source), true)
+                    : $source;
+            }
+        }
+
+        $this->dispatch('trf-reinit-parameter-selects');
+        $this->dispatch('trf-sync-copied-sample-fields', rowCount: $rowCount);
+        TrfToast::dispatch($this, 'success', 'Sample 1 details copied to all samples below.');
+    }
+
+    /**
+     * Promote scalar / short row fields to indexed arrays so copy can write every sample slot.
+     */
+    private function ensureWalkInIndexedRowFieldForCopy(string $field, int $rowCount): void
+    {
+        if (! array_key_exists($field, $this->formData)) {
+            return;
+        }
+
+        $existing = $this->formData[$field];
+        if (! is_array($existing)) {
+            $existing = $existing !== null && $existing !== '' ? [$existing] : [''];
+        }
+
+        $emptyValue = in_array($field, [
+            'parameters',
+            'parameter',
+            'analysis_type_id',
+            'analysis_type',
+            'analysis_types',
+            'sample_type_id',
+            'sample_type',
+            'test_category',
+            'test_requirements',
+            'sample_condition',
+            'method_of_sampling',
+            'transport_condition',
+            'sampling_apparatus',
+            'additional_details',
+            'thermometer_id',
+            'equipment_id',
+            'extra_sampling_equipment',
+        ], true) ? [] : '';
+
+        while (count($existing) < $rowCount) {
+            $existing[] = is_array($emptyValue) ? [] : $emptyValue;
+        }
+
+        $this->formData[$field] = $existing;
+    }
+
+    /**
+     * @return list<array{label: string, value: string}>
+     */
+    public function additionalDetailsRowsForSample(int $sampleRowIndex): array
+    {
+        $this->ensureAdditionalDetailsFormField(max(1, $this->schemaRowCount()));
+        $raw = $this->formData['additional_details'][$sampleRowIndex] ?? [];
+
+        return $this->decodeAdditionalDetailsRows($raw);
+    }
+
+    public function addAdditionalDetailRow(int $sampleRowIndex): void
+    {
+        $this->ensureAdditionalDetailsFormField(max($sampleRowIndex + 1, $this->schemaRowCount()));
+        $rows = $this->additionalDetailsRowsForSample($sampleRowIndex);
+        $rows[] = ['label' => '', 'value' => ''];
+        $this->formData['additional_details'][$sampleRowIndex] = $rows;
+    }
+
+    public function removeAdditionalDetailRow(int $sampleRowIndex, int $detailIndex): void
+    {
+        $rows = $this->additionalDetailsRowsForSample($sampleRowIndex);
+        if (! isset($rows[$detailIndex])) {
+            return;
+        }
+
+        unset($rows[$detailIndex]);
+        $this->formData['additional_details'][$sampleRowIndex] = array_values($rows);
+    }
+
+    private function ensureAdditionalDetailsFormField(int $rowCount): void
+    {
+        $rowCount = max(1, $rowCount);
+        $existing = $this->formData['additional_details'] ?? null;
+
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+
+        for ($index = 0; $index < $rowCount; $index++) {
+            $existing[$index] = $this->decodeAdditionalDetailsRows($existing[$index] ?? []);
+        }
+
+        $this->formData['additional_details'] = $existing;
+    }
+
+    /**
+     * @return list<array{label: string, value: string}>
+     */
+    private function decodeAdditionalDetailsRows(mixed $value): array
+    {
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach (array_values($value) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $label = trim((string) ($row['label'] ?? ''));
+            $detailValue = trim((string) ($row['value'] ?? ''));
+            $rows[] = [
+                'label' => $label,
+                'value' => $detailValue,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<array{label: string, value: string}>  $rows
+     */
+    private function encodeAdditionalDetailsRows(array $rows): string
+    {
+        $clean = array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => trim((string) ($row['label'] ?? '')) !== ''
+                || trim((string) ($row['value'] ?? '')) !== ''
+        ));
+
+        return $clean === [] ? '' : (string) json_encode($clean);
     }
 
     /**
@@ -2299,6 +2772,9 @@ class ReceiveSampleRequest extends Component
         foreach ($tableColumns as $column) {
             $name = $columnName($column);
             if (isset($usedNames[$name]) || in_array($name, $hiddenFields, true)) {
+                continue;
+            }
+            if (SubmissionFormSchemaHelper::isSampleCollectionFieldName($name)) {
                 continue;
             }
             $extraColumns[] = $column;
@@ -2602,8 +3078,17 @@ class ReceiveSampleRequest extends Component
             $this->formData[$element->name] = $existing;
         }
 
-        $this->ensureWalkInCanonicalQtyFields($this->schemaRowCount());
-        $this->ensureWalkInSampleTypeField($this->schemaRowCount());
+        $rowCount = $this->schemaRowCount();
+        foreach (array_merge(
+            SubmissionFormSchemaHelper::sampleCollectionFieldNames(),
+            ['sampling_point_manual', 'manual_sampling_point', 'state_of_sample', 'sample_type_id', 'sample_type'],
+        ) as $fieldName) {
+            $this->ensureWalkInIndexedRowFieldForCopy($fieldName, $rowCount);
+        }
+
+        $this->ensureWalkInCanonicalQtyFields($rowCount);
+        $this->ensureWalkInSampleTypeField($rowCount);
+        $this->ensureAdditionalDetailsFormField($rowCount);
         $this->appendWaterTrfSyntheticRowDefaults();
         $this->appendWasteWaterTrfSyntheticRowDefaults();
 
@@ -2886,7 +3371,7 @@ class ReceiveSampleRequest extends Component
         $fieldNames = $section->elementHolders->flatMap->elements
             ->map(fn ($element) => (string) ($element->name ?? ''))
             ->filter()
-            ->merge(['sample_quantity', 'sample_quantity_unit'])
+            ->merge(['sample_quantity', 'sample_quantity_unit', 'additional_details'])
             ->unique()
             ->values();
 
@@ -3034,10 +3519,15 @@ class ReceiveSampleRequest extends Component
     {
         $this->formData['contact_person'] = '';
         $this->clearContactCommunicationFields();
-        $this->formData['sampling_location'] = '';
 
         foreach (['sampling_point', 'sampling_location', 'location'] as $fieldName) {
-            if (! isset($this->formData[$fieldName]) || ! is_array($this->formData[$fieldName])) {
+            if (! array_key_exists($fieldName, $this->formData)) {
+                continue;
+            }
+
+            if (! is_array($this->formData[$fieldName])) {
+                $this->formData[$fieldName] = '';
+
                 continue;
             }
 
@@ -4423,10 +4913,44 @@ class ReceiveSampleRequest extends Component
             $this->normalizeSamplingEquipmentFormKey();
             if (array_key_exists('thermometer_id', $payload) || array_key_exists('thermometer_id', $this->formData)) {
                 $raw = $payload['thermometer_id'] ?? $this->formData['thermometer_id'] ?? null;
-                $encoded = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class)
-                    ->encodeIds(is_array($raw) ? $raw : [$raw]);
-                $payload['thermometer_id'] = $encoded ?? '';
+                $resolver = app(\App\Services\Sampleworkflow\TrfSamplingEquipmentResolver::class);
+
+                if (is_array($raw) && $this->walkInUsesIndexedSampleRows()) {
+                    $encodedRows = [];
+                    foreach (array_values($raw) as $sampleIndex => $sampleValue) {
+                        $ids = $this->flattenWalkInScalarList($sampleValue);
+                        $encodedRows[$sampleIndex] = $resolver->encodeIds($ids) ?? '';
+                    }
+                    $payload['thermometer_id'] = $encodedRows;
+                } else {
+                    $payload['thermometer_id'] = $resolver->encodeIds(
+                        $this->flattenWalkInScalarList(is_array($raw) ? $raw : [$raw])
+                    ) ?? '';
+                }
+
                 unset($payload['Equipment_ID'], $payload['equipment_id'], $payload['Equipment ID']);
+            }
+        }
+
+        if (isset($payload['additional_details']) && is_array($payload['additional_details'])) {
+            $encodedDetails = [];
+            foreach (array_values($payload['additional_details']) as $sampleIndex => $rows) {
+                $encodedDetails[$sampleIndex] = $this->encodeAdditionalDetailsRows(
+                    $this->decodeAdditionalDetailsRows($rows)
+                );
+            }
+            $payload['additional_details'] = $encodedDetails;
+
+            // Keep sample_rows in sync for enquiry/PDF consumers.
+            if (isset($payload['sample_rows']) && is_array($payload['sample_rows'])) {
+                foreach ($payload['sample_rows'] as $sampleIndex => $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $payload['sample_rows'][$sampleIndex]['additional_details'] = $this->decodeAdditionalDetailsRows(
+                        $encodedDetails[$sampleIndex] ?? ''
+                    );
+                }
             }
         }
 
@@ -4459,6 +4983,7 @@ class ReceiveSampleRequest extends Component
             $this->schemaRowFieldNames(),
             ['sample_quantity', 'sample_quantity_unit', 'number_of_samples'],
             ['parameters', 'parameter', 'analysis_type_id', 'analysis_type', 'analysis_types'],
+            ['additional_details'],
         );
 
         if ($this->usesWaterSampleCardLayout()) {

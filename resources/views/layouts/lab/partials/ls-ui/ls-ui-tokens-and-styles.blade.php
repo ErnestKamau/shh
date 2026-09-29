@@ -349,6 +349,24 @@
 	.ls-select2-multi.ls-select2-slate .select2-selection__choice__remove {
 		color: #64748b !important;
 	}
+	/* Burgundy glass chips (transparent accent wash + blur) */
+	.ls-select2-multi.ls-select2-burgundy .select2-container--default .select2-selection--multiple .select2-selection__choice {
+		background: color-mix(in srgb, var(--ls-accent) 18%, transparent) !important;
+		border-color: color-mix(in srgb, var(--ls-accent) 38%, transparent) !important;
+		color: var(--ls-accent) !important;
+		box-shadow:
+			inset 0 1px 0 color-mix(in srgb, #ffffff 45%, transparent),
+			0 1px 2px color-mix(in srgb, var(--ls-accent) 12%, transparent);
+		backdrop-filter: blur(10px) saturate(1.25);
+		-webkit-backdrop-filter: blur(10px) saturate(1.25);
+	}
+	.ls-select2-multi.ls-select2-burgundy .select2-selection__choice__remove {
+		color: color-mix(in srgb, var(--ls-accent) 75%, #64748b) !important;
+	}
+	.ls-select2-multi.ls-select2-burgundy .select2-selection__choice__remove:hover {
+		color: var(--ls-accent) !important;
+		background: transparent !important;
+	}
 	/* Injected dropdown search (not in the column) — full width, matches list */
 	.ls-select2-dropdown-search .ls-dd-search,
 	.select2-dropdown.ls-select2-dropdown-search .ls-dd-search {
@@ -1121,6 +1139,41 @@
 	.ls-pill--open { background: #ede9fe; color: #5b21b6; }
 	.ls-pill--paid { background: #d1fae5; color: #065f46; }
 	.ls-pill--inactive { background: #f1f5f9; color: #64748b; }
+	.ls-pill--info { background: #dbeafe; color: #1e40af; }
+	.ls-label-action {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		margin-left: 0.35rem;
+		width: 1.15rem;
+		height: 1.15rem;
+		border-radius: 4px;
+		background: var(--ls-accent, #8b1e2d);
+		color: #fff;
+		font-size: 0.75rem;
+		line-height: 1;
+		cursor: pointer;
+		vertical-align: middle;
+	}
+	.ls-label-action:hover { filter: brightness(1.08); }
+	.ls-field__control--textarea {
+		align-items: stretch;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		box-shadow: none !important;
+	}
+	.ls-field__control--textarea .ls-textarea {
+		min-height: 4.5rem;
+	}
+	.ls-field__control--readonly-pills {
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		min-height: 38px;
+		height: auto;
+		padding: 0.35rem 0.55rem;
+		background: #f8fafc;
+	}
 	.ls-table__stack-primary { font-weight: 700; color: var(--ls-accent); }
 	.ls-table__stack-secondary { font-size: 0.7rem; color: var(--ls-muted); }
 	.ls-skeleton {

@@ -160,6 +160,8 @@
 		<span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</span>
 		@elseif(isset($batch->id) && $batch->prelim_report_status == 2)
 		<span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft</span>
+		@elseif(isset($batch->id) && (int) $batch->prelim_report_status === 3)
+		<span class="badge badge-warning p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Partial / interim</span>
 		@else
 		<span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
 		@endif
@@ -2349,6 +2351,7 @@
 						<option value="0">Final Report</option>
 						<option value="1">Prelim Report</option>
 						<option value="2">Draft Report</option>
+						<option value="3">Partial / interim report</option>
 					</select>
 				</div>
 				<div class="form-group">

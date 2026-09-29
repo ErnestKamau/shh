@@ -34,7 +34,7 @@
             this.$nextTick(() => this.$dispatch('rft-sample-card-shown', { row: this.openRow }));
         }
     }
-}">
+}" wire:ignore.self>
     @for($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++)
         @php
             $summary = $this->walkInSampleRowSummary($rowIndex);
@@ -84,6 +84,17 @@
                 </button>
                 </div>
                 <div class="rft-sample-row-card__header-actions">
+                    @if($rowIndex === 0 && $rowCount > 1)
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary btn-action-sm"
+                            wire:click="copyFirstSampleToAllBelow"
+                            title="Copy Sample 1 details to all samples below"
+                            aria-label="Copy Sample 1 details to all samples below"
+                        >
+                            <i class="mdi mdi-content-copy"></i>
+                        </button>
+                    @endif
                     @if($rowCount > 1)
                         <button
                             type="button"
@@ -155,7 +166,9 @@
                                 </div>
                             @endif
                         @elseif(($gridRow['type'] ?? 'fields') === 'section')
-                            <div class="rft-sample-section-label">{{ $gridRow['label'] ?? '' }}</div>
+                            <div class="rft-sample-section-label {{ ($gridRow['group'] ?? '') === 'collection' ? 'rft-sample-section-label--collection' : 'rft-sample-section-label--sample' }}">
+                                {{ $gridRow['label'] ?? '' }}
+                            </div>
                         @elseif(($gridRow['type'] ?? 'fields') === 'divider')
                             <div class="rft-sample-grid-row-divider" aria-hidden="true"></div>
                         @else
@@ -168,6 +181,9 @@
                                 }
                                 if (($gridRow['group'] ?? '') === 'field_data') {
                                     $gridRowClass .= ' rft-sample-grid-row--field-data';
+                                }
+                                if (($gridRow['group'] ?? '') === 'collection') {
+                                    $gridRowClass .= ' rft-sample-grid-row--collection';
                                 }
                             @endphp
                             <div class="{{ $gridRowClass }}">
@@ -187,6 +203,9 @@
                                         $fieldModifiers = in_array($fieldName, ['test_requirements', 'test_category'], true)
                                             ? ' rft-sample-field--test-requirements'
                                             : '';
+                                        if (($gridRow['group'] ?? '') === 'collection') {
+                                            $fieldModifiers .= ' rft-sample-field--collection';
+                                        }
                                     @endphp
                                     <div class="{{ $fieldColClass }} rft-sample-field{{ $fieldModifiers }}">
                                         @if($column === null)
@@ -196,7 +215,15 @@
                                                 $element = $column['element'];
                                                 $field = $column['field'] ?? $fieldMapper->toField($element);
                                                 $nestedColumn = $column['nested'] ?? null;
+                                                $isEquipmentId = ! empty($column['is_equipment_id'])
+                                                    || in_array($fieldName, ['thermometer_id', 'equipment_id'], true)
+                                                        && $this->usesSamplingEquipmentIdPicker();
                                             @endphp
+                                            @if($isEquipmentId)
+                                                @include('livewire.partials.walk-in-trf-equipment-id-rows', [
+                                                    'sampleRowIndex' => $rowIndex,
+                                                ])
+                                            @else
                                             <label>
                                                 {{ $column['label'] ?? ($field['label'] ?? $fieldName) }}
                                                 @if($field['required'] ?? false)<span class="text-danger">*</span>@endif
@@ -229,6 +256,7 @@
                                                     'optionCols' => $column['option_cols'] ?? ($field['option_cols'] ?? null),
                                                 ])
                                             @endif
+                                            @endif
                                             @if(is_array($nestedColumn) && isset($nestedColumn['element']))
                                                 @php
                                                     $nestedElement = $nestedColumn['element'];
@@ -236,8 +264,16 @@
                                                     $nestedName = (string) (($nestedField['name'] ?? '') !== ''
                                                         ? $nestedField['name']
                                                         : ($nestedElement->name ?? ''));
+                                                    $nestedIsEquipmentId = ! empty($nestedColumn['is_equipment_id'])
+                                                        || (in_array($nestedName, ['thermometer_id', 'equipment_id'], true)
+                                                            && $this->usesSamplingEquipmentIdPicker());
                                                 @endphp
                                                 <div class="mt-2 rft-sample-field-nested" wire:key="row-nested-{{ $activeSection->id }}-{{ $rowIndex }}-{{ $nestedElement->id }}">
+                                                    @if($nestedIsEquipmentId)
+                                                        @include('livewire.partials.walk-in-trf-equipment-id-rows', [
+                                                            'sampleRowIndex' => $rowIndex,
+                                                        ])
+                                                    @else
                                                     <label>
                                                         {{ $nestedColumn['label'] ?? ($nestedField['label'] ?? $nestedName) }}
                                                         @if($nestedField['required'] ?? false)<span class="text-danger">*</span>@endif
@@ -250,6 +286,7 @@
                                                         'compact' => false,
                                                         'hideLabel' => true,
                                                     ])
+                                                    @endif
                                                 </div>
                                             @endif
                                         @endif
@@ -368,6 +405,11 @@
                             ])
                         </div>
                     @endif
+
+                    @include('livewire.partials.walk-in-trf-additional-details', [
+                        'rowIndex' => $rowIndex,
+                        'formData' => $formData,
+                    ])
                 </div>
         </article>
     @endfor

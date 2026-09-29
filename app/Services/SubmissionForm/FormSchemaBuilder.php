@@ -251,7 +251,7 @@ class FormSchemaBuilder
         }
 
         if ($element->hasOptions()) {
-            return collect($element->options ?? [])
+            $options = collect($element->options ?? [])
                 ->map(function ($option): array {
                     if (is_array($option) && isset($option['value'], $option['label'])) {
                         return [
@@ -267,6 +267,12 @@ class FormSchemaBuilder
                 })
                 ->values()
                 ->all();
+
+            if ((string) ($element->name ?? '') === 'sampled_by') {
+                return \App\Services\Sampleworkflow\SampledByParty::selectOptions();
+            }
+
+            return $options;
         }
 
         return null;

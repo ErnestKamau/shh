@@ -176,18 +176,20 @@
         })->filter(fn ($opt) => $opt['value'] !== '')->values()->all();
         $stateSelected = (string) data_get($this, $wirePrefix, '');
     @endphp
-    @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
-        'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'State of sample'),
-        'id' => 'field_'.$fieldId,
-        'name' => $wirePrefix,
-        'placeholder' => 'Search…',
-        'options' => $stateOptions,
-        'selected' => $stateSelected !== '' ? $stateSelected : null,
-        'success' => $stateSelected !== '',
-        'wireModel' => $wirePrefix,
-        'required' => (bool) ($field['required'] ?? false),
-        'error' => $fieldError,
-    ])
+    <div wire:key="walk-in-state-{{ $fieldId }}-{{ md5($stateSelected) }}">
+        @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+            'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'State of sample'),
+            'id' => 'field_'.$fieldId,
+            'name' => $wirePrefix,
+            'placeholder' => 'Search…',
+            'options' => $stateOptions,
+            'selected' => $stateSelected !== '' ? $stateSelected : null,
+            'success' => $stateSelected !== '',
+            'wireModel' => $wirePrefix,
+            'required' => (bool) ($field['required'] ?? false),
+            'error' => $fieldError,
+        ])
+    </div>
 @elseif(in_array($fieldName, ['sample_temp', 'field_sample_temp', 'sample_temperature', 'field_data_temperature'], true))
     @php
         $tempValue = data_get($this, $wirePrefix);
@@ -276,10 +278,13 @@
             'test_category',
             'test_requirements',
         ], true);
+        $selectOptions = ($fieldName === 'sampled_by')
+            ? \App\Services\Sampleworkflow\SampledByParty::selectOptions()
+            : ($field['options'] ?? []);
     @endphp
     @if($isMulti)
         <div class="{{ $optionGridClass }}" role="group" aria-label="{{ $field['label'] ?? $fieldName }}">
-            @foreach(($field['options'] ?? []) as $opt)
+            @foreach($selectOptions as $opt)
                 @php
                     $optValue = is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : $opt;
                     $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
@@ -296,7 +301,7 @@
             class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
             @if($compactStyle) style="{{ $compactStyle }}" @endif>
             <option value="">Select option</option>
-            @foreach(($field['options'] ?? []) as $opt)
+            @foreach($selectOptions as $opt)
                 @php
                     $optValue = is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : $opt;
                     $optLabel = is_array($opt) ? ($opt['label'] ?? $optValue) : $opt;
@@ -435,7 +440,7 @@
             : ($pointOptions === [] ? 'No sampling locations for '.($this->selectedCompanyUnitName ?? 'selected unit') : null);
         $locationWireLive = false;
     @endphp
-    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-point-{{ $selectedUnitId !== '' ? $selectedUnitId : 'none' }}-{{ count($pointOptions) }}-{{ $rowIndex ?? 'x' }}">
+    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-point-{{ $selectedUnitId !== '' ? $selectedUnitId : 'none' }}-{{ count($pointOptions) }}-{{ $rowIndex ?? 'x' }}-{{ md5($locationWireValue) }}">
         <div class="trf-field-col__main">
             @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
                 'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Sampling location'),
@@ -498,6 +503,22 @@
     <input type="datetime-local" id="field_{{ $fieldId }}" wire:model="{{ $wirePrefix }}"
         class="{{ $controlClass }} @error($wirePrefix) is-invalid @enderror"
         @if($compactStyle) style="{{ $compactStyle }}" @endif>
+@elseif(in_array($fieldName, ['sampling_point_manual', 'manual_sampling_point'], true))
+    @php
+        $samplingPointValue = (string) data_get($this, $wirePrefix, '');
+    @endphp
+    <div wire:key="walk-in-sampling-point-{{ $fieldId }}-{{ md5($samplingPointValue) }}">
+        @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+            'label' => $lsFieldLabel,
+            'id' => 'field_'.$fieldId,
+            'name' => $wirePrefix,
+            'wireModel' => $wirePrefix,
+            'placeholder' => $compact ? '' : 'Enter '.strtolower($field['label'] ?? 'sampling point'),
+            'disabled' => (bool) ($field['readonly'] ?? false),
+            'success' => filled($samplingPointValue),
+            'error' => $fieldError,
+        ])
+    </div>
 @elseif(($field['type'] ?? '') === 'number')
     @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
         'label' => $lsFieldLabel,

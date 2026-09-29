@@ -1,12 +1,13 @@
 {{--
 	ls-field-search-basic — searchable single select (view/edit style).
-	Props: $label, $hint, $options, $selected, $success (bool), $disableSuccess (bool),
-	       $id, $name (optional form field), $required, $placeholder, $attrs (html string on wrap),
-	       $allowCustom (bool — commit typed text as value),
+	Props: $label, $labelHtml, $labelSuffix, $hint, $options, $selected, $success (bool),
+	       $disableSuccess (bool), $id / $lsId, $name / $lsName, $required, $placeholder,
+	       $attrs (html string on wrap), $extraFieldClass, $allowCustom (bool),
 	       Livewire: $wireModel, $wireLive (bool, default true when wireModel set)
 --}}
 @php
-	$id = $id ?? 'ls-sbasic-'.uniqid();
+	$id = $lsId ?? $id ?? 'ls-sbasic-'.uniqid();
+	$name = $lsName ?? $name ?? null;
 	$options = $options ?? ['Demi Wilkinson', 'Candice Cano', 'Phoenix Mando', 'Natali Craig', 'United States of America', 'United Arab Emirates'];
 	$normalized = collect($options)->map(function ($o) {
 		if (is_array($o)) {
@@ -29,9 +30,10 @@
 	$wireModel = $wireModel ?? null;
 	$wireLive = isset($wireLive) ? (bool) $wireLive : ($wireModel !== null && $wireModel !== '');
 	$allowCustom = (bool) ($allowCustom ?? false);
+	$fieldClass = trim('ls-field ls-combo ls-search-basic ls-compact '.($extraFieldClass ?? '').' '.($showSuccess ? 'is-success' : '').' '.(! empty($error) ? 'is-error' : ''));
 @endphp
 <div
-	class="ls-field ls-combo ls-search-basic ls-compact {{ $showSuccess ? 'is-success' : '' }} {{ ! empty($error) ? 'is-error' : '' }}"
+	class="{{ $fieldClass }}"
 	data-ls-search-basic="1"
 	data-ls-disable-success="{{ $disableSuccess ? '1' : '0' }}"
 	@if(! empty($attrs)) {!! $attrs !!} @endif
@@ -109,9 +111,17 @@
 	:class="{ 'is-open': open, 'is-success': !disableSuccess && !!selected && !open }"
 	@click.outside="open = false; if (allowCustom) commitCustom()"
 >
-	@if(! empty($label))
+	@if(! empty($label) || ! empty($labelHtml))
 		<label class="ls-field__label" for="{{ $id }}">
-			{{ $label }}@if(! empty($required))<span class="ls-req">*</span>@endif
+			@if(! empty($labelHtml))
+				{!! $labelHtml !!}
+			@else
+				{{ $label }}
+			@endif
+			@if(! empty($required))<span class="ls-req">*</span>@endif
+			@if(! empty($labelSuffix))
+				{!! $labelSuffix !!}
+			@endif
 		</label>
 	@endif
 	@if(! empty($name) || ! empty($wireModel))

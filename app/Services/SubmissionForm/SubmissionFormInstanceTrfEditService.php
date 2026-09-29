@@ -199,18 +199,35 @@ final class SubmissionFormInstanceTrfEditService
         $form->loadMissing(['sections.elementHolders.elements']);
 
         $definitions = [];
+        $seen = [];
 
         foreach ($form->sections as $section) {
-            if (mb_strtolower(trim((string) ($section->title ?? ''))) !== 'sample collection data') {
+            $isCollectionSection = SubmissionFormSchemaHelper::isSampleCollectionSectionTitle($section->title ?? null);
+            $isRowsSection = (string) ($section->section_type ?? '') === 'rows_section';
+
+            if (! $isCollectionSection && ! $isRowsSection) {
                 continue;
             }
 
             foreach ($section->elementHolders as $holder) {
                 foreach ($holder->elements as $element) {
                     $name = (string) ($element->name ?? '');
-                    if ($name === '' || (bool) ($element->is_hidden ?? false)) {
+                    if ($name === '' || isset($seen[$name])) {
                         continue;
                     }
+
+                    if ($isRowsSection && ! SubmissionFormSchemaHelper::isSampleCollectionFieldName($name)) {
+                        continue;
+                    }
+
+                    if ((bool) ($element->is_hidden ?? false) && ! $isRowsSection) {
+                        continue;
+                    }
+
+                    if ($isRowsSection && (bool) ($element->is_hidden ?? false)) {
+                        continue;
+                    }
+
                     if (in_array($name, SubmissionFormSchemaHelper::miscellaneousTrfFieldNames(), true)) {
                         continue;
                     }
@@ -218,6 +235,7 @@ final class SubmissionFormInstanceTrfEditService
                         continue;
                     }
 
+                    $seen[$name] = true;
                     $definitions[] = [
                         'id' => (string) $element->id,
                         'name' => $name,
@@ -242,6 +260,7 @@ final class SubmissionFormInstanceTrfEditService
     public function collectionDraft(SubmissionFormInstance $instance, array $definitions): array
     {
         $map = $this->scalarValuesByName($instance);
+        $rowZero = $this->rowUpdateService->rowValues($instance, 0);
         $draft = [];
 
         foreach ($definitions as $definition) {
@@ -251,7 +270,7 @@ final class SubmissionFormInstanceTrfEditService
             }
 
             $type = (string) ($definition['element_type'] ?? 'text');
-            $raw = $map[$name] ?? '';
+            $raw = $rowZero[$name] ?? $map[$name] ?? '';
 
             if ($type === 'checkbox' || in_array($name, $this->collectionCheckboxFieldNames(), true)) {
                 $draft[$name] = SubmissionFormSchemaHelper::checkboxGroupValueMap($raw);
@@ -260,8 +279,12 @@ final class SubmissionFormInstanceTrfEditService
             }
 
             if ($name === 'extra_sampling_equipment') {
-                $decoded = json_decode($raw, true);
-                $draft[$name] = is_array($decoded) ? $decoded : [];
+                if (is_array($raw)) {
+                    $draft[$name] = $raw;
+                } else {
+                    $decoded = json_decode((string) $raw, true);
+                    $draft[$name] = is_array($decoded) ? $decoded : [];
+                }
 
                 continue;
             }
@@ -273,7 +296,7 @@ final class SubmissionFormInstanceTrfEditService
                 continue;
             }
 
-            $draft[$name] = $raw;
+            $draft[$name] = is_array($raw) ? ($raw[0] ?? '') : $raw;
         }
 
         return $draft;
@@ -308,8 +331,15 @@ final class SubmissionFormInstanceTrfEditService
                 'contact_phone' => $customer['contact_phone'] ?? null,
             ];
 
+            // Collection fields are per-sample; merge into each sample row when provided
+            // as a legacy batch map (edit modal no longer has a Collection slide).
+            $collectionFieldNames = SubmissionFormSchemaHelper::sampleCollectionFieldNames();
             foreach ($collection as $name => $value) {
-                $scalarPayload[(string) $name] = $value;
+                $key = (string) $name;
+                if (in_array($key, $collectionFieldNames, true)) {
+                    continue;
+                }
+                $scalarPayload[$key] = $value;
             }
 
             $this->upsertScalars($instance, $scalarPayload);
@@ -317,6 +347,16 @@ final class SubmissionFormInstanceTrfEditService
             foreach ($sampleRows as $rowIndex => $fields) {
                 if (! is_array($fields)) {
                     continue;
+                }
+
+                foreach ($collection as $name => $value) {
+                    $key = (string) $name;
+                    if (! in_array($key, $collectionFieldNames, true)) {
+                        continue;
+                    }
+                    if (! array_key_exists($key, $fields) || $fields[$key] === null || $fields[$key] === '') {
+                        $fields[$key] = $value;
+                    }
                 }
 
                 $instance = $this->rowUpdateService->updateRow($instance, (int) $rowIndex, $fields);
@@ -430,6 +470,25 @@ final class SubmissionFormInstanceTrfEditService
             }));
 
             return $rows === [] ? null : json_encode($rows);
+        }
+
+        if ($fieldName === 'additional_details' && is_array($value)) {
+            $rows = array_values(array_filter($value, static function ($row): bool {
+                if (! is_array($row)) {
+                    return false;
+                }
+
+                return trim((string) ($row['label'] ?? '')) !== ''
+                    || trim((string) ($row['value'] ?? '')) !== '';
+            }));
+
+            return $rows === [] ? null : json_encode(array_map(
+                static fn (array $row): array => [
+                    'label' => trim((string) ($row['label'] ?? '')),
+                    'value' => trim((string) ($row['value'] ?? '')),
+                ],
+                $rows
+            ));
         }
 
         if ($fieldName === 'thermometer_id' && is_array($value)) {

@@ -26,14 +26,25 @@ class TestRequestReportDataService
     ) {}
 
     /**
-     * @param  array{logoPublicUrlFallback?: bool}  $options
+     * @param  array{
+     *     logoPublicUrlFallback?: bool,
+     *     lab_section_id?: string|null,
+     *     lab_section_ids?: list<string>|string|null,
+     *     sample_ids?: list<string>|string|null
+     * }  $options
      * @return array<string, mixed>
      */
     public function build(SampleHeader $batch, string $reportNumber, array $options = []): array
     {
-        $batch->loadMissing(['customer', 'sample_type', 'samples', 'receivingofficer']);
+        $batch->loadMissing(['customer.country', 'sample_type', 'samples', 'receivingofficer']);
 
         app(StatementOfConformityService::class)->ensureForBatch($batch);
+
+        $filterLabSectionIds = $this->normalizeLabSectionIds(
+            $options['lab_section_ids'] ?? ($options['lab_section_id'] ?? null)
+        );
+        $filterLabSectionName = '';
+        $filterSampleIds = $this->normalizeSampleIds($options['sample_ids'] ?? null);
 
         $sfi = $this->resolveSubmissionFormInstance($batch);
         $trfPayload = $sfi !== null ? $this->trfReportBuilder->buildFromSubmissionFormInstance($sfi) : null;
@@ -41,6 +52,7 @@ class TestRequestReportDataService
             ? app(\App\Services\SubmissionForm\SubmissionFormValueNormalizer::class)->valuesMapFromInstance($sfi)
             : [];
         $trfRows = $this->trfMapper->sampleRowsFromFormData($formData);
+        $trfRows = $this->enrichSampleRowsWithIndexedCollectionFields($trfRows, $formData);
         $normalizedRows = is_array($trfPayload['sampleRows'] ?? null) ? $trfPayload['sampleRows'] : [];
 
         $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
@@ -115,12 +127,14 @@ class TestRequestReportDataService
             $formData['weight'] ?? null,
         ) ?? '-';
 
-        $sampleTemperature = $this->firstNonEmptyFromMixed(
-            $batch->condition_quality_sample ?? null,
-            $firstRawRow['sample_temp'] ?? null,
-            $firstNormalizedRow['sample_temp'] ?? null,
-            $formData['sample_temperature'] ?? null,
-        ) ?? '-';
+        $sampleTemperature = $this->formatSampleTemperatureForReport(
+            $this->firstNonEmptyFromMixed(
+                $batch->condition_quality_sample ?? null,
+                $firstRawRow['sample_temp'] ?? null,
+                $firstNormalizedRow['sample_temp'] ?? null,
+                $formData['sample_temperature'] ?? null,
+            ) ?? 'NP',
+        );
 
         $transportCondition = $this->firstNonEmptyFromMixed(
             $this->selectedCheckboxLabels($collection['transport_condition'] ?? null),
@@ -140,23 +154,17 @@ class TestRequestReportDataService
             $batch->crm_unit_id ?? null,
         ) ?? '-';
 
-        $additionalNotes = $this->firstNonEmptyFromMixed(
-            $formData['remarks'] ?? null,
-            is_array($trfPayload) ? ($trfPayload['signatures']['remarks'] ?? null) : null,
-        ) ?? '-';
-
-        $originCountry = $this->firstResolvedCountryLabel(
-            $formData['origin_country'] ?? null,
-            $formData['country_of_origin'] ?? null,
-            $firstRawRow['origin_country'] ?? null,
-            $firstRawRow['country_of_origin'] ?? null,
-        ) ?? '-';
-
-        $samplePreservation = $this->firstNonEmptyFromMixed(
-            $firstRawRow['preservation'] ?? null,
-            $firstRawRow['storage_condition'] ?? null,
-            $formData['sample_preservation'] ?? null,
-            $this->scalarValue($firstRawRow['state_of_sample'] ?? null),
+        $originCountry = $this->firstNonEmptyFromMixed(
+            $batch->customer?->country?->name ?? null,
+            $sfi?->crmCustomer?->country?->name ?? null,
+            $this->firstResolvedCountryLabel(
+                $batch->customer?->country_id ?? null,
+                $sfi?->crmCustomer?->country_id ?? null,
+                $formData['origin_country'] ?? null,
+                $formData['country_of_origin'] ?? null,
+                $firstRawRow['origin_country'] ?? null,
+                $firstRawRow['country_of_origin'] ?? null,
+            ),
         ) ?? '-';
 
         $mfgDate = $this->formatReportDate(
@@ -205,6 +213,93 @@ class TestRequestReportDataService
             ->with(['analysisElement:id,hod,lod', 'labSection:id,name', 'user:id,name,id_number'])
             ->get();
 
+        if ($filterLabSectionIds !== []) {
+            $capturedResults = $capturedResults
+                ->filter(static fn (CapturedResult $result): bool => in_array((string) ($result->lab_section_id ?? ''), $filterLabSectionIds, true))
+                ->values();
+
+            $sampleIdsWithSectionResults = $capturedResults
+                ->pluck('sample_detail_id')
+                ->map(static fn ($id): string => (string) $id)
+                ->unique()
+                ->all();
+
+            if ($filterSampleIds !== []) {
+                $sampleIdsWithSectionResults = array_values(array_intersect($sampleIdsWithSectionResults, $filterSampleIds));
+            }
+
+            $capturedResults = $capturedResults
+                ->filter(static fn (CapturedResult $result): bool => in_array((string) ($result->sample_detail_id ?? ''), $sampleIdsWithSectionResults, true))
+                ->values();
+
+            // Keep TRF row alignment by original index before dropping samples without this section.
+            $alignedNormalizedRows = [];
+            $alignedTrfRows = [];
+            $alignedSamplePoints = [];
+            foreach ($samples->values() as $index => $sample) {
+                if (! in_array((string) $sample->id, $sampleIdsWithSectionResults, true)) {
+                    continue;
+                }
+                $alignedNormalizedRows[] = $normalizedRows[$index] ?? [];
+                $alignedTrfRows[] = $trfRows[$index] ?? [];
+                $alignedSamplePoints[] = $samplePointByIndex[$index] ?? '-';
+            }
+            $normalizedRows = $alignedNormalizedRows;
+            $trfRows = $alignedTrfRows;
+            $samplePointByIndex = $alignedSamplePoints;
+
+            $samples = $samples
+                ->filter(static fn ($sample): bool => in_array((string) $sample->id, $sampleIdsWithSectionResults, true))
+                ->values();
+
+            $filterLabSectionName = \App\SampleAnalysisStage::query()
+                ->whereIn('id', $filterLabSectionIds)
+                ->orderBy('name')
+                ->pluck('name')
+                ->map(static fn ($name): string => trim((string) $name))
+                ->filter()
+                ->unique()
+                ->values()
+                ->implode(', ');
+
+            if ($filterLabSectionName === '') {
+                $filterLabSectionName = $capturedResults
+                    ->pluck('labSection.name')
+                    ->map(static fn ($name): string => trim((string) $name))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->implode(', ');
+            }
+            if ($filterLabSectionName === '') {
+                $filterLabSectionName = 'Laboratory';
+            }
+        } elseif ($filterSampleIds !== []) {
+            $alignedNormalizedRows = [];
+            $alignedTrfRows = [];
+            $alignedSamplePoints = [];
+            foreach ($samples->values() as $index => $sample) {
+                if (! in_array((string) $sample->id, $filterSampleIds, true)) {
+                    continue;
+                }
+                $alignedNormalizedRows[] = $normalizedRows[$index] ?? [];
+                $alignedTrfRows[] = $trfRows[$index] ?? [];
+                $alignedSamplePoints[] = $samplePointByIndex[$index] ?? '-';
+            }
+            $normalizedRows = $alignedNormalizedRows;
+            $trfRows = $alignedTrfRows;
+            $samplePointByIndex = $alignedSamplePoints;
+
+            $samples = $samples
+                ->filter(static fn ($sample): bool => in_array((string) $sample->id, $filterSampleIds, true))
+                ->values();
+
+            $capturedResults = $capturedResults
+                ->filter(static fn (CapturedResult $result): bool => in_array((string) ($result->sample_detail_id ?? ''), $filterSampleIds, true))
+                ->values();
+        }
+
+        $totalPages = max(1, $samples->count());
         $companyLetterhead = $this->buildCompanyLetterhead($company);
 
         $measureUncertaintyByCapturedResultId = app(UncertaintyBudgetResolver::class)
@@ -231,19 +326,22 @@ class TestRequestReportDataService
                 'transportCondition' => $transportCondition,
                 'samplingMethod' => $samplingMethod,
                 'samplingLocation' => $samplingLocation,
-                'additionalNotes' => $additionalNotes,
                 'originCountry' => $originCountry,
-                'samplePreservation' => $samplePreservation,
                 'approvalDate' => $approvalDate,
             ],
             $capturedResults,
             $isBrazilExportationReport,
+            $filterLabSectionName !== '' ? $filterLabSectionName : null,
         );
 
         return [
             'batch' => $batch,
             'samples' => $samples,
             'reportNumber' => $reportNumber,
+            'filterLabSectionId' => $filterLabSectionIds[0] ?? null,
+            'filterLabSectionIds' => $filterLabSectionIds,
+            'filterLabSectionName' => $filterLabSectionName,
+            'filterSampleIds' => $filterSampleIds,
             'approver' => $approver,
             'approverUser' => $approverUser,
             'approverRole' => $approverRole,
@@ -263,11 +361,9 @@ class TestRequestReportDataService
             'sampleWeight' => $sampleWeight,
             'containerType' => $containerType,
             'sampleTemperature' => $sampleTemperature,
-            'samplePreservation' => $samplePreservation,
             'transportCondition' => $transportCondition,
             'samplingMethod' => $samplingMethod,
             'samplingLocation' => $samplingLocation,
-            'additionalNotes' => $additionalNotes,
             'originCountry' => $originCountry,
             'sampleDescription' => $sampleDescription,
             'dateReceived' => $dateReceived,
@@ -287,6 +383,94 @@ class TestRequestReportDataService
     public function isBrazilExportationBatch(SampleHeader $batch): bool
     {
         return $this->isBrazilExportationTrf($this->resolveSubmissionFormInstance($batch));
+    }
+
+    public function normalizeLabSectionId(mixed $labSectionId): ?string
+    {
+        $ids = $this->normalizeLabSectionIds($labSectionId);
+
+        return $ids[0] ?? null;
+    }
+
+    /**
+     * @param  list<string>|string|null  $labSectionIds
+     * @return list<string>
+     */
+    public function normalizeLabSectionIds(mixed $labSectionIds): array
+    {
+        if (is_string($labSectionIds)) {
+            $labSectionIds = explode(',', $labSectionIds);
+        }
+
+        if (! is_array($labSectionIds)) {
+            return [];
+        }
+
+        return collect($labSectionIds)
+            ->map(static fn ($id): string => trim((string) $id))
+            ->filter(static fn (string $id): bool => $id !== '' && \Illuminate\Support\Str::isUuid($id))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Group result rows into one section per lab section (no mixing under a shared header).
+     *
+     * @param  list<array{lab_section_id?: string|null, lab_section_name?: string|null}>  $rows
+     * @return list<array{id: string, name: string, rows: list<array<string, mixed>>}>
+     */
+    public function groupResultRowsByLabSection(array $rows, string $fallbackSectionName = 'Lab Section'): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        return collect($rows)
+            ->map(static function (array $row) use ($fallbackSectionName): array {
+                $sectionId = trim((string) ($row['lab_section_id'] ?? ''));
+                $sectionName = trim((string) ($row['lab_section_name'] ?? ''));
+
+                $row['lab_section_id'] = $sectionId !== '' ? $sectionId : '__unassigned__';
+                $row['lab_section_name'] = $sectionName !== '' ? $sectionName : $fallbackSectionName;
+
+                return $row;
+            })
+            ->groupBy('lab_section_id')
+            ->map(static function ($groupedRows): array {
+                $first = $groupedRows->first();
+
+                return [
+                    'id' => (string) ($first['lab_section_id'] ?? '__unassigned__'),
+                    'name' => (string) ($first['lab_section_name'] ?? 'Lab Section'),
+                    'rows' => $groupedRows->values()->all(),
+                ];
+            })
+            ->sortBy(static fn (array $section): string => mb_strtolower($section['name']))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<string>|string|null  $sampleIds
+     * @return list<string>
+     */
+    public function normalizeSampleIds(mixed $sampleIds): array
+    {
+        if (is_string($sampleIds)) {
+            $sampleIds = explode(',', $sampleIds);
+        }
+
+        if (! is_array($sampleIds)) {
+            return [];
+        }
+
+        return collect($sampleIds)
+            ->map(static fn ($id): string => trim((string) $id))
+            ->filter(static fn (string $id): bool => $id !== '' && \Illuminate\Support\Str::isUuid($id))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -400,6 +584,7 @@ class TestRequestReportDataService
         array $shared,
         $capturedResults,
         bool $isBrazilExportationReport = false,
+        ?string $forcedLabSectionName = null,
     ): array {
         $contexts = [];
         $usersById = $this->analystUsersById($capturedResults);
@@ -450,64 +635,80 @@ class TestRequestReportDataService
                 $normalizedRow['qty'] ?? null,
             ) ?? '-';
 
-            $sampleTemperature = $this->firstNonEmptyFromMixed(
-                $rawRow['sample_temp'] ?? null,
-                $normalizedRow['sample_temp'] ?? null,
-                $batch->condition_quality_sample ?? null,
-                $formData['sample_temperature'] ?? null,
-            ) ?? '-';
+            $sampleTemperature = $this->formatSampleTemperatureForReport(
+                $this->trfValueOrNp(
+                    $rawRow['sample_temp'] ?? null,
+                    $rawRow['field_sample_temp'] ?? null,
+                    $normalizedRow['sample_temp'] ?? null,
+                ),
+            );
 
-            $samplingPoint = $this->firstResolvedSamplePointLabel(
+            $samplingPoint = $this->trfValueOrNp(
+                $normalizedRow['sampling_point'] ?? null,
+                $rawRow['sampling_point_manual'] ?? null,
+                $rawRow['sampling_point'] ?? null,
                 $sample->sample_point_name ?? null,
-                $sample->sample_point_id ?? null,
-                $normalizedRow['sampling_point'] ?? $normalizedRow['location'] ?? null,
-                $rawRow['sampling_point'] ?? $rawRow['location'] ?? $rawRow['sampling_location'] ?? null,
-            ) ?? '-';
+            );
 
-            $sampleCondition = $this->firstNonEmptyFromMixed(
-                $sample->sample_condition_name ?? null,
+            $sampleCondition = $this->trfValueOrNp(
                 $normalizedRow['sample_condition'] ?? null,
                 $rawRow['sample_condition'] ?? null,
-            ) ?? '-';
+                $sample->sample_condition_name ?? null,
+            );
 
-            $containerPackaging = $this->firstNonEmptyFromMixed(
-                $trfCollectionExtras['packaging'] ?? null,
-                $shared['containerType'] ?? null,
-                $this->selectedCheckboxLabels($collection['sampling_apparatus'] ?? null),
-                $formData['sampling_apparatus'] ?? null,
+            $dateReceived = $this->trfDateOrNp($rawRow['date_received'] ?? null);
+
+            $transportCondition = $this->trfValueOrNp(
+                $this->selectedCheckboxLabels($rawRow['transport_condition'] ?? null),
+            );
+
+            $samplingMethod = $this->trfValueOrNp(
+                $this->selectedCheckboxLabels($rawRow['method_of_sampling'] ?? null),
+            );
+
+            $samplingLocation = $this->trfValueOrNp(
+                $this->firstResolvedSampleLocationLabel(
+                    $rawRow['sampling_location'] ?? null,
+                    $normalizedRow['sampling_location'] ?? $normalizedRow['location'] ?? null,
+                ),
+            );
+
+            $containerPackaging = $this->trfValueOrNp(
+                $this->selectedCheckboxLabels($rawRow['sampling_apparatus'] ?? null),
+                $rawRow['packaging'] ?? null,
                 $rawRow['container_type'] ?? null,
-            ) ?? '-';
+            );
 
-            $preservation = $this->firstNonEmptyFromMixed(
-                $rawRow['preservation'] ?? null,
-                $rawRow['storage_condition'] ?? null,
-                $this->scalarValue($rawRow['state_of_sample'] ?? null),
-                $normalizedRow['sample_condition'] ?? null,
-            ) ?? ($shared['samplePreservation'] ?? '-');
+            $sampledBy = $this->trfValueOrNp(
+                $rawRow['sampled_by'] ?? null,
+            );
+            if ($sampledBy !== 'N/P' && $sampledBy !== '-') {
+                $resolvedSampledBy = \App\Services\Sampleworkflow\SampledByParty::displayLabel($sampledBy);
+                if ($resolvedSampledBy !== '') {
+                    $sampledBy = $resolvedSampledBy;
+                }
+            }
 
-            $sampledBy = $this->firstNonEmptyFromMixed(
-                $batch->sampling_officer_name ?? null,
-                $batch->receivingofficer?->name ?? null,
-                $formData['sampled_by'] ?? null,
-            ) ?? '-';
+            $additionalDetails = $this->normalizeReportAdditionalDetails(
+                $rawRow['additional_details'] ?? null,
+                $normalizedRow['additional_details'] ?? null,
+            );
 
-            $labSectionNames = $capturedResults
-                ->where('sample_detail_id', $sample->id)
-                ->pluck('labSection.name')
-                ->filter(static fn ($name) => filled(trim((string) $name)))
-                ->unique()
-                ->values()
-                ->implode(', ');
+            $labSectionNames = filled(trim((string) ($forcedLabSectionName ?? '')))
+                ? trim((string) $forcedLabSectionName)
+                : $capturedResults
+                    ->where('sample_detail_id', $sample->id)
+                    ->pluck('labSection.name')
+                    ->filter(static fn ($name) => filled(trim((string) $name)))
+                    ->unique()
+                    ->values()
+                    ->implode(', ');
 
             if ($labSectionNames === '') {
                 $labSectionNames = $batch->getLabSectionsNames() ?: 'Laboratory';
             }
 
             $sampleResults = $capturedResults->where('sample_detail_id', $sample->id);
-            $additionalNotes = (string) ($shared['additionalNotes'] ?? '');
-            if ($additionalNotes === '-') {
-                $additionalNotes = '';
-            }
 
             $samplePhotoDataUri = '';
             $sampleDetail = $sampleDetailsById->get((string) $sample->id);
@@ -552,7 +753,7 @@ class TestRequestReportDataService
                     ],
                     [
                         'left' => ['label' => 'weight', 'value' => $quantity],
-                        'right' => ['label' => 'date_received', 'value' => (string) ($shared['dateReceived'] ?? '-')],
+                        'right' => ['label' => 'date_received', 'value' => $dateReceived],
                     ],
                     [
                         'left' => ['label' => 'sampled_by', 'value' => $sampledBy],
@@ -563,14 +764,7 @@ class TestRequestReportDataService
                         'right' => ['label' => 'analysis_end_date', 'value' => (string) ($shared['analysisEndDate'] ?? '-')],
                     ],
                     [
-                        'left' => ['label' => 'sampling_location', 'value' => $this->firstResolvedSampleLocationLabel(
-                            $shared['samplingLocation'] ?? null,
-                            $sample->sample_point_id ?? null,
-                            $normalizedRow['sampling_location'] ?? $normalizedRow['location'] ?? null,
-                            $rawRow['sampling_location'] ?? $rawRow['location'] ?? null,
-                            $batch->crm_unit_name ?? null,
-                            $batch->crm_unit_id ?? null,
-                        ) ?? '-'],
+                        'left' => ['label' => 'sampling_location', 'value' => $samplingLocation],
                         'right' => ['label' => 'reporting_date', 'value' => (string) ($shared['approvalDate'] ?? date('d/m/Y'))],
                     ],
                     [
@@ -582,18 +776,17 @@ class TestRequestReportDataService
                         'right' => ['label' => 'origin_country', 'value' => (string) ($shared['originCountry'] ?? '-')],
                     ],
                     [
-                        'left' => ['label' => 'transport_condition', 'value' => (string) ($shared['transportCondition'] ?? '-')],
-                        'right' => ['label' => 'sampling_method', 'value' => (string) ($shared['samplingMethod'] ?? '-')],
-                    ],
-                    [
-                        'left' => ['label' => 'additional_notes', 'value' => $additionalNotes],
-                        'right' => ['label' => 'sample_preservation', 'value' => $preservation],
+                        'left' => ['label' => 'transport_condition', 'value' => $transportCondition],
+                        'right' => ['label' => 'sampling_method', 'value' => $samplingMethod],
                     ],
                 ];
             }
 
             $contexts[] = [
-                'rows' => $this->normalizeSampleDetailRows($rows),
+                'rows' => $this->appendAdditionalDetailRows(
+                    $this->normalizeSampleDetailRows($rows),
+                    $additionalDetails,
+                ),
                 'lab_section' => $labSectionNames,
                 'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
                 'sample_photo_data_uri' => $samplePhotoDataUri,
@@ -729,13 +922,16 @@ class TestRequestReportDataService
      */
     private function normalizeSampleDetailCell(array $cell): array
     {
+        $label = (string) ($cell['label'] ?? '');
         $value = trim((string) ($cell['value'] ?? ''));
         if (! $this->isReportValuePresent($value)) {
             $value = 'NP';
+        } elseif ($this->isOptionListDetailLabel($label)) {
+            $value = $this->formatReportOptionListDisplay($value);
         }
 
         $normalized = [
-            'label' => (string) ($cell['label'] ?? ''),
+            'label' => $label,
             'value' => $value,
         ];
 
@@ -746,8 +942,48 @@ class TestRequestReportDataService
         return $normalized;
     }
 
+    /**
+     * TRF multi-select option keys stored as slugs (e.g. sterile_bag,apha).
+     */
+    private function isOptionListDetailLabel(string $label): bool
+    {
+        return in_array($label, [
+            'container_type',
+            'sampling_method',
+            'transport_condition',
+            'sample_condition',
+        ], true);
+    }
+
+    /**
+     * Humanize comma-separated TRF option values for report display.
+     * Example: "sterile_bag,sterile_bottle" → "sterile bag, sterile bottle".
+     */
+    private function formatReportOptionListDisplay(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '' || ! $this->isReportValuePresent($trimmed)) {
+            return $trimmed;
+        }
+
+        $parts = preg_split('/\s*,\s*/', $trimmed) ?: [];
+        $formatted = [];
+        foreach ($parts as $part) {
+            $part = trim(str_replace('_', ' ', (string) $part));
+            if ($part !== '') {
+                $formatted[] = $part;
+            }
+        }
+
+        return $formatted === [] ? $trimmed : implode(', ', $formatted);
+    }
+
     private function isReportValuePresent(mixed $value): bool
     {
+        if (is_array($value)) {
+            return $value !== [];
+        }
+
         $trimmed = trim((string) ($value ?? ''));
 
         if ($trimmed === '') {
@@ -784,7 +1020,7 @@ class TestRequestReportDataService
         }
 
         return SubmissionFormInstance::query()
-            ->with(['values.element', 'submissionForm', 'crmCustomer'])
+            ->with(['values.element', 'submissionForm', 'crmCustomer.country'])
             ->find($batch->submission_form_instance_id);
     }
 
@@ -1589,12 +1825,195 @@ class TestRequestReportDataService
     }
 
     /**
+     * TRF collection/sample fields: prefer the sample's TRF value, otherwise "NP".
+     * Does not fall back to batch/shared values.
+     */
+    private function trfValueOrNp(mixed ...$candidates): string
+    {
+        return $this->firstNonEmptyFromMixed(...$candidates) ?? 'NP';
+    }
+
+    /**
+     * Append °C when a TRF temperature value is present and does not already include it.
+     */
+    private function formatSampleTemperatureForReport(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '' || ! $this->isReportValuePresent($trimmed) || strcasecmp($trimmed, 'NP') === 0) {
+            return $trimmed === '' ? 'NP' : $trimmed;
+        }
+
+        if (preg_match('/(?:°\s*C|℃)\s*$/iu', $trimmed) === 1) {
+            return preg_replace('/\s*(?:°\s*C|℃)\s*$/iu', ' °C', $trimmed) ?? ($trimmed.' °C');
+        }
+
+        if (preg_match('/\bC\s*$/u', $trimmed) === 1 && preg_match('/°/u', $trimmed) !== 1) {
+            return preg_replace('/\s*C\s*$/u', ' °C', $trimmed) ?? ($trimmed.' °C');
+        }
+
+        return $trimmed.' °C';
+    }
+
+    private function trfDateOrNp(mixed ...$candidates): string
+    {
+        $formatted = $this->formatReportDate(...$candidates);
+
+        return $formatted === '-' ? 'NP' : $formatted;
+    }
+
+    /**
+     * Ensure per-sample collection fields from indexed TRF values are present on each sample row.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, mixed>  $formData
+     * @return list<array<string, mixed>>
+     */
+    private function enrichSampleRowsWithIndexedCollectionFields(array $rows, array $formData): array
+    {
+        $collectionFields = [
+            'date_received',
+            'sampling_date',
+            'sampling_time',
+            'sampling_location',
+            'transport_condition',
+            'method_of_sampling',
+            'sampling_apparatus',
+            'reason_of_collection',
+            'thermometer_id',
+            'sample_temp',
+            'field_sample_temp',
+            'sampling_point_manual',
+            'packaging',
+            'additional_details',
+            'sampled_by',
+        ];
+
+        $rowCount = max(count($rows), 1);
+        foreach ($collectionFields as $field) {
+            if (! array_key_exists($field, $formData)) {
+                continue;
+            }
+
+            $indexed = $formData[$field];
+            if (! is_array($indexed)) {
+                if ($rows === []) {
+                    $rows[0] = [];
+                }
+                if (! $this->isReportValuePresent($rows[0][$field] ?? null)) {
+                    $rows[0][$field] = $indexed;
+                }
+
+                continue;
+            }
+
+            $values = $indexed;
+            $maxIndex = max(array_keys($values) ?: [0]);
+            $rowCount = max($rowCount, ((int) $maxIndex) + 1);
+
+            for ($index = 0; $index < $rowCount; $index++) {
+                if (! isset($rows[$index]) || ! is_array($rows[$index])) {
+                    $rows[$index] = [];
+                }
+
+                if ($this->isReportValuePresent($rows[$index][$field] ?? null)) {
+                    continue;
+                }
+
+                if (array_key_exists($index, $values)) {
+                    $rows[$index][$field] = $values[$index];
+
+                    continue;
+                }
+
+                $sequential = array_values($values);
+                if (array_key_exists($index, $sequential)) {
+                    $rows[$index][$field] = $sequential[$index];
+                }
+            }
+        }
+
+        return array_values($rows);
+    }
+
+    /**
+     * @return list<array{label: string, value: string}>
+     */
+    private function normalizeReportAdditionalDetails(mixed ...$candidates): array
+    {
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                $decoded = json_decode($candidate, true);
+                $candidate = is_array($decoded) ? $decoded : [];
+            }
+
+            if (! is_array($candidate) || $candidate === []) {
+                continue;
+            }
+
+            $details = [];
+            foreach ($candidate as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $label = trim((string) ($row['label'] ?? ''));
+                $value = trim((string) ($row['value'] ?? ''));
+                if ($label === '' || $value === '') {
+                    continue;
+                }
+
+                $details[] = [
+                    'label' => $label,
+                    'value' => $value,
+                ];
+            }
+
+            if ($details !== []) {
+                return $details;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}|null}>  $rows
+     * @param  list<array{label: string, value: string}>  $additionalDetails
+     * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: array{label: string, value: string, emphasize?: bool}|null}>
+     */
+    private function appendAdditionalDetailRows(array $rows, array $additionalDetails): array
+    {
+        $pending = [];
+        foreach ($additionalDetails as $detail) {
+            $label = trim((string) ($detail['label'] ?? ''));
+            $value = trim((string) ($detail['value'] ?? ''));
+            if ($label === '' || $value === '') {
+                continue;
+            }
+
+            $pending[] = [
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+
+        for ($index = 0, $count = count($pending); $index < $count; $index += 2) {
+            $rows[] = [
+                'left' => $pending[$index],
+                'right' => $pending[$index + 1] ?? null,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
      * @param  mixed  $checkboxGroup  Normalized checkbox map or raw TRF value
      */
     private function selectedCheckboxLabels(mixed $checkboxGroup): string
     {
         if (! is_array($checkboxGroup)) {
-            return $this->scalarValue($checkboxGroup);
+            return $this->formatReportOptionListDisplay($this->scalarValue($checkboxGroup));
         }
 
         if (array_keys($checkboxGroup) !== range(0, count($checkboxGroup) - 1)) {
@@ -1605,10 +2024,10 @@ class TestRequestReportDataService
                 }
             }
 
-            return implode(', ', $selected);
+            return $this->formatReportOptionListDisplay(implode(', ', $selected));
         }
 
-        return $this->scalarValue($checkboxGroup);
+        return $this->formatReportOptionListDisplay($this->scalarValue($checkboxGroup));
     }
 
     private function scalarValue(mixed $value): string

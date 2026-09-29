@@ -22,6 +22,7 @@ use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Sampleworkflow\LabSectionWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
+use App\Services\Sampleworkflow\AnalysisTypeOptionFilter;
 use App\Services\Sampleworkflow\CommentsInterpretationsDefaultsService;
 use App\Services\Sampleworkflow\StatementOfConformityService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
@@ -31,7 +32,6 @@ use App\Services\Sampleworkflow\SubcontractingAssignmentService;
 use App\Services\Sampleworkflow\TrfSampleFieldMapper;
 use App\Services\Sampleworkflow\BatchResultsExcelImportService;
 use App\Services\Sampleworkflow\CapturedResultCaptureService;
-use App\Services\Sampleworkflow\StandardPassFailCommentService;
 use App\Services\SubmissionForm\SubmissionFormValueNormalizer;
 use App\Models\DataImportVersion;
 use App\Models\SubmissionFormInstance;
@@ -258,6 +258,16 @@ class Samples extends Component
         $this->loadDropdownData();
         $this->loadSamples();
         $this->loadSampleGroupedWorksheets();
+    }
+
+    /**
+     * Safe handler when Alpine/Select2 JSON.stringify probes $wire.toJSON("$wire").
+     *
+     * @return array<string, mixed>
+     */
+    public function toJSON(mixed $value = null): array
+    {
+        return [];
     }
 
     protected function loadSampleGroupedWorksheets(): void
@@ -506,7 +516,7 @@ class Samples extends Component
 
             $query = CapturedResult::where('sample_header_id', $this->batchId)
                 ->whereValidUuidAnalyteId()
-                ->with(['sample', 'analysis_type', 'my_analyte']);
+                ->with(['sample', 'analysis_type', 'my_analyte', 'labSection']);
 
             $access->scopeVisibleCapturedResults($query, $user);
 
@@ -520,9 +530,15 @@ class Samples extends Component
                     continue;
                 }
 
+                $labSectionName = trim((string) (optional($cr->labSection)->name ?? ''));
+                if ($labSectionName === '') {
+                    $labSectionName = trim((string) (optional($cr->analysis_type)->lab_section_name ?? ''));
+                }
+
                 $items[] = [
                     'sample_code' => optional($cr->sample)->sample_code ?? 'N/A',
                     'analysis_type' => optional($cr->analysis_type)->name ?? 'N/A',
+                    'lab_section' => $labSectionName !== '' ? $labSectionName : 'N/A',
                     'parameter' => optional($cr->my_analyte)->name ?? 'N/A',
                     'status' => $resultText === ''
                         ? 'No result captured'
@@ -538,7 +554,7 @@ class Samples extends Component
     }
 
     /**
-     * @return array<string, list<array{analysis_type: string, parameter: string, status: string}>>
+     * @return array<string, list<array{analysis_type: string, lab_section: string, parameter: string, status: string}>>
      */
     public function getIncompleteCapturedResultsGroupedProperty(): array
     {
@@ -548,6 +564,7 @@ class Samples extends Component
             $sampleCode = (string) ($item['sample_code'] ?? 'N/A');
             $grouped[$sampleCode][] = [
                 'analysis_type' => (string) ($item['analysis_type'] ?? 'N/A'),
+                'lab_section' => (string) ($item['lab_section'] ?? 'N/A'),
                 'parameter' => (string) ($item['parameter'] ?? 'N/A'),
                 'status' => (string) ($item['status'] ?? 'incomplete'),
             ];
@@ -634,7 +651,12 @@ class Samples extends Component
     protected function loadDropdownData()
     {
         try {
-            $this->analysisTypes = AnalysisType::select('id', 'name', 'code')->get()->toArray();
+            $this->analysisTypes = AnalysisType::query()
+                ->select('id', 'name', 'code', 'sample_type_id')
+                ->where('active', 1)
+                ->orderBy('name')
+                ->get()
+                ->toArray();
             $this->standards = Standards::select('id', 'code', 'name')->get()->toArray();
             $this->conditions = SampleCondition::select('id', 'name')->get()->toArray();
 
@@ -656,8 +678,8 @@ class Samples extends Component
 
             $this->labSections = $this->mapLabsForSelect(Lab::select('id', 'name', 'code')->get());
 
-            // Load all sample types
-            $this->sampleTypes = \App\SampleType::select('id', 'name')->where('active', 1)->orderBy('name')->get()->toArray();
+            // All active sample types (+ any already used on this batch's samples).
+            $this->sampleTypes = $this->loadSampleTypeOptions();
 
             // Load Units of Measure
             $this->unitsOfMeasure = \App\ReportingUnit::select('id', 'name')->get()->toArray();
@@ -687,6 +709,91 @@ class Samples extends Component
     }
 
     /**
+     * Active sample types plus any types already used on this batch / its samples.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    protected function loadSampleTypeOptions(): array
+    {
+        $usedIds = collect([
+            (string) ($this->batch->sample_type_id ?? ''),
+        ])->filter();
+
+        if ($this->batch->id) {
+            $usedIds = $usedIds->merge(
+                SampleDetails::query()
+                    ->where('sample_header_id', $this->batch->id)
+                    ->whereNotNull('sample_type_id')
+                    ->pluck('sample_type_id')
+                    ->map(fn ($id) => (string) $id)
+            );
+        }
+
+        $usedIds = $usedIds->filter()->unique()->values();
+
+        return \App\SampleType::without(['analysis_types', 'sample_condition'])
+            ->select('id', 'name')
+            ->where(function ($query) use ($usedIds) {
+                $query->where('active', 1);
+                if ($usedIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $usedIds->all());
+                }
+            })
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($type) => [
+                'id' => (string) $type->id,
+                'name' => (string) $type->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Analysis types belonging to a sample type (optional name/code search).
+     *
+     * @param  list<array{id: string, name: string, code?: string, sample_type_id?: string|null}>  $analysisTypes
+     * @return list<array{id: string, name: string, code?: string, sample_type_id?: string|null}>
+     */
+    protected function filterAnalysisTypesForSampleType(array $analysisTypes, ?string $sampleTypeId, string $search = ''): array
+    {
+        return app(AnalysisTypeOptionFilter::class)->forSampleType($analysisTypes, $sampleTypeId, $search);
+    }
+
+    /**
+     * Drop selected analysis types that do not belong to the row's sample type.
+     */
+    protected function pruneAnalysisTypesForSampleType(int $index): void
+    {
+        if (! isset($this->sampleForms[$index])) {
+            return;
+        }
+
+        $sampleTypeId = trim((string) ($this->sampleForms[$index]['sample_type_id'] ?? ''));
+        if ($sampleTypeId === '') {
+            $sampleTypeId = trim((string) ($this->batch->sample_type_id ?? ''));
+        }
+
+        $selected = is_array($this->sampleForms[$index]['analysis_type_id'] ?? null)
+            ? $this->sampleForms[$index]['analysis_type_id']
+            : [];
+
+        if ($selected === []) {
+            return;
+        }
+
+        $allowed = collect($this->filterAnalysisTypesForSampleType($this->analysisTypes, $sampleTypeId))
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $this->sampleForms[$index]['analysis_type_id'] = array_values(array_filter(
+            $selected,
+            fn ($id) => in_array((string) $id, $allowed, true)
+        ));
+    }
+
+    /**
      * Load existing samples into form array
      */
     protected function loadSamples()
@@ -699,10 +806,11 @@ class Samples extends Component
 
             $this->sampleForms = [];
             foreach ($samples as $index => $sample) {
+                $analysisTypeIds = $this->analysisTypeIdsForSampleDetail($sample);
                 $this->sampleForms[$index] = [
                     'id' => $sample->id,
                     'sample_code' => $sample->sample_code,
-                    'analysis_type_id' => array_filter(explode(',', $sample->analysis_type_id ?? '')),
+                    'analysis_type_id' => $analysisTypeIds,
                     'lab_id' => $sample->lab_id
                         ? (string) $sample->lab_id
                         : (Lab::defaultLabId() ?? ''),
@@ -740,6 +848,35 @@ class Samples extends Component
     private function resolveCustomerSampleId(SampleDetails $sample): string
     {
         return trim((string) ($sample->customer_sample_id ?? $sample->file_no ?? $sample->barcode ?? ''));
+    }
+
+    /**
+     * All analysis types on a sample detail (relation table is source of truth for multi-type).
+     *
+     * @return list<string>
+     */
+    private function analysisTypeIdsForSampleDetail(SampleDetails $sample): array
+    {
+        $fromRelation = \App\SampleAnalysisTypeRelation::query()
+            ->where('sample_detail_id', $sample->id)
+            ->when(
+                filled($sample->sample_header_id),
+                fn ($query) => $query->where('batch_id', $sample->sample_header_id)
+            )
+            ->pluck('analysis_type_id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn (string $id): bool => $id !== '' && Str::isUuid($id))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($fromRelation !== []) {
+            return $fromRelation;
+        }
+
+        $primary = trim((string) ($sample->analysis_type_id ?? ''));
+
+        return ($primary !== '' && Str::isUuid($primary)) ? [$primary] : [];
     }
 
     /**
@@ -822,10 +959,18 @@ class Samples extends Component
     {
         $previousMainStandard = $sample->main_standard;
 
-        $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
-            ? implode(',', array_map('strval', $sampleData['analysis_type_id']))
-            : (string) ($sampleData['analysis_type_id'] ?? '');
-        $sample->lab_id = ! empty($sampleData['lab_id']) ? (string) $sampleData['lab_id'] : null;
+        $analysisTypeIds = array_values(array_filter(array_map(
+            'strval',
+            is_array($sampleData['analysis_type_id'] ?? null)
+                ? $sampleData['analysis_type_id']
+                : []
+        )));
+        // sample_details.analysis_type_id is a single uuid; multi-types live on sample_analysis_type_relation.
+        $sample->analysis_type_id = $analysisTypeIds[0] ?? null;
+        $resolvedLabId = $this->resolveLabIdFromAnalysisTypeIds($analysisTypeIds);
+        $sample->lab_id = $resolvedLabId
+            ?? (! empty($sampleData['lab_id']) ? (string) $sampleData['lab_id'] : null)
+            ?? Lab::defaultLabId();
         $sample->sample_condition_id = ! empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
         $sample->sample_point_id = ! empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
 
@@ -843,6 +988,14 @@ class Samples extends Component
         $sample->reporting_unit_id = ! empty($sampleData['reporting_unit_id']) ? $sampleData['reporting_unit_id'] : null;
 
         $sample->save();
+
+        $setupService = app(\App\Services\Sampleworkflow\SampleAnalysisSetupService::class);
+        if ($analysisTypeIds !== []) {
+            $setupService->syncAnalysisRelations($this->batch, $sample, $analysisTypeIds);
+            $setupService->syncCapturedResultLabSectionsForSampleDetail($sample);
+            $setupService->syncBatchLabSectionIdsFromAnalysisTypes($this->batch);
+        }
+        $setupService->syncBatchSampleTypeIdFromSamples($this->batch);
 
         if ((string) ($previousMainStandard ?? '') !== (string) ($sample->main_standard ?? '')) {
             CapturedResult::query()
@@ -1193,6 +1346,22 @@ class Samples extends Component
                 $staging->sampleHeader->sample_type_id = $id;
                 $staging->sampleHeader->save();
             }
+
+            $allowed = collect($this->filterAnalysisTypesForSampleType($this->analysisTypes, (string) $id))
+                ->pluck('id')
+                ->map(fn ($typeId) => (string) $typeId)
+                ->all();
+            $this->assignAnalysisTypeIds = array_values(array_filter(
+                $this->assignAnalysisTypeIds ?? [],
+                fn ($typeId) => in_array((string) $typeId, $allowed, true)
+            ));
+            $names = [];
+            foreach ($this->analysisTypes as $analysisType) {
+                if (in_array($analysisType['id'], $this->assignAnalysisTypeIds, true)) {
+                    $names[] = $analysisType['name'];
+                }
+            }
+            $this->assignAnalysisTypeNames = implode(', ', $names);
         }
         $this->showAssignSampleTypeDropdown = false;
         $this->assignSampleTypeSearch = '';
@@ -1200,13 +1369,16 @@ class Samples extends Component
 
     public function getFilteredAssignAnalysisTypes()
     {
-        if (empty($this->assignAnalysisTypeSearch)) {
-            return $this->analysisTypes;
+        $sampleTypeId = trim((string) ($this->assignSampleTypeId ?? ''));
+        if ($sampleTypeId === '') {
+            $sampleTypeId = trim((string) ($this->batch->sample_type_id ?? ''));
         }
-        return array_filter($this->analysisTypes, function ($type) {
-            return stripos($type['name'], $this->assignAnalysisTypeSearch) !== false ||
-                stripos($type['code'], $this->assignAnalysisTypeSearch) !== false;
-        });
+
+        return $this->filterAnalysisTypesForSampleType(
+            $this->analysisTypes,
+            $sampleTypeId,
+            (string) ($this->assignAnalysisTypeSearch ?? '')
+        );
     }
 
     public function toggleAssignAnalysisType($id)
@@ -1335,6 +1507,7 @@ class Samples extends Component
             $this->showAssignSamplesModal = false;
             $this->dispatch('samplesUpdated');
             $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Header::class);
+            $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Info::class);
             // Reload samples list
             $this->loadSamples();
 
@@ -1852,6 +2025,22 @@ class Samples extends Component
         if ($type) {
             $this->stagingForm['sample_type_id'] = $id;
             $this->stagingForm['sample_type_name'] = $type['name'];
+
+            $allowed = collect($this->filterAnalysisTypesForSampleType($this->analysisTypes, (string) $id))
+                ->pluck('id')
+                ->map(fn ($typeId) => (string) $typeId)
+                ->all();
+            $this->stagingForm['analysis_type_ids'] = array_values(array_filter(
+                $this->stagingForm['analysis_type_ids'] ?? [],
+                fn ($typeId) => in_array((string) $typeId, $allowed, true)
+            ));
+            $names = [];
+            foreach ($this->analysisTypes as $analysisType) {
+                if (in_array($analysisType['id'], $this->stagingForm['analysis_type_ids'], true)) {
+                    $names[] = $analysisType['name'];
+                }
+            }
+            $this->stagingForm['analysis_type_names'] = implode(', ', $names);
         }
         $this->showSampleTypeDropdown = false;
         $this->sampleTypeSearch = '';
@@ -1859,13 +2048,16 @@ class Samples extends Component
 
     public function getFilteredStagingAnalysisTypes()
     {
-        if (empty($this->stagingAnalysisTypeSearch)) {
-            return $this->analysisTypes;
+        $sampleTypeId = trim((string) ($this->stagingForm['sample_type_id'] ?? ''));
+        if ($sampleTypeId === '') {
+            $sampleTypeId = trim((string) ($this->batch->sample_type_id ?? ''));
         }
-        return array_filter($this->analysisTypes, function ($type) {
-            return stripos($type['name'], $this->stagingAnalysisTypeSearch) !== false ||
-                stripos($type['code'], $this->stagingAnalysisTypeSearch) !== false;
-        });
+
+        return $this->filterAnalysisTypesForSampleType(
+            $this->analysisTypes,
+            $sampleTypeId,
+            (string) ($this->stagingAnalysisTypeSearch ?? '')
+        );
     }
 
     public function toggleStagingAnalysisType($id)
@@ -2170,24 +2362,25 @@ class Samples extends Component
             $this->sampleForms[$index]['analysis_type_id'][] = $analysisTypeId;
         }
 
+        $this->syncLabMetadataFromAnalysisTypes((int) $index);
         $this->loadSampleGroupedWorksheets();
     }
 
     /**
-     * Get filtered analysis types for a specific row
+     * Get filtered analysis types for a specific row (scoped to that row's sample type).
      */
     public function getFilteredAnalysisTypes($index)
     {
-        $search = $this->analysisTypeSearch;
-
-        if (empty($search)) {
-            return $this->analysisTypes;
+        $sampleTypeId = trim((string) ($this->sampleForms[$index]['sample_type_id'] ?? ''));
+        if ($sampleTypeId === '') {
+            $sampleTypeId = trim((string) ($this->batch->sample_type_id ?? ''));
         }
 
-        return array_filter($this->analysisTypes, function ($type) use ($search) {
-            return stripos($type['name'], $search) !== false ||
-                stripos($type['code'], $search) !== false;
-        });
+        return $this->filterAnalysisTypesForSampleType(
+            $this->analysisTypes,
+            $sampleTypeId,
+            (string) ($this->analysisTypeSearch ?? '')
+        );
     }
 
     /**
@@ -2204,7 +2397,6 @@ class Samples extends Component
         // Validate only this specific row
         $this->validate([
             "sampleForms.$index.analysis_type_id" => 'required|array|min:1',
-            "sampleForms.$index.lab_id" => 'required',
             "sampleForms.$index.sample_condition_id" => 'nullable',
             "sampleForms.$index.sample_point_id" => 'nullable',
             "sampleForms.$index.photo_url" => 'nullable',
@@ -2216,7 +2408,6 @@ class Samples extends Component
         ], [
             "sampleForms.$index.analysis_type_id.required" => 'Matrix is required',
             "sampleForms.$index.analysis_type_id.min" => 'At least one matrix option must be selected',
-            "sampleForms.$index.lab_id.required" => 'Lab is required',
             "sampleForms.$index.main_standard.required" => 'Specification is required',
         ]);
 
@@ -2245,6 +2436,8 @@ class Samples extends Component
 
             session()->flash('success', "Sample {$sample->sample_code} saved successfully!");
             $this->dispatch('samplesUpdated');
+            $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Header::class);
+            $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Info::class);
             $this->loadSamples();
 
         } catch (\Exception $e) {
@@ -2273,7 +2466,6 @@ class Samples extends Component
         // Validate all samples
         $this->validate([
             'sampleForms.*.analysis_type_id' => 'required|array|min:1',
-            'sampleForms.*.lab_id' => 'required|uuid|exists:labs,id',
             'sampleForms.*.sample_condition_id' => 'nullable',
             'sampleForms.*.sample_point_id' => 'nullable',
             'sampleForms.*.photo_url' => 'nullable',
@@ -2285,9 +2477,6 @@ class Samples extends Component
         ], [
             'sampleForms.*.analysis_type_id.required' => 'Matrix is required',
             'sampleForms.*.analysis_type_id.min' => 'At least one matrix option must be selected',
-            'sampleForms.*.lab_id.required' => 'Lab is required',
-            'sampleForms.*.lab_id.uuid' => 'Lab selection is invalid',
-            'sampleForms.*.lab_id.exists' => 'Selected lab does not exist',
             'sampleForms.*.main_standard.required' => 'Specification is required',
         ]);
 
@@ -2326,6 +2515,7 @@ class Samples extends Component
             session()->flash('success', 'All samples saved successfully!');
             $this->dispatch('samplesUpdated');
             $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Header::class);
+            $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Info::class);
             $this->loadSamples();  // Reload to get fresh data
 
         } catch (\Exception $e) {
@@ -2352,16 +2542,113 @@ class Samples extends Component
      */
     public function updatedSampleForms($value, $key)
     {
-        // Check if analysis_type_id was updated
-        if (str_contains($key, '.analysis_type_id')) {
-            // Extract index from key (e.g., "0.analysis_type_id" -> 0)
-            preg_match('/(\d+)\./', $key, $matches);
-            $index = $matches[1] ?? null;
+        preg_match('/(\d+)\./', (string) $key, $matches);
+        $index = isset($matches[1]) ? (int) $matches[1] : null;
 
-            if ($index !== null && isset($this->sampleForms[$index])) {
-                $this->filterLabsForSample($index);
-            }
+        if ($index === null || ! isset($this->sampleForms[$index])) {
+            return;
         }
+
+        if (str_contains((string) $key, '.sample_type_id')) {
+            $this->pruneAnalysisTypesForSampleType($index);
+            $this->syncLabMetadataFromAnalysisTypes($index);
+            $this->loadSampleGroupedWorksheets();
+
+            return;
+        }
+
+        if (str_contains((string) $key, '.analysis_type_id')) {
+            $this->syncLabMetadataFromAnalysisTypes($index);
+        }
+    }
+
+    /**
+     * Lab section labels for a sample row (from selected analysis types).
+     *
+     * @return list<string>
+     */
+    public function labSectionLabelsForSampleIndex(int $index): array
+    {
+        $analysisTypeIds = array_values(array_filter(array_map(
+            'strval',
+            is_array($this->sampleForms[$index]['analysis_type_id'] ?? null)
+                ? $this->sampleForms[$index]['analysis_type_id']
+                : []
+        )));
+
+        if ($analysisTypeIds === []) {
+            return [];
+        }
+
+        $sectionIds = AnalysisType::query()
+            ->whereIn('id', $analysisTypeIds)
+            ->pluck('lab_section_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($sectionIds === []) {
+            return [];
+        }
+
+        return SampleAnalysisStage::query()
+            ->whereIn('id', $sectionIds)
+            ->orderBy('name')
+            ->get()
+            ->map(function (SampleAnalysisStage $stage): string {
+                $name = trim((string) ($stage->name ?? ''));
+                $code = trim((string) ($stage->code ?? ''));
+
+                if ($name !== '' && $code !== '') {
+                    return $name.' - '.$code;
+                }
+
+                return $name !== '' ? $name : $code;
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Keep sample lab_id in sync with selected analysis types (Laboratory column removed from UI).
+     */
+    protected function syncLabMetadataFromAnalysisTypes(int $index): void
+    {
+        if (! isset($this->sampleForms[$index])) {
+            return;
+        }
+
+        $analysisTypeIds = is_array($this->sampleForms[$index]['analysis_type_id'] ?? null)
+            ? $this->sampleForms[$index]['analysis_type_id']
+            : [];
+
+        $labId = $this->resolveLabIdFromAnalysisTypeIds($analysisTypeIds);
+        if ($labId !== null) {
+            $this->sampleForms[$index]['lab_id'] = $labId;
+        }
+    }
+
+    /**
+     * @param  list<mixed>  $analysisTypeIds
+     */
+    private function resolveLabIdFromAnalysisTypeIds(array $analysisTypeIds): ?string
+    {
+        $ids = array_values(array_filter(array_map('strval', $analysisTypeIds)));
+        if ($ids === []) {
+            return null;
+        }
+
+        $labId = AnalysisType::query()
+            ->whereIn('id', $ids)
+            ->pluck('lab_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->first();
+
+        return $labId !== null && $labId !== '' ? $labId : null;
     }
 
     /**
@@ -2369,6 +2656,7 @@ class Samples extends Component
      */
     protected function filterLabsForSample($index)
     {
+        $this->syncLabMetadataFromAnalysisTypes((int) $index);
         $selectedAnalysisIds = $this->sampleForms[$index]['analysis_type_id'] ?? [];
 
         if (empty($selectedAnalysisIds)) {
@@ -2816,11 +3104,6 @@ class Samples extends Component
                     'sec_standard_value' => $secStandardInfo['display'] ?? null,
                     'sec_standard_id' => $effectiveSecStandardId,
                     'remark' => $result->remark ?: '',
-                    'specification_comment' => app(StandardPassFailCommentService::class)->commentFor(
-                        (string) $effectiveMainStandardId,
-                        (string) $result->analyte_id,
-                        (string) ($result->remark ?: ''),
-                    ),
                     'remark_is_manual' => $result->remark_is_manual,
                     'reporting_unit' => $defaultUnitId ?? '',
                     'operator_name' => $operatorNames !== [] ? implode(', ', $operatorNames) : '-',
@@ -2945,14 +3228,42 @@ class Samples extends Component
     }
 
     /**
-     * Open the parameters modal for a single sample (eye icon).
+     * Open the parameters modal for a sample, with carousel over all saved samples on the batch.
      */
     public function viewSingleSampleParameters(string $sampleCode): void
     {
         $this->parametersDraftBySample = [];
-        $this->parameterModalSampleCodes = [(string) $sampleCode];
-        $this->parameterModalSampleIndex = 0;
-        $this->viewParameters($sampleCode);
+        $codes = $this->parameterModalCodesForBatch();
+        if ($codes === []) {
+            $codes = [(string) $sampleCode];
+        }
+
+        $this->parameterModalSampleCodes = $codes;
+        $index = array_search((string) $sampleCode, $codes, true);
+        $this->parameterModalSampleIndex = $index === false ? 0 : (int) $index;
+        $this->viewParameters($index === false ? $codes[0] : (string) $sampleCode);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function parameterModalCodesForBatch(): array
+    {
+        $codes = [];
+        foreach ($this->sampleForms as $form) {
+            if (! is_array($form) || empty($form['id'])) {
+                continue;
+            }
+
+            $code = trim((string) ($form['sample_code'] ?? ''));
+            if ($code === '') {
+                continue;
+            }
+
+            $codes[] = $code;
+        }
+
+        return array_values(array_unique($codes));
     }
 
     public function updatedParameterImportFile(): void
@@ -3335,45 +3646,6 @@ class Samples extends Component
     }
 
     /**
-     * Apply a browser-prompt-confirmed result and evaluate the remark.
-     */
-    public function applyConfirmedResult(string $id, string $result): void
-    {
-        if (! isset($this->parametersForm[$id])) {
-            return;
-        }
-
-        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
-            session()->flash('error', app(LabSectionResultAccess::class)->denyEditMessage(auth()->user()));
-            return;
-        }
-
-        $result = trim($result);
-        $this->parametersForm[$id]['result'] = $result;
-        $this->parametersForm[$id]['result_confirmation'] = $result;
-        $this->autofillAnalysisDatesForFiledResult($id);
-        $this->evaluateResult($id);
-    }
-
-    /**
-     * Clear a result after a cancelled or mismatched browser confirmation.
-     */
-    public function clearParameterResult(string $id): void
-    {
-        if (! isset($this->parametersForm[$id])) {
-            return;
-        }
-
-        if ($this->parametersReadOnly || ! $this->userCanEditParameterRow($id)) {
-            return;
-        }
-
-        $this->parametersForm[$id]['result'] = '';
-        $this->parametersForm[$id]['result_confirmation'] = '';
-        $this->parametersForm[$id]['remark'] = '';
-    }
-
-    /**
      * Evaluate result against standard
      */
     public function evaluateResult($id): void
@@ -3385,8 +3657,6 @@ class Samples extends Component
         $data = $this->parametersForm[$id];
 
         if (! empty($data['remark_is_manual']) && (int) $data['remark_is_manual'] === 1) {
-            $this->applySpecificationComment((string) $id);
-
             return;
         }
 
@@ -3440,22 +3710,6 @@ class Samples extends Component
             '-' => '',
             default => '',
         };
-
-        $this->applySpecificationComment((string) $id);
-    }
-
-    private function applySpecificationComment(string $id): void
-    {
-        if (! isset($this->parametersForm[$id])) {
-            return;
-        }
-
-        $row = $this->parametersForm[$id];
-        $this->parametersForm[$id]['specification_comment'] = app(StandardPassFailCommentService::class)->commentFor(
-            (string) ($row['standard_id'] ?? ''),
-            (string) ($row['analyte_id'] ?? ''),
-            (string) ($row['remark'] ?? ''),
-        );
     }
 
     /**

@@ -173,7 +173,16 @@ class TestRequestFormReportDataBuilder
             'wasteWaterFields' => $wasteWaterFields,
             'signatures' => [
                 'statement_of_conformity' => $conformity,
-                'sampled_by' => (string) ($formData['sampled_by'] ?? $creator?->name ?? ''),
+                'sampled_by' => (static function () use ($formData, $creator): string {
+                    $raw = $formData['sampled_by'] ?? null;
+                    if ($raw === null || $raw === '') {
+                        return (string) ($creator?->name ?? '');
+                    }
+
+                    $label = \App\Services\Sampleworkflow\SampledByParty::displayLabel($raw);
+
+                    return $label !== '' ? $label : (string) $raw;
+                })(),
                 'customer_rep_name' => (string) ($formData['customer_rep_name'] ?? ''),
                 'customer_rep_signature' => (string) ($formData['customer_rep_signature'] ?? $formData['customer_representative_signature'] ?? ''),
                 'customer_rep_contact' => (string) ($formData['customer_rep_contact'] ?? ''),
@@ -573,8 +582,17 @@ class TestRequestFormReportDataBuilder
             default => self::WATER_OPTIONS,
         };
 
+        $scalar = static function (mixed $value): mixed {
+            if (is_array($value)) {
+                // Per-sample collection: PDF keeps batch layout using first sample.
+                return $value[0] ?? (array_values($value)[0] ?? '');
+            }
+
+            return $value;
+        };
+
         $collectionExtras = [
-            'date_received' => $this->formatDate($formData['date_received'] ?? ''),
+            'date_received' => $this->formatDate($scalar($formData['date_received'] ?? '')),
             'packaging' => (string) ($formData['packaging'] ?? ''),
             'sample_weight' => (string) ($formData['sample_weight'] ?? ''),
             'sample_information' => (string) ($formData['sample_information'] ?? ''),
@@ -584,18 +602,20 @@ class TestRequestFormReportDataBuilder
             'seal_number' => (string) ($formData['seal_number'] ?? ''),
         ];
 
+        $thermometerRaw = $scalar($formData['thermometer_id'] ?? '');
+
         return [
-            'sampling_date' => $this->formatOrdinalDate($formData['sampling_date'] ?? ''),
-            'sampling_date_raw' => $this->formatDate($formData['sampling_date'] ?? ''),
-            'sampling_time' => (string) ($formData['sampling_time'] ?? ''),
-            'sampling_location' => $this->resolveSamplePointDisplayLabel((string) ($formData['sampling_location'] ?? '')),
+            'sampling_date' => $this->formatOrdinalDate($scalar($formData['sampling_date'] ?? '')),
+            'sampling_date_raw' => $this->formatDate($scalar($formData['sampling_date'] ?? '')),
+            'sampling_time' => (string) ($scalar($formData['sampling_time'] ?? '') ?? ''),
+            'sampling_location' => $this->resolveSamplePointDisplayLabel((string) ($scalar($formData['sampling_location'] ?? '') ?? '')),
             'thermometer_id' => $variant === 'waste_water'
-                ? (string) ($formData['thermometer_id'] ?? '')
-                : app(TrfSamplingEquipmentResolver::class)->formatForPdf($formData['thermometer_id'] ?? ''),
-            'sampling_apparatus' => self::normalizeCheckboxGroup($formData['sampling_apparatus'] ?? [], $options['sampling_apparatus']),
-            'method_of_sampling' => self::normalizeCheckboxGroup($formData['method_of_sampling'] ?? [], $options['method_of_sampling']),
-            'reason_of_collection' => self::normalizeCheckboxGroup($formData['reason_of_collection'] ?? [], $options['reason_of_collection']),
-            'transport_condition' => self::normalizeCheckboxGroup($formData['transport_condition'] ?? [], $options['transport_condition']),
+                ? (string) ($thermometerRaw ?? '')
+                : app(TrfSamplingEquipmentResolver::class)->formatForPdf($thermometerRaw),
+            'sampling_apparatus' => self::normalizeCheckboxGroup($scalar($formData['sampling_apparatus'] ?? []) ?? [], $options['sampling_apparatus']),
+            'method_of_sampling' => self::normalizeCheckboxGroup($scalar($formData['method_of_sampling'] ?? []) ?? [], $options['method_of_sampling']),
+            'reason_of_collection' => self::normalizeCheckboxGroup($scalar($formData['reason_of_collection'] ?? []) ?? [], $options['reason_of_collection']),
+            'transport_condition' => self::normalizeCheckboxGroup($scalar($formData['transport_condition'] ?? []) ?? [], $options['transport_condition']),
             'collection_extras' => $collectionExtras,
             'has_collection_extras' => $this->hasAllFilledValues($collectionExtras),
         ];
@@ -643,6 +663,7 @@ class TestRequestFormReportDataBuilder
                     ),
                     'sample_type_ticks' => $this->resolveFoodSampleTypeTicks($row),
                     'state_of_sample' => self::stateOfSampleChecks($row['state_of_sample'] ?? null),
+                    'additional_details' => $this->normalizeAdditionalDetails($row['additional_details'] ?? null),
                 ];
                 continue;
             }
@@ -670,6 +691,7 @@ class TestRequestFormReportDataBuilder
                     'microbiology' => $testRequirementChecks['microbiology'],
                     'legionella' => $testRequirementChecks['legionella'],
                     'chemistry' => $testRequirementChecks['chemistry'],
+                    'additional_details' => $this->normalizeAdditionalDetails($row['additional_details'] ?? null),
                 ];
 
                 continue;
@@ -693,10 +715,46 @@ class TestRequestFormReportDataBuilder
                 'microbiology' => filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'legionella' => filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'chemistry' => filter_var($row['chemistry'] ?? $row['chemical_analysis'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'additional_details' => $this->normalizeAdditionalDetails($row['additional_details'] ?? null),
             ];
         }
 
         return $normalized;
+    }
+
+    /**
+     * @return list<array{label: string, value: string}>
+     */
+    private function normalizeAdditionalDetails(mixed $raw): array
+    {
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $details = [];
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $label = trim((string) ($row['label'] ?? ''));
+            $value = trim((string) ($row['value'] ?? ''));
+            if ($label === '' && $value === '') {
+                continue;
+            }
+
+            $details[] = [
+                'label' => $label !== '' ? $label : 'Detail',
+                'value' => $value,
+            ];
+        }
+
+        return $details;
     }
 
     /**

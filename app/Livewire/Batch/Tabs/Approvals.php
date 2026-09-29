@@ -5,6 +5,7 @@ namespace App\Livewire\Batch\Tabs;
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\BatchVerificationReadinessService;
 use App\Services\Sampleworkflow\BatchWorkflowStageSyncService;
 use App\Services\StandardLimitDisplayService;
 use App\Services\WorkflowService;
@@ -75,6 +76,8 @@ class Approvals extends Component
     public function getApproversProperty()
     {
         return $this->batch->approvers()
+            // Clear relationship default (created_at desc) so chronology wins.
+            ->reorder()
             ->when($this->search, function($query) {
                 $query->where(function($q) {
                     $q->where('approvername', 'like', '%' . $this->search . '%')
@@ -84,7 +87,10 @@ class Approvals extends Component
                       ->orWhere('workflow', 'like', '%' . $this->search . '%');
                 });
             })
-            ->orderBy('created_at', 'desc')
+            // First action first; pending (null date) last.
+            ->orderByRaw('CASE WHEN approval_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('approval_date', 'asc')
+            ->orderBy('created_at', 'asc')
             ->paginate($this->perPage);
     }
 
@@ -185,6 +191,10 @@ class Approvals extends Component
 
     public function hasPendingDataCapture(): bool
     {
+        if (app(BatchVerificationReadinessService::class)->isPartialInterimBatch($this->batch)) {
+            return false;
+        }
+
         return CapturedResult::query()
             ->where('sample_header_id', $this->batch->id)
             ->whereNull('result')

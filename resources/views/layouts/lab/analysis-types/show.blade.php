@@ -651,15 +651,20 @@
         <div class="form-group">
               <label for="" class="control-label">Lab Section</label>
               <select name="lab_section_id" id="" class="lab_section_id form-control">
-                <?php $sample_type = getSampleTypeByID($analysis_type->sample_type_id); ?>
-                @if($sample_type->sample_analysis_stage)
-                  @foreach($sample_type->sample_analysis_stage as $stage)
-                    @if($stage->active == 1)
-                      <option value="{{$stage->sample_analysis_stage_id}}">{{$stage->sample_analysis_stage->name}}</option>
-                    @endif
-                  @endforeach
+                @if(filled($analysis_type->lab_section_id))
+                  @php
+                    $typeLabSection = \App\SampleAnalysisStage::query()->find($analysis_type->lab_section_id);
+                  @endphp
+                  @if($typeLabSection)
+                    <option value="{{ $typeLabSection->id }}" selected>
+                      {{ $typeLabSection->name }}{{ filled($typeLabSection->code) ? ' - '.$typeLabSection->code : '' }}
+                    </option>
+                  @endif
+                @else
+                  <option value="">Set lab section on the analysis type first</option>
                 @endif
               </select>
+              <small class="text-muted">Locked to the analysis type lab section.</small>
             </div>
         <div class="form-group">
           <label for="" class="control-label">TAT (days)</label>

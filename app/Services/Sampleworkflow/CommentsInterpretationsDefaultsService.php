@@ -39,139 +39,183 @@ class CommentsInterpretationsDefaultsService
     }
 
     /**
+     * Build the report statement of conformity from per-specification outcomes.
+     * Positive (conform) clauses come before negative (do not conform) clauses.
+     *
+     * @param  list<array{id?: string, name: string, passed: bool, comment?: string}>  $outcomes
+     */
+    public function formatConformityRemark(array $outcomes): string
+    {
+        if ($outcomes === []) {
+            return '';
+        }
+
+        if (count($outcomes) === 1) {
+            $comment = trim((string) ($outcomes[0]['comment'] ?? ''));
+            if ($comment !== '') {
+                return $comment;
+            }
+
+            return $this->defaultSentenceForOutcome($outcomes[0]);
+        }
+
+        $ordered = $this->orderOutcomesPositiveFirst($outcomes);
+        $parts = [];
+        foreach ($ordered as $outcome) {
+            $label = $this->displayNameForOutcome($outcome);
+            $parts[] = ($outcome['passed'] ? 'conform to ' : 'do not conform to ').$label;
+        }
+
+        return 'The above test results '.implode(' and ', $parts);
+    }
+
+    /**
      * @param  Collection<int, CapturedResult>  $results
      */
     private function buildRemarksHtml(SampleDetails $sample, Collection $results): string
     {
-        $standards = $this->resolveAssignedStandards($sample);
+        $outcomes = $this->resolveSpecificationOutcomes($sample, $results);
 
-        if ($standards === []) {
+        if ($outcomes === []) {
             return '';
-        }
-
-        $outcomes = [];
-        foreach ($standards as $index => $standard) {
-            $passed = $this->standardPassed($results, $index);
-            $outcomes[] = [
-                'name' => $standard['name'],
-                'passed' => $passed,
-                // One statement per specification from the standard pass/fail set (not per analyte).
-                'comment' => $this->passFailComments->commentFor(
-                    (string) $standard['id'],
-                    null,
-                    $passed ? 'PASS' : 'FAIL',
-                ),
-            ];
         }
 
         return e($this->formatConformityRemark($outcomes));
     }
 
     /**
-     * @return list<array{id: string, name: string}>
+     * One outcome per distinct specification used on the sample's results.
+     * A specification fails when any result evaluated against it is non-conforming.
+     *
+     * @param  Collection<int, CapturedResult>  $results
+     * @return list<array{id: string, name: string, passed: bool, comment: string}>
      */
-    private function resolveAssignedStandards(SampleDetails $sample): array
+    private function resolveSpecificationOutcomes(SampleDetails $sample, Collection $results): array
     {
-        $ids = array_values(array_filter([
-            $sample->main_standard ?: null,
-            $sample->secondary_standard ?: null,
-            $sample->third_standard_id ?: null,
-        ], fn ($id) => filled($id)));
+        /** @var array<string, array{id: string, passed: bool, order: int}> $grouped */
+        $grouped = [];
+        $order = 0;
 
-        if ($ids === []) {
+        foreach ($this->standardSlots() as $slot) {
+            foreach ($results as $result) {
+                $standardId = $this->effectiveStandardId($result, $sample, $slot['result_id'], $slot['sample_id']);
+                if ($standardId === null) {
+                    continue;
+                }
+
+                $passed = ! is_non_conforming_remark($result->{$slot['remark']} ?? null);
+
+                if (! isset($grouped[$standardId])) {
+                    $grouped[$standardId] = [
+                        'id' => $standardId,
+                        'passed' => $passed,
+                        'order' => $order++,
+                    ];
+                    continue;
+                }
+
+                if (! $passed) {
+                    $grouped[$standardId]['passed'] = false;
+                }
+            }
+        }
+
+        if ($grouped === []) {
             return [];
         }
 
         $namesById = Standards::query()
-            ->whereIn('id', $ids)
+            ->whereIn('id', array_keys($grouped))
             ->get(['id', 'name', 'code'])
-            ->keyBy('id');
+            ->keyBy(fn ($row) => (string) $row->id);
 
-        $standards = [];
-        foreach ($ids as $id) {
-            $row = $namesById->get($id);
+        $outcomes = [];
+        foreach ($grouped as $standardId => $meta) {
+            $row = $namesById->get($standardId);
             $name = trim((string) ($row->name ?? $row->code ?? ''));
             if ($name === '') {
                 continue;
             }
-            $standards[] = ['id' => (string) $id, 'name' => $name];
+
+            $outcomes[] = [
+                'id' => $standardId,
+                'name' => $name,
+                'passed' => $meta['passed'],
+                'comment' => $this->passFailComments->commentFor(
+                    $standardId,
+                    null,
+                    $meta['passed'] ? 'PASS' : 'FAIL',
+                ),
+                'order' => $meta['order'],
+            ];
         }
 
-        return $standards;
+        usort($outcomes, static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
+
+        return array_map(static function (array $outcome): array {
+            unset($outcome['order']);
+
+            return $outcome;
+        }, $outcomes);
     }
 
     /**
-     * @param  Collection<int, CapturedResult>  $results
+     * @return list<array{result_id: string, sample_id: string, remark: string}>
      */
-    private function standardPassed(Collection $results, int $index): bool
+    private function standardSlots(): array
     {
-        $remarkColumn = match ($index) {
-            0 => 'remark',
-            1 => 'sec_remark',
-            default => 'third_remark',
-        };
+        return [
+            ['result_id' => 'main_standard_id', 'sample_id' => 'main_standard', 'remark' => 'remark'],
+            ['result_id' => 'secondary_standard_id', 'sample_id' => 'secondary_standard', 'remark' => 'sec_remark'],
+            ['result_id' => 'third_standard_id', 'sample_id' => 'third_standard_id', 'remark' => 'third_remark'],
+        ];
+    }
 
-        foreach ($results as $result) {
-            if (is_non_conforming_remark($result->{$remarkColumn} ?? null)) {
-                return false;
-            }
-        }
+    private function effectiveStandardId(
+        CapturedResult $result,
+        SampleDetails $sample,
+        string $resultColumn,
+        string $sampleColumn,
+    ): ?string {
+        $id = trim((string) ($result->{$resultColumn} ?: $sample->{$sampleColumn} ?: ''));
 
-        return true;
+        return $id !== '' ? $id : null;
     }
 
     /**
      * @param  list<array{name: string, passed: bool, comment?: string}>  $outcomes
+     * @return list<array{name: string, passed: bool, comment?: string}>
      */
-    private function formatConformityRemark(array $outcomes): string
+    private function orderOutcomesPositiveFirst(array $outcomes): array
     {
-        $customParts = [];
-        $hasCustom = false;
+        $passed = [];
+        $failed = [];
+
         foreach ($outcomes as $outcome) {
-            $comment = trim((string) ($outcome['comment'] ?? ''));
-            if ($comment !== '') {
-                $hasCustom = true;
-                $customParts[] = $comment;
+            if ($outcome['passed']) {
+                $passed[] = $outcome;
             } else {
-                $customParts[] = $this->defaultSentenceForOutcome($outcome);
+                $failed[] = $outcome;
             }
         }
 
-        if ($hasCustom) {
-            return implode(' ', $customParts);
-        }
+        return array_merge($passed, $failed);
+    }
 
-        $count = count($outcomes);
-
-        if ($count === 1) {
-            return $this->defaultSentenceForOutcome($outcomes[0]);
-        }
-
-        if ($count === 2) {
-            $first = $outcomes[0];
-            $second = $outcomes[1];
-
-            if ($first['passed'] && $second['passed']) {
-                return 'The above test results conform to "'.$first['name'].'" & "'.$second['name'].'"';
+    /**
+     * @param  array{name: string, passed: bool, comment?: string}  $outcome
+     */
+    private function displayNameForOutcome(array $outcome): string
+    {
+        $comment = trim((string) ($outcome['comment'] ?? ''));
+        if ($comment !== '' && preg_match('/(?:do\s+not\s+)?conform\s+to\s+["\']?(.+?)["\']?\s*$/iu', $comment, $matches) === 1) {
+            $extracted = trim($matches[1], " \t\"'");
+            if ($extracted !== '') {
+                return $extracted;
             }
-
-            if (! $first['passed'] && ! $second['passed']) {
-                return 'The above test results do not conform to "'.$first['name'].'" & "'.$second['name'].'"';
-            }
-
-            if ($first['passed'] && ! $second['passed']) {
-                return 'The above test results conform to "'.$first['name'].'" & do not conform to "'.$second['name'].'"';
-            }
-
-            return 'The above test results do not conform to "'.$first['name'].'" & conform to "'.$second['name'].'"';
         }
 
-        $parts = [];
-        foreach ($outcomes as $outcome) {
-            $parts[] = ($outcome['passed'] ? 'conform to' : 'do not conform to').' "'.$outcome['name'].'"';
-        }
-
-        return 'The above test results '.implode(' & ', $parts);
+        return $outcome['name'];
     }
 
     /**
@@ -181,10 +225,10 @@ class CommentsInterpretationsDefaultsService
     {
         $name = $outcome['name'];
         if ($outcome['passed']) {
-            return 'The above test results conform to "'.$name.'"';
+            return 'The above test results conform to '.$name;
         }
 
-        return 'The above test results do not conform to "'.$name.'"';
+        return 'The above test results do not conform to '.$name;
     }
 
     /**

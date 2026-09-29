@@ -1479,8 +1479,10 @@
 										@if($approver->status == 0)
 										<span class="badge badge-primary badge-pill p-2"><i class="mdi mdi-decagram"></i> Awaiting Approval</span>
 										@elseif($approver->status == 1)
-										@if($approver->batch_status == "Sample Verification" && $approver->show_report == 1)
-										<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i>Checked</span>
+										@if($approver->batch_status == "Sample Verification" && ($approver->title === 'Analyst' || (int) $approver->show_report === 0))
+										<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-flask-outline"></i>Analysed</span>
+										@elseif($approver->batch_status == "Sample Verification" && $approver->show_report == 1)
+										<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i>Verified</span>
 										@else
 										<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i>{{ $approver->batch_status  == "Sample Verification"  ? 'Verified' : 'Authorized'}} </span>
 										@endif

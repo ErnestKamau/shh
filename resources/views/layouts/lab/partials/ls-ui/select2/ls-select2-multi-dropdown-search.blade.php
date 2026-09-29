@@ -2,6 +2,7 @@
 	ls-select2-multi-dropdown-search — multi Select2, search bar in dropdown, no avatars.
 	Props: $label, $name, $options (value=>label OR list of {value,label}), $selected, $hint,
 	       $variant (burgundy|slate), $id, $required, $multiple (default true; false = single),
+	       $disabled,
 	       Livewire: $dataWireField, $dataSelectLive, $extraSelectClass, $selectedValuesJson, $wireIgnore
 --}}
 @php
@@ -18,6 +19,7 @@
 	$defaultSelected = $isMultiple ? ['family', 'family_law', 'coworkers'] : [];
 	$selected = array_values(array_map('strval', (array) ($selected ?? $defaultSelected)));
 	$variant = $variant ?? 'slate';
+	$isDisabled = (bool) ($disabled ?? false);
 	$normalized = [];
 	foreach ($options as $value => $optLabel) {
 		if (is_array($optLabel) && array_key_exists('value', $optLabel)) {
@@ -53,6 +55,7 @@
 			data-ls-multi-dropdown-search="1"
 			@if(! $isMultiple) data-ls-single="1" @endif
 			@if(! empty($required)) required @endif
+			@if($isDisabled) disabled @endif
 			@if(! empty($dataWireField)) data-wire-field="{{ $dataWireField }}" @endif
 			@if(! empty($dataSelectLive)) data-select-live="{{ $dataSelectLive }}" @endif
 			@if(! empty($selectedValuesJson)) data-selected-values="{{ $selectedValuesJson }}" @endif

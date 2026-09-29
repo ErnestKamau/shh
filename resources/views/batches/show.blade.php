@@ -4,6 +4,7 @@
   <title> {{ isset($batch->batch_code) ? $batch->batch_code." | Batch Info" : "New Batch" }}</title>
   @include('layouts.lab.partials.lab-panel-theme-styles')
   @include('layouts.lab.partials.lab-surface-theme-styles')
+  @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
   {{-- Include all CSS from original show.blade.php lines 5-431 --}}
   <style>
 		/*
@@ -151,7 +152,10 @@
 		/* Batch details labels/values: size only — keep Roboto (do not switch to Plex) */
 		.batch-show-page #batch-detail-form .control-label,
 		.batch-show-page #batch-detail-form label,
+		.batch-show-page #batch-detail-form .ls-field__label,
 		.batch-show-page #batch-detail-form .form-control,
+		.batch-show-page #batch-detail-form .ls-field__input,
+		.batch-show-page #batch-detail-form .ls-textarea,
 		.batch-show-page #batch-detail-form select,
 		.batch-show-page #batch-detail-form textarea {
 			font-family: 'Roboto', sans-serif !important;
@@ -162,21 +166,47 @@
 		.batch-show-page #batch-detail-form > .row {
 			row-gap: 0.15rem;
 		}
+		.batch-show-page .batch-details-card .ls-soft-card__header .mdi {
+			margin-right: 0.35rem;
+			color: var(--ls-accent, #8b1e2d);
+		}
+		.batch-show-page .batch-details-fields {
+			margin-bottom: 0.85rem;
+		}
+		.batch-show-page .batch-details-checkboxes-section {
+			margin: 0.35rem 0 0.85rem;
+			padding: 0;
+		}
+		.batch-show-page .batch-details-checkboxes-panel {
+			padding: 12px 14px;
+			border-radius: 10px;
+			margin: 0;
+		}
+		.batch-show-page .batch-details-checkbox-grid .ls-check {
+			align-items: flex-start;
+			line-height: 1.4;
+		}
+		.batch-show-page .batch-details-actions {
+			border-top: 1px solid #f1f5f9;
+		}
+		.batch-show-page .batch-details-actions .ls-btn {
+			padding: 0.5rem 1.5rem;
+			font-size: 0.8125rem;
+		}
+		.batch-show-page #batch-detail-form .ls-select2-single .select2-container .select2-selection--single,
 		.batch-show-page #batch-detail-form .select2-container .select2-selection--single {
 			height: 34px !important;
 			min-height: 34px !important;
 		}
+		.batch-show-page #batch-detail-form .ls-select2-single .select2-container--default .select2-selection--single .select2-selection__rendered,
 		.batch-show-page #batch-detail-form .select2-container--default .select2-selection--single .select2-selection__rendered {
 			line-height: 32px !important;
 			font-size: 0.8125rem !important;
 			font-family: 'Roboto', sans-serif !important;
 		}
+		.batch-show-page #batch-detail-form .ls-select2-single .select2-container--default .select2-selection--single .select2-selection__arrow,
 		.batch-show-page #batch-detail-form .select2-container--default .select2-selection--single .select2-selection__arrow {
 			height: 32px !important;
-		}
-		.batch-show-page .batch-details-checkboxes-panel {
-			padding: 10px 12px;
-			border-radius: 8px;
 		}
 		.batch-show-page .batch-code-label {
 			font-size: 1.05rem;
@@ -394,6 +424,7 @@
 @endsection
 
 @section('content2')
+  @include('layouts.lab.partials.ls-ui.ls-rich-text-inline-scripts')
   <main class="container-fluid lab-panel-theme batch-show-page workflow-theme lab-surface-theme" data-ls-type="plex">
     {{-- Breadcrumbs and alerts from original lines 435-530 --}}
     <?php
@@ -856,6 +887,8 @@
             </form>
         </div>
     </div>
+
+    @include('batches.partials.quick-add-entity-modals')
   </div> {{-- batch-show-modals --}}
 @endsection
 
@@ -972,43 +1005,123 @@
 		}
 	});
 	
-	var detectChange = function(ts){
-		var op = $(ts).children('option:selected');
-		$('#client-unit-select').html('<option value="" selected>Select Site Location...</option>');
-		$('#client-unit-select').trigger('change');
+	function searchBasicRoot(fieldId) {
+		var hidden = document.getElementById(fieldId);
+		return hidden ? hidden.closest('[data-ls-search-basic]') : null;
+	}
 
-		if(op.val() && String(op.val()).trim() !== ''){
+	function searchBasicData(fieldId) {
+		var root = searchBasicRoot(fieldId);
+		if (!root || !window.Alpine || typeof Alpine.$data !== 'function') {
+			return null;
+		}
+		return Alpine.$data(root);
+	}
+
+	function setSearchBasicValue(fieldId, value, label) {
+		var data = searchBasicData(fieldId);
+		var hidden = document.getElementById(fieldId);
+		if (hidden) {
+			hidden.value = value == null ? '' : String(value);
+		}
+		if (!data) {
+			return;
+		}
+		data.selected = value == null || value === '' ? null : String(value);
+		data.q = label || (value ? data.labelFor(String(value)) : '');
+	}
+
+	function setSearchBasicOptions(fieldId, options, keepValue) {
+		var data = searchBasicData(fieldId);
+		var normalized = (options || []).map(function (opt) {
+			return {
+				value: String(opt.value),
+				label: String(opt.label || opt.value),
+				meta: opt.meta || null,
+			};
+		});
+		if (data) {
+			data.options = normalized;
+			if (!keepValue) {
+				data.selected = null;
+				data.q = '';
+				data.open = false;
+				if (data.$refs && data.$refs.hidden) {
+					data.$refs.hidden.value = '';
+				}
+			}
+		}
+		var hidden = document.getElementById(fieldId);
+		if (hidden && !keepValue) {
+			hidden.value = '';
+		}
+	}
+
+	function searchBasicSelectedAttr(fieldId) {
+		var root = searchBasicRoot(fieldId);
+		return root ? String(root.getAttribute('data-selected') || '') : '';
+	}
+
+	var detectChange = function(ts){
+		var clientId = '';
+		if (ts && typeof ts === 'object' && typeof $(ts).val === 'function') {
+			clientId = $(ts).val();
+		} else if (typeof ts === 'string' || typeof ts === 'number') {
+			clientId = ts;
+		} else {
+			clientId = $('#client-select').val();
+		}
+
+		setSearchBasicOptions('client-unit-select', [], false);
+
+		if(clientId && String(clientId).trim() !== ''){
 			$.ajax({
-				url:`/get/Client-Details/Ajax/${op.val()}`,
+				url:`/get/Client-Details/Ajax/${clientId}`,
 				method:'GET',
 				success:(data)=>{
-					// Update contacts
-					$('#crm_contact_id').empty();
-					$('#crm_contact_id').append('<option value="">Choose contact...</option>');
-					$.each(data['contacts'],(i,obj)=>{
-						var name = `${obj.first_name} ${obj.middle_name || ''} ${obj.last_name || ''}`
-						var option = `<option value="${obj.id}">${name}</option>`
-						$('#crm_contact_id').append(option)
+					var contactOpts = [];
+					$.each(data['contacts'] || [], function (i, obj) {
+						var name = [obj.first_name, obj.middle_name || '', obj.last_name || '']
+							.filter(Boolean)
+							.join(' ')
+							.replace(/\s+/g, ' ')
+							.trim();
+						contactOpts.push({ value: String(obj.id), label: name || 'Contact' });
 					});
-					$('#crm_contact_id').select2();
-					$('#crm_contact_id').val($('#crm_contact_id').data('selected')).trigger('change');
+					var selectedContactId = searchBasicSelectedAttr('crm_contact_id');
+					setSearchBasicOptions('crm_contact_id', contactOpts, !!selectedContactId);
+					if (selectedContactId) {
+						var contactHit = contactOpts.find(function (o) {
+							return o.value === String(selectedContactId);
+						});
+						if (contactHit) {
+							setSearchBasicValue('crm_contact_id', contactHit.value, contactHit.label);
+						}
+					}
 
-					// Update Site Location label from CRM config (Company Section / Unit, etc.)
 					if (data['unit_name']) {
 						$('.client-prefered-unit-name').text(data['unit_name']);
 					}
 
-					// Populate Site Location options from CRM units
-					$.each(data['units'], function(i, e){
-						$('#client-unit-select').append('<option value="'+e.id+'">'+e.name+'</option>');
+					var unitOpts = [];
+					$.each(data['units'] || [], function(i, e){
+						unitOpts.push({ value: String(e.id), label: String(e.name || e.id) });
 					});
+					var selectedUnitId = searchBasicSelectedAttr('client-unit-select');
+					setSearchBasicOptions('client-unit-select', unitOpts, !!selectedUnitId);
+					if (selectedUnitId) {
+						var unitHit = unitOpts.find(function (o) {
+							return o.value === String(selectedUnitId);
+						});
+						if (unitHit) {
+							setSearchBasicValue('client-unit-select', unitHit.value, unitHit.label);
+						}
+					}
 
-					// Default customer email from CRM only when batch has no saved email
 					if (data['customer'] && data['customer'].email && !$('#customer_email').val()) {
 						$('#customer_email').val(data['customer'].email);
 					}
 
-					var selectedContactId = $('#crm_contact_id').data('selected');
 					if (selectedContactId && data['contacts']) {
 						var matchedContact = data['contacts'].find(function (contact) {
 							return String(contact.id) === String(selectedContactId);
@@ -1023,14 +1136,13 @@
 					} else {
 						$('#mode-of-payment').val('');
 					}
-
-					$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
 				},
 				error:(data)=>{
 					console.log(data);
 				}
 			})
 		} else {
+			setSearchBasicOptions('crm_contact_id', [], false);
 			$('#mode-of-payment').val('');
 		}
 	};
@@ -1038,7 +1150,141 @@
 	$(function(){
 		$('#client-select').on('change', function(){
 			detectChange(this);
-		}).trigger('change');
+		});
+
+		// Alpine search-basic needs a tick before setOptions works on first paint
+		setTimeout(function () {
+			detectChange($('#client-select').val() || '');
+		}, 50);
+
+		$(document).on('click', '.ls-label-action', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			var target = $(this).attr('data-target') || $(this).data('target');
+			if (target && $(target).length) {
+				$(target).modal('show');
+			}
+		});
+
+		function initContactModalUnitSelect2() {
+			var $modal = $('#add-customer-contact');
+			var $unitSelect = $modal.find('.crm_unit_id');
+			if (!$unitSelect.length || !$.fn.select2) {
+				return;
+			}
+			if ($unitSelect.hasClass('select2-hidden-accessible')) {
+				try {
+					$unitSelect.select2('destroy');
+				} catch (err) {}
+			}
+			$unitSelect.select2({
+				width: '100%',
+				placeholder: $unitSelect.data('placeholder') || 'Select Company Unit...',
+				allowClear: true,
+				dropdownParent: $modal,
+				closeOnSelect: false
+			});
+		}
+
+		function loadContactModalUnits(customerId) {
+			var $unitSelect = $('#add-customer-contact').find('.crm_unit_id');
+			if ($unitSelect.hasClass('select2-hidden-accessible')) {
+				try {
+					$unitSelect.select2('destroy');
+				} catch (err) {}
+			}
+			$unitSelect.empty();
+			if (!customerId) {
+				initContactModalUnitSelect2();
+				return;
+			}
+			$.ajax({
+				url: '/get/customer/ajax/' + encodeURIComponent(customerId),
+				type: 'GET',
+				success: function (data) {
+					$.each(data || [], function (i, obj) {
+						$unitSelect.append(
+							$('<option></option>').attr('value', obj.id).text(obj.name)
+						);
+					});
+					initContactModalUnitSelect2();
+				},
+				error: function () {
+					initContactModalUnitSelect2();
+				}
+			});
+		}
+
+		$('#add-customer-contact').on('show.bs.modal', function () {
+			var currentClient = String($('#client-select').val() || '');
+			var $customerSelect = $(this).find('.crm_customer_id');
+			if (currentClient) {
+				$customerSelect.val(currentClient);
+			}
+			loadContactModalUnits($customerSelect.val() || currentClient);
+		});
+
+		$('#add-customer-contact').on('shown.bs.modal', function () {
+			initContactModalUnitSelect2();
+			var $customerSelect = $(this).find('.crm_customer_id');
+			if ($.fn.select2 && $customerSelect.length) {
+				if ($customerSelect.hasClass('select2-hidden-accessible')) {
+					try {
+						$customerSelect.select2('destroy');
+					} catch (err) {}
+				}
+				$customerSelect.select2({
+					width: '100%',
+					placeholder: 'Select Customer...',
+					allowClear: true,
+					dropdownParent: $(this)
+				});
+			}
+			var $titleSelect = $(this).find('select[name="title"]');
+			if ($.fn.select2 && $titleSelect.length) {
+				if ($titleSelect.hasClass('select2-hidden-accessible')) {
+					try {
+						$titleSelect.select2('destroy');
+					} catch (err) {}
+				}
+				$titleSelect.select2({
+					width: '100%',
+					placeholder: 'Select Title...',
+					allowClear: true,
+					dropdownParent: $(this)
+				});
+			}
+		});
+
+		$(document).on('change', '#add-customer-contact .crm_customer_id', function () {
+			loadContactModalUnits($(this).val());
+		});
+
+		$('#add-company-unit').on('show.bs.modal', function () {
+			var customer = String($('#client-select').val() || '');
+			var $alert = $('#batch-add-unit-client-alert');
+			var $save = $('#save-unit');
+			var $form = $('#batch-add-company-unit-form');
+			if (!customer) {
+				$alert.removeClass('d-none');
+				$save.prop('disabled', true);
+				$form.attr('action', '');
+			} else {
+				$alert.addClass('d-none');
+				$save.prop('disabled', false);
+				$form.attr('action', '/company-units/' + encodeURIComponent(customer));
+			}
+		});
+
+		$(document).on('change', '.is_qc_batch', function () {
+			if ($(this).is(':checked')) {
+				$('.qc-params').removeClass('hidden');
+				$('.qc-omit-type-field').addClass('hidden');
+			} else {
+				$('.qc-params').addClass('hidden');
+				$('.qc-omit-type-field').removeClass('hidden');
+			}
+		});
 
 		// Handle tab activation via query parameter
 		var urlParams = new URLSearchParams(window.location.search);
@@ -1229,6 +1475,7 @@
 						$modal.find('.modal-body').append(success_tag);
 						if (typeof Livewire !== 'undefined') {
 							Livewire.dispatch('attachmentsUpdated');
+							Livewire.dispatch('resultsUpdated');
 						}
 
 						setTimeout(function () {

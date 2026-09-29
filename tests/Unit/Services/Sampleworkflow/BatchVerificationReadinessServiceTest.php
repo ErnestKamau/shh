@@ -56,6 +56,7 @@ class BatchVerificationReadinessServiceTest extends TestCase
 
         $this->assertNotNull($reason);
         $this->assertStringContainsString('still missing', $reason);
+        $this->assertStringContainsString('Partial / interim report', $reason);
     }
 
     #[Test]
@@ -93,6 +94,61 @@ class BatchVerificationReadinessServiceTest extends TestCase
 
         $this->assertNotNull($reason);
         $this->assertStringContainsString('No results have been entered', $reason);
+    }
+
+    #[Test]
+    public function partial_interim_allows_when_at_least_one_result_is_entered(): void
+    {
+        $rows = [
+            $this->row(null),
+            $this->row('7.2'),
+            $this->row('No Attachment'),
+        ];
+
+        $this->assertNull($this->service->blockingReasonForResults(
+            $rows,
+            BatchVerificationReadinessService::REPORT_LEVEL_PARTIAL_INTERIM
+        ));
+    }
+
+    #[Test]
+    public function partial_interim_blocks_when_no_results_are_entered(): void
+    {
+        $rows = [
+            $this->row(null),
+            $this->row(''),
+            $this->row('No Attachment'),
+        ];
+
+        $reason = $this->service->blockingReasonForResults(
+            $rows,
+            BatchVerificationReadinessService::REPORT_LEVEL_PARTIAL_INTERIM
+        );
+
+        $this->assertNotNull($reason);
+        $this->assertStringContainsString('at least one sample result', $reason);
+    }
+
+    #[Test]
+    public function preliminary_and_draft_still_require_all_results(): void
+    {
+        $rows = [
+            $this->row(null),
+            $this->row('7.2'),
+        ];
+
+        $this->assertNotNull($this->service->blockingReasonForResults(
+            $rows,
+            BatchVerificationReadinessService::REPORT_LEVEL_PRELIMINARY
+        ));
+        $this->assertNotNull($this->service->blockingReasonForResults(
+            $rows,
+            BatchVerificationReadinessService::REPORT_LEVEL_DRAFT
+        ));
+        $this->assertNotNull($this->service->blockingReasonForResults(
+            $rows,
+            BatchVerificationReadinessService::REPORT_LEVEL_FINAL
+        ));
     }
 
     private function row(?string $result, bool $hasNoResultCapture = false): CapturedResult

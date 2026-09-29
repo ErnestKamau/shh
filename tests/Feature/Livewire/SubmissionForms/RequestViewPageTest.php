@@ -263,6 +263,112 @@ class RequestViewPageTest extends TestCase
             ->assertSet('quotationApprovedReadyToSend', true);
     }
 
+    public function test_additional_details_render_as_label_value_rows_in_edit_and_view_modals(): void
+    {
+        [$form, $instance] = $this->createFormInstanceWithAdditionalDetails([
+            ['label' => 'TestField', 'value' => 'Value 1'],
+            ['label' => 'TestField2', 'value' => 'Value2'],
+        ]);
+
+        $component = Livewire::actingAs($this->user)
+            ->test(RequestViewPage::class, [
+                'submissionFormId' => $form->id,
+                'instanceId' => $instance->id,
+            ])
+            ->call('openTrfEditor', 'samples', 0)
+            ->assertSet('showTrfEditModal', true)
+            ->assertSet('editingRowFields.additional_details.0.label', 'TestField')
+            ->assertSet('editingRowFields.additional_details.0.value', 'Value 1')
+            ->assertSet('editingRowFields.additional_details.1.label', 'TestField2')
+            ->assertSet('editingRowFields.additional_details.1.value', 'Value2')
+            ->assertSeeHtml('wire:model.defer="editingRowFields.additional_details.0.label"')
+            ->assertSeeHtml('wire:model.defer="editingRowFields.additional_details.0.value"')
+            ->assertDontSee('[object Object]');
+
+        $component
+            ->call('addEditingRowAdditionalDetail')
+            ->assertCount('editingRowFields.additional_details', 3)
+            ->set('editingRowFields.additional_details.2.label', 'New label')
+            ->set('editingRowFields.additional_details.2.value', 'New value')
+            ->call('removeEditingRowAdditionalDetail', 1)
+            ->assertCount('editingRowFields.additional_details', 2)
+            ->assertSet('editingRowFields.additional_details.1.label', 'New label')
+            ->assertSet('editingRowFields.additional_details.1.value', 'New value');
+
+        Livewire::actingAs($this->user)
+            ->test(RequestViewPage::class, [
+                'submissionFormId' => $form->id,
+                'instanceId' => $instance->id,
+            ])
+            ->call('openTrfViewer', 'samples', 0)
+            ->assertSet('showTrfViewModal', true)
+            ->assertSee('TestField')
+            ->assertSee('Value 1')
+            ->assertSee('TestField2')
+            ->assertSee('Value2')
+            ->assertDontSee('[object Object]');
+    }
+
+    /**
+     * @param  list<array{label: string, value: string}>  $details
+     * @return array{0: SubmissionForm, 1: SubmissionFormInstance}
+     */
+    private function createFormInstanceWithAdditionalDetails(array $details): array
+    {
+        [$form, $instance] = $this->createFormAndInstance();
+
+        $section = \App\Models\SubmissionFormSection::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_id' => $form->id,
+            'title' => 'Test & sample information',
+            'section_type' => 'rows_section',
+            'sort_order' => 0,
+        ]);
+
+        $holder = \App\Models\SubmissionFormElementHolder::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_section_id' => $section->id,
+            'holder_type' => 'rows',
+            'sort_order' => 0,
+        ]);
+
+        $descriptionElement = \App\Models\SubmissionFormElement::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_element_holder_id' => $holder->id,
+            'element_type' => 'rich_text',
+            'label' => 'Sample description',
+            'name' => 'sample_description',
+            'sort_order' => 0,
+        ]);
+
+        $additionalDetailsElement = \App\Models\SubmissionFormElement::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_element_holder_id' => $holder->id,
+            'element_type' => 'textarea',
+            'label' => 'Additional details',
+            'name' => 'additional_details',
+            'sort_order' => 1,
+        ]);
+
+        \App\Models\SubmissionFormInstanceValue::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'submission_form_element_id' => $descriptionElement->id,
+            'array_index' => 0,
+            'value' => 'Milk sample',
+        ]);
+
+        \App\Models\SubmissionFormInstanceValue::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'submission_form_element_id' => $additionalDetailsElement->id,
+            'array_index' => 0,
+            'value' => json_encode($details),
+        ]);
+
+        return [$form, $instance->fresh(['values.element', 'submissionForm'])];
+    }
+
     /**
      * @return array{0: SubmissionForm, 1: SubmissionFormInstance}
      */

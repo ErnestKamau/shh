@@ -158,12 +158,14 @@ class StandardsPage extends Component
     // Standard Methods
     public function showCreateStandardModal()
     {
+        $this->dismissMessage();
         $this->resetStandardForm();
         $this->showStandardModal = true;
     }
 
     public function showEditStandardModal($id)
     {
+        $this->dismissMessage();
         $standard = Standards::with('qcSchemes')->findOrFail($id);
         $this->standardForm = [
             'name' => $standard->name,

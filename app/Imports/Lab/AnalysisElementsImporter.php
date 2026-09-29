@@ -69,7 +69,9 @@ class AnalysisElementsImporter extends BaseImporter
         return [
             'analysis_type_id' => $analysisType?->id,
             'analyte_id' => $analyte?->id,
-            'lab_section_id' => $this->resolveLabSectionId($sectionCode, $analysisType?->lab_id),
+            'lab_section_id' => filled($analysisType?->lab_section_id)
+                ? (string) $analysisType->lab_section_id
+                : $this->resolveLabSectionId($sectionCode, $analysisType?->lab_id),
             'equipment_id' => $this->resolveEquipmentId(
                 $equipmentCode !== '' ? $equipmentCode : null,
                 $equipmentName !== '' ? $equipmentName : null,
