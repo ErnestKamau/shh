@@ -243,7 +243,7 @@
                             
                         </td>
                         <td class="parameter {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;padding-left:3px !important;">{{$sample->method_name}}</td>
-                        <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->reporting_symbol}} {{$sample->result}}</td>
+                        <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->reporting_symbol}} {{ formatReportResults($sample->result, $sample->analyte_id ?? null) }}</td>
                         @if($sample->repeat_captured_id > 0)
                         <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample['repeat_result_range'] ?? '-'}}</td>
                         @endif

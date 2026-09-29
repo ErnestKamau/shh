@@ -16,6 +16,13 @@ class Analyte extends Model implements Auditable
     protected $keyType = 'string';
     public $incrementing = false;
     
+    protected function casts(): array
+    {
+        return [
+            'report_scientific_notation' => 'boolean',
+        ];
+    }
+
     protected $fillable = [
         'code',
         'name',
@@ -27,6 +34,7 @@ class Analyte extends Model implements Auditable
         'method',
         'equipment_id',
         'is_italic',
+        'report_scientific_notation',
         'non_detectable',
         'non_accredited',
         'show_on_report',

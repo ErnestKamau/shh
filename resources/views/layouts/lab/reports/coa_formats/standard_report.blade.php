@@ -311,7 +311,7 @@ $printed_pos = [];
                                 </td>
                                 <td class="parameter result-t {{ $captured->remark == 'FAIL' ? 'textBold text-danger' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
-                                    {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result   ?  formatReportResults( $captured->result) : 'TBA' !!}
+                                    {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result   ?  formatReportResults($captured->result, $captured->analyte_id) : 'TBA' !!}
                                 </td>
                                 @if ($batch->require_mu == 1)
                                     <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">

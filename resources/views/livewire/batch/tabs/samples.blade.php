@@ -1108,7 +1108,7 @@
                                             @endforeach
                                         </select>
                                     </td>
-                                    <td style="min-width: 80px; max-width: 100px;">
+                                    <td style="min-width: 80px; max-width: 140px;">
                                         <div class="input-group input-group-sm">
                                             <input type="text"
                                                 class="form-control form-control-sm {{ $parametersDisabled ? '' : 'js-confirm-result' }}"
@@ -1129,6 +1129,15 @@
                                             </div>
                                             @endif
                                         </div>
+                                        @php
+                                            $typedResult = (string) ($parametersForm[$id]['result'] ?? '');
+                                            $reportPreview = ! empty($param['report_scientific_notation'])
+                                                ? \App\Support\ScientificNotation::format($typedResult)
+                                                : null;
+                                        @endphp
+                                        @if($reportPreview)
+                                            <small class="d-block text-muted mt-1">Report: {{ $reportPreview }}</small>
+                                        @endif
                                     </td>
                                     <td style="min-width: 145px;">
                                         <input type="date"

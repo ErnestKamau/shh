@@ -291,7 +291,7 @@
                                 </td>
                                 <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
-                                    {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                    {{ $captured->result_reporting_symbol ?? '' }}{{ formatReportResults($captured->result, $captured->analyte_id) }}
                                 </td>
                                 <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">

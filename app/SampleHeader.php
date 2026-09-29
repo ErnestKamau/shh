@@ -758,7 +758,7 @@ class SampleHeader extends Model implements Auditable
 		return Result::join('captured_results as cr', 'cr.id', '=', 'results.captured_result_id')
 			// ->join('equipment as e', 'e.id', 'cr.equipment_id')
 			->join('users as u', 'u.id', '=', 'cr.operator_id')
-			->selectRaw('results.sample_detail_code, results.analyte_code, results.result, results.reporting_symbol, results.unit_code, u.name as operator ')
+			->selectRaw('results.sample_detail_code, results.analyte_code, results.analyte_id, results.result, results.reporting_symbol, results.unit_code, u.name as operator ')
 			->where('results.sample_header_id', $this->id)->whereNotNull('results.result')->get();
 	}
 	public function get_invoice_total()

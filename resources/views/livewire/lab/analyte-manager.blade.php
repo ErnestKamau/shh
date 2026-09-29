@@ -142,6 +142,7 @@
                                         <th>Reporting Symbol</th>
                                         <th>Reporting Unit</th>
                                         <th>Font Italic</th>
+                                        <th>Scientific</th>
                                         <th>Non Detectable</th>
                                         <th>Non Accredited</th>
                                         <th>Show on Report</th>
@@ -176,6 +177,9 @@
                                             <td>{{ $analyte->reporting_unit }}</td>
                                             <td class="text-center">
                                                 {!! $analyte->is_italic ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                                            </td>
+                                            <td class="text-center">
+                                                {!! $analyte->report_scientific_notation ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
                                             </td>
                                             <td class="text-center">
                                                 {!! $analyte->non_detectable ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
@@ -432,6 +436,7 @@
                             @php
                             $toggleOptions = [
                                 ['key' => 'is_italic',      'icon' => 'format-italic',      'color' => 'text-primary',  'label' => 'Report Font Italic',  'desc' => 'Display analyte name in italic on reports'],
+                                ['key' => 'report_scientific_notation', 'icon' => 'format-superscript', 'color' => 'text-primary', 'label' => 'Scientific notation', 'desc' => 'Show 490000 on the report as 4,9 × 10⁵'],
                                 ['key' => 'non_detectable', 'icon' => 'eye-off-outline',    'color' => 'text-warning',  'label' => 'Non-Detectable',      'desc' => 'Mark as below detection limit'],
                                 ['key' => 'non_accredited', 'icon' => 'certificate-outline','color' => 'text-warning',  'label' => 'Non-Accredited',      'desc' => 'This analyte is not accredited'],
                                 ['key' => 'show_on_report', 'icon' => 'file-document-outline','color' => 'text-success', 'label' => 'Show on Report',      'desc' => 'Include in generated reports'],

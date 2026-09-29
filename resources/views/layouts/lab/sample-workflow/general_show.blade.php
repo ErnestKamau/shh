@@ -772,7 +772,7 @@
 													<tr>
 														<td>{{ $res->analyte_code }}</td>
 														<td>{{ $res->sample_detail_code }}</td>
-														<td>{{ $res->reporting_symbol."".$res->result }}</td>
+														<td>{{ $res->reporting_symbol."".formatReportResults($res->result, $res->analyte_id ?? null) }}</td>
 														<td>{{ $res->unit_code }}</td>
 														<td>{{ $res->operator }}</td>
 														<td>{{ $res->equipment }}</td>

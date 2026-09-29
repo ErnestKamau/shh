@@ -185,7 +185,7 @@
                                 <td>{{$analysis_analyte->name}}</td>
                                 <td>{{$analyte->name}}</td>
                                 <td>{{$result->analyte_code}}</td>
-                                <td>{!! $result->result == '' ? 'N/a' : $result->result !!}</td>
+                                <td>{!! $result->result == '' ? 'N/a' : formatReportResults($result->result, $result->analyte_id) !!}</td>
                                 <td>{!! $result->unit_code == '' ? 'N/a' : $result->unit_code !!}</td>
                                 <td>{!! $result->reporting_symbol == '' ? 'N/a' : $result->reporting_symbol !!}</td>
                             </tr>

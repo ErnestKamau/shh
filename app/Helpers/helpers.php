@@ -2641,8 +2641,35 @@ function getStandardLimitValue($captured_id,$standard_id,$counter = 0){
 	}
 }
 
-function formatReportResults($value){
-	return $value == 'ND' ? 'Not Detected' : $value;
+function formatReportResults($value, $analyteId = null){
+	if ($value == 'ND') {
+		return 'Not Detected';
+	}
+
+	if ($analyteId && analyteReportsScientificNotation($analyteId)) {
+		$formatted = \App\Support\ScientificNotation::format($value);
+		if ($formatted !== null) {
+			return $formatted;
+		}
+	}
+
+	return $value;
+}
+
+function analyteReportsScientificNotation($analyteId): bool
+{
+	static $cache = [];
+
+	$key = (string) $analyteId;
+	if ($key === '') {
+		return false;
+	}
+
+	if (! array_key_exists($key, $cache)) {
+		$cache[$key] = (bool) \App\Analyte::query()->whereKey($key)->value('report_scientific_notation');
+	}
+
+	return $cache[$key];
 }
 
 function isETCU(){

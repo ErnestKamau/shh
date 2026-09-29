@@ -2807,6 +2807,7 @@ class Samples extends Component
                     'analyte_code' => is_string($analyteCode) && ! str_starts_with($analyteCode, 'eyJ') ? $analyteCode : ($analyte?->code ?? ''),
                     'analyte_id' => $result->analyte_id,
                     'analyte_name' => $analyteName,
+                    'report_scientific_notation' => (bool) ($analyte?->report_scientific_notation ?? false),
                     'result_reporting_symbol' => $result->result_reporting_symbol,
                     'result' => $result->result,
                     'measure_uncertanity' => $result->measure_uncertanity,

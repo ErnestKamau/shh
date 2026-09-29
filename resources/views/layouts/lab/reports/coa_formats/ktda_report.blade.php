@@ -293,7 +293,7 @@
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }} {{  $captured->result != '' ? formatReportResults($captured->result) : 'TBA'   }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{  $captured->result != '' ? formatReportResults($captured->result, $captured->analyte_id) : 'TBA'   }}
                                         </td>
                                         @if($batch->require_mu == 1) 
                                         <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
@@ -371,7 +371,7 @@
 
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result, $captured->analyte_id) }}
                                         </td>
                                         @if($batch->require_mu == 1) 
                                         <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
@@ -452,7 +452,7 @@
 
                                         <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result, $captured->analyte_id) }}
                                         </td>
 
                                         <td class="parameter"
@@ -477,7 +477,7 @@
 
                                         <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result, $captured->analyte_id) }}
                                         </td>
 
                                         <td class="parameter"
