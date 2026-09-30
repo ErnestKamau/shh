@@ -106,7 +106,7 @@
 
 @include('layouts.usermanual.partials.figure', [
 	'src' => '/images/usermanual/quotations/pricelist-items.png',
-	'caption' => 'Pricelist Items — package row with Cost, Selling, Profit, Margin, VAT, Active; expand to see package parameters.',
+	'caption' => 'Pricelist Items — package row with Cost, Selling, Profit, Margin, VAT, Active; package tests are shown under the row (click to collapse).',
 ])
 
 <h3>Add Pricelist Item — per package header</h3>

@@ -607,7 +607,13 @@
                                                     </div>
                                                 </header>
 
-                                                <div class="sample-group-body" x-data="{ openPackages: {} }">
+                                                @php
+                                                    $defaultOpenPackages = collect($sampleGroup->rows ?? [])
+                                                        ->filter(fn ($row) => ! empty($row->is_package))
+                                                        ->mapWithKeys(fn ($row) => [(string) $row->id => true])
+                                                        ->all();
+                                                @endphp
+                                                <div class="sample-group-body" x-data="{ openPackages: @js($defaultOpenPackages) }">
                                                     <div class="table-responsive modern-table-wrap mt-2">
                                                         <table class="table table-hover modern-table mb-0">
                                                             <thead>
