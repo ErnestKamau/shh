@@ -20,10 +20,15 @@ use Illuminate\Support\Facades\Storage;
 
 class TestRequestReportDataService
 {
+    private readonly SplitJobReportGroupService $reportGroups;
+
     public function __construct(
         private readonly TestRequestFormReportDataBuilder $trfReportBuilder,
         private readonly TrfSampleFieldMapper $trfMapper,
-    ) {}
+        ?SplitJobReportGroupService $reportGroups = null,
+    ) {
+        $this->reportGroups = $reportGroups ?? new SplitJobReportGroupService();
+    }
 
     /**
      * @param  array{
@@ -55,18 +60,26 @@ class TestRequestReportDataService
         $trfRows = $this->enrichSampleRowsWithIndexedCollectionFields($trfRows, $formData);
         $normalizedRows = is_array($trfPayload['sampleRows'] ?? null) ? $trfPayload['sampleRows'] : [];
 
-        $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
-        if ($samples->isEmpty() && SampleDetails::where('sample_header_id', $batch->id)->exists()) {
-            app(SamplesByCategoryViewService::class)->recreate();
-            $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
-        }
-        $firstDetail = SampleDetails::where('sample_header_id', $batch->id)->first();
+        $reportGroupIds = $this->reportGroups->reportGroupIds($batch);
+        $isSplitGroup = count($reportGroupIds) > 1;
+        $groupSamplesQuery = fn () => SamplesCategory::whereIn('sample_header_id', $reportGroupIds)
+            ->when($isSplitGroup, fn ($query) => $query->orderBy('sample_code'))
+            ->get();
 
-        $analysisDate = SampleAnalysisDates::where('sample_header_id', $batch->id)
+        $samples = $groupSamplesQuery();
+        if ($samples->isEmpty() && SampleDetails::whereIn('sample_header_id', $reportGroupIds)->exists()) {
+            app(SamplesByCategoryViewService::class)->recreate();
+            $samples = $groupSamplesQuery();
+        }
+        $firstDetail = SampleDetails::whereIn('sample_header_id', $reportGroupIds)
+            ->when($isSplitGroup, fn ($query) => $query->orderBy('sample_code'))
+            ->first();
+
+        $analysisDate = SampleAnalysisDates::whereIn('sample_header_id', $reportGroupIds)
             ->orderBy('start_analysis_date', 'ASC')
             ->first();
 
-        [$analysisStartDate, $analysisEndDate] = $this->resolveBatchAnalysisDateRange($batch->id);
+        [$analysisStartDate, $analysisEndDate] = $this->resolveBatchAnalysisDateRange($reportGroupIds);
 
         $firstNormalizedRow = $normalizedRows[0] ?? [];
         $firstRawRow = $trfRows[0] ?? [];
@@ -209,7 +222,7 @@ class TestRequestReportDataService
         [$approver, $approverUser, $approverRole, $approvalDate, $signatureSrc, $signatureWarning] = $this->resolveApproverSignature($batch);
 
         $capturedResults = CapturedResult::query()
-            ->where('sample_header_id', $batch->id)
+            ->whereIn('sample_header_id', $reportGroupIds)
             ->with(['analysisElement:id,hod,lod', 'labSection:id,name', 'user:id,name,id_number'])
             ->get();
 
@@ -865,7 +878,7 @@ class TestRequestReportDataService
         ];
     }
 
-    private function perSampleReportNumber(string $sampleCode, string $batchReportNumber): string
+    public function perSampleReportNumber(string $sampleCode, string $batchReportNumber): string
     {
         $formattedCode = format_sample_code($sampleCode);
 
@@ -1589,9 +1602,12 @@ class TestRequestReportDataService
     /**
      * @return array{0: string, 1: string}
      */
-    private function resolveBatchAnalysisDateRange(int|string $batchId): array
+    /**
+     * @param  list<string>|int|string  $batchIds
+     */
+    private function resolveBatchAnalysisDateRange(array|int|string $batchIds): array
     {
-        $records = SampleAnalysisDates::where('sample_header_id', $batchId)
+        $records = SampleAnalysisDates::whereIn('sample_header_id', (array) $batchIds)
             ->get(['start_analysis_date', 'analysis_dates']);
 
         $startDates = [];

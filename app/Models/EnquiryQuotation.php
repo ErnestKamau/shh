@@ -24,6 +24,9 @@ class EnquiryQuotation extends Model
 
     public const LINK_SOURCE_ENQUIRY_BORN = 'enquiry_born';
 
+    /** Blanket-PO enquiry linked to the PO's source quotation (no quotation step). */
+    public const LINK_SOURCE_PURCHASE_ORDER = 'purchase_order';
+
     protected $keyType = 'string';
 
     public $incrementing = false;

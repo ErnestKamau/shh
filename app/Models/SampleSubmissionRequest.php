@@ -192,6 +192,7 @@ class SampleSubmissionRequest extends Model
         'subcontracting_dispatch_lab_names',
         'client_po_number',
         'po_skipped',
+        'customer_purchase_order_id',
         'advance_payment_reference',
         'pricing_source',
         'reporting_language',
@@ -469,6 +470,14 @@ SQL);
     public function customerPurchaseOrder(): HasOne
     {
         return $this->hasOne(CustomerPurchaseOrder::class, 'enquiry_id');
+    }
+
+    /**
+     * The (possibly blanket) customer PO this enquiry draws quantity from.
+     */
+    public function boundPurchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(CustomerPurchaseOrder::class, 'customer_purchase_order_id');
     }
 
     public function submissionFormInstance(): BelongsTo

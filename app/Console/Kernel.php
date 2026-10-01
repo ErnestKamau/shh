@@ -95,6 +95,11 @@ class Kernel extends ConsoleKernel
             ->onFailure(function() {
                 \Log::error('Inventory risk chase failed');
             });
+
+        // Customer PO ledger reconciliation (Nightly, flags drift only)
+        $schedule->command('purchase-orders:reconcile')
+            ->dailyAt('02:30')
+            ->withoutOverlapping();
     }
 
     /**

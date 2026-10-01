@@ -3,9 +3,11 @@
 namespace App\Services\Sampleworkflow;
 
 use App\BatchAmmendment;
+use App\Models\TestReportDocument;
 use App\Models\TestRequestReportLanguageFile;
 use App\Models\TestRequestReportRevision;
 use App\SampleHeader;
+use App\Services\Reports\ReportWatermarkService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPdfDocument;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +17,7 @@ class TestRequestReportPdfService
     public function __construct(
         private readonly TestRequestReportDataService $reportDataService,
         private readonly AmendmentReportConfigurationService $amendmentReportConfig,
+        private readonly SampleTestReportDocumentService $sampleDocumentService,
     ) {}
 
     /**
@@ -55,31 +58,10 @@ class TestRequestReportPdfService
         $labels = $this->labelsFor($language);
         $isRTL = $language === 'ar';
 
-        $verificationUrlParams = [
-            'batch_id' => $batch->id,
-            'seq' => $sequence,
-            'lang' => $language,
-            'mode' => 'pdf',
-            'include_reference_method' => $includeReferenceMethod ? 1 : 0,
-            'show_specification' => $showSpecification ? 1 : 0,
-            'show_specification_standard' => $showSpecificationStandard ? 1 : 0,
-            'show_mu_percent' => $showMuPercent ? 1 : 0,
-        ];
-        if ($filterLabSectionIds !== []) {
-            $verificationUrlParams['lab_section_ids'] = implode(',', $filterLabSectionIds);
-        }
-        $verificationUrl = route('generateTestRequestReport', $verificationUrlParams);
-
-        $footerQrCode = '';
-        if (class_exists(\SimpleSoftwareIO\QrCode\Facades\QrCode::class)) {
-            $footerQrCode = 'data:image/svg+xml;base64,'.base64_encode(
-                \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
-                    ->size(110)
-                    ->margin(1)
-                    ->errorCorrection('H')
-                    ->generate($verificationUrl)
-            );
-        }
+        [
+            'documents' => $sampleDocuments,
+            'qrCodes' => $sampleQrCodes,
+        ] = $this->reserveSampleDocuments($batch, $sequence, $language, $reportNumber, $reportData['samples'] ?? []);
 
         $revisions = TestRequestReportRevision::query()
             ->where('batch_id', $batch->id)
@@ -98,7 +80,7 @@ class TestRequestReportPdfService
         }
         $amendmentDisplay = $this->amendmentDisplayData($labels, $amendmentVersion, $jobNumber);
 
-        $viewData = array_merge($reportData, [
+        $sharedViewData = [
             'language' => $language,
             'labels' => $labels,
             'revisions' => $revisions,
@@ -110,10 +92,40 @@ class TestRequestReportPdfService
             'showSpecification' => $showSpecification,
             'showSpecificationStandard' => $showSpecificationStandard,
             'showMuPercent' => $showMuPercent,
-            'footerQrCode' => $footerQrCode,
-            'verificationUrl' => $verificationUrl,
-        ]);
+            'sampleQrCodes' => $sampleQrCodes,
+        ];
 
+        $pdf = $this->renderReportPdf(array_merge($reportData, $sharedViewData));
+        $userId ??= auth()->id() ? (string) auth()->id() : null;
+
+        $stored = $this->persistOfficialPdf(
+            $batch,
+            $pdf,
+            $reportNumber,
+            $language,
+            $sequence,
+            $userId,
+        );
+
+        $this->storeSampleReportPdfs(
+            $batch,
+            $reportNumber,
+            $sampleDocuments,
+            $sharedViewData,
+            $filterLabSectionIds,
+            $userId,
+        );
+
+        return $stored;
+    }
+
+    /**
+     * Render the Test Report view to an A4 DomPDF document with the company watermark applied.
+     *
+     * @param  array<string, mixed>  $viewData
+     */
+    public function renderReportPdf(array $viewData): DomPdfDocument
+    {
         $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
         $dompdf = $pdf->getDomPDF();
         $dompdf->set_option('enable_php', true);
@@ -123,16 +135,91 @@ class TestRequestReportPdfService
         $dompdf->set_option('defaultMediaType', 'print');
         $dompdf->set_option('isFontSubsettingEnabled', true);
         $pdf->setPaper('a4', 'portrait');
-        app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf);
+        app(ReportWatermarkService::class)->applyToPdf($pdf);
+        $this->sampleDocumentService->drawFooterQrCodes($pdf->getDomPDF());
 
-        return $this->persistOfficialPdf(
-            $batch,
-            $pdf,
-            $reportNumber,
-            $language,
-            $sequence,
-            $userId ?? (auth()->id() ? (string) auth()->id() : null),
-        );
+        return $pdf;
+    }
+
+    /**
+     * Reserve per-sample documents (public QR tokens) for an official Test Report render.
+     * On failure the report is still issued, just without QR codes.
+     *
+     * @param  iterable<object>  $samples
+     * @return array{documents: array<string, TestReportDocument>, qrCodes: array<string, string>}
+     */
+    public function reserveSampleDocuments(
+        SampleHeader $batch,
+        int $sequence,
+        string $language,
+        string $reportNumber,
+        iterable $samples,
+    ): array {
+        try {
+            $documents = $this->sampleDocumentService->reserveForSamples(
+                $batch,
+                $sequence,
+                $this->normalizeLanguage($language),
+                $reportNumber,
+                $samples,
+            );
+
+            return [
+                'documents' => $documents,
+                'qrCodes' => $this->sampleDocumentService->qrCodesFor($documents),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Failed to reserve per-sample Test Report QR documents', [
+                'batch_id' => $batch->id,
+                'revision_no' => $sequence,
+                'language' => $language,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['documents' => [], 'qrCodes' => []];
+        }
+    }
+
+    /**
+     * Render and store one PDF per sample (that sample's report only) for the public QR link.
+     * Failures are logged and never block the official job report.
+     *
+     * @param  array<string, TestReportDocument>  $documents  Keyed by sample_detail_id.
+     * @param  array<string, mixed>  $sharedViewData  View data that does not depend on the sample filter.
+     * @param  list<string>  $labSectionIds
+     */
+    public function storeSampleReportPdfs(
+        SampleHeader $batch,
+        string $reportNumber,
+        array $documents,
+        array $sharedViewData,
+        array $labSectionIds = [],
+        ?string $userId = null,
+    ): void {
+        foreach ($documents as $sampleId => $document) {
+            try {
+                $sampleReportData = $this->reportDataService->build($batch, $reportNumber, [
+                    'lab_section_ids' => $labSectionIds,
+                    'sample_ids' => [(string) $sampleId],
+                ]);
+
+                $renderedSamples = collect($sampleReportData['samples'] ?? []);
+                if ($renderedSamples->count() !== 1 || (string) $renderedSamples->first()->id !== (string) $sampleId) {
+                    continue;
+                }
+
+                $pdf = $this->renderReportPdf(array_merge($sampleReportData, $sharedViewData));
+                $this->sampleDocumentService->storePdf($document, $batch, $pdf, $userId);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to store per-sample Test Report PDF', [
+                    'batch_id' => $batch->id,
+                    'sample_detail_id' => $sampleId,
+                    'revision_no' => $document->revision_no,
+                    'language' => $document->language,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

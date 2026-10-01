@@ -7,6 +7,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\Commercial\JobPurchaseOrderCoverageService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\BatchResultsExcelImportService;
@@ -904,11 +905,17 @@ class SampleIntegrityCheckPage extends Component
             'batch' => $batchId,
             'client' => 0,
             'portal' => 0,
-            'status' => 'Samples In Lab',
+            'status' => (string) ($batch?->status ?: 'Samples In Lab'),
         ]).'#samples';
 
+        $coverageSummary = $batch !== null
+            ? app(JobPurchaseOrderCoverageService::class)->acceptanceSummary($batch)
+            : null;
+
         $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
-        session()->flash('success', "Samples accepted. Job number {$batchCode} created and moved to Samples In Lab.");
+        session()->flash('success', $coverageSummary !== null
+            ? 'Samples accepted. '.$coverageSummary
+            : "Samples accepted. Job number {$batchCode} created and moved to Samples In Lab.");
     }
 
     public function getCanAcceptProperty(): bool

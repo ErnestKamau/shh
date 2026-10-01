@@ -168,10 +168,29 @@ final class CommercialEnquirySyncService
                 $header = $this->quotationFromEnquiryService->createInternalContractQuotation(
                     $enquiry->fresh(['requestedAnalyses', 'customer', 'contact'])
                 );
+                $poPayload = ['po_skipped' => true];
+
+                if (EnquiryPurchaseOrderService::enabled()) {
+                    $enquiryPurchaseOrders = app(EnquiryPurchaseOrderService::class);
+                    $blanket = $enquiryPurchaseOrders->autoSelectBlanket((string) $enquiry->crm_customer_id);
+                    $enquiry = $enquiryPurchaseOrders->capture(
+                        $enquiry->fresh(),
+                        $blanket !== null
+                            ? ['mode' => EnquiryPurchaseOrderService::MODE_BLANKET, 'customer_purchase_order_id' => (string) $blanket->id]
+                            : ['mode' => EnquiryPurchaseOrderService::MODE_NONE],
+                        null,
+                        (string) $header->id,
+                    );
+                    $poPayload = [
+                        'client_po_number' => $enquiry->client_po_number,
+                        'po_skipped' => (bool) $enquiry->po_skipped,
+                    ];
+                }
+
                 $enquiry = $this->receptionReadinessService->markReadyForReception(
                     $enquiry->fresh(),
                     (string) $header->id,
-                    ['po_skipped' => true],
+                    $poPayload,
                 );
             }
 

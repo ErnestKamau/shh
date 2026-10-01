@@ -17,6 +17,7 @@ final class BulkTestRequestReportService
     public function __construct(
         private readonly TestRequestReportPdfService $pdfService,
         private readonly JobSampleNumberingService $numbering,
+        private readonly SplitJobReportGroupService $reportGroups,
     ) {
     }
 
@@ -108,6 +109,14 @@ final class BulkTestRequestReportService
 
             if ($batch->samples()->count() === 0) {
                 $skipped[] = $batch->batch_code.' (no samples)';
+                continue;
+            }
+
+            $groupBlocker = $isSectionOnlyPrint && ! $this->reportGroups->isSplitPart($batch)
+                ? null
+                : $this->reportGroups->reportBlocker($batch);
+            if ($groupBlocker !== null) {
+                $skipped[] = $batch->batch_code.' ('.$groupBlocker.')';
                 continue;
             }
 

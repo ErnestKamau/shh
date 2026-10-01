@@ -2193,6 +2193,21 @@ class SampleWorkFlowController extends Controller
 
     public function change_workflow_status(Request $request)
     {
+        $heldBlocker = $this->awaitingPoMoveBlocker(
+            SampleHeader::query()
+                ->where(function ($query) use ($request): void {
+                    $query->whereIn('batch_code', array_filter((array) $request->input('batch_code', [])))
+                        ->orWhereIn('id', array_values(array_filter(
+                            [$request->input('batch_id'), $request->input('bacth_id')],
+                            static fn ($id): bool => is_string($id) && Str::isUuid($id),
+                        )));
+                })
+                ->get()
+        );
+        if ($heldBlocker !== null) {
+            return redirect()->back()->with('error', $heldBlocker);
+        }
+
         // return response()->json($request->all());
         if ($request->status == 'Samples Request Review') {
             if (isset($request->batch_code)) {
@@ -2743,6 +2758,29 @@ class SampleWorkFlowController extends Controller
      * - Lab Manager (order 2) can only see/approve after Technical Reviewer approves
      * - Both must approve before moving to Sample Approval
      */
+    /**
+     * Jobs held as Awaiting PO (or cancelled for no PO) only leave that state by applying a PO.
+     *
+     * @param  \Illuminate\Support\Collection<int, SampleHeader>  $batches
+     */
+    private function awaitingPoMoveBlocker(\Illuminate\Support\Collection $batches): ?string
+    {
+        $held = $batches->filter(static fn (SampleHeader $batch): bool => in_array(
+            (string) $batch->po_status,
+            [\App\Enums\Commercial\SampleHeaderPoStatus::AwaitingPo->value, \App\Enums\Commercial\SampleHeaderPoStatus::Cancelled->value],
+            true,
+        ));
+
+        if ($held->isEmpty()) {
+            return null;
+        }
+
+        return sprintf(
+            'Job %s is awaiting a purchase order. Apply a PO from the Awaiting PO list to release it to the lab.',
+            $held->pluck('batch_code')->implode(', '),
+        );
+    }
+
     protected function validateVerificationApprovalOrder($batchId)
     {
         $technicalReviewer = BatchLabSectionApprover::where('batch_id', $batchId)
@@ -2894,6 +2932,11 @@ class SampleWorkFlowController extends Controller
     public function move_to_workflow(Request $request, $status, $batch_id)
     {
         $batch = SampleHeader::find($batch_id);
+
+        $heldBlocker = $this->awaitingPoMoveBlocker(collect([$batch])->filter());
+        if ($heldBlocker !== null) {
+            return redirect()->back()->with('error', $heldBlocker);
+        }
 
         if ($batch->status == 'Samples In Lab' && $status == 'Sample Verification') {
             $reportLevel = $request->input('level');
@@ -6259,6 +6302,14 @@ class SampleWorkFlowController extends Controller
         $isSectionOnly = $filterLabSectionIds !== [];
         $validSampleIds = [];
 
+        $reportGroups = app(\App\Services\Sampleworkflow\SplitJobReportGroupService::class);
+        $groupBlocker = $isSectionOnly && ! $reportGroups->isSplitPart($batch)
+            ? null
+            : $reportGroups->reportBlocker($batch);
+        if ($groupBlocker !== null) {
+            return redirect()->back()->with('error', $groupBlocker);
+        }
+
         // Section-scoped generate: validate scope, then bump revision like a full report.
         // PDF still streams only (does not replace the stored official full Test Report file).
         if ($isSectionOnly) {
@@ -6540,6 +6591,11 @@ class SampleWorkFlowController extends Controller
         $batch = SampleHeader::with(['customer'])->find($request->batch_id);
         if (!$batch) {
             return response()->json(['success' => false, 'message' => 'Batch not found.'], 404);
+        }
+
+        $groupBlocker = app(\App\Services\Sampleworkflow\SplitJobReportGroupService::class)->reportBlocker($batch);
+        if ($groupBlocker !== null) {
+            return response()->json(['success' => false, 'message' => $groupBlocker], 422);
         }
 
         $company    = getActiveCompany();
@@ -6889,6 +6945,13 @@ class SampleWorkFlowController extends Controller
         $isSectionOnlyPrint = $filterLabSectionIdsEarly !== [];
         $skipSequenceBump = $isPreviewMode || $isPreviewDoc || $isPreviewPdf || $isSectionOnlyPrint;
 
+        if (! $skipSequenceBump) {
+            $groupBlocker = app(\App\Services\Sampleworkflow\SplitJobReportGroupService::class)->reportBlocker($batch);
+            if ($groupBlocker !== null) {
+                return redirect()->back()->with('error', $groupBlocker);
+            }
+        }
+
         // Preview never bumps revision. Official generate only bumps when seq is absent
         // (processTestRequestReport already bumps and passes seq).
         if (! $skipSequenceBump && ! $request->has('seq')) {
@@ -6958,35 +7021,6 @@ class SampleWorkFlowController extends Controller
             ? $request->boolean('show_mu_percent')
             : ! $isBrazilExportationReport;
 
-        $verificationUrlParams = [
-            'batch_id' => $batch->id,
-            'seq' => $sequence,
-            'lang' => $language,
-            'mode' => 'pdf',
-            'include_reference_method' => $includeReferenceMethod ? 1 : 0,
-            'show_specification' => $showSpecification ? 1 : 0,
-            'show_specification_standard' => $showSpecificationStandard ? 1 : 0,
-            'show_mu_percent' => $showMuPercent ? 1 : 0,
-        ];
-        if ($filterLabSectionIds !== []) {
-            $verificationUrlParams['lab_section_ids'] = implode(',', $filterLabSectionIds);
-        }
-        if ($filterSampleIds !== []) {
-            $verificationUrlParams['sample_ids'] = implode(',', $filterSampleIds);
-        }
-        $verificationUrl = route('generateTestRequestReport', $verificationUrlParams);
-
-        $footerQrCode = '';
-        if (class_exists(\SimpleSoftwareIO\QrCode\Facades\QrCode::class)) {
-            $footerQrCode = 'data:image/svg+xml;base64,' . base64_encode(
-                \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
-                    ->size(110)
-                    ->margin(1)
-                    ->errorCorrection('H')
-                    ->generate($verificationUrl)
-            );
-        }
-
         // Revision history for this batch
         $revisions = \App\Models\TestRequestReportRevision::where('batch_id', $batch->id)
             ->orderByDesc('revision_no')
@@ -7016,7 +7050,24 @@ class SampleWorkFlowController extends Controller
         ]);
 
         if ($isPdfMode) {
-            $viewData = array_merge($reportData, compact(
+            // Only official, stored reports get per-sample public QR codes (never drafts or section-only prints).
+            $issuesSampleDocuments = ! $isPreviewPdf && ! $isSectionOnlyPrint;
+            $sampleDocuments = [];
+            $sampleQrCodes = [];
+            if ($issuesSampleDocuments) {
+                [
+                    'documents' => $sampleDocuments,
+                    'qrCodes' => $sampleQrCodes,
+                ] = $pdfService->reserveSampleDocuments(
+                    $batch,
+                    (int) $sequence,
+                    $language,
+                    (string) $reportNumber,
+                    $reportData['samples'] ?? [],
+                );
+            }
+
+            $sharedViewData = array_merge(compact(
                 'language',
                 'labels',
                 'revisions',
@@ -7028,8 +7079,7 @@ class SampleWorkFlowController extends Controller
                 'showSpecification',
                 'showSpecificationStandard',
                 'showMuPercent',
-                'footerQrCode',
-                'verificationUrl',
+                'sampleQrCodes',
                 'batchBackUrl',
                 'reportNumber'
             ), [
@@ -7037,19 +7087,7 @@ class SampleWorkFlowController extends Controller
                 'isPreviewMode' => $isPreviewPdf,
             ]);
 
-            $pdf = Pdf::loadView('layouts.lab.sample-workflow.report-formats.test_request_report', $viewData);
-            $dompdf = $pdf->getDomPDF();
-            $dompdf->set_option('enable_php', true);
-            $dompdf->set_option('isHtml5ParserEnabled', true);
-            $dompdf->set_option('defaultFont', 'DejaVu Sans');
-            $dompdf->set_option('isRemoteEnabled', true);
-            $dompdf->set_option('defaultMediaType', 'print');
-            $dompdf->set_option('isFontSubsettingEnabled', true);
-            $pdf->setPaper('a4', 'portrait');
-
-            // DomPDF 3 page_script paints immediately onto existing pages — render first.
-            $pdf->render();
-            app(\App\Services\Reports\ReportWatermarkService::class)->applyToDompdf($dompdf);
+            $pdf = $pdfService->renderReportPdf(array_merge($reportData, $sharedViewData));
 
             // Section-only prints stream only — do not persist / attach / bump official URL.
             if ($isSectionOnlyPrint) {
@@ -7093,6 +7131,17 @@ class SampleWorkFlowController extends Controller
                 $batch->save();
             }
 
+            if ($issuesSampleDocuments) {
+                $pdfService->storeSampleReportPdfs(
+                    $batch,
+                    (string) $reportNumber,
+                    $sampleDocuments,
+                    $sharedViewData,
+                    $filterLabSectionIds,
+                    auth()->id() ? (string) auth()->id() : null,
+                );
+            }
+
             return $pdf->stream($filename, [
                 'Attachment' => false,
             ]);
@@ -7111,8 +7160,6 @@ class SampleWorkFlowController extends Controller
             'showSpecification',
             'showSpecificationStandard',
             'showMuPercent',
-            'footerQrCode',
-            'verificationUrl',
             'batchBackUrl',
             'reportNumber',
             'batch'

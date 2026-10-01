@@ -5,7 +5,9 @@ namespace App\Livewire\Sampleworkflow;
 use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
 use App\Livewire\Sampleworkflow\Concerns\ManagesManagerAssignments;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\Services\Commercial\JobPurchaseOrderCoverageService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SplitJobReportGroupService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
 use Illuminate\Contracts\View\View;
@@ -37,6 +39,10 @@ class ManagerAcceptanceSignModal extends Component
     public array $disclaimerForm = [];
 
     public bool $showSampleDisclaimer = false;
+
+    public ?string $poCoverageSummary = null;
+
+    public bool $poCoverageHasHeld = false;
 
     #[On('open-manager-acceptance-sign')]
     public function openModal(string $acceptanceFormId): void
@@ -76,6 +82,8 @@ class ManagerAcceptanceSignModal extends Component
         $this->disclaimerForm = $this->showSampleDisclaimer
             ? app(SampleReceivingDisclaimerService::class)->resolveFormStateForAcceptanceForm($form)
             : SampleReceivingDisclaimerService::emptyForm();
+
+        $this->loadPoCoverageSummary($form->sampleHeader);
 
         $this->showModal = true;
         $this->dispatch('manager-acceptance-sign-opened');
@@ -143,16 +151,24 @@ class ManagerAcceptanceSignModal extends Component
         );
 
         $batchId = (string) ($completedForm->sample_header_id ?? '');
+        $acceptedBatch = $batchId !== '' ? \App\SampleHeader::query()->find($batchId) : null;
+        $landingStatus = (string) ($acceptedBatch?->status ?: 'Samples In Lab');
         $redirectUrl = $batchId !== ''
             ? route('view-batch-details', [
                 'batch' => $batchId,
                 'client' => 0,
                 'portal' => 0,
-                'status' => 'Samples In Lab',
+                'status' => $landingStatus,
             ]) . '#samples'
-            : route('sample-workflow', ['status' => 'Samples In Lab']);
+            : route('sample-workflow', ['status' => $landingStatus]);
 
-        session()->flash('success', 'Acceptance approved. Batch moved to Samples In Lab.');
+        $coverageSummary = $acceptedBatch !== null
+            ? app(JobPurchaseOrderCoverageService::class)->acceptanceSummary($acceptedBatch)
+            : null;
+
+        session()->flash('success', $coverageSummary !== null
+            ? 'Acceptance approved. '.$coverageSummary
+            : 'Acceptance approved. Batch moved to Samples In Lab.');
         $this->closeModal();
         $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
     }
@@ -215,6 +231,22 @@ class ManagerAcceptanceSignModal extends Component
         $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
         $this->disclaimerForm = SampleReceivingDisclaimerService::emptyForm();
         $this->showSampleDisclaimer = false;
+        $this->poCoverageSummary = null;
+        $this->poCoverageHasHeld = false;
+    }
+
+    private function loadPoCoverageSummary(?\App\SampleHeader $batch): void
+    {
+        if ($batch === null) {
+            return;
+        }
+
+        $coverage = app(JobPurchaseOrderCoverageService::class);
+        $this->poCoverageSummary = $coverage->acceptanceSummary($batch);
+        $this->poCoverageHasHeld = $this->poCoverageSummary !== null
+            && app(SplitJobReportGroupService::class)->members($batch)->contains(
+                fn (\App\SampleHeader $member): bool => $coverage->isHeld($member)
+            );
     }
 
     private function ensureSampleBatchExists(AnalysisAcceptanceForm $form): AnalysisAcceptanceForm

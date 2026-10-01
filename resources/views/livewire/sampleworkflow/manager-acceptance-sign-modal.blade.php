@@ -43,6 +43,16 @@
                             </div>
                         @endif
 
+                        @if($poCoverageSummary)
+                            <div class="alert {{ $poCoverageHasHeld ? 'alert-warning' : 'alert-info' }} mb-3" role="status">
+                                <i class="mdi {{ $poCoverageHasHeld ? 'mdi-file-clock-outline' : 'mdi-file-check-outline' }}"></i>
+                                <strong>PO cover:</strong> {{ $poCoverageSummary }}
+                                @if($poCoverageHasHeld)
+                                    <div class="small mt-1">Samples awaiting a PO go to the Awaiting PO list when you sign and stay out of the lab until a PO is applied. All jobs share one test report.</div>
+                                @endif
+                            </div>
+                        @endif
+
                         @include('livewire.partials.manager-assignment-fields', [
                             'analystOptions' => $analystOptions,
                             'signatoryOptions' => $signatoryOptions,

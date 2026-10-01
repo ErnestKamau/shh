@@ -39,6 +39,8 @@ class EnforcePasswordExpiry
             'verify-resend',
             'verify-totp',
             'verify-totp-store',
+            'public.test-report.show',
+            'public.collection-qr.show',
         );
     }
 }

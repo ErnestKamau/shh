@@ -485,7 +485,6 @@
         font-size: 9pt;
         font-style: italic;
     }
-
     /* ── FOOTER TEXT ────────────────────────────── */
     .report-footer-text {
         font-size: 10px;
@@ -669,12 +668,17 @@
         font-weight: normal;
         text-align: left;
     }
-    .pdf-doc-footer .pdf-footer-qr {
-        width: 48px;
+    .pdf-doc-footer .pdf-footer-legal-with-qr .pdf-footer-disclaimer {
+        font-size: 5.5pt;
+        line-height: 1.25;
+        vertical-align: middle;
+        padding-right: 2mm;
     }
-    .pdf-doc-footer .pdf-footer-qr img {
-        width: 44px;
-        height: 44px;
+    /* Empty slot; the per-sample QR is drawn over it by the page script. */
+    .pdf-doc-footer .pdf-footer-qr-slot {
+        width: 18mm;
+        height: 18mm;
+        padding: 0;
     }
     .info-table,
     .detail-grid,
@@ -857,9 +861,25 @@
     $reasonLabel = $display['reasonLabel']
         ?? $display['reason_label']
         ?? ($labels['amendment_reason'] ?? 'Amendment Reason');
+
+    $footerQrFiles = [];
+    if (!empty($isPdfMode) && !empty($sampleQrCodes)) {
+        $qrCodeImages = app(\App\Services\Reports\QrCodeImageService::class);
+        foreach ($sampleQrCodes as $qrSampleId => $qrDataUri) {
+            $qrFile = $qrCodeImages->svgFileFromDataUri((string) $qrDataUri);
+            if ($qrFile !== null) {
+                $footerQrFiles[(string) $qrSampleId] = $qrFile;
+            }
+        }
+    }
+    $hasFooterQr = $footerQrFiles !== [];
 @endphp
 
 @if(!empty($isPdfMode))
+{{-- Per-sample footer QR: each sample block records its first page; SampleTestReportDocumentService::drawFooterQrCodes draws it after rendering. --}}
+<script type="text/php">
+    $GLOBALS[{!! var_export(\App\Services\Sampleworkflow\SampleTestReportDocumentService::FOOTER_QR_PAGES_GLOBAL, true) !!}] = [];
+</script>
 {{-- Repeating header / footer. Must be direct children of <body> (outside
      <main>) or DomPDF only paints them on the first page. --}}
 <div class="pdf-doc-header">
@@ -905,6 +925,11 @@
         {{-- ══════════════ One complete report section per sample ══════════════ --}}
         @forelse ($samples as $sample)
             <div @class(['trr-sample-block' => true, 'trr-sample-block-first' => $loop->first])>
+            @if(!empty($footerQrFiles[(string) ($sample->id ?? '')]))
+            <script type="text/php">
+                $GLOBALS[{!! var_export(\App\Services\Sampleworkflow\SampleTestReportDocumentService::FOOTER_QR_PAGES_GLOBAL, true) !!}][$PAGE_NUM] = {!! var_export($footerQrFiles[(string) $sample->id], true) !!};
+            </script>
+            @endif
             @if(empty($isPdfMode))
                 @include('layouts.lab.sample-workflow.report-formats.partials.trr-page-header')
             @endif

@@ -42,6 +42,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use App\Support\VarcharUuidSql;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
+use App\Livewire\Concerns\CapturesEnquiryPurchaseOrder;
+use App\Services\Commercial\EnquiryPurchaseOrderService;
+use Livewire\Attributes\Computed;
 use Throwable;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Renderless;
@@ -52,6 +55,7 @@ use Livewire\WithPagination;
 class WorkflowBoard extends Component
 {
     use AppliesCaseInsensitiveSearch;
+    use CapturesEnquiryPurchaseOrder;
     use WithFileUploads;
     use WithPagination;
 
@@ -2674,6 +2678,7 @@ SQL);
         $this->poRuleType = 'walk_in';
         $this->poRequiresPo = false;
         $this->poRuleMessage = '';
+        $this->resetPoCapture();
     }
 
     public function updatedQuotationAcceptanceContactId(?string $contactId): void
@@ -2751,9 +2756,7 @@ SQL);
 
             app(CustomerPurchaseOrderService::class)->recordAndMarkReadyForReception(
                 $accepted,
-                [
-                    'client_po_number' => $this->clientPoNumber,
-                ],
+                $this->poCapturePayload($this->clientPoNumber),
                 $this->quotationAcceptanceAttachment,
                 (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
             );
@@ -2896,14 +2899,16 @@ SQL);
         ]);
 
         try {
-            app(CustomerPurchaseOrderService::class)->recordAndMarkReadyForReception(
-                $enquiry,
-                [
-                    'client_po_number' => $this->clientPoNumber,
-                ],
-                $this->quotationAcceptanceAttachment,
-                (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
-            );
+            if ($this->poCaptureBlanketOnly) {
+                app(EnquiryPurchaseOrderService::class)->useBlanketPurchaseOrder($enquiry, (string) $this->poCaptureBlanketId);
+            } else {
+                app(CustomerPurchaseOrderService::class)->recordAndMarkReadyForReception(
+                    $enquiry,
+                    $this->poCapturePayload($this->clientPoNumber),
+                    $this->quotationAcceptanceAttachment,
+                    (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
+                );
+            }
 
             $this->closeQuotationAcceptanceModal();
             $this->workflowNotify('success', 'PO recorded. Request is ready for physical reception.');
@@ -2914,13 +2919,53 @@ SQL);
         }
     }
 
-    protected function hydrateQuotationAcceptancePoRules(SampleSubmissionRequest $enquiry): void
+    /**
+     * Blanket-PO enquiry: skip the quotation step and go straight to Ready for Reception.
+     */
+    public function openBlanketPoModal(string $enquiryId): void
+    {
+        $enquiry = SampleSubmissionRequest::query()->with(['customer', 'contact'])->find($enquiryId);
+        if ($enquiry === null || ! app(EnquiryPurchaseOrderService::class)->canUseBlanketShortcut($enquiry)) {
+            $this->workflowNotify('error', 'This request cannot use a blanket PO. The customer needs an active blanket PO and the request must not have a quotation sent yet.');
+
+            return;
+        }
+
+        $this->quotationAcceptancePoOnly = true;
+        $this->quotationAcceptanceEnquiryId = $enquiryId;
+        $this->quotationAcceptanceSignerName = '';
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceAppliedContactId = '';
+        $this->quotationAcceptanceContactOptions = [];
+        $this->hydrateQuotationAcceptancePoRules($enquiry, blanketOnly: true);
+        $this->showQuotationAcceptanceModal = true;
+        $this->dispatch('quotation-acceptance-modal-opened', signature: '');
+    }
+
+    /**
+     * Customer ids with a blanket PO that can be drawn on today (board "Use blanket PO" action).
+     *
+     * @return array<string, true>
+     */
+    #[Computed]
+    public function blanketPurchaseOrderCustomerIds(): array
+    {
+        if (! EnquiryPurchaseOrderService::enabled()) {
+            return [];
+        }
+
+        return app(EnquiryPurchaseOrderService::class)->customerIdsWithBlanketOrders();
+    }
+
+    protected function hydrateQuotationAcceptancePoRules(SampleSubmissionRequest $enquiry, bool $blanketOnly = false): void
     {
         $rules = app(EnquiryAccountSettingsService::class)->poRulesForCustomer($enquiry->customer);
         $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
         $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
-        $this->poRuleMessage = $this->resolvePoRuleMessage();
         $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
+        $this->hydratePoCapture($enquiry, $blanketOnly);
+        $this->poRuleMessage = $this->poCaptureRuleMessage($this->resolvePoRuleMessage());
     }
 
     protected function applyQuotationAcceptanceContact(?string $contactId): void

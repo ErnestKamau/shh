@@ -1711,7 +1711,7 @@ function getModulePermissions()
 	$modules = array(
 		"Laboratory" => array(
 			"permission" => false,
-			"components" => array_merge(array_diff(getSampleWorflowStages(), array("All Samples")), array("All Samples", "Analytes", "Labs", "Sample-Types", "Reporting-Units", "Methods", "Sample-Tracking-Stages", "Analysis Types", "Proforma Invoices", "Tax Regime", "Pricelists", "Quotation", "Approve For Analysis", "Generate Invoice", "RFT Form", "Qc Sample", "Dashboard", "Stock-Monitoring", "Lab-Reports", "Standards", "Inter-Lab-Logs", "Sales-Orders", "Customer-Focus", "Verification-Approvals"))
+			"components" => array_merge(array_diff(getSampleWorflowStages(), array("All Samples")), array("All Samples", "Analytes", "Labs", "Sample-Types", "Reporting-Units", "Methods", "Sample-Tracking-Stages", "Analysis Types", "Proforma Invoices", "Tax Regime", "Pricelists", "Quotation", "Purchase Orders", "PO Change At Reception", "Approve For Analysis", "Generate Invoice", "RFT Form", "Qc Sample", "Dashboard", "Stock-Monitoring", "Lab-Reports", "Standards", "Inter-Lab-Logs", "Sales-Orders", "Customer-Focus", "Verification-Approvals"))
 		),
 		"Inventory" => array(
 			"permission" => false,

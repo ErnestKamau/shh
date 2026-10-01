@@ -104,6 +104,9 @@ final class EnquiryAccountSettingsService
     }
 
     /**
+     * With PO ledger cover enabled a missing PO no longer blocks reception (uncovered samples are
+     * held as Awaiting PO at job creation); only an explicit skip is still policed.
+     *
      * @param  array<string, mixed>  $payload
      */
     public function validateAcceptPayload(?CRMCustomer $customer, array $payload): void
@@ -112,7 +115,7 @@ final class EnquiryAccountSettingsService
         $poNumber = trim((string) ($payload['client_po_number'] ?? ''));
         $poSkipped = filter_var($payload['po_skipped'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-        if ($rules['requires_po'] && $poNumber === '') {
+        if ($rules['requires_po'] && $poNumber === '' && ! config('purchase_orders.enabled')) {
             throw ValidationException::withMessages([
                 'client_po_number' => ['Purchase order number is required for credit account customers.'],
             ]);

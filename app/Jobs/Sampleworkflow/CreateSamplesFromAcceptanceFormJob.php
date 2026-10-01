@@ -10,15 +10,18 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\Sampleworkflow\AnalysisAcceptanceFormLine;
 use App\Models\SubmissionFormInstance;
+use App\SampleAnalysisTypeRelation;
 use App\SampleDate;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\Services\Billing\InvoiceNumberGenerator;
 use App\Services\Commercial\AccountPaymentTermsService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\Commercial\JobPurchaseOrderCoverageService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService;
+use App\Services\Sampleworkflow\CollectionQrCodeService;
 use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
 use App\Services\Sampleworkflow\SampleDetailCreationService;
@@ -33,6 +36,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -76,6 +80,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
         $header = null;
         $details = collect();
+        $heldHeaderId = null;
+        $heldDetails = [];
 
         try {
             DB::transaction(function () use (
@@ -89,6 +95,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $numberingService,
                 &$header,
                 &$details,
+                &$heldHeaderId,
+                &$heldDetails,
             ) {
                 $approvedLines = $form->lines->where('is_approved', true)->values();
                 if ($approvedLines->isEmpty()) {
@@ -206,15 +214,39 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $header->date_expected = $targetDate->date;
                 $header->save();
 
-                $invoice = $this->createInvoiceFromForm(
-                    $form,
+                $coverage = app(JobPurchaseOrderCoverageService::class)->coverNewJob(
                     $header,
-                    $details,
-                    $pricingService,
-                    $invoiceNumberGenerator,
-                    $candidateIds,
-                    $submissionRequestsById,
+                    $this->resolvePurchaseOrderEnquiry($form, $candidateIds, $submissionRequestsById),
+                    $form->created_by ? (string) $form->created_by : null,
                 );
+
+                $coveredQuantityByAnalysisType = null;
+                if ($coverage?->wasSplit()) {
+                    $heldHeaderId = (string) $coverage->heldSampleHeaderId;
+                    $heldSampleIds = $this->sampleIdsOnHeader($heldHeaderId);
+                    $heldDetails = array_values(array_filter(
+                        $details,
+                        fn (SampleDetails $detail): bool => in_array((string) $detail->id, $heldSampleIds, true),
+                    ));
+                    $details = array_values(array_filter(
+                        $details,
+                        fn (SampleDetails $detail): bool => ! in_array((string) $detail->id, $heldSampleIds, true),
+                    ));
+                    $coveredQuantityByAnalysisType = $this->sampleCountByAnalysisType((string) $header->id);
+                }
+
+                $invoice = $coverage?->isHeldWhole()
+                    ? null
+                    : $this->createInvoiceFromForm(
+                        $form,
+                        $header,
+                        $details,
+                        $pricingService,
+                        $invoiceNumberGenerator,
+                        $candidateIds,
+                        $submissionRequestsById,
+                        $coveredQuantityByAnalysisType,
+                    );
 
                 $acceptedQuotationId = $this->resolveAcceptedQuotationId($form, $candidateIds, $submissionRequestsById);
                 if ($acceptedQuotationId !== null) {
@@ -260,6 +292,12 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             $attachmentService = app(\App\Services\Sampleworkflow\BatchWorkflowDocumentAttachmentService::class);
             $attachmentService->attachSamplePhotos($header->fresh() ?? $header, collect($details), $actingUserId);
             $attachmentService->attachForAcceptedBatch($header->fresh() ?? $header, $actingUserId);
+
+            $heldHeader = $heldHeaderId !== null ? SampleHeader::query()->whereKey($heldHeaderId)->first() : null;
+            if ($heldHeader !== null) {
+                $attachmentService->attachSamplePhotos($heldHeader, collect($heldDetails), $actingUserId);
+                $attachmentService->attachForAcceptedBatch($heldHeader, $actingUserId);
+            }
         } catch (\Throwable $exception) {
             Log::warning('Post-accept document attach failed after sample batch was created.', [
                 'acceptance_form_id' => $this->acceptanceFormId,
@@ -550,6 +588,9 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         $reportingUnitsByKey = $analysisSetupService->preloadReportingUnits($allElements);
         $lab = $this->resolveLabOnce($header);
 
+        $recordsTrfRowIndex = ! empty($header->submission_form_instance_id)
+            && Schema::hasColumn('sample_details', 'trf_row_index');
+
         $details = [];
         $detailIndex = 0;
 
@@ -630,6 +671,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 if (empty($detailAttributes['comments']) && ! empty($plan['sample_marking'])) {
                     $detailAttributes['comments'] = $plan['sample_marking'];
+                }
+
+                if ($recordsTrfRowIndex) {
+                    $detailAttributes['trf_row_index'] = $trfRowIndex;
                 }
 
                 $detail = $sampleDetailCreationService->create(
@@ -722,6 +767,19 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 $details[] = $detail;
             }
+        }
+
+        if ($recordsTrfRowIndex) {
+            DB::afterCommit(static function () use ($header): void {
+                try {
+                    app(CollectionQrCodeService::class)->linkSamplesForBatch($header);
+                } catch (\Throwable $e) {
+                    Log::warning('Collection QR codes could not be linked to job samples.', [
+                        'sample_header_id' => (string) $header->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            });
         }
 
         return $details;
@@ -858,6 +916,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         InvoiceNumberGenerator $invoiceNumberGenerator,
         \Illuminate\Support\Collection $candidateIds,
         $submissionRequestsById = null,
+        ?array $coveredQuantityByAnalysisType = null,
     ): ?Invoice {
         $customer = CRMCustomer::query()->find($form->crm_customer_id);
         if (!$customer) {
@@ -915,6 +974,15 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             $existing = $existingDetailsByType->get($typeKey);
 
             $quantity = max(1, (int) $line->number_of_samples);
+            if ($coveredQuantityByAnalysisType !== null) {
+                $available = (int) ($coveredQuantityByAnalysisType[$typeKey] ?? 0);
+                $quantity = min($quantity, $available);
+                $coveredQuantityByAnalysisType[$typeKey] = $available - $quantity;
+
+                if ($quantity <= 0) {
+                    continue;
+                }
+            }
             $sellingPrice = (float) $line->unit_amount;
 
             if ($existing) {
@@ -1062,6 +1130,52 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         return null;
+    }
+
+    /**
+     * The enquiry whose PO covers this job: one bound to a PO first, then the form's own enquiry.
+     *
+     * @param  \Illuminate\Support\Collection<int, string>  $candidateIds
+     * @param  \Illuminate\Support\Collection<string, \App\Models\SampleSubmissionRequest>|null  $submissionRequestsById
+     */
+    private function resolvePurchaseOrderEnquiry(
+        AnalysisAcceptanceForm $form,
+        \Illuminate\Support\Collection $candidateIds,
+        $submissionRequestsById = null,
+    ): ?\App\Models\SampleSubmissionRequest {
+        $enquiries = $candidateIds
+            ->map(fn (string $id) => $submissionRequestsById?->get($id))
+            ->filter()
+            ->values();
+
+        return $enquiries->first(fn (\App\Models\SampleSubmissionRequest $enquiry): bool => filled($enquiry->customer_purchase_order_id))
+            ?? $enquiries->first(fn (\App\Models\SampleSubmissionRequest $enquiry): bool => (string) $enquiry->id === (string) $form->sample_submission_request_id)
+            ?? $enquiries->first();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function sampleIdsOnHeader(string $sampleHeaderId): array
+    {
+        return SampleDetails::query()
+            ->where('sample_header_id', $sampleHeaderId)
+            ->pluck('id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+    }
+
+    /**
+     * @return array<string, int> analysis type id => number of samples on the job needing it
+     */
+    private function sampleCountByAnalysisType(string $sampleHeaderId): array
+    {
+        return SampleAnalysisTypeRelation::query()
+            ->where('batch_id', $sampleHeaderId)
+            ->get(['sample_detail_id', 'analysis_type_id'])
+            ->groupBy(fn ($relation): string => (string) $relation->analysis_type_id)
+            ->map(fn ($relations): int => $relations->pluck('sample_detail_id')->unique()->count())
+            ->all();
     }
 
     /**

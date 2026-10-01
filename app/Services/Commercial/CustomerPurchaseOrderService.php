@@ -80,6 +80,14 @@ final class CustomerPurchaseOrderService
 
         $enquiry->client_po_number = $poNumber;
         $enquiry->po_skipped = $poSkipped;
+
+        if (config('purchase_orders.enabled')) {
+            $boundPoId = (string) ($enquiry->customer_purchase_order_id ?? '');
+            if ($boundPoId === '' || $boundPoId === (string) $po->id) {
+                $enquiry->customer_purchase_order_id = $poSkipped ? null : (string) $po->id;
+            }
+        }
+
         $enquiry->save();
 
         return $po->fresh() ?? $po;
@@ -87,8 +95,9 @@ final class CustomerPurchaseOrderService
 
     /**
      * Validate account PO rules, upsert the registry row, then mark Ready for Reception.
+     * With PO ledger cover enabled this delegates to EnquiryPurchaseOrderService (blanket / single / none).
      *
-     * @param  array{client_po_number?: ?string, po_skipped?: bool|null}  $payload
+     * @param  array{client_po_number?: ?string, po_skipped?: bool|null, mode?: ?string, customer_purchase_order_id?: ?string}  $payload
      */
     public function recordAndMarkReadyForReception(
         SampleSubmissionRequest $enquiry,
@@ -97,6 +106,16 @@ final class CustomerPurchaseOrderService
         ?string $quotationHeaderId = null,
         ?string $uploadedBy = null,
     ): SampleSubmissionRequest {
+        if (config('purchase_orders.enabled')) {
+            return app(EnquiryPurchaseOrderService::class)->captureAndMarkReady(
+                $enquiry,
+                $payload,
+                $file,
+                filled($quotationHeaderId) ? $quotationHeaderId : null,
+                $uploadedBy,
+            );
+        }
+
         $enquiry->loadMissing('customer');
 
         $normalized = $this->normalizePayload($enquiry, $payload);

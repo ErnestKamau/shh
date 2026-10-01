@@ -1645,12 +1645,13 @@ class RequestViewPagePresenter
         $invoice = $this->viewInvoiceAction();
         $batch = $this->viewBatchAction();
         $label = $this->sampleLabelAction();
+        $collectionQrCodes = $this->collectionQrCodesAction();
         $createJob = $this->createJobAction();
         $applyBatches = $this->applyBatchesAction();
 
         if ($stage === null) {
             $primary = null;
-            foreach (array_filter([$quotation, $invoice, ...$trfActions, $batch, $label, $createJob, $applyBatches]) as $action) {
+            foreach (array_filter([$quotation, $invoice, ...$trfActions, $batch, $label, $collectionQrCodes, $createJob, $applyBatches]) as $action) {
                 if ($primary !== null && ($action['key'] ?? null) === ($primary['key'] ?? null)) {
                     continue;
                 }
@@ -1677,7 +1678,7 @@ class RequestViewPagePresenter
             $secondary[] = $action;
         }
 
-        foreach (array_filter([$quotation, $invoice, ...$trfActions, $batch, $label, $createJob, $applyBatches]) as $action) {
+        foreach (array_filter([$quotation, $invoice, ...$trfActions, $batch, $label, $collectionQrCodes, $createJob, $applyBatches]) as $action) {
             if ($primary !== null && ($action['key'] ?? null) === ($primary['key'] ?? null)) {
                 continue;
             }
@@ -2041,6 +2042,12 @@ class RequestViewPagePresenter
             if ($syncAction !== null) {
                 $secondary[] = $syncAction;
             }
+
+            if ($this->commercialEnquiry !== null
+                && \App\Services\Commercial\EnquiryPurchaseOrderService::enabled()
+                && app(\App\Services\Commercial\EnquiryPurchaseOrderService::class)->canUseBlanketShortcut($this->commercialEnquiry)) {
+                $secondary[] = $this->action('use_blanket_po', 'Use blanket PO', 'mdi-file-certificate-outline', 'wire', 'openBlanketPoModal');
+            }
         } elseif ($stage === self::STAGE_QUOTATION_ACCEPTED) {
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');
         } elseif (in_array($stage, [self::STAGE_READY_FOR_RECEPTION, self::STAGE_IN_REVIEW], true)) {
@@ -2264,6 +2271,29 @@ class RequestViewPagePresenter
             null,
             false,
             '#print-sample-labels-modal'
+        );
+    }
+
+    /**
+     * Pre-collection container QR stickers; separate from the Sample Collection Label.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function collectionQrCodesAction(): ?array
+    {
+        if (! $this->isTrfForm) {
+            return null;
+        }
+
+        return $this->action(
+            'collection_qr_codes',
+            'Collection QR codes',
+            'mdi-qrcode',
+            'href',
+            null,
+            route('submission-forms.instances.collection-qr-codes', ['instance' => $this->instance->id]),
+            null,
+            true,
         );
     }
 

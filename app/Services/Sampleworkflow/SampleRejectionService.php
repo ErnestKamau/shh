@@ -7,6 +7,7 @@ use App\Models\RequestWorkflowForm;
 use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\SampleRejectionLog;
 use App\Models\SubmissionFormInstance;
+use App\Services\Commercial\EnquiryPurchaseOrderService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -100,6 +101,10 @@ class SampleRejectionService
 
             if ($submissionRequest !== null) {
                 $submissionRequest->update(['status' => 'rejected']);
+
+                if (EnquiryPurchaseOrderService::enabled()) {
+                    app(EnquiryPurchaseOrderService::class)->releaseReservation($submissionRequest, 'Samples rejected', filled($userId) ? $userId : null);
+                }
 
                 foreach ($submissionRequest->supportingDocumentInstances as $docInstance) {
                     if (in_array((string) $docInstance->status, ['draft', 'submitted', 'in_review'], true)) {

@@ -1066,12 +1066,17 @@ final class EnquiryFromQuotationService
             $poNumber = $this->nullableString($intake['client_po_number'] ?? null)
                 ?? $this->nullableString($intake['reference_number'] ?? null);
 
+            $poPayload = [
+                'client_po_number' => $poNumber,
+                'customer_purchase_order_id' => $this->nullableString($intake['customer_purchase_order_id'] ?? null),
+            ];
+            if (($intake['po_skipped'] ?? null) !== null || ! EnquiryPurchaseOrderService::enabled()) {
+                $poPayload['po_skipped'] = filter_var($intake['po_skipped'] ?? ($poNumber === null), FILTER_VALIDATE_BOOLEAN);
+            }
+
             return app(CustomerPurchaseOrderService::class)->recordAndMarkReadyForReception(
                 $enquiry->fresh() ?? $enquiry,
-                [
-                    'client_po_number' => $poNumber,
-                    'po_skipped' => filter_var($intake['po_skipped'] ?? ($poNumber === null), FILTER_VALIDATE_BOOLEAN),
-                ],
+                $poPayload,
                 null,
                 (string) $quotation->id,
             )->load(['currentQuotation.details', 'submissionFormInstance', 'requestedAnalyses', 'contact', 'enquiryQuotations']);
