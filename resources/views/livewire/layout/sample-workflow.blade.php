@@ -26,10 +26,14 @@ $items = [
 ];
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-	@livewire('sampleworkflow.workflow-board', [
-		'status' => $status,
-		'initialFilters' => $initialFilters ?? [],
-	])
+	@if($status === \App\Services\Commercial\JobPurchaseOrderCoverageService::WORKFLOW_STATUS_AWAITING_PO)
+		@livewire('commercial.awaiting-po-jobs')
+	@else
+		@livewire('sampleworkflow.workflow-board', [
+			'status' => $status,
+			'initialFilters' => $initialFilters ?? [],
+		])
+	@endif
 </main>
 @endsection
 @section('script2')

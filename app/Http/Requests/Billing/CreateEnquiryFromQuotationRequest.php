@@ -27,6 +27,7 @@ class CreateEnquiryFromQuotationRequest extends FormRequest
             'reference_number' => ['nullable', 'string', 'max:255'],
             'client_po_number' => ['nullable', 'string', 'max:255'],
             'po_skipped' => ['nullable', 'boolean'],
+            'customer_purchase_order_id' => ['nullable', 'uuid', 'exists:customer_purchase_orders,id'],
             'date_expected' => ['nullable', 'date'],
             'sample_description' => ['nullable', 'string', 'max:5000'],
             'enquiry_notes' => ['nullable', 'string', 'max:5000'],
@@ -43,6 +44,7 @@ class CreateEnquiryFromQuotationRequest extends FormRequest
             'creation_intent.required' => 'Choose how this quotation should enter the workflow.',
             'creation_intent.in' => 'Choose a valid quotation creation intent.',
             'number_of_samples.min' => 'At least one physical sample is required.',
+            'customer_purchase_order_id.exists' => 'The selected purchase order no longer exists.',
         ];
     }
 

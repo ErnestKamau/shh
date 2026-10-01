@@ -107,7 +107,10 @@ class BatchCustodyTimelineBuilder
 
     private function resolvePrimaryBatchForInstance(SubmissionFormInstance $instance): ?SampleHeader
     {
-        return $instance->batches()->orderByDesc('created_at')->first();
+        return $instance->batches()
+            ->orderByRaw('CASE WHEN split_from_sample_header_id IS NULL THEN 0 ELSE 1 END')
+            ->orderByDesc('created_at')
+            ->first();
     }
 
     /**

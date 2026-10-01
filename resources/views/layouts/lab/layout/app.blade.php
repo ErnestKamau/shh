@@ -136,6 +136,7 @@
 			$canProformaInvoices = $user->can('laboratory.components.proforma invoices.view');
 			$canTaxRegime = $user->can('laboratory.components.tax regime.view');
 			$canQuotation = $user->can('laboratory.components.quotation.view');
+			$canPurchaseOrders = $user->can(\App\Models\Commercial\CustomerPurchaseOrder::PERMISSION_VIEW);
 			$canPricelists = $user->can('laboratory.components.pricelists.view');
 			$canQc = $user->can('laboratory.components.qc sample.view');
 			$canAnalytes = $user->can('laboratory.components.analytes.view');
@@ -266,6 +267,16 @@
 					</div>
 				</a>
 				@endif
+				@if($canAllSamples && \App\Services\Commercial\EnquiryPurchaseOrderService::enabled())
+				<a href="{{ route('sample-workflow', ['status' => \App\Services\Commercial\JobPurchaseOrderCoverageService::WORKFLOW_STATUS_AWAITING_PO]) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive(\App\Services\Commercial\JobPurchaseOrderCoverageService::WORKFLOW_STATUS_AWAITING_PO) ? 'active' : '' }}">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed">
+							<i class="mdi mdi-circle-medium"></i>Awaiting PO
+						</span>
+						<small class="badge badge-pill {{ ($menuTotals[\App\Services\Commercial\JobPurchaseOrderCoverageService::WORKFLOW_STATUS_AWAITING_PO] ?? 0) > 0 ? 'badge-warning' : 'badge-dark' }}">{{ $menuTotals[\App\Services\Commercial\JobPurchaseOrderCoverageService::WORKFLOW_STATUS_AWAITING_PO] ?? 0 }}</small>
+					</div>
+				</a>
+				@endif
 				{{-- Inter Lab Transfer temporarily hidden from sidebar.
 				@if($canInterLabLogs)
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action">
@@ -306,7 +317,7 @@
 
 			</div>
 			@endif
-			@if($canProformaInvoices || $canTaxRegime || $canQuotation || $canPricelists)
+			@if($canProformaInvoices || $canTaxRegime || $canQuotation || $canPurchaseOrders || $canPricelists)
 			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
@@ -348,6 +359,9 @@
 					<span class="menu-collapsed">{{ __('lab.quotations') }}</span>
 				</div>
 			</a>
+			@endif
+
+			@if($canPurchaseOrders)
 			<a href="{{ route('billing.customer-purchase-orders') }}" class="list-group-item list-group-item-action {{ request()->routeIs('billing.customer-purchase-orders*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-outline mr-3"></span>

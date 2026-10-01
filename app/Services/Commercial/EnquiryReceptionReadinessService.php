@@ -51,6 +51,10 @@ final class EnquiryReceptionReadinessService
 
         $enquiry->save();
 
+        if (EnquiryPurchaseOrderService::enabled()) {
+            app(EnquiryPurchaseOrderService::class)->syncReservation($enquiry);
+        }
+
         return $enquiry->fresh();
     }
 

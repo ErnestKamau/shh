@@ -296,6 +296,14 @@
                                        aria-label="Sample collection label">
                                         <i class="mdi mdi-printer"></i>
                                     </a>
+                                    <a href="{{ route('system-planner.schedule-sampling.collection-qr-codes', ['schedule' => $s->id]) }}"
+                                       class="ss-act ss-act--qr"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="Collection QR codes"
+                                       aria-label="Collection QR codes">
+                                        <i class="mdi mdi-qrcode"></i>
+                                    </a>
                                     <a href="{{ route('system-planner.schedule-sampling.show', ['schedule' => $s->id]) }}" class="ss-act ss-act--view" title="{{ $series ? 'View series & scheduling occurrences' : 'View schedule details' }}"><i class="mdi mdi-eye-outline"></i></a>
                                     <button wire:click="showEditModal('{{ $s->id }}')" class="ss-act ss-act--edit" title="{{ $series ? 'Edit occurrences' : 'Edit' }}"><i class="mdi mdi-pencil-outline"></i></button>
                                     @if($series)
@@ -1409,6 +1417,7 @@
     }
     .ss-act--form{color:#856404;background:#fff8e8;border-color:#f0e0b2;}
     .ss-act--label{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe;}
+    .ss-act--qr{color:#0f766e;background:#f0fdfa;border-color:#99f6e4;}
     .ss-act--view{color:#1b5e20;background:#edf7ee;border-color:#c9e6cb;}
     .ss-act--edit{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe;}
     .ss-act--delete{color:#b91c1c;background:#fef2f2;border-color:#fecaca;}

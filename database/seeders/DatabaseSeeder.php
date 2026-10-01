@@ -43,6 +43,7 @@ class DatabaseSeeder extends Seeder
             PersonnelPermissionsSeeder::class,
             CRMPermissionsSeeder::class,
             LabModulePermissionsSeeder::class,
+            \Database\Seeders\Setup\PurchaseOrderPermissionsSeeder::class,
             UserManualModulePermissionsSeeder::class,
             SubmissionFormPermissionsSeeder::class,
             AuditModulePermissionsSeeder::class,

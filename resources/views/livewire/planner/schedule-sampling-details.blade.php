@@ -67,6 +67,11 @@
                        target="_blank" rel="noopener">
                         <i class="mdi mdi-printer mr-1"></i>Sample label
                     </a>
+                    <a href="{{ route('system-planner.schedule-sampling.collection-qr-codes', ['schedule' => $schedule->id]) }}"
+                       class="btn btn-outline-primary btn-sm sd-btn"
+                       target="_blank" rel="noopener">
+                        <i class="mdi mdi-qrcode mr-1"></i>Collection QR codes
+                    </a>
                     @if($fillSampleTypeId)
                     <a href="{{ route('system-planner.fill-sampling-forms.fill', ['sampleType' => $fillSampleTypeId, 'schedule' => $schedule->id]) }}"
                        class="btn btn-outline-info btn-sm sd-btn">

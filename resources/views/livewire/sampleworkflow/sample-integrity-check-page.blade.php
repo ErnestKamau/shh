@@ -19,6 +19,10 @@
         'quotationPdfUrl' => $this->quotationPdfUrl,
     ])
 
+    @if($enquiry !== null && \App\Services\Commercial\EnquiryPurchaseOrderService::enabled())
+        @livewire('commercial.enquiry-purchase-order-coverage', ['enquiryId' => (string) $enquiry->id], key('po-coverage-'.$enquiry->id))
+    @endif
+
     @php
         $sampleSummaries = $this->sampleSummaries;
         $visibleRows = $this->visibleTestRows;

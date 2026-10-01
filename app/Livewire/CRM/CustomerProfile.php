@@ -14,7 +14,9 @@ use App\SampleHeader;
 use App\BatchAmmendment;
 use App\Country;
 use App\ModulePreConfigs;
+use App\Models\Commercial\CustomerPurchaseOrder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Services\Commercial\AccountPaymentTermsService;
@@ -273,6 +275,10 @@ class CustomerProfile extends Component
     {
         if (in_array($tab, ['sub-units', 'areas'], true)) {
             $tab = 'units';
+        }
+
+        if ($tab === 'purchase-orders' && Gate::denies(CustomerPurchaseOrder::PERMISSION_VIEW)) {
+            $tab = 'details';
         }
 
         $this->activeTab = $tab;

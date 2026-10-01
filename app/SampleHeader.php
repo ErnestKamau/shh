@@ -64,6 +64,9 @@ class SampleHeader extends Model implements Auditable
 		'sampling_method_id' => 'string',
 		'crm_contact_id' => 'string',
 		'is_technical' => 'boolean',
+		'po_held_at' => 'datetime',
+		'po_released_at' => 'datetime',
+		'po_cancelled_at' => 'datetime',
 	];
 
 
@@ -667,6 +670,24 @@ class SampleHeader extends Model implements Auditable
 	public function sampleSubmissionRequest()
 	{
 		return $this->hasOne('App\Models\SampleSubmissionRequest', 'sample_header_id');
+	}
+
+	/**
+	 * Job this one was split from when part of its samples had no PO cover (shared test report).
+	 */
+	public function splitFrom(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+	{
+		return $this->belongsTo(self::class, 'split_from_sample_header_id');
+	}
+
+	public function splitParts(): \Illuminate\Database\Eloquent\Relations\HasMany
+	{
+		return $this->hasMany(self::class, 'split_from_sample_header_id');
+	}
+
+	public function customerPurchaseOrder(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+	{
+		return $this->belongsTo(\App\Models\Commercial\CustomerPurchaseOrder::class, 'customer_purchase_order_id');
 	}
 
 	public function userAssignments()

@@ -1,8 +1,9 @@
-{{-- T&C disclaimer + QR; PDF page numbers are drawn via DomPDF canvas above this band --}}
+{{-- T&C disclaimer (+ per-sample QR slot); PDF page numbers and QR are drawn via DomPDF canvas --}}
 @php
     $legalTableClass = !empty($isPdfMode) ? 'pdf-footer-legal' : 'page-disclaimer';
+    $showFooterQrSlot = !empty($isPdfMode) && !empty($hasFooterQr);
 @endphp
-<table class="{{ $legalTableClass }}">
+<table @class([$legalTableClass, 'pdf-footer-legal-with-qr' => $showFooterQrSlot])>
     <tr>
         <td class="{{ !empty($isPdfMode) ? 'pdf-footer-disclaimer' : 'disclaimer-text' }}">
             This document is issued by the Company subject to the Terms and Conditions at
@@ -12,10 +13,8 @@
             responsibility is to its Client and the Company disclaims any liability to third parties.
             Any alteration, forgery or falsification of the content or appearance of this document is unlawful.
         </td>
-        <td class="{{ !empty($isPdfMode) ? 'pdf-footer-qr' : 'disclaimer-qr' }}">
-            @if(!empty($footerQrCode))
-                <img src="{{ $footerQrCode }}" alt="Report QR Code">
-            @endif
-        </td>
+        @if($showFooterQrSlot)
+        <td class="pdf-footer-qr-slot"></td>
+        @endif
     </tr>
 </table>

@@ -3087,6 +3087,20 @@
 																			aria-label="Accept quotation">
 																			<i class="mdi mdi-check-decagram"></i>
 																		</button>
+																		@php
+																			$blanketCandidate = $instance->sampleSubmissionRequest;
+																		@endphp
+																		@if($blanketCandidate
+																			&& in_array((string) $blanketCandidate->status, \App\Services\Commercial\EnquiryPurchaseOrderService::BLANKET_SHORTCUT_STATUSES, true)
+																			&& isset($this->blanketPurchaseOrderCustomerIds[(string) $blanketCandidate->crm_customer_id]))
+																			<button type="button"
+																				class="btn btn-sm rm-act-btn rm-act-btn--view"
+																				wire:click="openBlanketPoModal('{{ $blanketCandidate->id }}')"
+																				title="Use blanket PO (skip quotation)"
+																				aria-label="Use blanket PO">
+																				<i class="mdi mdi-file-certificate-outline"></i>
+																			</button>
+																		@endif
 																	@elseif($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
 																		<button type="button"
 																			class="btn btn-sm rm-act-btn rm-act-btn--view"
@@ -8212,7 +8226,7 @@
 				<div class="modal-content">
 					<div class="modal-header">
 						<h5 class="modal-title">
-							{{ $quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance' }}
+							{{ $poCaptureBlanketOnly ? 'Use blanket PO' : ($quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance') }}
 						</h5>
 						<button type="button" class="close" wire:click="closeQuotationAcceptanceModal"><span>&times;</span></button>
 					</div>
@@ -8244,18 +8258,8 @@
 							<hr class="my-3">
 						@endif
 
-						@if($poRuleMessage !== '')
-							<div class="alert alert-info py-2 mb-3 small">
-								{{ $poRuleMessage }}
-							</div>
-						@endif
-						<div class="form-group">
-							<label>Client PO number</label>
-							<input type="text" class="form-control" wire:model.defer="clientPoNumber">
-							@error('client_po_number')
-								<small class="text-danger d-block mt-1">{{ $message }}</small>
-							@enderror
-						</div>
+						@include('livewire.commercial.partials.enquiry-po-capture', ['poNumberInputId' => 'workflowClientPoNumber'])
+						@if($this->poCaptureAcceptsFile)
 						<div class="form-group">
 							<label for="workflowQuotationAcceptanceAttachmentType">Attachment type (optional)</label>
 							<select id="workflowQuotationAcceptanceAttachmentType" class="form-control" wire:model="quotationAcceptanceAttachmentType">
@@ -8283,6 +8287,7 @@
 							])
 							<div wire:loading wire:target="quotationAcceptanceAttachment" class="small text-muted mt-1">Uploading…</div>
 						</div>
+						@endif
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-outline-secondary" wire:click="closeQuotationAcceptanceModal">Cancel</button>

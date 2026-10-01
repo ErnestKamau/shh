@@ -8,6 +8,7 @@ use App\Livewire\Sampleworkflow\AcceptanceFormWizard;
 use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
 use App\Livewire\Sampleworkflow\SampleRejectionWizard;
+use App\Livewire\Concerns\CapturesEnquiryPurchaseOrder;
 use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
@@ -18,6 +19,7 @@ use App\Services\SampleCreationService;
 use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Services\Commercial\EnquiryAccountSettingsService;
+use App\Services\Commercial\EnquiryPurchaseOrderService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Commercial\QuotationApprovalService;
 use App\Services\Commercial\QuotationFromEnquiryService;
@@ -45,6 +47,7 @@ use Livewire\WithFileUploads;
 
 class RequestViewPage extends Component
 {
+    use CapturesEnquiryPurchaseOrder;
     use WithFileUploads;
 
     public $newAttachment;
@@ -370,6 +373,7 @@ class RequestViewPage extends Component
         $this->poRuleType = 'walk_in';
         $this->poRequiresPo = false;
         $this->poRuleMessage = '';
+        $this->resetPoCapture();
     }
 
     public function updatedQuotationAcceptanceContactId(?string $contactId): void
@@ -443,9 +447,7 @@ class RequestViewPage extends Component
             $this->commercialEnquiry = app(\App\Services\Commercial\CustomerPurchaseOrderService::class)
                 ->recordAndMarkReadyForReception(
                     $accepted,
-                    [
-                        'client_po_number' => $this->clientPoNumber,
-                    ],
+                    $this->poCapturePayload($this->clientPoNumber),
                     $this->quotationAcceptanceAttachment,
                     (string) ($accepted->accepted_quotation_header_id ?? $accepted->current_quotation_header_id ?? ''),
                 );
@@ -521,15 +523,18 @@ class RequestViewPage extends Component
         ]);
 
         try {
-            $this->commercialEnquiry = app(\App\Services\Commercial\CustomerPurchaseOrderService::class)
-                ->recordAndMarkReadyForReception(
-                    $this->commercialEnquiry,
-                    [
-                        'client_po_number' => $this->clientPoNumber,
-                    ],
-                    $this->quotationAcceptanceAttachment,
-                    (string) ($this->commercialEnquiry->accepted_quotation_header_id ?? $this->commercialEnquiry->current_quotation_header_id ?? ''),
-                );
+            if ($this->poCaptureBlanketOnly) {
+                $this->commercialEnquiry = app(EnquiryPurchaseOrderService::class)
+                    ->useBlanketPurchaseOrder($this->commercialEnquiry, (string) $this->poCaptureBlanketId);
+            } else {
+                $this->commercialEnquiry = app(\App\Services\Commercial\CustomerPurchaseOrderService::class)
+                    ->recordAndMarkReadyForReception(
+                        $this->commercialEnquiry,
+                        $this->poCapturePayload($this->clientPoNumber),
+                        $this->quotationAcceptanceAttachment,
+                        (string) ($this->commercialEnquiry->accepted_quotation_header_id ?? $this->commercialEnquiry->current_quotation_header_id ?? ''),
+                    );
+            }
 
             $customerPo = $this->commercialEnquiry->loadMissing('customerPurchaseOrder')->customerPurchaseOrder;
             if ($customerPo !== null && $customerPo->hasFile() && $this->instance !== null) {
@@ -557,13 +562,40 @@ class RequestViewPage extends Component
         }
     }
 
-    protected function hydrateQuotationAcceptancePoRules(SampleSubmissionRequest $enquiry): void
+    /**
+     * Blanket-PO enquiry: skip the quotation step and go straight to Ready for Reception.
+     */
+    public function openBlanketPoModal(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null
+            || ! app(EnquiryPurchaseOrderService::class)->canUseBlanketShortcut($this->commercialEnquiry)) {
+            session()->flash('request_view_message', 'This request cannot use a blanket PO. The customer needs an active blanket PO and the request must not have a quotation sent yet.');
+
+            return;
+        }
+
+        $enquiry = $this->commercialEnquiry->loadMissing(['customer']);
+        $this->quotationAcceptancePoOnly = true;
+        $this->quotationAcceptanceSignerName = '';
+        $this->quotationAcceptanceSignature = '';
+        $this->quotationAcceptanceContactId = null;
+        $this->quotationAcceptanceAppliedContactId = '';
+        $this->quotationAcceptanceContactOptions = [];
+        $this->hydrateQuotationAcceptancePoRules($enquiry, blanketOnly: true);
+        $this->showQuotationAcceptanceModal = true;
+        $this->dispatch('quotation-acceptance-modal-opened', signature: '');
+    }
+
+    protected function hydrateQuotationAcceptancePoRules(SampleSubmissionRequest $enquiry, bool $blanketOnly = false): void
     {
         $rules = app(EnquiryAccountSettingsService::class)->poRulesForCustomer($enquiry->customer);
         $this->poRuleType = (string) ($rules['type'] ?? 'walk_in');
         $this->poRequiresPo = (bool) ($rules['requires_po'] ?? false);
-        $this->poRuleMessage = $this->resolvePoRuleMessage();
         $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
+        $this->hydratePoCapture($enquiry, $blanketOnly);
+        $this->poRuleMessage = $this->poCaptureRuleMessage($this->resolvePoRuleMessage());
     }
 
     protected function applyQuotationAcceptanceContact(?string $contactId): void

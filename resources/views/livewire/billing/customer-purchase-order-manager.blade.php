@@ -6,27 +6,41 @@
 >
     @include('layouts.lab.partials.ls-ui.quotation.ls-quotation-overview-styles')
 
+    @php
+        $createUrl = route('billing.customer-purchase-orders.create', $lockedCustomerId ? ['customer' => $lockedCustomerId] : []);
+    @endphp
+
     <div class="batch-header-bar cpo-burgundy-header mb-3">
         <div class="cpo-burgundy-header__top">
             <div class="cpo-burgundy-header__identity">
                 <h2 class="cpo-burgundy-header__title">
                     <i class="mdi mdi-file-document-outline"></i>
-                    Customer Purchase Orders
+                    {{ $lockedCustomerId ? 'Purchase Orders' : 'Customer Purchase Orders' }}
                 </h2>
-                <span class="cpo-burgundy-header__badge">
-                    <i class="mdi mdi-briefcase-outline"></i>
-                    Billing registry
-                </span>
+                @unless($lockedCustomerId)
+                    <span class="cpo-burgundy-header__badge">
+                        <i class="mdi mdi-briefcase-outline"></i>
+                        Billing registry
+                    </span>
+                @endunless
             </div>
+            @if($this->canCreate)
+                <div class="cpo-burgundy-header__actions">
+                    <a href="{{ $createUrl }}" class="cpo-header-btn cpo-header-btn--light">
+                        <i class="mdi mdi-plus"></i> New blanket PO
+                    </a>
+                </div>
+            @endif
         </div>
         <p class="cpo-burgundy-header__subtitle">
-            Client POs recorded after quotation acceptance — linked quotes, TRFs, jobs, and samples.
+            Blanket POs cover many enquiries until their quantity runs out or they expire. Single POs are recorded per enquiry.
         </p>
         <div class="cpo-burgundy-header__pills">
-            <span class="cpo-stat-pill">{{ $summary['total'] }} in range</span>
-            <span class="cpo-stat-pill cpo-stat-pill--ok">{{ $summary['recorded'] }} recorded</span>
-            <span class="cpo-stat-pill">{{ $summary['skipped'] }} skipped</span>
-            <span class="cpo-stat-pill cpo-stat-pill--file">{{ $summary['with_file'] }} with file</span>
+            <button type="button" class="cpo-stat-pill cpo-stat-pill--ok border-0" wire:click="$set('statusFilter', 'active')">{{ $summary['active'] }} active</button>
+            <button type="button" class="cpo-stat-pill border-0" wire:click="$set('statusFilter', 'expiring')">{{ $summary['expiring'] }} expiring soon</button>
+            <button type="button" class="cpo-stat-pill border-0" wire:click="$set('statusFilter', 'exhausted')">{{ $summary['exhausted'] }} exhausted</button>
+            <button type="button" class="cpo-stat-pill border-0" wire:click="$set('statusFilter', 'expired')">{{ $summary['expired'] }} expired</button>
+            <button type="button" class="cpo-stat-pill border-0" wire:click="$set('statusFilter', 'skipped')">{{ $summary['skipped'] }} skipped</button>
         </div>
     </div>
 
@@ -61,25 +75,42 @@
                 </div>
 
                 <div class="ls-quotation-filter-panel__grid ls-compact">
-                    <div class="ls-field">
-                        <label class="ls-field__label" for="cpo-filter-customer">Customer</label>
-                        <div class="ls-field__control">
-                            <select id="cpo-filter-customer" class="ls-field__input" wire:model.live="customerFilter">
-                                <option value="">All customers</option>
-                                @foreach($customers as $customer)
-                                    <option value="{{ $customer->id }}">{{ $customer->name }}</option>
-                                @endforeach
-                            </select>
+                    @unless($lockedCustomerId)
+                        <div class="ls-field">
+                            <label class="ls-field__label" for="cpo-filter-customer">Customer</label>
+                            <div class="ls-field__control">
+                                <select id="cpo-filter-customer" class="ls-field__input" wire:model.live="customerFilter">
+                                    <option value="">All customers</option>
+                                    @foreach($customers as $customer)
+                                        <option value="{{ $customer->id }}">{{ $customer->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
-                    </div>
+                    @endunless
 
                     <div class="ls-field">
                         <label class="ls-field__label" for="cpo-filter-status">Status</label>
                         <div class="ls-field__control">
                             <select id="cpo-filter-status" class="ls-field__input" wire:model.live="statusFilter">
                                 <option value="">All</option>
-                                <option value="recorded">Recorded</option>
+                                @foreach($statuses as $statusOption)
+                                    <option value="{{ $statusOption->value }}">{{ $statusOption->label() }}</option>
+                                @endforeach
+                                <option value="expiring">Expiring soon</option>
                                 <option value="skipped">Skipped</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="ls-field">
+                        <label class="ls-field__label" for="cpo-filter-type">Type</label>
+                        <div class="ls-field__control">
+                            <select id="cpo-filter-type" class="ls-field__input" wire:model.live="typeFilter">
+                                <option value="">All</option>
+                                @foreach($types as $typeOption)
+                                    <option value="{{ $typeOption->value }}">{{ $typeOption->label() }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -130,12 +161,14 @@
                 <tr>
                     <th style="width: 88px;">Actions</th>
                     <th>PO</th>
-                    <th>Customer</th>
-                    <th>Quotation</th>
-                    <th>TRF</th>
-                    <th>Job</th>
+                    @unless($lockedCustomerId)
+                        <th>Customer</th>
+                    @endunless
+                    <th>Validity</th>
+                    <th>Balance</th>
                     <th>Status</th>
-                    <th>File</th>
+                    <th>Quotation</th>
+                    <th>TRF / Job</th>
                     <th>Recorded</th>
                 </tr>
             </thead>
@@ -144,19 +177,18 @@
                     @php
                         $enquiry = $po->enquiry;
                         $trfLabel = $enquiry?->submissionFormInstance?->form_number
-                            ?: ($enquiry?->unique_identification ?: '—');
-                        $jobLabel = $enquiry?->batch?->batch_code ?: '—';
+                            ?: ($enquiry?->unique_identification ?: null);
                         $showUrl = route('billing.customer-purchase-orders.show', $po->id);
+                        $effective = $po->effectiveStatus();
+                        $ordered = (int) ($po->ordered_total ?? 0);
+                        $remaining = (int) ($po->remaining_total ?? 0);
+                        $usedPct = $ordered > 0 ? (int) round((($ordered - $remaining) / $ordered) * 100) : 0;
+                        $daysLeft = $po->daysUntilExpiry();
                     @endphp
                     <tr wire:key="cpo-{{ $po->id }}">
                         <td nowrap>
                             <div class="d-flex align-items-center">
-                                <x-imara.row-action-btn
-                                    variant="view"
-                                    :href="$showUrl"
-                                    title="View purchase order"
-                                    class="mr-1"
-                                />
+                                <x-imara.row-action-btn variant="view" :href="$showUrl" title="View purchase order" class="mr-1" />
                                 @if($po->hasFile())
                                     <x-imara.row-action-btn
                                         variant="description"
@@ -171,47 +203,60 @@
                             @if($po->po_skipped)
                                 <span class="text-muted">—</span>
                             @else
-                                <a href="{{ $showUrl }}" class="ls-table__stack-primary">
-                                    {{ $po->po_number ?: '—' }}
-                                </a>
+                                <a href="{{ $showUrl }}" class="ls-table__stack-primary">{{ $po->po_number ?: '—' }}</a>
+                                <div class="ls-table__stack-secondary">
+                                    {{ $po->po_type?->label() ?? 'Single enquiry' }}
+                                    @if($po->hasFile()) · <i class="mdi mdi-paperclip" title="{{ $po->file_name }}"></i> @endif
+                                </div>
+                            @endif
+                        </td>
+                        @unless($lockedCustomerId)
+                            <td>
+                                <div class="ls-table__stack-primary" style="color: var(--ls-ink);">{{ $po->customer?->name ?? '—' }}</div>
+                            </td>
+                        @endunless
+                        <td>
+                            @if($po->valid_from || $po->valid_to)
+                                <div>{{ optional($po->valid_from)->format('d M Y') ?? 'Open' }} – {{ optional($po->valid_to)->format('d M Y') ?? 'Open' }}</div>
+                                @if($daysLeft !== null && $daysLeft >= 0 && $effective === \App\Enums\Commercial\PurchaseOrderStatus::Active)
+                                    <div class="ls-table__stack-secondary {{ $daysLeft <= (int) $po->expiry_notice_days ? 'text-warning' : '' }}">{{ $daysLeft }} day(s) left</div>
+                                @endif
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td style="min-width: 150px;">
+                            @if($po->lines_count > 0)
+                                <div class="cpo-qty"><strong>{{ number_format($remaining) }}</strong> <span class="text-muted">of {{ number_format($ordered) }} left</span></div>
+                                <div class="cpo-balance-bar mt-1" style="height: 6px;">
+                                    <div class="cpo-balance-bar__seg--committed" style="width: {{ $usedPct }}%"></div>
+                                </div>
+                            @elseif(! $po->po_skipped)
+                                <span class="ls-table__stack-secondary">No lines</span>
+                            @else
+                                <span class="text-muted">—</span>
                             @endif
                         </td>
                         <td>
-                            <div class="ls-table__stack-primary" style="color: var(--ls-ink);">
-                                {{ $po->customer?->name ?? '—' }}
-                            </div>
+                            <span class="cpo-status cpo-status--{{ $po->po_skipped ? 'skipped' : $effective->value }}">{{ $po->statusLabel() }}</span>
                         </td>
                         <td>
                             @if($po->quotation)
-                                <a href="{{ route('add-qoute-details-view', ['id' => $po->quotation->id]) }}">
-                                    {{ $po->quotation->quote_number ?: 'Quote' }}
-                                </a>
+                                <a href="{{ route('add-qoute-details-view', ['id' => $po->quotation->id]) }}">{{ $po->quotation->quote_number ?: 'Quote' }}</a>
                             @else
                                 <span class="text-muted">—</span>
                             @endif
                         </td>
                         <td>
                             @if($enquiry)
-                                <a href="{{ $enquiry->staffViewUrl() }}">{{ $trfLabel }}</a>
+                                <a href="{{ $enquiry->staffViewUrl() }}">{{ $trfLabel ?: 'Request' }}</a>
+                                @if($enquiry->batch?->batch_code)
+                                    <div class="ls-table__stack-secondary">{{ $enquiry->batch->batch_code }}</div>
+                                @endif
+                            @elseif($po->isBlanket())
+                                <span class="ls-table__stack-secondary">Many enquiries</span>
                             @else
-                                <span class="text-muted">{{ $trfLabel }}</span>
-                            @endif
-                        </td>
-                        <td>{{ $jobLabel }}</td>
-                        <td>
-                            @if($po->po_skipped)
-                                <span class="ls-pill ls-pill--inactive">Skipped</span>
-                            @else
-                                <span class="ls-pill ls-pill--paid">Recorded</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($po->hasFile())
-                                <span class="ls-pill ls-pill--open" title="{{ $po->file_name }}">
-                                    <i class="mdi mdi-paperclip"></i> File
-                                </span>
-                            @else
-                                <span class="ls-table__stack-secondary">No file</span>
+                                <span class="text-muted">—</span>
                             @endif
                         </td>
                         <td>
@@ -221,14 +266,17 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9">
+                        <td colspan="{{ $lockedCustomerId ? 8 : 9 }}">
                             <div class="text-center py-5">
                                 <i class="mdi mdi-file-search-outline text-muted" style="font-size: 2.5rem;"></i>
                                 <h5 class="text-muted mt-3 mb-1">No purchase orders found</h5>
-                                <p class="text-muted mb-3">Widen the date range or clear filters to see more records.</p>
-                                <button type="button" class="ls-btn ls-btn--secondary-fill" wire:click="clearFilters">
-                                    Clear filters
-                                </button>
+                                @if($this->activeFilterCount > 0 || $search !== '')
+                                    <p class="text-muted mb-3">Clear the filters to see more records.</p>
+                                    <button type="button" class="ls-btn ls-btn--secondary-fill" wire:click="clearFilters">Clear filters</button>
+                                @elseif($this->canCreate)
+                                    <p class="text-muted mb-3">Record the customer's blanket PO to cover future enquiries.</p>
+                                    <a href="{{ $createUrl }}" class="ls-btn ls-btn--primary">New blanket PO</a>
+                                @endif
                             </div>
                         </td>
                     </tr>
@@ -247,4 +295,5 @@
     @endif
 
     @include('livewire.billing.partials.customer-purchase-order-header-styles')
+    @include('livewire.billing.partials.customer-purchase-order-ledger-styles')
 </div>

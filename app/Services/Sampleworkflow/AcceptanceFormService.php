@@ -6,6 +6,7 @@ use App\AnalysisType;
 use App\BatchLabSectionApprover;
 use App\CapturedResult;
 use App\ChainOfCustody;
+use App\Enums\Commercial\SampleHeaderPoStatus;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\Sampleworkflow\AnalysisAcceptanceFormLine;
@@ -782,7 +783,8 @@ class AcceptanceFormService
     }
 
     /**
-     * Route a newly accepted batch into Samples In Lab.
+     * Route a newly accepted batch into Samples In Lab, or into Awaiting PO when it has no PO cover.
+     * Parts split off for missing PO cover are moved to Awaiting PO at the same time.
      *
      * @param  list<string>  $assignedAnalystIds
      */
@@ -793,13 +795,162 @@ class AcceptanceFormService
         array $assignedAnalystIds = [],
         array $analystLabSectionAssignments = [],
     ): void {
-        $this->transitionBatchToSamplesInLab(
+        $batch = SampleHeader::query()->find((string) $form->sample_header_id);
+
+        if ($batch !== null && (string) $batch->po_status === SampleHeaderPoStatus::AwaitingPo->value) {
+            $this->transitionBatchToAwaitingPo($form, $batch, $leadAnalystId, $technicalSignatoryId);
+        } else {
+            $this->transitionBatchToSamplesInLab(
+                $form,
+                $leadAnalystId,
+                $technicalSignatoryId,
+                $assignedAnalystIds,
+                $analystLabSectionAssignments,
+            );
+        }
+
+        if ($batch !== null) {
+            $this->holdAwaitingPoSplitParts($form, $batch, $leadAnalystId, $technicalSignatoryId);
+        }
+    }
+
+    /**
+     * Release a job held as Awaiting PO into Samples In Lab once a PO covers it, using the
+     * analyst assignments the manager made when the original job was accepted.
+     */
+    public function releaseHeldBatchToLab(SampleHeader $batch, ?string $actingUserId = null): void
+    {
+        $rootId = filled($batch->split_from_sample_header_id)
+            ? (string) $batch->split_from_sample_header_id
+            : (string) $batch->id;
+
+        $form = AnalysisAcceptanceForm::query()
+            ->where('sample_header_id', $rootId)
+            ->latest()
+            ->first();
+
+        $payload = is_array($form?->manager_assignment_payload) ? $form->manager_assignment_payload : [];
+        $leadAnalystId = is_string($payload['lead_analyst_id'] ?? null) ? $payload['lead_analyst_id'] : null;
+        $technicalSignatoryId = is_string($payload['technical_signatory_id'] ?? null) ? $payload['technical_signatory_id'] : null;
+
+        $this->moveBatchIntoLab(
+            $batch,
             $form,
             $leadAnalystId,
             $technicalSignatoryId,
-            $assignedAnalystIds,
-            $analystLabSectionAssignments,
+            array_values(array_filter((array) ($payload['assigned_analyst_ids'] ?? []), 'is_string')),
+            is_array($payload['analyst_lab_section_assignments'] ?? null) ? $payload['analyst_lab_section_assignments'] : [],
+            sprintf('Purchase order applied — released to the lab (from %s).', $batch->status ?: 'unknown'),
+            $actingUserId,
         );
+    }
+
+    private function transitionBatchToAwaitingPo(
+        AnalysisAcceptanceForm $form,
+        SampleHeader $batch,
+        ?string $leadAnalystId = null,
+        ?string $technicalSignatoryId = null,
+        ?string $comment = null,
+    ): void {
+        $previousStatus = $batch->status;
+
+        $batch->status = SampleHeaderSplitService::WORKFLOW_STATUS_AWAITING_PO;
+        $batch->prelim_batch_status = null;
+        $batch->sample_tracking_stage = null;
+        $batch->priority = $this->normalizeBatchPriority((string) $form->mode_of_work);
+        $batch->po_held_at ??= now();
+
+        if ($leadAnalystId !== null && Str::isUuid($leadAnalystId)) {
+            $batch->specialist_analyst_id = $leadAnalystId;
+        }
+
+        if ($technicalSignatoryId !== null && Str::isUuid($technicalSignatoryId)) {
+            $batch->approve_user_id = $technicalSignatoryId;
+        }
+
+        $batch->save();
+
+        $actingUserId = $this->resolveActingUserId($form, $batch, $leadAnalystId);
+
+        $this->recordCustodyActingAs(
+            $actingUserId,
+            $batch,
+            SampleHeaderSplitService::WORKFLOW_STATUS_AWAITING_PO,
+            null,
+            $comment ?? sprintf(
+                'Accepted without purchase order cover — held as Awaiting PO (from %s).',
+                $previousStatus ?: 'unknown'
+            ),
+        );
+
+        $this->approveSubmissionInstances($form, $batch);
+
+        app(BatchWorkflowDocumentAttachmentService::class)
+            ->attachForAcceptedBatch($batch->fresh(), $actingUserId);
+    }
+
+    private function holdAwaitingPoSplitParts(
+        AnalysisAcceptanceForm $form,
+        SampleHeader $root,
+        ?string $leadAnalystId,
+        ?string $technicalSignatoryId,
+    ): void {
+        SampleHeader::query()
+            ->where('split_from_sample_header_id', (string) $root->id)
+            ->where('po_status', SampleHeaderPoStatus::AwaitingPo->value)
+            ->where('status', '!=', SampleHeaderSplitService::WORKFLOW_STATUS_AWAITING_PO)
+            ->get()
+            ->each(fn (SampleHeader $part) => $this->transitionBatchToAwaitingPo(
+                $form,
+                $part,
+                $leadAnalystId,
+                $technicalSignatoryId,
+                sprintf('Split from job %s at acceptance — held as Awaiting PO until a purchase order covers these samples.', $root->batch_code),
+            ));
+    }
+
+    private function recordCustodyActingAs(
+        string $actingUserId,
+        SampleHeader $batch,
+        string $workflowStatus,
+        ?string $trackingStageId,
+        string $comment,
+    ): void {
+        $previousAuthId = Auth::id();
+        Auth::loginUsingId($actingUserId);
+
+        try {
+            app(BatchWorkflowStageSyncService::class)->recordChainOfCustodyTransition(
+                $batch,
+                $workflowStatus,
+                $trackingStageId,
+                $comment,
+            );
+        } finally {
+            if ($previousAuthId) {
+                Auth::loginUsingId($previousAuthId);
+            } elseif (Auth::id() && (string) Auth::id() === $actingUserId) {
+                Auth::logout();
+            }
+        }
+    }
+
+    private function approveSubmissionInstances(?AnalysisAcceptanceForm $form, SampleHeader $batch): void
+    {
+        $instanceIds = collect([
+            $form?->submission_form_instance_id,
+            $batch->submission_form_instance_id,
+        ])
+            ->filter(fn ($id) => $id !== null && (string) $id !== '')
+            ->unique()
+            ->values();
+
+        if ($instanceIds->isNotEmpty()) {
+            SubmissionFormInstance::query()
+                ->whereIn('id', $instanceIds->all())
+                ->whereIn('status', ['in_review', 'In Review', 'submitted', 'Submitted'])
+                ->update(['status' => 'approved']);
+        }
     }
 
     private function clearShelfLifeDivertFlags(AnalysisAcceptanceForm $form): void
@@ -916,6 +1067,31 @@ class AcceptanceFormService
             throw new \RuntimeException('Sample batch not found for this acceptance form.');
         }
 
+        $this->moveBatchIntoLab(
+            $batch,
+            $form,
+            $leadAnalystId,
+            $technicalSignatoryId,
+            $assignedAnalystIds,
+            $analystLabSectionAssignments,
+            sprintf('Analysis acceptance form completed by manager (from %s).', $batch->status ?: 'unknown'),
+        );
+    }
+
+    /**
+     * @param  list<string>  $assignedAnalystIds
+     * @param  array<string, string>  $analystLabSectionAssignments
+     */
+    private function moveBatchIntoLab(
+        SampleHeader $batch,
+        ?AnalysisAcceptanceForm $form,
+        ?string $leadAnalystId,
+        ?string $technicalSignatoryId,
+        array $assignedAnalystIds,
+        array $analystLabSectionAssignments,
+        string $custodyComment,
+        ?string $actingUserId = null,
+    ): void {
         $targetStatus = 'Samples In Lab';
         $targetTrackingStage = null;
         $stages = $batch->stages($targetStatus);
@@ -938,12 +1114,14 @@ class AcceptanceFormService
             $targetTrackingStage = null;
         }
 
-        $previousStatus = $batch->status;
         $batch->status = $targetStatus;
         $batch->prelim_batch_status = null;
         $batch->in_lab_date = now()->format('Y-m-d');
         $batch->sample_tracking_stage = $targetTrackingStage;
-        $batch->priority = $this->normalizeBatchPriority((string) $form->mode_of_work);
+
+        if ($form !== null) {
+            $batch->priority = $this->normalizeBatchPriority((string) $form->mode_of_work);
+        }
 
         if ($leadAnalystId !== null && $leadAnalystId !== '' && Str::isUuid($leadAnalystId)) {
             $batch->specialist_analyst_id = $leadAnalystId;
@@ -955,30 +1133,17 @@ class AcceptanceFormService
 
         $batch->save();
 
-        $actingUserId = $this->resolveActingUserId($form, $batch, $leadAnalystId);
+        $actingUserId = $actingUserId !== null && Str::isUuid($actingUserId)
+            ? $actingUserId
+            : $this->resolveActingUserId($form, $batch, $leadAnalystId);
 
-        $previousAuthId = Auth::id();
-        if ($actingUserId) {
-            Auth::loginUsingId($actingUserId);
-        }
-
-        try {
-            app(BatchWorkflowStageSyncService::class)->recordChainOfCustodyTransition(
-                $batch,
-                $targetStatus,
-                is_string($targetTrackingStage) ? $targetTrackingStage : null,
-                sprintf(
-                    'Analysis acceptance form completed by manager (from %s).',
-                    $previousStatus ?: 'unknown'
-                )
-            );
-        } finally {
-            if ($previousAuthId) {
-                Auth::loginUsingId($previousAuthId);
-            } elseif (Auth::id() && (string) Auth::id() === (string) $actingUserId) {
-                Auth::logout();
-            }
-        }
+        $this->recordCustodyActingAs(
+            $actingUserId,
+            $batch,
+            $targetStatus,
+            is_string($targetTrackingStage) ? $targetTrackingStage : null,
+            $custodyComment,
+        );
 
         $this->syncAssignedAnalystsOnBatch(
             $batch,
@@ -988,20 +1153,7 @@ class AcceptanceFormService
             $analystLabSectionAssignments,
         );
 
-        $instanceIds = collect([
-            $form->submission_form_instance_id,
-            $batch->submission_form_instance_id,
-        ])
-            ->filter(fn ($id) => $id !== null && (string) $id !== '')
-            ->unique()
-            ->values();
-
-        if ($instanceIds->isNotEmpty()) {
-            SubmissionFormInstance::query()
-                ->whereIn('id', $instanceIds->all())
-                ->whereIn('status', ['in_review', 'In Review', 'submitted', 'Submitted'])
-                ->update(['status' => 'approved']);
-        }
+        $this->approveSubmissionInstances($form, $batch);
 
         app(BatchWorkflowDocumentAttachmentService::class)
             ->attachForAcceptedBatch($batch->fresh(), $actingUserId);

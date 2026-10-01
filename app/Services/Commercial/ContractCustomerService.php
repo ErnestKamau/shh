@@ -117,7 +117,9 @@ final class ContractCustomerService
     }
 
     /**
-     * Skip walk-in quotation / PO gates: all scheduled enquiries, or CRM sampling contract window.
+     * Skip the walk-in quotation gate: all scheduled enquiries, or CRM sampling contract window.
+     * With PO ledger cover enabled this no longer skips the PO: contract enquiries need PO cover
+     * (see EnquiryPurchaseOrderService::requirement()).
      */
     public function bypassesCommercialQuotationGate(SampleSubmissionRequest $enquiry): bool
     {

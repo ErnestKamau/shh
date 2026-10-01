@@ -52,6 +52,18 @@ Route::middleware(['auth'])->group(function () {
 
 Route::get('set-locale/{locale}', 'LocaleController@setLocale')->name('set-locale');
 
+// Public (no login) per-sample Test Report PDF opened from the report QR code.
+Route::get('/r/{token}', [\App\Http\Controllers\Lab\Reports\PublicTestReportController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]{8,32}')
+    ->middleware('throttle:60,1')
+    ->name('public.test-report.show');
+
+// Public (no login) scan target for container QR stickers printed before sample collection.
+Route::get('/s/{token}', [\App\Http\Controllers\Lab\Reports\PublicCollectionQrController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]{8,32}')
+    ->middleware('throttle:60,1')
+    ->name('public.collection-qr.show');
+
 // Certificate Template Routes
 Route::middleware(['auth'])->group(function () {
     // Certificate Template Management
@@ -202,6 +214,8 @@ Route::get('/full-calendar/view/{date?}', 'Event\EventController@index')->name('
 Route::get('/system-planner/tasks', 'Event\EventController@tasks')->name('system-planner.tasks')->middleware('can:calendar.module.access');
 Route::get('/system-planner/schedule-sampling', 'Event\EventController@scheduleSamplingIndex')->name('system-planner.schedule-sampling')->middleware('can:calendar.module.access');
 Route::get('/system-planner/schedule-sampling/{schedule}/sample-collection-label', 'Event\EventController@samplingScheduleCollectionLabel')->name('system-planner.schedule-sampling.sample-collection-label')->middleware('can:calendar.module.access');
+Route::get('/system-planner/schedule-sampling/{schedule}/collection-qr-codes', [\App\Http\Controllers\Lab\Samples\CollectionQrCodeController::class, 'schedule'])->name('system-planner.schedule-sampling.collection-qr-codes')->middleware('can:calendar.module.access');
+Route::post('/system-planner/schedule-sampling/{schedule}/collection-qr-codes/extra', [\App\Http\Controllers\Lab\Samples\CollectionQrCodeController::class, 'storeScheduleExtras'])->name('system-planner.schedule-sampling.collection-qr-codes.extra')->middleware('can:calendar.module.access');
 Route::get('/system-planner/schedule-sampling/{schedule}', 'Event\EventController@scheduleSamplingShow')->name('system-planner.schedule-sampling.show')->middleware('can:calendar.module.access');
 Route::get('/system-planner/fill-sampling-forms', 'Event\EventController@fillSamplingFormsIndex')->name('system-planner.fill-sampling-forms')->middleware('can:calendar.module.access');
 Route::get('/system-planner/fill-sampling-forms/fill/{sampleType}', 'Event\EventController@fillSamplingFormsFill')->name('system-planner.fill-sampling-forms.fill')->middleware('can:calendar.module.access');
@@ -421,15 +435,20 @@ Route::get('/billing/quotations', function () {
 
 Route::get('/billing/customer-purchase-orders', function () {
     return view('layouts.billing.customer-purchase-orders-index');
-})->name('billing.customer-purchase-orders')->middleware('can:laboratory.components.quotation.view');
+})->name('billing.customer-purchase-orders')->middleware('can:'.\App\Models\Commercial\CustomerPurchaseOrder::PERMISSION_VIEW);
+
+Route::get('/billing/customer-purchase-orders/create', function () {
+    return view('layouts.billing.customer-purchase-order-create');
+})->name('billing.customer-purchase-orders.create')->middleware('can:'.\App\Models\Commercial\CustomerPurchaseOrder::PERMISSION_CREATE);
 
 Route::get('/billing/customer-purchase-orders/{id}', function (string $id) {
     return view('layouts.billing.customer-purchase-order-show', ['purchaseOrderId' => $id]);
-})->name('billing.customer-purchase-orders.show')->middleware('can:laboratory.components.quotation.view');
+})->name('billing.customer-purchase-orders.show')->whereUuid('id')->middleware('can:'.\App\Models\Commercial\CustomerPurchaseOrder::PERMISSION_VIEW);
 
 Route::get('/billing/customer-purchase-orders/{id}/download', \App\Http\Controllers\Billing\CustomerPurchaseOrderDownloadController::class)
     ->name('billing.customer-purchase-orders.download')
-    ->middleware('can:laboratory.components.quotation.view');
+    ->whereUuid('id')
+    ->middleware('can:'.\App\Models\Commercial\CustomerPurchaseOrder::PERMISSION_VIEW);
 
 Route::get('/billing/sales-order/create', function () {
     $batchCodes = request()->get('batches', []);
@@ -1018,6 +1037,8 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples')->middleware('can:laboratory.components.all samples.add');
         Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status')->middleware('can:submission-forms.access');
         Route::get('/{instance}/sample-collection-label', 'FormInstanceController@sampleCollectionLabel')->name('sample-collection-label')->middleware('can:submission-forms.access');
+        Route::get('/{instance}/collection-qr-codes', [\App\Http\Controllers\Lab\Samples\CollectionQrCodeController::class, 'instance'])->name('collection-qr-codes')->middleware('can:submission-forms.access');
+        Route::post('/{instance}/collection-qr-codes/extra', [\App\Http\Controllers\Lab\Samples\CollectionQrCodeController::class, 'storeInstanceExtras'])->name('collection-qr-codes.extra')->middleware('can:submission-forms.access');
         Route::get('/{submissionForm}/{instance}/sample-integrity-check', 'FormInstanceController@sampleIntegrityCheck')
             ->name('sample-integrity-check')
             ->middleware('can:submission-forms.access');

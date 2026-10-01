@@ -135,6 +135,16 @@
                                     <span class="fw-semibold">{{ __('crm.documents') }}</span>
                                 </button>
                             </li>
+                            @can(\App\Models\Commercial\CustomerPurchaseOrder::PERMISSION_VIEW)
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link modern-tab-link {{ $activeTab === 'purchase-orders' ? 'active' : '' }}"
+                                        wire:click="setActiveTab('purchase-orders')"
+                                        type="button">
+                                    <i class="mdi mdi-file-document-outline me-2"></i>
+                                    <span class="fw-semibold">Purchase Orders</span>
+                                </button>
+                            </li>
+                            @endcan
                         </ul>
                     </div>
                 </div>
@@ -841,6 +851,18 @@
             <!-- Documents Tab -->
             @if($activeTab === 'documents')
                 @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerAttachmentsTab::class, ['customer' => $customer], key('tab-documents-' . $customer->id))
+            @endif
+
+            <!-- Purchase Orders Tab -->
+            @if($activeTab === 'purchase-orders')
+                @can(\App\Models\Commercial\CustomerPurchaseOrder::PERMISSION_VIEW)
+                    <div class="lab-panel-theme workflow-theme lab-surface-theme ls-ui-kit" data-ls-type="plex">
+                        @include('layouts.lab.partials.lab-panel-theme-styles')
+                        @include('layouts.lab.partials.lab-surface-theme-styles')
+                        @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
+                        @livewire(\App\Livewire\Billing\CustomerPurchaseOrderManager::class, ['customerId' => $customerId], key('tab-purchase-orders-' . $customerId))
+                    </div>
+                @endcan
             @endif
         </div>
     </div>
