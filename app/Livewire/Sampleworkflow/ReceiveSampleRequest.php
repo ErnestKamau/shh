@@ -1746,13 +1746,10 @@ class ReceiveSampleRequest extends Component
             ],
         ];
 
-        $typeRow = [
-            $take($findByNames(['location'])),
-            $sampleTypeColumn,
-            null,
-        ];
-        if (array_filter($typeRow, static fn ($column) => $column !== null) !== []) {
-            $gridRows[] = $typeRow;
+        // Sample type belongs only in catalog_row (with Tests) — do not also place it in the grid.
+        $locationColumn = $take($findByNames(['location']));
+        if ($locationColumn !== null) {
+            $gridRows[] = [$locationColumn, null, null];
         }
 
         $parametersColumn = $take($findByNames(['parameters', 'parameter']));
@@ -3827,18 +3824,26 @@ class ReceiveSampleRequest extends Component
             : 'sampling_location';
         $rowIndex = $this->walkInSamplePointTargetRowIndex;
 
+        $value = $pointId;
+        if (in_array($field, ['sampling_point_manual', 'manual_sampling_point'], true)) {
+            $point = SamplePoint::query()->find($pointId);
+            $value = $point !== null
+                ? (string) ($point->display_name !== '' ? $point->display_name : $point->name)
+                : $pointId;
+        }
+
         if ($rowIndex !== null) {
             if (! isset($this->formData[$field]) || ! is_array($this->formData[$field])) {
                 $this->formData[$field] = [];
             }
 
-            $this->formData[$field][$rowIndex] = $pointId;
+            $this->formData[$field][$rowIndex] = $value;
 
             return;
         }
 
         if (array_key_exists($field, $this->formData)) {
-            $this->formData[$field] = $pointId;
+            $this->formData[$field] = $value;
 
             return;
         }
@@ -3915,17 +3920,16 @@ class ReceiveSampleRequest extends Component
             return collect();
         }
 
+        $query = SamplePoint::query()
+            ->where('crm_customer_id', $customerId)
+            ->where('active', 1);
+
         $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
-        if ($unitId === '') {
-            return collect();
+        if ($unitId !== '') {
+            $query->where('crm_company_unit_id', $unitId);
         }
 
-        return SamplePoint::query()
-            ->where('crm_customer_id', $customerId)
-            ->where('crm_company_unit_id', $unitId)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        return $query->orderBy('name')->get();
     }
 
     public function getCustomerCompanyUnitsProperty(): Collection
@@ -5075,6 +5079,33 @@ class ReceiveSampleRequest extends Component
     private function ensureWalkInSampleTypeField(int $rowCount): void
     {
         $this->ensureWalkInIndexedRowField('sample_type_id', $rowCount);
+
+        // Prefill empty row pickers from the form-level sample type so Choose tests can resolve a catalog.
+        $fallbackId = filled($this->selectedSampleTypeId)
+            ? (string) $this->selectedSampleTypeId
+            : (filled($this->initialSampleTypeId) ? (string) $this->initialSampleTypeId : null);
+
+        if ($fallbackId === null) {
+            return;
+        }
+
+        $existing = $this->formData['sample_type_id'] ?? [];
+        if (! is_array($existing)) {
+            return;
+        }
+
+        $changed = false;
+        foreach ($existing as $index => $value) {
+            if ($this->normalizeSampleTypeIdList($value) !== []) {
+                continue;
+            }
+            $existing[$index] = [$fallbackId];
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->formData['sample_type_id'] = $existing;
+        }
     }
 
     /**

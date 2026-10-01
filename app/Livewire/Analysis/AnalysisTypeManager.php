@@ -13,6 +13,8 @@ use App\AnalysisMethod;
 use App\Livewire\Concerns\AppliesCaseInsensitiveSearch;
 use App\Livewire\Concerns\HandlesLabTaxonomyBulkImport;
 use App\Models\Equipments\Equipment;
+use App\Services\Lab\CopyAnalysisTypeToSampleTypesService;
+use App\SampleType;
 use App\Standards;
 use App\User;
 use App\InvoicableItem;
@@ -95,6 +97,20 @@ class AnalysisTypeManager extends Component
     public $operators = [];
     public $remedyHeaders = [];
     public $standards = [];
+
+    // Copy analysis type to other sample types
+    public bool $showCopyToSampleTypesModal = false;
+
+    public ?string $copySourceAnalysisTypeId = null;
+
+    public string $copySourceAnalysisTypeLabel = '';
+
+    /** @var list<string> */
+    public array $copyTargetSampleTypeIds = [];
+
+    public string $copySampleTypeSearch = '';
+
+    public bool $showCopySampleTypeDropdown = false;
 
     // Search and Filter
     public $search = '';
@@ -405,6 +421,136 @@ class AnalysisTypeManager extends Component
         } catch (\Exception $e) {
             DB::rollBack();
             $this->message = 'Error: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function openCopyToSampleTypesModal(string $analysisTypeId): void
+    {
+        $analysisType = AnalysisType::query()->findOrFail($analysisTypeId);
+
+        $this->copySourceAnalysisTypeId = (string) $analysisType->id;
+        $this->copySourceAnalysisTypeLabel = trim((string) $analysisType->name.' ('.$analysisType->code.')');
+        $this->copyTargetSampleTypeIds = [];
+        $this->copySampleTypeSearch = '';
+        $this->showCopySampleTypeDropdown = false;
+        $this->resetErrorBag('copyTargetSampleTypeIds');
+        $this->showCopyToSampleTypesModal = true;
+    }
+
+    public function closeCopyToSampleTypesModal(): void
+    {
+        $this->showCopyToSampleTypesModal = false;
+        $this->copySourceAnalysisTypeId = null;
+        $this->copySourceAnalysisTypeLabel = '';
+        $this->copyTargetSampleTypeIds = [];
+        $this->copySampleTypeSearch = '';
+        $this->showCopySampleTypeDropdown = false;
+        $this->resetErrorBag('copyTargetSampleTypeIds');
+    }
+
+    public function addCopyTargetSampleType(string $sampleTypeId): void
+    {
+        $sampleTypeId = (string) $sampleTypeId;
+        if ($sampleTypeId === '' || in_array($sampleTypeId, $this->copyTargetSampleTypeIds, true)) {
+            return;
+        }
+
+        $this->copyTargetSampleTypeIds[] = $sampleTypeId;
+        $this->copySampleTypeSearch = '';
+        $this->showCopySampleTypeDropdown = false;
+    }
+
+    public function removeCopyTargetSampleType(string $sampleTypeId): void
+    {
+        $this->copyTargetSampleTypeIds = array_values(array_filter(
+            $this->copyTargetSampleTypeIds,
+            static fn (string $id): bool => $id !== (string) $sampleTypeId
+        ));
+    }
+
+    public function updatedCopySampleTypeSearch(): void
+    {
+        $this->showCopySampleTypeDropdown = true;
+    }
+
+    public function getSelectedCopyTargetSampleTypesProperty()
+    {
+        if ($this->copyTargetSampleTypeIds === []) {
+            return collect();
+        }
+
+        return SampleType::query()
+            ->whereIn('id', $this->copyTargetSampleTypeIds)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getFilteredCopyTargetSampleTypesProperty()
+    {
+        $sourceSampleTypeId = null;
+        if ($this->copySourceAnalysisTypeId) {
+            $sourceSampleTypeId = AnalysisType::query()
+                ->whereKey($this->copySourceAnalysisTypeId)
+                ->value('sample_type_id');
+        }
+
+        $query = SampleType::query()
+            ->where('active', 1)
+            ->orderBy('name');
+
+        if ($sourceSampleTypeId) {
+            $query->where('id', '!=', $sourceSampleTypeId);
+        }
+
+        if ($this->copyTargetSampleTypeIds !== []) {
+            $query->whereNotIn('id', $this->copyTargetSampleTypeIds);
+        }
+
+        if (trim($this->copySampleTypeSearch) !== '') {
+            $this->applyCaseInsensitiveSearch($query, ['name', 'code'], $this->copySampleTypeSearch);
+        }
+
+        return $query->limit(30)->get();
+    }
+
+    public function copyAnalysisTypeToSampleTypes(CopyAnalysisTypeToSampleTypesService $copyService): void
+    {
+        $this->validate([
+            'copySourceAnalysisTypeId' => 'required|uuid|exists:analysis_types,id',
+            'copyTargetSampleTypeIds' => 'required|array|min:1',
+            'copyTargetSampleTypeIds.*' => 'uuid|exists:sample_types,id',
+        ], [
+            'copyTargetSampleTypeIds.required' => 'Select at least one sample type.',
+            'copyTargetSampleTypeIds.min' => 'Select at least one sample type.',
+        ]);
+
+        try {
+            $result = $copyService->copy(
+                (string) $this->copySourceAnalysisTypeId,
+                $this->copyTargetSampleTypeIds
+            );
+
+            $copiedCount = count($result['copied']);
+            $skippedCount = count($result['skipped']);
+
+            if ($copiedCount === 0 && $skippedCount > 0) {
+                $reasons = collect($result['skipped'])
+                    ->map(fn (array $row): string => $row['sample_type_name'].': '.$row['reason'])
+                    ->implode(' ');
+                $this->message = 'Nothing was copied. '.$reasons;
+                $this->messageType = 'warning';
+            } elseif ($skippedCount > 0) {
+                $this->message = "Copied to {$copiedCount} sample type(s). Skipped {$skippedCount}.";
+                $this->messageType = 'warning';
+            } else {
+                $this->message = "Copied to {$copiedCount} sample type(s) successfully.";
+                $this->messageType = 'success';
+            }
+
+            $this->closeCopyToSampleTypesModal();
+        } catch (\Throwable $e) {
+            $this->message = 'Error: '.$e->getMessage();
             $this->messageType = 'error';
         }
     }

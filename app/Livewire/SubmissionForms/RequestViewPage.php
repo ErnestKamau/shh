@@ -2439,6 +2439,19 @@ class RequestViewPage extends Component
     public function editingRowParameterPickerState(): array
     {
         $sampleTypeIds = $this->normalizeRowSelectValues($this->editingRowFields['sample_type_id'] ?? null);
+        if ($sampleTypeIds === [] && $this->editingRowIndex !== null) {
+            foreach ($this->sampleLines as $line) {
+                if ((int) ($line['row_index'] ?? -1) !== (int) $this->editingRowIndex) {
+                    continue;
+                }
+                $fromLine = trim((string) ($line['sample_type_id'] ?? ''));
+                if ($fromLine !== '') {
+                    $sampleTypeIds = [$fromLine];
+                }
+                break;
+            }
+        }
+
         $catalog = app(WalkInParameterCatalogService::class);
         $groups = $sampleTypeIds === [] ? [] : $catalog->groupsForSampleTypes($sampleTypeIds);
         $options = $catalog->flattenGroups($groups);

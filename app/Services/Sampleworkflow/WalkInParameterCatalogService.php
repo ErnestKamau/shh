@@ -43,9 +43,6 @@ class WalkInParameterCatalogService
         $analysisTypes = AnalysisType::query()
             ->with('sample_type')
             ->whereIn('sample_type_id', $sampleTypeIds)
-            ->where(function ($query): void {
-                $query->where('active', true)->orWhere('active', 1);
-            })
             ->orderBy('name')
             ->get();
 
@@ -53,11 +50,15 @@ class WalkInParameterCatalogService
             return [];
         }
 
-        $elements = AnalysisElements::query()
+        // Prefer active elements; if none are marked active, still surface configured tests.
+        $elementsQuery = AnalysisElements::query()
             ->whereIn('analysis_type_id', $analysisTypes->modelKeys())
-            ->where('active', 1)
-            ->with(['analyte:id,name,code', 'mmethod', 'ltmethod'])
-            ->get();
+            ->with(['analyte:id,name,code', 'mmethod', 'ltmethod']);
+
+        $activeElements = (clone $elementsQuery)->where('active', 1)->get();
+        $elements = $activeElements->isNotEmpty()
+            ? $activeElements
+            : $elementsQuery->get();
 
         $stageIds = $elements
             ->pluck('lab_section_id')
