@@ -2,6 +2,7 @@
 
 namespace App\Services\Commercial;
 
+use App\Enums\CompanyCode;
 use App\Jobs\Commercial\NotifyQuotationApproversJob;
 use App\Models\QuotationApprovalLog;
 use App\Models\SampleSubmissionRequest;
@@ -22,6 +23,65 @@ final class QuotationApprovalService
     public const HEADER_STATUS_IN_APPROVAL = 'Quote In Approval';
 
     public const HEADER_STATUS_COMPLETE = 'Quote Complete';
+
+    /**
+     * Brazil quotations skip the lab-manager approval step.
+     */
+    public function skipsApproval(): bool
+    {
+        return companyHasCode(CompanyCode::Brl);
+    }
+
+    /**
+     * Mark a quotation complete/sendable without an approval workflow (Brazil).
+     */
+    public function completeWithoutApproval(
+        QuotationHeader $header,
+        ?SampleSubmissionRequest $enquiry = null,
+    ): QuotationHeader {
+        $actor = Auth::user();
+        if ($actor === null) {
+            throw new RuntimeException('You must be signed in to complete a quotation.');
+        }
+
+        if ($header->details()->count() < 1) {
+            throw new RuntimeException('Add at least one quotation line before completing the quotation.');
+        }
+
+        return DB::transaction(function () use ($header, $enquiry, $actor): QuotationHeader {
+            $now = now();
+            $header->status = self::HEADER_STATUS_COMPLETE;
+            $header->is_approved = 1;
+            $header->is_complete = 1;
+            $header->approved_by = (string) $actor->id;
+            $header->approval_requested_at = $header->approval_requested_at ?? $now;
+            $header->approval_requested_by = (string) ($header->approval_requested_by ?: $actor->id);
+            $header->approval_decision_at = $now;
+            $header->approval_comments = 'Completed without approval (Brazil).';
+            if ($enquiry !== null) {
+                $header->sample_submission_request_id = $enquiry->id;
+                $header->from_enquiry = true;
+            }
+            $header->save();
+
+            if ($enquiry !== null) {
+                $enquiry->current_quotation_header_id = $header->id;
+                $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_READY_TO_SEND;
+                $enquiry->save();
+            }
+
+            $this->writeLog(
+                $header,
+                $enquiry,
+                QuotationApprovalLog::ACTION_APPROVED,
+                (string) $actor->id,
+                (string) $actor->id,
+                $header->approval_comments,
+            );
+
+            return $header->fresh() ?? $header;
+        });
+    }
 
     /**
      * @return Collection<int, User>
@@ -96,6 +156,12 @@ final class QuotationApprovalService
         $actor = Auth::user();
         if ($actor === null) {
             throw new RuntimeException('You must be signed in to submit a quotation for approval.');
+        }
+
+        if ($this->skipsApproval()) {
+            $this->completeWithoutApproval($header, $enquiry);
+
+            return $enquiry->fresh(['currentQuotation', 'customer', 'contact']) ?? $enquiry;
         }
 
         if (! $notifyEmail && ! $notifyInApp) {
@@ -486,6 +552,10 @@ final class QuotationApprovalService
         $actor = Auth::user();
         if ($actor === null) {
             throw new RuntimeException('You must be signed in to submit a quotation for approval.');
+        }
+
+        if ($this->skipsApproval()) {
+            return $this->completeWithoutApproval($header);
         }
 
         if (! $notifyEmail && ! $notifyInApp) {

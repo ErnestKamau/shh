@@ -435,8 +435,9 @@ class QuotationController extends Controller
         $accountPaymentOptions = $this->quotationReportService->accountPaymentOptions();
         $labSections = $this->activeLabSectionsForQuotation();
         $canApproveQuotation = app(QuotationApprovalService::class)->canCurrentUserApprove($header);
+        $skipsQuotationApproval = app(QuotationApprovalService::class)->skipsApproval();
 
-        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'pricelistChooser', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'companyUnits', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections', 'canApproveQuotation'));
+        return view('layouts.lab.invoice.quotation-show', compact('header', 'pricelist', 'pricelist_items', 'pricelistChooser', 'customers', 'details', 'sample_types', 'termsOfSale', 'users', 'samplePoints', 'companyUnits', 'currencies', 'structuredTermsConfig', 'structuredTerms', 'revisionFamily', 'linkedEnquiryEngagements', 'accountPaymentOptions', 'labSections', 'canApproveQuotation', 'skipsQuotationApproval'));
         // return response()->json($pricelist_items,200);
     }
     public function change_quotation_workflow($id, $stage)

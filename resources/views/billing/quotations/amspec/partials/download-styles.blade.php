@@ -68,13 +68,13 @@
     }
 
     body.amspec-download-body .amspec-company-name {
-        font-family: 'DejaVu Serif', serif;
+        font-family: 'DejaVu Sans', sans-serif;
         font-weight: 700;
         font-size: 11pt;
     }
 
     body.amspec-download-body .amspec-company-address {
-        font-family: 'DejaVu Serif', serif;
+        font-family: 'DejaVu Sans', sans-serif;
         font-weight: 700;
         font-size: 9pt;
     }
@@ -82,7 +82,7 @@
     body.amspec-download-body .amspec-meta-label,
     body.amspec-download-body .amspec-meta-value,
     body.amspec-download-body .amspec-meta-value strong {
-        font-family: 'DejaVu Serif', serif;
+        font-family: 'DejaVu Sans', sans-serif;
     }
 
     body.amspec-download-body .amspec-contact-line,
@@ -154,13 +154,13 @@
     }
 
     body.amspec-download-body .amspec-customer-name {
-        font-family: 'DejaVu Serif', serif;
+        font-family: 'DejaVu Sans', sans-serif;
         font-weight: 700;
         font-size: 11pt;
     }
 
     body.amspec-download-body .amspec-customer-address {
-        font-family: 'DejaVu Serif', serif;
+        font-family: 'DejaVu Sans', sans-serif;
         font-weight: 700;
         font-size: 9pt;
     }

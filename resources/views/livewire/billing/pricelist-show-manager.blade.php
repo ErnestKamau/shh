@@ -1,4 +1,4 @@
-<div class="container-fluid pricelist-show-page lab-surface-theme ls-admin-page ls-ui-kit {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal || $showImportModal) ? 'modal-active' : '' }}" data-ls-type="plex">
+<div class="container-fluid pricelist-show-page lab-surface-theme ls-admin-page ls-ui-kit {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal || $showBulkDeleteConfirmModal || $showDeleteSampleTypeConfirmModal || $showImportModal) ? 'modal-active' : '' }}" data-ls-type="plex">
     @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
     @include('layouts.lab.invoice.partials.quotation-show-styles')
     @if($message)
@@ -524,6 +524,11 @@
                                     <button type="button" class="btn btn-outline-info action-btn" wire:click="showCloneModal">
                                         <i class="mdi mdi-content-copy"></i> Clone Selected
                                     </button>
+                                    @if($isBrazilPricelistUi ?? false)
+                                        <button type="button" class="btn btn-outline-danger action-btn" wire:click="openBulkDeleteConfirmModal" @disabled(count($selectedItemIds) === 0)>
+                                            <i class="mdi mdi-delete-sweep"></i> Delete Selected
+                                        </button>
+                                    @endif
                                     <button type="button" class="btn btn-outline-secondary action-btn" wire:click="openImportModal">
                                         <i class="mdi mdi-file-upload-outline"></i> Import
                                     </button>
@@ -601,9 +606,19 @@
                                                             <div class="sample-group-code">{{ $sampleGroup->sample_type_code }}</div>
                                                         @endif
                                                     </div>
-                                                    <div class="analysis-collapse-total">
-                                                        <span>Total Amount</span>
-                                                        <strong>{{ number_format((float) ($sampleGroup->total_amount ?? 0), 2) }}</strong>
+                                                    <div class="d-flex align-items-center" style="gap: 12px;">
+                                                        @if(($isBrazilPricelistUi ?? false) && filled($sampleGroup->sample_type_id))
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-outline-danger"
+                                                                    wire:click="openDeleteSampleTypeConfirmModal(@js((string) $sampleGroup->sample_type_id))"
+                                                                    title="Delete all items for this sample type">
+                                                                <i class="mdi mdi-delete-outline"></i> Delete sample type
+                                                            </button>
+                                                        @endif
+                                                        <div class="analysis-collapse-total">
+                                                            <span>Total Amount</span>
+                                                            <strong>{{ number_format((float) ($sampleGroup->total_amount ?? 0), 2) }}</strong>
+                                                        </div>
                                                     </div>
                                                 </header>
 
@@ -1007,6 +1022,69 @@
             @include('livewire.billing.partials.delete-pricelist-item-confirm-modal', [
                 'preview' => $pendingDeleteItemPreview,
             ])
+        @endif
+
+        @if($showBulkDeleteConfirmModal)
+            <div class="modal fade show d-block eq-delete-overlay" tabindex="-1" aria-modal="true" role="dialog">
+                <div class="modal-dialog modal-dialog-centered eq-delete-dialog">
+                    <div class="modal-content eq-delete-shell border-0">
+                        <div class="modal-body eq-delete-body">
+                            <button type="button" class="btn-close eq-delete-close" wire:click="closeBulkDeleteConfirmModal" aria-label="Close"></button>
+                            <div class="eq-delete-frame">
+                                <div class="eq-delete-intro">
+                                    <span class="eq-delete-intro__icon" aria-hidden="true"><i class="mdi mdi-delete-sweep"></i></span>
+                                    <div class="eq-delete-intro__copy">
+                                        <p class="eq-delete-intro__eyebrow">Bulk delete</p>
+                                        <p class="eq-delete-intro__lead">
+                                            Permanently remove {{ count($selectedItemIds) }} selected pricelist item{{ count($selectedItemIds) === 1 ? '' : 's' }}?
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="eq-delete-warning">
+                                    <i class="mdi mdi-alert-outline eq-delete-warning__icon"></i>
+                                    <p class="eq-delete-warning__text mb-0">This cannot be undone.</p>
+                                </div>
+                                <div class="eq-delete-footer">
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--cancel" wire:click="closeBulkDeleteConfirmModal">Cancel</button>
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--confirm" wire:click="confirmBulkDeleteItems">Delete selected</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if($showDeleteSampleTypeConfirmModal)
+            <div class="modal fade show d-block eq-delete-overlay" tabindex="-1" aria-modal="true" role="dialog">
+                <div class="modal-dialog modal-dialog-centered eq-delete-dialog">
+                    <div class="modal-content eq-delete-shell border-0">
+                        <div class="modal-body eq-delete-body">
+                            <button type="button" class="btn-close eq-delete-close" wire:click="closeDeleteSampleTypeConfirmModal" aria-label="Close"></button>
+                            <div class="eq-delete-frame">
+                                <div class="eq-delete-intro">
+                                    <span class="eq-delete-intro__icon" aria-hidden="true"><i class="mdi mdi-delete-outline"></i></span>
+                                    <div class="eq-delete-intro__copy">
+                                        <p class="eq-delete-intro__eyebrow">Delete sample type</p>
+                                        <p class="eq-delete-intro__lead">
+                                            Remove all {{ $pendingDeleteSampleTypeItemCount }} item{{ $pendingDeleteSampleTypeItemCount === 1 ? '' : 's' }} for
+                                            <strong>{{ $pendingDeleteSampleTypeName }}</strong> from this pricelist?
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="eq-delete-warning">
+                                    <i class="mdi mdi-alert-outline eq-delete-warning__icon"></i>
+                                    <p class="eq-delete-warning__text mb-0">This removes items from the pricelist only (not the master sample type).</p>
+                                </div>
+                                <div class="eq-delete-footer">
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--cancel" wire:click="closeDeleteSampleTypeConfirmModal">Cancel</button>
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--confirm" wire:click="confirmDeleteSampleType">Delete sample type items</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         @endif
     @endif
 

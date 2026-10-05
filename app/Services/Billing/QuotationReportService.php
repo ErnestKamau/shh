@@ -676,38 +676,22 @@ class QuotationReportService
                 }
 
                 if ($isBrazilQuotation) {
-                    $packageLabel = trim((string) ($detail->item_name ?: $detail->description ?: ''));
-                    if ($packageLabel === '') {
-                        $analysisTypeIds = array_values(array_filter(explode(',', (string) $detail->part_no)));
-                        $firstTypeId = $analysisTypeIds[0] ?? null;
-                        $packageLabel = $firstTypeId
-                            ? (string) (AnalysisType::find($firstTypeId)?->name ?? 'Package')
-                            : 'Package';
-                    }
-                    $parameterCount = count($packageParameterNames);
-                    if ($parameterCount > 0 && ! str_contains(strtolower($packageLabel), 'parameter')) {
-                        $packageLabel .= ' ('.$parameterCount.' parameter'.($parameterCount === 1 ? '' : 's').')';
-                    }
-
-                    $packageHeader = $this->makeLineRow(
-                        $packageLabel,
-                        $firstMethod,
-                        '',
-                        '',
-                        (float) $detail->unit_price,
-                        (int) $detail->quantity,
-                        false,
-                        false,
-                        $packageTat,
-                    );
-                    $packageHeader['is_package'] = true;
-                    $packageHeader['package_parameters'] = $packageParameterNames;
-                    $packageHeader['is_package_member'] = false;
-                    $packageHeader['is_package_price_row'] = true;
-                    $packageHeader['show_commercial_cells'] = true;
-                    $grouped[$sampleTypeName][] = $packageHeader;
-
-                    foreach ($childRows as $childRow) {
+                    $memberCount = count($childRows);
+                    foreach ($childRows as $index => $childRow) {
+                        if ($index === 0) {
+                            $childRow['unit_price'] = (float) $detail->unit_price;
+                            $childRow['quantity'] = max(1, (int) $detail->quantity);
+                            $childRow['total_price'] = round($childRow['unit_price'] * $childRow['quantity'], 2);
+                            $childRow['tat'] = $packageTat;
+                            $childRow['is_package_price_row'] = true;
+                            $childRow['show_commercial_cells'] = true;
+                            $childRow['package_rowspan'] = $memberCount;
+                        } else {
+                            $childRow['is_package_price_row'] = false;
+                            $childRow['show_commercial_cells'] = false;
+                            $childRow['package_rowspan'] = 0;
+                        }
+                        $childRow['is_package_member'] = true;
                         $grouped[$sampleTypeName][] = $childRow;
                     }
 
@@ -1564,9 +1548,7 @@ class QuotationReportService
     {
         $company = getActiveCompany();
         if (! $company) {
-            return $isBrazilQuotation
-                ? $this->imagePathToDataUri(public_path('images/amspec/agri-food-lab-logo.png'))
-                : '';
+            return '';
         }
 
         foreach ($this->companyLogoCandidates($company, $isBrazilQuotation) as $path) {
@@ -1583,7 +1565,7 @@ class QuotationReportService
     {
         $company = getActiveCompany();
         if (! $company) {
-            return $isBrazilQuotation ? '/images/amspec/agri-food-lab-logo.png' : '';
+            return '';
         }
 
         foreach ($this->companyLogoCandidates($company, $isBrazilQuotation) as $path) {
@@ -1597,21 +1579,17 @@ class QuotationReportService
     }
 
     /**
-     * Company-details logo first, then related fallbacks from the same company record.
+     * Prefer quotation report logo, then company report/logo uploads.
      *
      * @return list<string>
      */
     private function companyLogoCandidates(\App\Company $company, bool $isBrazilQuotation = false): array
     {
         $candidates = [
-            $company->logo,
-            $company->report_logo,
             $company->getReportLogoPath('quotation'),
+            $company->report_logo,
+            $company->logo,
         ];
-
-        if ($isBrazilQuotation) {
-            array_unshift($candidates, 'images/amspec/agri-food-lab-logo.png', '/images/amspec/agri-food-lab-logo.png');
-        }
 
         return array_values(array_filter($candidates));
     }

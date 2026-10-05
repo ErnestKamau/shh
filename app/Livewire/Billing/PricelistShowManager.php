@@ -4,6 +4,7 @@ namespace App\Livewire\Billing;
 
 use App\AnalysisElements;
 use App\AnalysisType;
+use App\Enums\CompanyCode;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
@@ -131,6 +132,21 @@ class PricelistShowManager extends Component
 
     /** @var array<string, mixed>|null */
     public ?array $pendingDeleteItemPreview = null;
+
+    public bool $showBulkDeleteConfirmModal = false;
+
+    public bool $showDeleteSampleTypeConfirmModal = false;
+
+    public ?string $pendingDeleteSampleTypeId = null;
+
+    public string $pendingDeleteSampleTypeName = '';
+
+    public int $pendingDeleteSampleTypeItemCount = 0;
+
+    public function isBrazilPricelistUi(): bool
+    {
+        return companyHasCode(CompanyCode::Brl);
+    }
 
     public function mount(string $pricelistId, $print = null): void
     {
@@ -1865,6 +1881,141 @@ class PricelistShowManager extends Component
         }
     }
 
+    public function openBulkDeleteConfirmModal(): void
+    {
+        if (! $this->isBrazilPricelistUi()) {
+            return;
+        }
+
+        if (count($this->selectedItemIds) === 0) {
+            $this->showMessage('Select at least one item to delete.', 'danger');
+
+            return;
+        }
+
+        $this->showBulkDeleteConfirmModal = true;
+    }
+
+    public function closeBulkDeleteConfirmModal(): void
+    {
+        $this->showBulkDeleteConfirmModal = false;
+    }
+
+    public function confirmBulkDeleteItems(): void
+    {
+        if (! $this->isBrazilPricelistUi()) {
+            return;
+        }
+
+        $ids = array_values(array_filter(array_map('strval', $this->selectedItemIds)));
+        if ($ids === []) {
+            $this->showMessage('Select at least one item to delete.', 'danger');
+            $this->closeBulkDeleteConfirmModal();
+
+            return;
+        }
+
+        try {
+            $deleted = DB::transaction(function () use ($ids): int {
+                PricelistItemElement::query()
+                    ->whereIn('pricelist_item_id', $ids)
+                    ->delete();
+
+                return PricelistItem::query()
+                    ->where('pricelist_id', $this->pricelistId)
+                    ->whereIn('id', $ids)
+                    ->delete();
+            });
+
+            $this->selectedItemIds = [];
+            $this->showMessage($deleted.' pricelist item'.($deleted === 1 ? '' : 's').' removed.', 'success');
+        } catch (\Throwable $e) {
+            $this->showMessage('Failed to remove selected items: '.$e->getMessage(), 'danger');
+        } finally {
+            $this->closeBulkDeleteConfirmModal();
+        }
+    }
+
+    public function openDeleteSampleTypeConfirmModal(string $sampleTypeId): void
+    {
+        if (! $this->isBrazilPricelistUi()) {
+            return;
+        }
+
+        $sampleTypeId = trim($sampleTypeId);
+        if ($sampleTypeId === '') {
+            return;
+        }
+
+        $count = PricelistItem::query()
+            ->where('pricelist_id', $this->pricelistId)
+            ->where('sample_type_id', $sampleTypeId)
+            ->count();
+
+        if ($count === 0) {
+            $this->showMessage('No pricelist items found for this sample type.', 'danger');
+
+            return;
+        }
+
+        $sampleType = SampleType::query()->find($sampleTypeId);
+        $this->pendingDeleteSampleTypeId = $sampleTypeId;
+        $this->pendingDeleteSampleTypeName = (string) ($sampleType?->name ?? 'Sample type');
+        $this->pendingDeleteSampleTypeItemCount = $count;
+        $this->showDeleteSampleTypeConfirmModal = true;
+    }
+
+    public function closeDeleteSampleTypeConfirmModal(): void
+    {
+        $this->showDeleteSampleTypeConfirmModal = false;
+        $this->pendingDeleteSampleTypeId = null;
+        $this->pendingDeleteSampleTypeName = '';
+        $this->pendingDeleteSampleTypeItemCount = 0;
+    }
+
+    public function confirmDeleteSampleType(): void
+    {
+        if (! $this->isBrazilPricelistUi() || $this->pendingDeleteSampleTypeId === null) {
+            return;
+        }
+
+        $sampleTypeId = $this->pendingDeleteSampleTypeId;
+
+        try {
+            $deleted = DB::transaction(function () use ($sampleTypeId): int {
+                $itemIds = PricelistItem::query()
+                    ->where('pricelist_id', $this->pricelistId)
+                    ->where('sample_type_id', $sampleTypeId)
+                    ->pluck('id')
+                    ->map(static fn ($id): string => (string) $id)
+                    ->all();
+
+                if ($itemIds === []) {
+                    return 0;
+                }
+
+                PricelistItemElement::query()
+                    ->whereIn('pricelist_item_id', $itemIds)
+                    ->delete();
+
+                return PricelistItem::query()
+                    ->where('pricelist_id', $this->pricelistId)
+                    ->whereIn('id', $itemIds)
+                    ->delete();
+            });
+
+            $this->selectedItemIds = [];
+            $this->showMessage(
+                'Removed '.$deleted.' item'.($deleted === 1 ? '' : 's').' for '.$this->pendingDeleteSampleTypeName.'.',
+                'success'
+            );
+        } catch (\Throwable $e) {
+            $this->showMessage('Failed to remove sample type items: '.$e->getMessage(), 'danger');
+        } finally {
+            $this->closeDeleteSampleTypeConfirmModal();
+        }
+    }
+
     public function moveItem(string $itemId, string $direction): void
     {
         try {
@@ -2756,6 +2907,7 @@ class PricelistShowManager extends Component
             'analysisTypes' => $this->analysisTypes,
             'availableAnalysisTypes' => $this->availableAnalysisTypes,
             'currencies' => $this->currencies,
+            'isBrazilPricelistUi' => $this->isBrazilPricelistUi(),
         ]);
     }
 }

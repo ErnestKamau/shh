@@ -278,6 +278,54 @@
         margin-top: 6px;
         margin-bottom: 0;
     }
+    .brazil-export-sample-info-header {
+        width: 100%;
+        border: 1px solid #000;
+        text-align: center;
+        font-weight: bold;
+        text-transform: uppercase;
+        padding: 5px 7px;
+        margin: 8px 0 0;
+        background: #f0f0f0;
+        box-sizing: border-box;
+    }
+    .brazil-export-sample-info-header__en {
+        font-size: 11pt;
+        line-height: 1.2;
+    }
+    .brazil-export-sample-info-header__pt {
+        font-size: 9pt;
+        line-height: 1.2;
+        font-weight: 600;
+    }
+    .brazil-export-sample-info-table {
+        margin-top: -1px;
+    }
+    .brazil-export-sample-info-table col.brazil-export-label-col { width: 38%; }
+    .brazil-export-sample-info-table col.brazil-export-value-col { width: 62%; }
+    .brazil-export-sample-info-table .brazil-export-label-cell {
+        background: #e8e8e8;
+        vertical-align: middle;
+    }
+    .brazil-export-sample-info-table tr:nth-child(even) .brazil-export-value-cell {
+        background: #f7f7f7;
+    }
+    .brazil-export-label-en {
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 10pt;
+        line-height: 1.15;
+    }
+    .brazil-export-label-pt {
+        font-size: 8pt;
+        line-height: 1.15;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    .brazil-export-value-cell {
+        font-weight: bold;
+        text-transform: uppercase;
+    }
     .trr-sample-block + .trr-sample-block {
         margin-top: 18px;
         padding-top: 12px;
