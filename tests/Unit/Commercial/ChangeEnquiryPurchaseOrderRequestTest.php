@@ -41,7 +41,7 @@ class ChangeEnquiryPurchaseOrderRequestTest extends TestCase
         $validator = $this->validate(['mode' => 'blanket', 'reason' => 'Move to the annual PO']);
 
         $this->assertTrue($validator->errors()->has('customer_purchase_order_id'));
-        $this->assertSame('Select the blanket PO.', $validator->errors()->first('customer_purchase_order_id'));
+        $this->assertSame('Select the purchase order.', $validator->errors()->first('customer_purchase_order_id'));
     }
 
     public function test_a_single_change_needs_the_po_number(): void

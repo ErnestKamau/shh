@@ -53,6 +53,7 @@ final class CustomerPurchaseOrderRegistryService
      *     unit_price_gross: float|int|string,
      *     sample_type_id?: ?string,
      *     analysis_type_ids?: list<string>,
+     *     analysis_element_ids?: list<string>,
      *     is_package?: bool,
      *     quotation_detail_id?: ?string,
      *     notify_remaining_qty?: int|string|null
@@ -172,6 +173,7 @@ final class CustomerPurchaseOrderRegistryService
      *     unit_price_gross: float|int|string,
      *     sample_type_id?: ?string,
      *     analysis_type_ids?: list<string>,
+     *     analysis_element_ids?: list<string>,
      *     is_package?: bool,
      *     quotation_detail_id?: ?string,
      *     notify_remaining_qty?: int|string|null
@@ -467,6 +469,7 @@ final class CustomerPurchaseOrderRegistryService
             'unit_price_gross' => round((float) ($line['unit_price_gross'] ?? 0), 2),
             'sample_type_id' => filled($line['sample_type_id'] ?? null) ? (string) $line['sample_type_id'] : null,
             'analysis_type_ids' => array_values(array_filter(array_map('strval', (array) ($line['analysis_type_ids'] ?? [])))),
+            'analysis_element_ids' => array_values(array_filter(array_map('strval', (array) ($line['analysis_element_ids'] ?? [])))),
             'is_package' => (bool) ($line['is_package'] ?? false),
             'quotation_detail_id' => filled($line['quotation_detail_id'] ?? null) ? (string) $line['quotation_detail_id'] : null,
             'notify_remaining_qty' => ($threshold === null || $threshold === '') ? null : (int) $threshold,

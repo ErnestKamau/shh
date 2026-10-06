@@ -26,7 +26,7 @@
             @if($poCaptureBlanketOptions !== [])
                 <div class="custom-control custom-radio">
                     <input type="radio" id="{{ $poNumberInputId }}-mode-blanket" class="custom-control-input" value="blanket" wire:model.live="poCaptureMode">
-                    <label class="custom-control-label" for="{{ $poNumberInputId }}-mode-blanket">Blanket PO</label>
+                    <label class="custom-control-label" for="{{ $poNumberInputId }}-mode-blanket">Purchase orders</label>
                 </div>
             @endif
             @unless($poCaptureBlanketOnly)
@@ -50,9 +50,9 @@
 
     @if($poCaptureMode === 'blanket')
         <div class="form-group">
-            <label for="{{ $poNumberInputId }}-blanket">Blanket PO</label>
+            <label for="{{ $poNumberInputId }}-blanket">Purchase order</label>
             <select id="{{ $poNumberInputId }}-blanket" class="form-control" wire:model.live="poCaptureBlanketId">
-                <option value="">Select a blanket PO…</option>
+                <option value="">Select a purchase order…</option>
                 @foreach($poCaptureBlanketOptions as $option)
                     <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
                 @endforeach
@@ -60,7 +60,7 @@
             @error('customer_purchase_order_id')
                 <small class="text-danger d-block mt-1">{{ $message }}</small>
             @enderror
-            <small class="form-text text-muted">The PO document is kept on the blanket PO record.</small>
+            <small class="form-text text-muted">The PO document is kept on the purchase order record.</small>
         </div>
 
         @if(($poCaptureCoverage['rows'] ?? []) !== [])

@@ -2926,7 +2926,7 @@ SQL);
     {
         $enquiry = SampleSubmissionRequest::query()->with(['customer', 'contact'])->find($enquiryId);
         if ($enquiry === null || ! app(EnquiryPurchaseOrderService::class)->canUseBlanketShortcut($enquiry)) {
-            $this->workflowNotify('error', 'This request cannot use a blanket PO. The customer needs an active blanket PO and the request must not have a quotation sent yet.');
+            $this->workflowNotify('error', 'This request cannot use a purchase order. The customer needs an active purchase order and the request must not have a quotation sent yet.');
 
             return;
         }

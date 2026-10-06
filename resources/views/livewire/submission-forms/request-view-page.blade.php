@@ -321,7 +321,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            {{ $poCaptureBlanketOnly ? 'Use blanket PO' : ($quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance') }}
+                            {{ $poCaptureBlanketOnly ? 'Use purchase order' : ($quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance') }}
                         </h5>
                         <button type="button" class="close" wire:click="closeQuotationAcceptanceModal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>

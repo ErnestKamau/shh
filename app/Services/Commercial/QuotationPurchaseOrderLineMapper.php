@@ -36,6 +36,7 @@ final class QuotationPurchaseOrderLineMapper
      *     sample_type_id: ?string,
      *     sample_type_name: ?string,
      *     analysis_type_ids: list<string>,
+     *     analysis_element_ids: list<string>,
      *     is_package: bool,
      *     ordered_qty: int,
      *     unit_price_gross: float,
@@ -60,6 +61,7 @@ final class QuotationPurchaseOrderLineMapper
      *     sample_type_id: ?string,
      *     sample_type_name: ?string,
      *     analysis_type_ids: list<string>,
+     *     analysis_element_ids: list<string>,
      *     is_package: bool,
      *     ordered_qty: int,
      *     unit_price_gross: float,
@@ -78,6 +80,7 @@ final class QuotationPurchaseOrderLineMapper
             'sample_type_id' => $sampleTypeId,
             'sample_type_name' => $sampleTypeId !== null ? ($detail->sampletype?->name ?? null) : null,
             'analysis_type_ids' => $this->analysisTypeIds($detail),
+            'analysis_element_ids' => $this->analysisElementIds($detail),
             'is_package' => (bool) $detail->is_package,
             'ordered_qty' => $this->quantity($detail),
             'unit_price_gross' => $gross,
@@ -104,12 +107,26 @@ final class QuotationPurchaseOrderLineMapper
      */
     public function analysisTypeIds(QuotationDetails $detail): array
     {
-        return collect(explode(',', (string) ($detail->part_no ?? '')))
-            ->map(fn (string $id): string => trim($id))
-            ->filter(fn (string $id): bool => Str::isUuid($id))
-            ->unique()
-            ->values()
-            ->all();
+        return $this->uuidList((string) ($detail->part_no ?? ''));
+    }
+
+    /**
+     * Parameters the quotation line is priced for.
+     *
+     * @return list<string>
+     */
+    public function analysisElementIds(QuotationDetails $detail): array
+    {
+        $ids = $this->uuidList((string) ($detail->default_analytes ?? ''));
+        if ($ids !== []) {
+            return $ids;
+        }
+
+        return $this->uuidList(implode(',', [
+            (string) ($detail->accredited_analytes ?? ''),
+            (string) ($detail->subcontracted_analytes ?? ''),
+            (string) ($detail->sub_acc_analytes ?? ''),
+        ]));
     }
 
     public function sampleTypeId(QuotationDetails $detail): ?string
@@ -124,5 +141,18 @@ final class QuotationPurchaseOrderLineMapper
         $description = trim((string) ($detail->item_name ?: $detail->description ?: 'Quotation line'));
 
         return Str::limit($description, 497);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function uuidList(string $csv): array
+    {
+        return collect(explode(',', $csv))
+            ->map(fn (string $id): string => trim($id))
+            ->filter(fn (string $id): bool => Str::isUuid($id))
+            ->unique()
+            ->values()
+            ->all();
     }
 }

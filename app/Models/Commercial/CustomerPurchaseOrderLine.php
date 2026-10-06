@@ -34,6 +34,7 @@ class CustomerPurchaseOrderLine extends Model
         'pricelist_item_id',
         'sample_type_id',
         'analysis_type_ids',
+        'analysis_element_ids',
         'is_package',
         'unit_price_gross',
         'ordered_qty',
@@ -51,6 +52,7 @@ class CustomerPurchaseOrderLine extends Model
         return [
             'line_no' => 'integer',
             'analysis_type_ids' => 'array',
+            'analysis_element_ids' => 'array',
             'is_package' => 'boolean',
             'unit_price_gross' => 'decimal:2',
             'ordered_qty' => 'integer',
@@ -105,6 +107,29 @@ class CustomerPurchaseOrderLine extends Model
             array_map(static fn ($id): string => trim((string) $id), is_array($ids) ? $ids : []),
             static fn (string $id): bool => $id !== '',
         )));
+    }
+
+    /**
+     * Normalised parameter (analysis element) ids the line is priced for.
+     *
+     * @return list<string>
+     */
+    public function analysisElementIdList(): array
+    {
+        $ids = $this->analysis_element_ids ?? [];
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn ($id): string => trim((string) $id), is_array($ids) ? $ids : []),
+            static fn (string $id): bool => $id !== '',
+        )));
+    }
+
+    /**
+     * A per-test line covers one sample of each listed parameter; anything else covers whole analysis types.
+     */
+    public function isPerTest(): bool
+    {
+        return ! $this->is_package && $this->analysisElementIdList() !== [];
     }
 
     public function isExhausted(): bool

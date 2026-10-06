@@ -27,6 +27,8 @@ class AddPurchaseOrderLineRequest extends FormRequest
             "{$prefix}.sample_type_id" => ['nullable', 'uuid'],
             "{$prefix}.analysis_type_ids" => ['nullable', 'array'],
             "{$prefix}.analysis_type_ids.*" => ['uuid'],
+            "{$prefix}.analysis_element_ids" => ['nullable', 'array'],
+            "{$prefix}.analysis_element_ids.*" => ['uuid'],
             "{$prefix}.is_package" => ['nullable', 'boolean'],
             "{$prefix}.quotation_detail_id" => ['nullable', 'uuid', 'exists:quotation_details,id'],
         ];

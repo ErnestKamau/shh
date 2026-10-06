@@ -55,31 +55,18 @@
             @if($step === 1)
                 <div class="row">
                     <div class="col-lg-6">
-                        <div class="ls-field mb-3">
-                            <label class="ls-field__label" for="cpo-customer-search">Customer <span class="text-danger">*</span></label>
-                            @if($this->selectedCustomer)
-                                <div class="cpo-chip">
-                                    <i class="mdi mdi-domain"></i>
-                                    <strong>{{ $this->selectedCustomer->name }}</strong>
-                                    <button type="button" class="cpo-chip__clear" wire:click="clearCustomer" aria-label="Change customer">
-                                        <i class="mdi mdi-close"></i>
-                                    </button>
-                                </div>
-                            @else
-                                <div class="ls-field__control position-relative">
-                                    <input id="cpo-customer-search" type="text" class="ls-field__input" placeholder="Type at least 2 letters of the customer name…"
-                                        wire:model.live.debounce.300ms="customerSearch" autocomplete="off">
-                                    @if($this->customerOptions->isNotEmpty())
-                                        <div class="cpo-dropdown">
-                                            @foreach($this->customerOptions as $customer)
-                                                <button type="button" class="cpo-dropdown__item" wire:click="selectCustomer('{{ $customer->id }}')">
-                                                    {{ $customer->name }}
-                                                </button>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            @endif
+                        <div class="mb-3" wire:key="cpo-customer-select">
+                            @include('layouts.lab.partials.ls-ui.select2.ls-select2-single-columns', [
+                                'label' => 'Customer',
+                                'id' => 'cpo-customer',
+                                'name' => 'form.customer_id',
+                                'required' => true,
+                                'placeholder' => 'Select a CRM customer…',
+                                'options' => $this->customerOptions,
+                                'selected' => $form['customer_id'],
+                                'wireMethod' => 'selectCustomer',
+                                'wireClearMethod' => 'clearCustomer',
+                            ])
                             @error('form.customer_id') <div class="cpo-error">{{ $message }}</div> @enderror
                         </div>
 

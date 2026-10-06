@@ -133,11 +133,18 @@ class BackfillPurchaseOrderLedgerCommand extends Command
                 'unit_price_gross' => $draft['unit_price_gross'],
                 'sample_type_id' => $draft['sample_type_id'],
                 'analysis_type_ids' => $draft['analysis_type_ids'],
+                'analysis_element_ids' => $draft['analysis_element_ids'],
                 'is_package' => $draft['is_package'],
                 'quotation_detail_id' => $draft['quotation_detail_id'],
             ]);
 
-            $demand[] = new PurchaseOrderDemandItem((string) $line->id, $draft['sample_type_id'], $draft['analysis_type_ids'], $draft['ordered_qty']);
+            $demand[] = new PurchaseOrderDemandItem(
+                (string) $line->id,
+                $draft['sample_type_id'],
+                $draft['analysis_type_ids'],
+                $draft['ordered_qty'],
+                $line->isPerTest() ? $draft['analysis_element_ids'] : [],
+            );
         }
 
         if ($enquiry === null) {

@@ -75,8 +75,6 @@ class CustomerPurchaseOrderCreate extends Component
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
     public $file = null;
 
-    public string $customerSearch = '';
-
     public function mount(?string $customerId = null): void
     {
         Gate::authorize(CustomerPurchaseOrder::PERMISSION_CREATE);
@@ -99,7 +97,6 @@ class CustomerPurchaseOrderCreate extends Component
         }
 
         $this->form['customer_id'] = (string) $customer->id;
-        $this->customerSearch = (string) $customer->name;
         $this->form['quotation_header_id'] = '';
         $this->lines = [];
         $this->resetErrorBag('form.customer_id');
@@ -109,7 +106,6 @@ class CustomerPurchaseOrderCreate extends Component
     {
         $this->form['customer_id'] = '';
         $this->form['quotation_header_id'] = '';
-        $this->customerSearch = '';
         $this->lines = [];
     }
 
@@ -144,6 +140,7 @@ class CustomerPurchaseOrderCreate extends Component
             'sample_type_id' => null,
             'sample_type_name' => null,
             'analysis_type_ids' => [],
+            'analysis_element_ids' => [],
             'is_package' => false,
             'ordered_qty' => 1,
             'unit_price_gross' => 0,
@@ -212,20 +209,22 @@ class CustomerPurchaseOrderCreate extends Component
     }
 
     /**
-     * @return Collection<int, CRMCustomer>
+     * Active CRM customers for the customer dropdown.
+     *
+     * @return list<array{value: string, label: string}>
      */
-    public function getCustomerOptionsProperty(): Collection
+    public function getCustomerOptionsProperty(): array
     {
-        $term = trim($this->customerSearch);
-        if ($this->form['customer_id'] !== '' || mb_strlen($term) < 2) {
-            return new Collection;
-        }
-
         return CRMCustomer::query()
-            ->where('name', 'ilike', '%'.$term.'%')
+            ->where('active', 1)
             ->orderBy('name')
-            ->limit(15)
-            ->get(['id', 'name']);
+            ->get(['id', 'name'])
+            ->map(static fn (CRMCustomer $customer): array => [
+                'value' => (string) $customer->id,
+                'label' => (string) $customer->name,
+            ])
+            ->values()
+            ->all();
     }
 
     public function getSelectedCustomerProperty(): ?CRMCustomer
@@ -365,6 +364,7 @@ class CustomerPurchaseOrderCreate extends Component
         $data['lines'] = array_map(static function (array $line): array {
             $line['notify_remaining_qty'] = ($line['notify_remaining_qty'] ?? '') === '' ? null : $line['notify_remaining_qty'];
             $line['analysis_type_ids'] = array_values((array) ($line['analysis_type_ids'] ?? []));
+            $line['analysis_element_ids'] = array_values((array) ($line['analysis_element_ids'] ?? []));
 
             return $line;
         }, $this->lines);
@@ -384,6 +384,7 @@ class CustomerPurchaseOrderCreate extends Component
             'unit_price_gross' => (float) $line['unit_price_gross'],
             'sample_type_id' => $line['sample_type_id'] ?? null,
             'analysis_type_ids' => array_values((array) ($line['analysis_type_ids'] ?? [])),
+            'analysis_element_ids' => array_values((array) ($line['analysis_element_ids'] ?? [])),
             'is_package' => (bool) ($line['is_package'] ?? false),
             'quotation_detail_id' => $line['quotation_detail_id'] ?? null,
             'notify_remaining_qty' => ($line['notify_remaining_qty'] ?? '') === '' ? null : (int) $line['notify_remaining_qty'],

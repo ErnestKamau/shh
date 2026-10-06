@@ -164,6 +164,7 @@ class CustomerPurchaseOrderShow extends Component
         $line = $this->lineForm;
         $line['notify_remaining_qty'] = ($line['notify_remaining_qty'] ?? '') === '' ? null : $line['notify_remaining_qty'];
         $line['analysis_type_ids'] = array_values((array) ($line['analysis_type_ids'] ?? []));
+        $line['analysis_element_ids'] = array_values((array) ($line['analysis_element_ids'] ?? []));
 
         $data = $this->validateWithFormRequest(
             AddPurchaseOrderLineRequest::class,
@@ -535,6 +536,7 @@ class CustomerPurchaseOrderShow extends Component
             'sample_type_id' => null,
             'sample_type_name' => null,
             'analysis_type_ids' => [],
+            'analysis_element_ids' => [],
             'is_package' => false,
             'ordered_qty' => 1,
             'unit_price_gross' => 0,

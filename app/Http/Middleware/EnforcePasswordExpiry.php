@@ -40,6 +40,7 @@ class EnforcePasswordExpiry
             'verify-totp',
             'verify-totp-store',
             'public.test-report.show',
+            'public.test-report.pdf',
             'public.collection-qr.show',
         );
     }

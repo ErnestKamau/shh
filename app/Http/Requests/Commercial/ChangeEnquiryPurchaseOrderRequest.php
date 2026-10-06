@@ -49,7 +49,7 @@ class ChangeEnquiryPurchaseOrderRequest extends FormRequest
     {
         return [
             'mode.required' => 'Choose how this request is covered.',
-            'customer_purchase_order_id.required_if' => 'Select the blanket PO.',
+            'customer_purchase_order_id.required_if' => 'Select the purchase order.',
             'customer_purchase_order_id.exists' => 'The selected PO no longer exists.',
             'client_po_number.required_if' => 'Enter the customer\'s PO number.',
             'file.mimes' => 'The PO document must be a PDF, JPEG or PNG.',

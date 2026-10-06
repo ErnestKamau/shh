@@ -2046,7 +2046,7 @@ class RequestViewPagePresenter
             if ($this->commercialEnquiry !== null
                 && \App\Services\Commercial\EnquiryPurchaseOrderService::enabled()
                 && app(\App\Services\Commercial\EnquiryPurchaseOrderService::class)->canUseBlanketShortcut($this->commercialEnquiry)) {
-                $secondary[] = $this->action('use_blanket_po', 'Use blanket PO', 'mdi-file-certificate-outline', 'wire', 'openBlanketPoModal');
+                $secondary[] = $this->action('use_blanket_po', 'Use purchase order', 'mdi-file-certificate-outline', 'wire', 'openBlanketPoModal');
             }
         } elseif ($stage === self::STAGE_QUOTATION_ACCEPTED) {
             $primary = $this->action('record_po', 'Record PO', 'mdi-file-document-edit-outline', 'wire', 'openPoCaptureModal');

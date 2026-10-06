@@ -571,7 +571,7 @@ class RequestViewPage extends Component
 
         if ($this->commercialEnquiry === null
             || ! app(EnquiryPurchaseOrderService::class)->canUseBlanketShortcut($this->commercialEnquiry)) {
-            session()->flash('request_view_message', 'This request cannot use a blanket PO. The customer needs an active blanket PO and the request must not have a quotation sent yet.');
+            session()->flash('request_view_message', 'This request cannot use a purchase order. The customer needs an active purchase order and the request must not have a quotation sent yet.');
 
             return;
         }

@@ -57,6 +57,10 @@ Route::get('/r/{token}', [\App\Http\Controllers\Lab\Reports\PublicTestReportCont
     ->where('token', '[A-Za-z0-9]{8,32}')
     ->middleware('throttle:60,1')
     ->name('public.test-report.show');
+Route::get('/r/{token}/pdf', [\App\Http\Controllers\Lab\Reports\PublicTestReportController::class, 'pdf'])
+    ->where('token', '[A-Za-z0-9]{8,32}')
+    ->middleware('throttle:60,1')
+    ->name('public.test-report.pdf');
 
 // Public (no login) scan target for container QR stickers printed before sample collection.
 Route::get('/s/{token}', [\App\Http\Controllers\Lab\Reports\PublicCollectionQrController::class, 'show'])

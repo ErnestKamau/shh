@@ -2,6 +2,7 @@
 
 namespace App\Services\Commercial;
 
+use App\CapturedResult;
 use App\DTOs\Commercial\JobCoverageOutcome;
 use App\DTOs\Commercial\PurchaseOrderAllocationResult;
 use App\DTOs\Commercial\PurchaseOrderDemandItem;
@@ -27,8 +28,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Checks a job's samples against its PO. A sample is covered only when every analysis it needs
- * has PO balance; for customers who need PO cover, uncovered samples are split onto an
+ * Checks a job's samples against its PO. A sample is covered only when every analysis (or, on
+ * per-test lines, every parameter) it needs has PO balance; for customers who need PO cover, uncovered samples are split onto an
  * Awaiting PO job that stays out of the lab until a PO is applied (or it is cancelled).
  */
 final class JobPurchaseOrderCoverageService
@@ -43,6 +44,7 @@ final class JobPurchaseOrderCoverageService
         private readonly SampleHeaderSplitService $splitter,
         private readonly SplitJobReportGroupService $reportGroups,
         private readonly BatchWorkflowStageSyncService $stageSync,
+        private readonly PurchaseOrderDemandBuilder $demandBuilder,
     ) {}
 
     /**
@@ -60,7 +62,7 @@ final class JobPurchaseOrderCoverageService
             ? CustomerPurchaseOrder::query()->find((string) $enquiry->customer_purchase_order_id)
             : null;
 
-        [$keysByDetail, $demand] = $this->sampleDemand($header);
+        [$keysByDetail, $demand] = $this->sampleDemand($header, $po);
         $sampleCount = count($keysByDetail);
 
         if ($po === null) {
@@ -110,7 +112,7 @@ final class JobPurchaseOrderCoverageService
         }
 
         return DB::transaction(function () use ($held, $po, $userId): JobCoverageOutcome {
-            [$keysByDetail, $demand] = $this->sampleDemand($held);
+            [$keysByDetail, $demand] = $this->sampleDemand($held, $po);
 
             $result = $this->allocation->commit($po, $demand, (string) $held->id, null, now(), $userId);
             [$coveredIds, $uncoveredIds, $leftover] = $this->assignCover($keysByDetail, $result);
@@ -194,7 +196,7 @@ final class JobPurchaseOrderCoverageService
      */
     public function previewApply(SampleHeader $held, CustomerPurchaseOrder $po): array
     {
-        [$keysByDetail, $demand] = $this->sampleDemand($held);
+        [$keysByDetail, $demand] = $this->sampleDemand($held, $po);
         [$coveredIds, $uncoveredIds] = $this->assignCover($keysByDetail, $this->allocation->preview($po, $demand));
 
         return ['covered' => count($coveredIds), 'held' => count($uncoveredIds)];
@@ -349,11 +351,12 @@ final class JobPurchaseOrderCoverageService
     }
 
     /**
-     * One demand unit per sample per analysis type, keyed like enquiry demand (sample type | analysis type).
+     * One demand unit per sample per analysis type, keyed like enquiry demand (sample type | analysis type),
+     * split per parameter where the PO prices that parameter per test.
      *
      * @return array{0: array<string, list<string>>, 1: list<PurchaseOrderDemandItem>} sample id => demand keys (in sample code order), demand
      */
-    private function sampleDemand(SampleHeader $header): array
+    private function sampleDemand(SampleHeader $header, ?CustomerPurchaseOrder $po = null): array
     {
         $details = SampleDetails::query()
             ->where('sample_header_id', $header->id)
@@ -365,6 +368,9 @@ final class JobPurchaseOrderCoverageService
             ->get(['sample_detail_id', 'analysis_type_id'])
             ->groupBy(fn ($relation): string => (string) $relation->sample_detail_id)
             ->map(fn ($relations): array => $relations->pluck('analysis_type_id')->map(fn ($id): string => trim((string) $id))->filter()->unique()->values()->all());
+
+        $lines = $po?->lines()->get()->all();
+        $elementsByDetailAndType = $lines !== null ? $this->requestedElementsBySample($header) : [];
 
         $keysByDetail = [];
         $totals = [];
@@ -379,10 +385,13 @@ final class JobPurchaseOrderCoverageService
 
             $keys = [];
             foreach ($analysisTypeIds !== [] ? $analysisTypeIds : [null] as $analysisTypeId) {
-                $key = PurchaseOrderDemandBuilder::keyFor($sampleTypeId, $analysisTypeId);
-                $totals[$key] ??= ['sample_type_id' => $sampleTypeId, 'analysis_type_id' => $analysisTypeId, 'quantity' => 0];
-                $totals[$key]['quantity']++;
-                $keys[$key] = $key;
+                $elementIds = $elementsByDetailAndType[(string) $detail->id][(string) $analysisTypeId] ?? [];
+
+                foreach ($this->demandBuilder->unitsFor($sampleTypeId, $analysisTypeId, $elementIds, $lines) as $unit) {
+                    $totals[$unit['key']] ??= $unit + ['quantity' => 0];
+                    $totals[$unit['key']]['quantity']++;
+                    $keys[$unit['key']] = $unit['key'];
+                }
             }
 
             $keysByDetail[(string) $detail->id] = array_values($keys);
@@ -395,10 +404,36 @@ final class JobPurchaseOrderCoverageService
                 $total['sample_type_id'],
                 $total['analysis_type_id'] !== null ? [$total['analysis_type_id']] : [],
                 $total['quantity'],
+                $total['element_ids'],
             );
         }
 
         return [$keysByDetail, $demand];
+    }
+
+    /**
+     * Parameters set up on each sample of the job, from its result rows.
+     *
+     * @return array<string, array<string, list<string>>> sample id => analysis type id => element ids
+     */
+    private function requestedElementsBySample(SampleHeader $header): array
+    {
+        $elements = [];
+
+        CapturedResult::query()
+            ->where('sample_header_id', $header->id)
+            ->whereNotNull('analysis_element_id')
+            ->distinct()
+            ->get(['sample_detail_id', 'analysis_type_id', 'analysis_element_id'])
+            ->each(function (CapturedResult $row) use (&$elements): void {
+                $elementId = (string) $row->analysis_element_id;
+                $elements[(string) $row->sample_detail_id][(string) $row->analysis_type_id][$elementId] = $elementId;
+            });
+
+        return array_map(
+            static fn (array $byType): array => array_map(static fn (array $ids): array => array_values($ids), $byType),
+            $elements,
+        );
     }
 
     /**

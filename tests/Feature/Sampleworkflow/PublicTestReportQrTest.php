@@ -14,7 +14,7 @@ class PublicTestReportQrTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_can_open_stored_sample_report_pdf_by_token(): void
+    public function test_guest_scanning_qr_gets_in_browser_viewer_page(): void
     {
         Storage::fake('public');
         Storage::disk('public')->put('reports/customer/samples/TRR_sample.pdf', '%PDF-1.4 sample');
@@ -26,13 +26,57 @@ class PublicTestReportQrTest extends TestCase
         $response = $this->get(route('public.test-report.show', ['token' => $document->token]));
 
         $response->assertOk();
-        $response->assertHeader('Content-Type', 'application/pdf');
-        $this->assertStringContainsString('inline;', (string) $response->headers->get('Content-Disposition'));
-        $this->assertStringContainsString('260909054-001-R15.pdf', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('text/html', (string) $response->headers->get('Content-Type'));
+        $response->assertSee('260909054-001-R15');
+        $response->assertSee(route('public.test-report.pdf', ['token' => $document->token]), false);
+        $response->assertSee('pdf.min.js', false);
 
         $document->refresh();
         $this->assertSame(1, $document->view_count);
         $this->assertNotNull($document->last_viewed_at);
+    }
+
+    public function test_guest_can_stream_stored_sample_report_pdf_inline(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('reports/customer/samples/TRR_sample.pdf', '%PDF-1.4 sample');
+
+        $document = TestReportDocument::factory()->withFile()->create([
+            'report_number' => '260909054-001-R15',
+        ]);
+
+        $response = $this->get(route('public.test-report.pdf', ['token' => $document->token]));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringContainsString('inline;', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('260909054-001-R15.pdf', (string) $response->headers->get('Content-Disposition'));
+        $this->assertSame(0, $document->refresh()->view_count);
+    }
+
+    public function test_download_parameter_returns_pdf_as_attachment(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('reports/customer/samples/TRR_sample.pdf', '%PDF-1.4 sample');
+
+        $document = TestReportDocument::factory()->withFile()->create();
+
+        $response = $this->get(route('public.test-report.pdf', ['token' => $document->token, 'download' => 1]));
+
+        $response->assertOk();
+        $this->assertStringContainsString('attachment;', (string) $response->headers->get('Content-Disposition'));
+    }
+
+    public function test_pdf_route_does_not_serve_drafts(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('reports/customer/samples/TRR_sample.pdf', '%PDF-1.4 draft');
+
+        $document = TestReportDocument::factory()->withFile()->draft()->create();
+
+        $this->get(route('public.test-report.pdf', ['token' => $document->token]))
+            ->assertNotFound()
+            ->assertSee('Report not found');
     }
 
     public function test_unknown_token_shows_not_found_page(): void

@@ -3096,8 +3096,8 @@
 																			<button type="button"
 																				class="btn btn-sm rm-act-btn rm-act-btn--view"
 																				wire:click="openBlanketPoModal('{{ $blanketCandidate->id }}')"
-																				title="Use blanket PO (skip quotation)"
-																				aria-label="Use blanket PO">
+																				title="Use purchase order (skip quotation)"
+																				aria-label="Use purchase order">
 																				<i class="mdi mdi-file-certificate-outline"></i>
 																			</button>
 																		@endif
@@ -8226,7 +8226,7 @@
 				<div class="modal-content">
 					<div class="modal-header">
 						<h5 class="modal-title">
-							{{ $poCaptureBlanketOnly ? 'Use blanket PO' : ($quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance') }}
+							{{ $poCaptureBlanketOnly ? 'Use purchase order' : ($quotationAcceptancePoOnly ? 'Record PO' : 'Customer quotation acceptance') }}
 						</h5>
 						<button type="button" class="close" wire:click="closeQuotationAcceptanceModal"><span>&times;</span></button>
 					</div>

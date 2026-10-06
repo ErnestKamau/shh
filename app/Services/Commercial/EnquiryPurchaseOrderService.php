@@ -2,6 +2,7 @@
 
 namespace App\Services\Commercial;
 
+use App\AnalysisElements;
 use App\AnalysisType;
 use App\DTOs\Commercial\PurchaseOrderAllocationLine;
 use App\DTOs\Commercial\PurchaseOrderAllocationResult;
@@ -318,7 +319,7 @@ final class EnquiryPurchaseOrderService
     {
         if (! in_array((string) $enquiry->status, self::BLANKET_SHORTCUT_STATUSES, true)) {
             throw ValidationException::withMessages([
-                'customer_purchase_order_id' => 'A blanket PO can only replace the quotation step before a quotation has been sent.',
+                'customer_purchase_order_id' => 'A purchase order can only replace the quotation step before a quotation has been sent.',
             ]);
         }
 
@@ -344,7 +345,7 @@ final class EnquiryPurchaseOrderService
         }
 
         try {
-            $demand = $this->demandBuilder->fromEnquiry($enquiry);
+            $demand = $this->demandBuilder->fromEnquiry($enquiry, $po->lines()->get());
 
             if ($demand === []) {
                 $this->allocation->releaseReservation($po, (string) $enquiry->id, 'No samples requested', $userId);
@@ -465,7 +466,7 @@ final class EnquiryPurchaseOrderService
      */
     public function previewFor(SampleSubmissionRequest $enquiry, ?CustomerPurchaseOrder $po): array
     {
-        $demand = $this->demandBuilder->fromEnquiry($enquiry);
+        $demand = $this->demandBuilder->fromEnquiry($enquiry, $po?->lines()->get());
         $labels = $this->demandLabels($demand);
         $result = $po !== null ? $this->allocation->preview($po, $demand, (string) $enquiry->id) : null;
 
@@ -569,7 +570,7 @@ final class EnquiryPurchaseOrderService
         $po = $purchaseOrderId !== null ? CustomerPurchaseOrder::query()->find($purchaseOrderId) : null;
 
         $error = match (true) {
-            $po === null => 'Select a blanket PO.',
+            $po === null => 'Select a purchase order.',
             (string) $po->customer_id !== (string) $enquiry->crm_customer_id => 'The selected PO belongs to another customer.',
             ! $po->isBlanket() => 'The selected PO is not a blanket PO.',
             ! $po->acceptsDrawsOn(now()) => 'The selected PO is '.strtolower($po->effectiveStatus()->label()).' and cannot cover new samples.',
@@ -606,14 +607,21 @@ final class EnquiryPurchaseOrderService
         $sampleTypeIds = array_values(array_unique(array_filter(array_map(fn ($item): ?string => $item->sampleTypeId, $demand))));
         $analysisTypeIds = array_values(array_unique(array_merge([], ...array_map(fn ($item): array => $item->analysisTypeIds, $demand))));
 
+        $elementIds = array_values(array_unique(array_merge([], ...array_map(fn ($item): array => $item->analysisElementIds, $demand))));
+
         $sampleTypes = $sampleTypeIds !== [] ? SampleType::query()->whereIn('id', $sampleTypeIds)->pluck('name', 'id') : collect();
         $analysisTypes = $analysisTypeIds !== [] ? AnalysisType::query()->whereIn('id', $analysisTypeIds)->pluck('name', 'id') : collect();
+        $elements = $elementIds !== []
+            ? AnalysisElements::query()->with('analyte:id,name')->whereIn('id', $elementIds)->get(['id', 'analyte_id', 'report_display_name'])
+                ->mapWithKeys(fn (AnalysisElements $element): array => [(string) $element->id => $element->analyte?->name ?: $element->report_display_name])
+            : collect();
 
         $labels = [];
         foreach ($demand as $item) {
             $parts = array_filter([
                 $item->sampleTypeId !== null ? ($sampleTypes[$item->sampleTypeId] ?? null) : null,
                 implode(', ', array_filter(array_map(fn (string $id): ?string => $analysisTypes[$id] ?? null, $item->analysisTypeIds))),
+                implode(', ', array_filter(array_map(fn (string $id): ?string => $elements[$id] ?? null, $item->analysisElementIds))),
             ]);
 
             $labels[$item->key] = $parts !== [] ? implode(' — ', $parts) : 'Samples';

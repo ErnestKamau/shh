@@ -57,6 +57,7 @@ class TwoFactorVerification
             $request->routeIs('verify-totp-store') ||
             $request->routeIs('password.*') ||
             $request->routeIs('public.test-report.show') ||
+            $request->routeIs('public.test-report.pdf') ||
             $request->routeIs('public.collection-qr.show')
         ) {
             return true;

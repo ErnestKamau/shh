@@ -131,16 +131,69 @@ class PurchaseOrderLineMatcherTest extends TestCase
         $this->assertNull($this->matcher->match([], $this->demand($this->water, [$this->packageA])));
     }
 
+    public function test_a_per_test_demand_matches_the_line_for_that_parameter(): void
+    {
+        $moisture = (string) Str::uuid();
+        $ash = (string) Str::uuid();
+        $moistureLine = $this->line(1, $this->water, [$this->packageA], elementIds: [$moisture]);
+        $ashLine = $this->line(2, $this->water, [$this->packageA], elementIds: [$ash]);
+
+        $this->assertSame($moistureLine, $this->matcher->match([$moistureLine, $ashLine], $this->demand($this->water, [$this->packageA], [$moisture])));
+        $this->assertSame($ashLine, $this->matcher->match([$moistureLine, $ashLine], $this->demand($this->water, [$this->packageA], [$ash])));
+    }
+
+    public function test_a_per_test_demand_does_not_match_a_line_for_another_parameter(): void
+    {
+        $line = $this->line(1, $this->water, [$this->packageA], elementIds: [(string) Str::uuid()]);
+
+        $this->assertNull($this->matcher->match([$line], $this->demand($this->water, [$this->packageA], [(string) Str::uuid()])));
+    }
+
+    public function test_a_per_test_demand_does_not_match_a_line_priced_per_analysis_type(): void
+    {
+        $analysisTypeLine = $this->line(1, $this->water, [$this->packageA]);
+
+        $this->assertNull($this->matcher->match([$analysisTypeLine], $this->demand($this->water, [$this->packageA], [(string) Str::uuid()])));
+    }
+
+    public function test_an_analysis_type_demand_does_not_match_a_per_test_line(): void
+    {
+        $perTestLine = $this->line(1, $this->water, [$this->packageA], elementIds: [(string) Str::uuid()]);
+        $analysisTypeLine = $this->line(2, $this->water, [$this->packageA]);
+
+        $this->assertNull($this->matcher->match([$perTestLine], $this->demand($this->water, [$this->packageA])));
+        $this->assertSame($analysisTypeLine, $this->matcher->match([$perTestLine, $analysisTypeLine], $this->demand($this->water, [$this->packageA])));
+    }
+
+    public function test_a_package_line_with_parameters_is_not_treated_as_per_test(): void
+    {
+        $package = $this->line(1, $this->water, [$this->packageA], elementIds: [(string) Str::uuid()], isPackage: true);
+
+        $this->assertFalse($package->isPerTest());
+        $this->assertSame($package, $this->matcher->match([$package], $this->demand($this->water, [$this->packageA])));
+    }
+
+    public function test_a_per_test_line_for_another_sample_type_does_not_match(): void
+    {
+        $cronobacter = (string) Str::uuid();
+        $swabLine = $this->line(1, $this->swab, [$this->packageA], elementIds: [$cronobacter]);
+
+        $this->assertNull($this->matcher->match([$swabLine], $this->demand($this->water, [$this->packageA], [$cronobacter])));
+    }
+
     /**
      * @param  list<string>  $analysisTypeIds
+     * @param  list<string>  $elementIds
      */
-    private function line(int $lineNo, ?string $sampleTypeId, array $analysisTypeIds, int $remaining = 10): CustomerPurchaseOrderLine
+    private function line(int $lineNo, ?string $sampleTypeId, array $analysisTypeIds, int $remaining = 10, array $elementIds = [], bool $isPackage = false): CustomerPurchaseOrderLine
     {
         return (new CustomerPurchaseOrderLine)->forceFill([
             'id' => (string) Str::uuid(),
             'line_no' => $lineNo,
             'sample_type_id' => $sampleTypeId,
             'analysis_type_ids' => $analysisTypeIds,
+            'analysis_element_ids' => $elementIds !== [] ? $elementIds : null,
+            'is_package' => $isPackage,
             'ordered_qty' => 10,
             'remaining_qty' => $remaining,
         ]);
@@ -148,9 +201,10 @@ class PurchaseOrderLineMatcherTest extends TestCase
 
     /**
      * @param  list<string>  $analysisTypeIds
+     * @param  list<string>  $elementIds
      */
-    private function demand(string $sampleTypeId, array $analysisTypeIds): PurchaseOrderDemandItem
+    private function demand(string $sampleTypeId, array $analysisTypeIds, array $elementIds = []): PurchaseOrderDemandItem
     {
-        return new PurchaseOrderDemandItem('demand', $sampleTypeId, $analysisTypeIds, 1);
+        return new PurchaseOrderDemandItem('demand', $sampleTypeId, $analysisTypeIds, 1, $elementIds);
     }
 }

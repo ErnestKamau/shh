@@ -10,6 +10,9 @@ use App\Models\Commercial\CustomerPurchaseOrderLine;
  * (sample type + package / analysis types) rather than quotation detail ids,
  * so quotation revisions do not orphan PO lines.
  *
+ * Per-test lines (priced per parameter) only cover per-test demand for one of their parameters, and
+ * per-test demand is only covered by such lines. Package and analysis-type lines cover the rest.
+ *
  * Preference order:
  *  1. analysis set equal to the demand's, then the smallest superset, then lines with no analysis set (any analysis);
  *  2. a line for the same sample type before a line with no sample type;
@@ -52,6 +55,14 @@ final class PurchaseOrderLineMatcher
         $demandSampleType = trim((string) ($demand->sampleTypeId ?? ''));
 
         if ($lineSampleType !== '' && $demandSampleType !== '' && $lineSampleType !== $demandSampleType) {
+            return null;
+        }
+
+        if ($line->isPerTest() !== $demand->isPerTest()) {
+            return null;
+        }
+
+        if ($demand->isPerTest() && array_diff($demand->analysisElementIds, $line->analysisElementIdList()) !== []) {
             return null;
         }
 
