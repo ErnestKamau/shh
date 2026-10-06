@@ -27,13 +27,13 @@
             @if($this->canCreate)
                 <div class="cpo-burgundy-header__actions">
                     <a href="{{ $createUrl }}" class="cpo-header-btn cpo-header-btn--light">
-                        <i class="mdi mdi-plus"></i> New blanket PO
+                        <i class="mdi mdi-plus"></i> New BPA
                     </a>
                 </div>
             @endif
         </div>
         <p class="cpo-burgundy-header__subtitle">
-            Blanket POs cover many enquiries until their quantity runs out or they expire. Single POs are recorded per enquiry.
+            Blanket Purchase Agreements (BPA) cover many enquiries until their quantity runs out or they expire. One-off POs are recorded per enquiry.
         </p>
         <div class="cpo-burgundy-header__pills">
             <button type="button" class="cpo-stat-pill cpo-stat-pill--ok border-0" wire:click="$set('statusFilter', 'active')">{{ $summary['active'] }} active</button>
@@ -205,7 +205,7 @@
                             @else
                                 <a href="{{ $showUrl }}" class="ls-table__stack-primary">{{ $po->po_number ?: '—' }}</a>
                                 <div class="ls-table__stack-secondary">
-                                    {{ $po->po_type?->label() ?? 'Single enquiry' }}
+                                    {{ $po->isBlanket() ? 'Blanket Purchase Agreement (BPA)' : 'One-off PO' }}
                                     @if($po->hasFile()) · <i class="mdi mdi-paperclip" title="{{ $po->file_name }}"></i> @endif
                                 </div>
                             @endif
@@ -274,8 +274,8 @@
                                     <p class="text-muted mb-3">Clear the filters to see more records.</p>
                                     <button type="button" class="ls-btn ls-btn--secondary-fill" wire:click="clearFilters">Clear filters</button>
                                 @elseif($this->canCreate)
-                                    <p class="text-muted mb-3">Record the customer's blanket PO to cover future enquiries.</p>
-                                    <a href="{{ $createUrl }}" class="ls-btn ls-btn--primary">New blanket PO</a>
+                                    <p class="text-muted mb-3">Record the customer's Blanket Purchase Agreement (BPA) to cover future enquiries.</p>
+                                    <a href="{{ $createUrl }}" class="ls-btn ls-btn--primary">New BPA</a>
                                 @endif
                             </div>
                         </td>

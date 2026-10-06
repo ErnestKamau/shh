@@ -22,12 +22,12 @@
                 </a>
                 <h2 class="cpo-burgundy-header__title">
                     <i class="mdi mdi-file-document-plus-outline"></i>
-                    New blanket purchase order
+                    New Blanket Purchase Agreement (BPA)
                 </h2>
             </div>
         </div>
         <p class="cpo-burgundy-header__subtitle">
-            A blanket PO covers many enquiries for one customer until its quantity runs out or it expires.
+            A Blanket Purchase Agreement (BPA) covers many enquiries for one customer until its quantity runs out or it expires.
             Lines are pre-filled from the source quotation; prices are VAT inclusive.
         </p>
     </div>
@@ -82,7 +82,7 @@
                                     This number is already recorded for this customer:
                                     @foreach($this->matchingPoNumbers as $match)
                                         <a href="{{ route('billing.customer-purchase-orders.show', $match->id) }}" target="_blank">
-                                            {{ $match->po_type?->label() ?? 'PO' }} · {{ $match->effectiveStatus()->label() }}
+                                            {{ $match->isBlanket() ? 'Blanket Purchase Agreement (BPA)' : 'One-off PO' }} · {{ $match->effectiveStatus()->label() }}
                                         </a>@if(! $loop->last), @endif
                                     @endforeach
                                 </div>

@@ -44,7 +44,7 @@
                         </h2>
                         <span class="cpo-status cpo-status--{{ $statusKey }}">{{ $po->statusLabel() }}</span>
                         @if(! $po->po_skipped)
-                            <span class="cpo-burgundy-header__badge">{{ $po->po_type?->label() ?? 'Single enquiry' }}</span>
+                            <span class="cpo-burgundy-header__badge">{{ $po->isBlanket() ? 'Blanket Purchase Agreement (BPA)' : 'One-off PO' }}</span>
                         @endif
                         @if($po->fileExists())
                             <span class="cpo-stat-pill cpo-stat-pill--file">
