@@ -1,4 +1,4 @@
-<div class="container-fluid pricelist-show-page lab-surface-theme ls-admin-page ls-ui-kit {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal || $showImportModal) ? 'modal-active' : '' }}" data-ls-type="plex">
+<div class="container-fluid pricelist-show-page lab-surface-theme ls-admin-page ls-ui-kit {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal || $showBulkDeleteConfirmModal || $showDeleteSampleTypeConfirmModal || $showDeletePackageParameterConfirmModal || $showImportModal) ? 'modal-active' : '' }}" data-ls-type="plex">
     @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
     @include('layouts.lab.invoice.partials.quotation-show-styles')
     @if($message)
@@ -524,6 +524,9 @@
                                     <button type="button" class="btn btn-outline-info action-btn" wire:click="showCloneModal">
                                         <i class="mdi mdi-content-copy"></i> Clone Selected
                                     </button>
+                                    <button type="button" class="btn btn-outline-danger action-btn" wire:click="openBulkDeleteConfirmModal" @disabled(count($selectedItemIds) === 0)>
+                                        <i class="mdi mdi-delete-sweep"></i> Delete Selected
+                                    </button>
                                     <button type="button" class="btn btn-outline-secondary action-btn" wire:click="openImportModal">
                                         <i class="mdi mdi-file-upload-outline"></i> Import
                                     </button>
@@ -601,9 +604,19 @@
                                                             <div class="sample-group-code">{{ $sampleGroup->sample_type_code }}</div>
                                                         @endif
                                                     </div>
-                                                    <div class="analysis-collapse-total">
-                                                        <span>Total Amount</span>
-                                                        <strong>{{ number_format((float) ($sampleGroup->total_amount ?? 0), 2) }}</strong>
+                                                    <div class="d-flex align-items-center" style="gap: 12px;">
+                                                        @if(filled($sampleGroup->sample_type_id))
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-outline-danger"
+                                                                    wire:click="openDeleteSampleTypeConfirmModal(@js((string) $sampleGroup->sample_type_id))"
+                                                                    title="Delete all items for this sample type">
+                                                                <i class="mdi mdi-delete-outline"></i> Delete sample type
+                                                            </button>
+                                                        @endif
+                                                        <div class="analysis-collapse-total">
+                                                            <span>Total Amount</span>
+                                                            <strong>{{ number_format((float) ($sampleGroup->total_amount ?? 0), 2) }}</strong>
+                                                        </div>
                                                     </div>
                                                 </header>
 
@@ -728,13 +741,26 @@
                                                                                             @if($packageParameters !== [])
                                                                                                 <ul class="pricelist-package-params__list">
                                                                                                     @foreach($packageParameters as $parameter)
-                                                                                                        <li>
-                                                                                                            <span class="pricelist-package-params__code">{{ ($parameter['code'] ?? '') !== '' ? $parameter['code'] : ($parameter['name'] ?? 'Parameter') }}</span>
-                                                                                                            @if(! empty($parameter['method_label']))
-                                                                                                                <span class="pricelist-method-pill ml-1">{{ $parameter['method_label'] }}</span>
-                                                                                                            @endif
-                                                                                                            @if(isset($parameter['tat']) && $parameter['tat'] !== null)
-                                                                                                                <span class="text-muted small ml-1">{{ $parameter['tat'] }}d</span>
+                                                                                                        @php
+                                                                                                            $parameterLabel = ($parameter['code'] ?? '') !== ''
+                                                                                                                ? (string) $parameter['code']
+                                                                                                                : (string) ($parameter['name'] ?? 'Parameter');
+                                                                                                            $parameterElementId = (string) ($parameter['pricelist_item_element_id'] ?? '');
+                                                                                                        @endphp
+                                                                                                        <li class="pricelist-package-params__item">
+                                                                                                            <div class="pricelist-package-params__body">
+                                                                                                                <span class="pricelist-package-params__code">{{ $parameterLabel }}</span>
+                                                                                                                @if(! empty($parameter['method_label']))
+                                                                                                                    <span class="pricelist-method-pill">{{ $parameter['method_label'] }}</span>
+                                                                                                                @endif
+                                                                                                            </div>
+                                                                                                            @if($parameterElementId !== '')
+                                                                                                                <button type="button"
+                                                                                                                        class="btn btn-sm pricelist-package-params__delete"
+                                                                                                                        wire:click="openDeletePackageParameterConfirmModal(@js($packageItemId), @js($parameterElementId), @js($parameterLabel))"
+                                                                                                                        title="Remove parameter from this package">
+                                                                                                                    <i class="mdi mdi-delete-outline"></i>
+                                                                                                                </button>
                                                                                                             @endif
                                                                                                         </li>
                                                                                                     @endforeach
@@ -1007,6 +1033,100 @@
             @include('livewire.billing.partials.delete-pricelist-item-confirm-modal', [
                 'preview' => $pendingDeleteItemPreview,
             ])
+        @endif
+
+        @if($showBulkDeleteConfirmModal)
+            <div class="modal fade show d-block eq-delete-overlay" tabindex="-1" aria-modal="true" role="dialog">
+                <div class="modal-dialog modal-dialog-centered eq-delete-dialog">
+                    <div class="modal-content eq-delete-shell border-0">
+                        <div class="modal-body eq-delete-body">
+                            <button type="button" class="btn-close eq-delete-close" wire:click="closeBulkDeleteConfirmModal" aria-label="Close"></button>
+                            <div class="eq-delete-frame">
+                                <div class="eq-delete-intro">
+                                    <span class="eq-delete-intro__icon" aria-hidden="true"><i class="mdi mdi-delete-sweep"></i></span>
+                                    <div class="eq-delete-intro__copy">
+                                        <p class="eq-delete-intro__eyebrow">Bulk delete</p>
+                                        <p class="eq-delete-intro__lead">
+                                            Permanently remove {{ count($selectedItemIds) }} selected pricelist item{{ count($selectedItemIds) === 1 ? '' : 's' }}?
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="eq-delete-warning">
+                                    <i class="mdi mdi-alert-outline eq-delete-warning__icon"></i>
+                                    <p class="eq-delete-warning__text mb-0">This cannot be undone.</p>
+                                </div>
+                                <div class="eq-delete-footer">
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--cancel" wire:click="closeBulkDeleteConfirmModal">Cancel</button>
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--confirm" wire:click="confirmBulkDeleteItems">Delete selected</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if($showDeleteSampleTypeConfirmModal)
+            <div class="modal fade show d-block eq-delete-overlay" tabindex="-1" aria-modal="true" role="dialog">
+                <div class="modal-dialog modal-dialog-centered eq-delete-dialog">
+                    <div class="modal-content eq-delete-shell border-0">
+                        <div class="modal-body eq-delete-body">
+                            <button type="button" class="btn-close eq-delete-close" wire:click="closeDeleteSampleTypeConfirmModal" aria-label="Close"></button>
+                            <div class="eq-delete-frame">
+                                <div class="eq-delete-intro">
+                                    <span class="eq-delete-intro__icon" aria-hidden="true"><i class="mdi mdi-delete-outline"></i></span>
+                                    <div class="eq-delete-intro__copy">
+                                        <p class="eq-delete-intro__eyebrow">Delete sample type</p>
+                                        <p class="eq-delete-intro__lead">
+                                            Remove all {{ $pendingDeleteSampleTypeItemCount }} item{{ $pendingDeleteSampleTypeItemCount === 1 ? '' : 's' }} for
+                                            <strong>{{ $pendingDeleteSampleTypeName }}</strong> from this pricelist?
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="eq-delete-warning">
+                                    <i class="mdi mdi-alert-outline eq-delete-warning__icon"></i>
+                                    <p class="eq-delete-warning__text mb-0">This removes items from the pricelist only (not the master sample type).</p>
+                                </div>
+                                <div class="eq-delete-footer">
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--cancel" wire:click="closeDeleteSampleTypeConfirmModal">Cancel</button>
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--confirm" wire:click="confirmDeleteSampleType">Delete sample type items</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if($showDeletePackageParameterConfirmModal)
+            <div class="modal fade show d-block eq-delete-overlay" tabindex="-1" aria-modal="true" role="dialog">
+                <div class="modal-dialog modal-dialog-centered eq-delete-dialog">
+                    <div class="modal-content eq-delete-shell border-0">
+                        <div class="modal-body eq-delete-body">
+                            <button type="button" class="btn-close eq-delete-close" wire:click="closeDeletePackageParameterConfirmModal" aria-label="Close"></button>
+                            <div class="eq-delete-frame">
+                                <div class="eq-delete-intro">
+                                    <span class="eq-delete-intro__icon" aria-hidden="true"><i class="mdi mdi-delete-outline"></i></span>
+                                    <div class="eq-delete-intro__copy">
+                                        <p class="eq-delete-intro__eyebrow">Remove package parameter</p>
+                                        <p class="eq-delete-intro__lead">
+                                            Remove <strong>{{ $pendingDeletePackageParameterLabel }}</strong> from this package?
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="eq-delete-warning">
+                                    <i class="mdi mdi-alert-outline eq-delete-warning__icon"></i>
+                                    <p class="eq-delete-warning__text mb-0">This only unlinks the test from this pricelist package. The analyte itself is not deleted.</p>
+                                </div>
+                                <div class="eq-delete-footer">
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--cancel" wire:click="closeDeletePackageParameterConfirmModal">Cancel</button>
+                                    <button type="button" class="eq-delete-btn eq-delete-btn--confirm" wire:click="confirmDeletePackageParameter">Remove parameter</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         @endif
     @endif
 
@@ -2467,14 +2587,24 @@
             gap: 0.4rem 0.85rem;
         }
 
-        .pricelist-package-params__list li {
+        .pricelist-package-params__list li,
+        .pricelist-package-params__item {
             display: flex;
-            flex-direction: column;
-            gap: 1px;
-            padding: 0.4rem 0.55rem;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.45rem;
+            padding: 0.4rem 0.45rem 0.4rem 0.55rem;
             border-radius: 8px;
             background: #f8fafc;
             border: 1px solid #eef2f7;
+        }
+
+        .pricelist-package-params__body {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
         }
 
         .pricelist-package-params__code {
@@ -2482,6 +2612,31 @@
             font-weight: 400;
             color: #1e293b;
             word-break: break-all;
+        }
+
+        .pricelist-package-params__delete {
+            flex-shrink: 0;
+            width: 1.7rem;
+            height: 1.7rem;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(185, 28, 28, 0.18);
+            border-radius: 6px;
+            background: #fff;
+            color: #b91c1c;
+            line-height: 1;
+        }
+
+        .pricelist-package-params__delete:hover {
+            background: #fef2f2;
+            border-color: rgba(185, 28, 28, 0.35);
+            color: #991b1b;
+        }
+
+        .pricelist-package-params__delete .mdi {
+            font-size: 0.95rem;
         }
 
         .pricelist-filter-empty {

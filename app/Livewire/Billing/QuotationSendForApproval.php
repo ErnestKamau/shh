@@ -40,6 +40,12 @@ class QuotationSendForApproval extends Component
     #[On('billing-quotation-open-send-for-approval')]
     public function openModal(): void
     {
+        if (app(QuotationApprovalService::class)->skipsApproval()) {
+            $this->confirm();
+
+            return;
+        }
+
         $this->refreshApproverOptions();
 
         if ($this->approverOptions === []) {
@@ -65,47 +71,62 @@ class QuotationSendForApproval extends Component
     public function confirm(): void
     {
         try {
-            if (! $this->notifyEmail && ! $this->notifyInApp) {
-                throw ValidationException::withMessages([
-                    'approvalNotify' => 'Choose at least one notification channel (email or in-app).',
-                ]);
-            }
-
             $header = QuotationHeader::query()->find($this->quotationHeaderId);
             if ($header === null) {
                 throw new RuntimeException('Quotation not found.');
             }
 
-            $approverId = $this->approverOptions[0]['id'] ?? null;
-            if ($approverId === null) {
-                throw new RuntimeException('No approvers configured.');
+            $approvalService = app(QuotationApprovalService::class);
+            $skippedApproval = $approvalService->skipsApproval();
+
+            if ($skippedApproval) {
+                $approvalService->completeWithoutApproval($header);
+            } else {
+                if (! $this->notifyEmail && ! $this->notifyInApp) {
+                    throw ValidationException::withMessages([
+                        'approvalNotify' => 'Choose at least one notification channel (email or in-app).',
+                    ]);
+                }
+
+                $approverId = $this->approverOptions[0]['id'] ?? null;
+                if ($approverId === null) {
+                    throw new RuntimeException('No approvers configured.');
+                }
+
+                $this->notifyInApp = true;
+
+                $approvalService->submitBillingForApproval(
+                    $header,
+                    (string) $approverId,
+                    $this->notifyEmail,
+                    null,
+                    $this->notifyInApp,
+                );
             }
 
-            $this->notifyInApp = true;
-
-            app(QuotationApprovalService::class)->submitBillingForApproval(
-                $header,
-                (string) $approverId,
-                $this->notifyEmail,
-                null,
-                $this->notifyInApp,
-            );
-
             $this->showModal = false;
-            $this->imaraToast(
-                'success',
-                'Sent for approval',
-                'Quotation '.$this->quoteNumber.' was sent for approval.',
-            );
+            if ($skippedApproval) {
+                $this->imaraToast(
+                    'success',
+                    'Quotation complete',
+                    'Quotation '.$this->quoteNumber.' is complete and ready to send.',
+                );
+            } else {
+                $this->imaraToast(
+                    'success',
+                    'Sent for approval',
+                    'Quotation '.$this->quoteNumber.' was sent for approval.',
+                );
+            }
 
             $this->dispatch('lab-notifications-updated');
 
             $this->redirect(route('add-qoute-details-view', ['id' => $this->quotationHeaderId]), navigate: false);
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?? $exception->getMessage();
-            $this->imaraToast('error', 'Could not send for approval', (string) $message);
+            $this->imaraToast('error', 'Could not complete quotation', (string) $message);
         } catch (Throwable $exception) {
-            $this->imaraToast('error', 'Could not send for approval', $exception->getMessage());
+            $this->imaraToast('error', 'Could not complete quotation', $exception->getMessage());
         }
     }
 

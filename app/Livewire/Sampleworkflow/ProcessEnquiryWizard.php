@@ -20,6 +20,7 @@ use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -1327,6 +1328,12 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
+        if (app(QuotationApprovalService::class)->skipsApproval()) {
+            $this->submitQuotationForApproval();
+
+            return;
+        }
+
         $this->refreshLabManagerOptions();
         if ($this->labManagerOptions === []) {
             $this->setStatus('error', 'No active quotation approvers are available. Configure the approval role in Billing → Approval settings.');
@@ -1374,14 +1381,18 @@ class ProcessEnquiryWizard extends Component
 
             $approvalService = app(QuotationApprovalService::class);
 
-            $this->refreshLabManagerOptions();
-            $approverId = $this->labManagerOptions[0]['id'] ?? null;
-            if ($approverId === null) {
-                throw new \RuntimeException('No active quotation approvers are available. Configure the approval role in Billing → Approval settings.');
-            }
+            if (! $approvalService->skipsApproval()) {
+                $this->refreshLabManagerOptions();
+                $approverId = $this->labManagerOptions[0]['id'] ?? null;
+                if ($approverId === null) {
+                    throw new \RuntimeException('No active quotation approvers are available. Configure the approval role in Billing → Approval settings.');
+                }
 
-            if (! $this->approvalNotifyEmail && ! $this->approvalNotifyInApp) {
-                throw new \RuntimeException('Choose at least one notification channel (email or in-app).');
+                if (! $this->approvalNotifyEmail && ! $this->approvalNotifyInApp) {
+                    throw new \RuntimeException('Choose at least one notification channel (email or in-app).');
+                }
+            } else {
+                $approverId = (string) (Auth::id() ?? '');
             }
 
             $this->normalizeQuotationLineQuantities();
@@ -1418,8 +1429,11 @@ class ProcessEnquiryWizard extends Component
             $this->showApprovalModal = false;
             $this->approvalModalIsReassign = false;
 
-            $flashMessage = 'Quotation '.$this->quoteNumber.' sent for approval. Approvers have been notified.';
-            $this->imaraToast('success', 'Sent for approval', $flashMessage);
+            $flashMessage = $approvalService->skipsApproval()
+                ? 'Quotation '.$this->quoteNumber.' is complete and ready to send.'
+                : 'Quotation '.$this->quoteNumber.' sent for approval. Approvers have been notified.';
+            $toastTitle = $approvalService->skipsApproval() ? 'Quotation complete' : 'Sent for approval';
+            $this->imaraToast('success', $toastTitle, $flashMessage);
             $this->setStatus('success', $flashMessage, true);
             $this->dispatch('process-enquiry-completed');
             $this->dispatch('lab-notifications-updated');

@@ -38,7 +38,7 @@
     @endif
     
     <div class="p-3 p-md-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3 tablet-intake-header">
         <div>
           <h2 class="h4 mb-2">
             <i class="mdi mdi-file-document"></i> {{ $submissionForm->name }}
@@ -55,7 +55,7 @@
             </span>
           </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2 tablet-intake-actions">
           @if($instance->isDraft())
             <a href="{{ route('submission-forms.instances.fill-sample', [$submissionForm, $instance]) }}" 
                class="btn btn-primary mr-2 btn-sm">

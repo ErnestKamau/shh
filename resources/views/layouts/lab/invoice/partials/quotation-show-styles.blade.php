@@ -621,12 +621,37 @@
 	@media (max-width: 991.98px) {
 		.quotation-show-page .ls-quotation-rail {
 			position: static;
+			width: 100%;
+		}
+
+		.quotation-show-page .ls-quotation-workspace {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.quotation-show-page .ls-quotation-header-card .d-flex,
+		.quotation-show-page .quotation-lines-toolbar {
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.quotation-show-page .ls-quotation-rail__footer .btn {
+			min-height: var(--touch-min, 44px);
+		}
+
+		.quotation-show-page .table-responsive {
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
 		}
 	}
 
 	@media (max-width: 767.98px) {
 		.quotation-show-page .ls-form-grid--3 {
 			grid-template-columns: 1fr;
+		}
+
+		.quotation-show-page .ls-quotation-meta-chip {
+			min-height: var(--touch-min, 44px);
 		}
 	}
 

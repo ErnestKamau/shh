@@ -2602,4 +2602,22 @@
 			grid-template-columns: 1fr;
 		}
 	}
+
+	@media (max-width: 991.98px) {
+		.ls-ui-kit .ls-field__control,
+		.ls-ui-kit .ls-combo__search-wrap input {
+			min-height: var(--touch-min, 44px);
+			font-size: var(--touch-input-font, 16px);
+		}
+
+		.ls-ui-kit .ls-combo__item,
+		.ls-ui-kit .ls-field__icon-btn {
+			min-height: var(--touch-min, 44px);
+			min-width: var(--touch-min, 44px);
+		}
+
+		.ls-ui-kit .ls-combo__menu {
+			max-height: min(50vh, 280px);
+		}
+	}
 </style>

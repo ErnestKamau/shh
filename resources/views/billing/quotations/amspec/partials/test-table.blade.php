@@ -135,7 +135,18 @@
                             array_map('strval', (array) ($row['package_parameters'] ?? []))
                         ));
                         $rowTat = $row['tat'] ?? null;
-                        $isPackageMember = ! empty($row['is_package_member']) && ! $showCommercial;
+                        $packageRowspan = max(0, (int) ($row['package_rowspan'] ?? 0));
+                        // DomPDF often drops every rowspan column after the first, so PDF keeps a
+                        // full cell grid (values only on the commercial lead row). Screen can rowspan.
+                        $useBrazilPackageRowspan = ! $isPdf
+                            && $isBrazilQuotation
+                            && $packageRowspan > 1
+                            && $showCommercial;
+                        $skipBrazilPackageCommercial = ! $isPdf
+                            && $isBrazilQuotation
+                            && ! $showCommercial
+                            && ! empty($row['is_package_member'])
+                            && (int) ($row['package_rowspan'] ?? -1) === 0;
                     @endphp
                     <tr class="amspec-test-row" @if($isPackageHeader) style="background-color: #f8fafc;" @endif>
                         <td class="text-center amspec-num-cell">{{ $serialNo }}</td>
@@ -152,30 +163,24 @@
                         @if($showMuColumn)
                             <td class="text-center amspec-num-cell">{{ $row['mu_percent'] ?? '' }}</td>
                         @endif
-                        @if($showTatColumn)
-                            <td class="text-center amspec-num-cell">
+                        @if($showTatColumn && ! $skipBrazilPackageCommercial)
+                            <td class="text-center amspec-num-cell" @if($useBrazilPackageRowspan) rowspan="{{ $packageRowspan }}" style="vertical-align: middle;" @endif>
                                 @if($showCommercial && $rowTat !== null && (int) $rowTat > 0)
                                     {{ (int) $rowTat }}
-                                @elseif($isBrazilQuotation && $isPackageMember)
-                                    —
                                 @endif
                             </td>
                         @endif
-                        @if($showQuantityColumn)
-                            <td class="text-center amspec-num-cell">
+                        @if($showQuantityColumn && ! $skipBrazilPackageCommercial)
+                            <td class="text-center amspec-num-cell" @if($useBrazilPackageRowspan) rowspan="{{ $packageRowspan }}" style="vertical-align: middle;" @endif>
                                 @if($showCommercial)
                                     {{ max(1, (int) ($row['quantity'] ?? 1)) }}
-                                @elseif($isBrazilQuotation && $isPackageMember)
-                                    —
                                 @endif
                             </td>
                         @endif
-                        @if($showUnitPriceColumn)
-                            <td class="text-right amspec-price-cell">
+                        @if($showUnitPriceColumn && ! $skipBrazilPackageCommercial)
+                            <td class="text-right amspec-price-cell" @if($useBrazilPackageRowspan) rowspan="{{ $packageRowspan }}" style="vertical-align: middle;" @endif>
                                 @if($showCommercial)
                                     {{ number_format((float) ($row['unit_price'] ?? 0), 2) }}
-                                @elseif($isBrazilQuotation && $isPackageMember)
-                                    —
                                 @endif
                             </td>
                         @endif

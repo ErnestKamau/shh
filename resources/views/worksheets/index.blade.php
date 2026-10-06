@@ -6,6 +6,7 @@
   @include('layouts.lab.partials.lab-panel-theme-styles')
   @include('layouts.lab.partials.lab-surface-theme-styles')
   @include('worksheets.partials.method-sequences-jquery-styles')
+  @include('worksheets.partials.responsive-styles')
   <style>
 		.worksheets-page {
 			max-width: var(--ls-max-width, 1280px);

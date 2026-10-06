@@ -5,11 +5,11 @@
         --quotation-category-bg: #E0E0E0;
         --amspec-text: #000000;
         --amspec-muted: #333333;
-        /* AmSpec Quotation Format-1.pdf: Calibri body, Lucida Bright titles, Arial table headers, Aptos Narrow footer */
-        --amspec-font-body: Calibri, Carlito, 'Segoe UI', sans-serif;
-        --amspec-font-heading: 'Lucida Bright', 'Lucida Fax', 'Lucida Sans', Georgia, serif;
-        --amspec-font-table: Arial, Helvetica, sans-serif;
-        --amspec-font-footer: 'Aptos Narrow', 'Roboto Condensed', Calibri, Arial, sans-serif;
+        /* Consistent quotation fonts (screen). DomPDF uses DejaVu Sans. */
+        --amspec-font-body: Calibri, Carlito, 'Segoe UI', Arial, sans-serif;
+        --amspec-font-heading: Calibri, Carlito, 'Segoe UI', Arial, sans-serif;
+        --amspec-font-table: Calibri, Carlito, Arial, Helvetica, sans-serif;
+        --amspec-font-footer: Calibri, Carlito, 'Roboto Condensed', Arial, sans-serif;
     }
 
     @if(!($forPdf ?? false))

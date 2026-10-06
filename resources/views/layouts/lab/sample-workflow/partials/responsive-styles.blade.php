@@ -277,5 +277,61 @@
 		.receive-sample-modal-body .walk-in-trf-rows-grid {
 			min-width: 960px;
 		}
+
+		/* PR1 — Workflow board: stack filters / KPI strip / stage tabs */
+		.workflow-board-page .workflow-stat-strip {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.5rem;
+		}
+
+		.workflow-board-page .workflow-stat-strip__item {
+			min-width: 0;
+		}
+
+		.workflow-board-page .workflow-filters-primary-row {
+			display: flex;
+			flex-direction: column;
+			align-items: stretch !important;
+			gap: 0.65rem;
+		}
+
+		.workflow-board-page .workflow-filters-primary-row > [class*="col-"] {
+			max-width: 100%;
+			flex: 0 0 100%;
+			padding-left: 0;
+			padding-right: 0;
+		}
+
+		.workflow-board-page .workflow-receiving-tabs {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+			scrollbar-width: thin;
+			padding-bottom: 0.15rem;
+		}
+
+		.workflow-board-page .workflow-receiving-tab {
+			flex: 0 0 auto;
+			min-height: var(--touch-min, 44px);
+		}
+
+		.workflow-board-page .workflow-panel-selection-actions {
+			width: 100%;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.4rem;
+		}
+
+		.workflow-board-page .workflow-panel-selection-actions .btn {
+			flex: 1 1 auto;
+			min-height: var(--touch-min, 44px);
+		}
+	}
+
+	@media (max-width: 767.98px) {
+		.workflow-board-page .workflow-stat-strip {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

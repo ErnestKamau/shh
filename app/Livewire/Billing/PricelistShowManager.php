@@ -132,6 +132,24 @@ class PricelistShowManager extends Component
     /** @var array<string, mixed>|null */
     public ?array $pendingDeleteItemPreview = null;
 
+    public bool $showBulkDeleteConfirmModal = false;
+
+    public bool $showDeleteSampleTypeConfirmModal = false;
+
+    public ?string $pendingDeleteSampleTypeId = null;
+
+    public string $pendingDeleteSampleTypeName = '';
+
+    public int $pendingDeleteSampleTypeItemCount = 0;
+
+    public bool $showDeletePackageParameterConfirmModal = false;
+
+    public ?string $pendingDeletePackageItemId = null;
+
+    public ?string $pendingDeletePackageParameterElementId = null;
+
+    public string $pendingDeletePackageParameterLabel = '';
+
     public function mount(string $pricelistId, $print = null): void
     {
         $this->pricelistId = $pricelistId;
@@ -286,6 +304,7 @@ class PricelistShowManager extends Component
 
                             return [
                                 'id' => (string) ($packageElement->analysis_element_id ?? ''),
+                                'pricelist_item_element_id' => (string) ($packageElement->id ?? ''),
                                 'name' => (string) ($analyte?->name ?? 'Parameter'),
                                 'code' => (string) ($analyte?->code ?? ''),
                                 'method_label' => $methodLabel !== '' ? $methodLabel : null,
@@ -294,7 +313,7 @@ class PricelistShowManager extends Component
                                     : null,
                             ];
                         })
-                        ->filter(fn (array $row): bool => $row['id'] !== '')
+                        ->filter(fn (array $row): bool => $row['id'] !== '' && $row['pricelist_item_element_id'] !== '')
                         ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
                         ->values()
                         ->all();
@@ -1862,6 +1881,215 @@ class PricelistShowManager extends Component
             $this->showMessage('Failed to remove item: ' . $e->getMessage(), 'danger');
         } finally {
             $this->closeDeleteItemConfirmModal();
+        }
+    }
+
+    public function openBulkDeleteConfirmModal(): void
+    {
+        if (count($this->selectedItemIds) === 0) {
+            $this->showMessage('Select at least one item to delete.', 'danger');
+
+            return;
+        }
+
+        $this->showBulkDeleteConfirmModal = true;
+    }
+
+    public function closeBulkDeleteConfirmModal(): void
+    {
+        $this->showBulkDeleteConfirmModal = false;
+    }
+
+    public function confirmBulkDeleteItems(): void
+    {
+        $ids = array_values(array_filter(array_map('strval', $this->selectedItemIds)));
+        if ($ids === []) {
+            $this->showMessage('Select at least one item to delete.', 'danger');
+            $this->closeBulkDeleteConfirmModal();
+
+            return;
+        }
+
+        try {
+            $deleted = DB::transaction(function () use ($ids): int {
+                PricelistItemElement::query()
+                    ->whereIn('pricelist_item_id', $ids)
+                    ->delete();
+
+                return PricelistItem::query()
+                    ->where('pricelist_id', $this->pricelistId)
+                    ->whereIn('id', $ids)
+                    ->delete();
+            });
+
+            $this->selectedItemIds = [];
+            $this->showMessage($deleted.' pricelist item'.($deleted === 1 ? '' : 's').' removed.', 'success');
+        } catch (\Throwable $e) {
+            $this->showMessage('Failed to remove selected items: '.$e->getMessage(), 'danger');
+        } finally {
+            $this->closeBulkDeleteConfirmModal();
+        }
+    }
+
+    public function openDeleteSampleTypeConfirmModal(string $sampleTypeId): void
+    {
+        $sampleTypeId = trim($sampleTypeId);
+        if ($sampleTypeId === '') {
+            return;
+        }
+
+        $count = PricelistItem::query()
+            ->where('pricelist_id', $this->pricelistId)
+            ->where('sample_type_id', $sampleTypeId)
+            ->count();
+
+        if ($count === 0) {
+            $this->showMessage('No pricelist items found for this sample type.', 'danger');
+
+            return;
+        }
+
+        $sampleType = SampleType::query()->find($sampleTypeId);
+        $this->pendingDeleteSampleTypeId = $sampleTypeId;
+        $this->pendingDeleteSampleTypeName = (string) ($sampleType?->name ?? 'Sample type');
+        $this->pendingDeleteSampleTypeItemCount = $count;
+        $this->showDeleteSampleTypeConfirmModal = true;
+    }
+
+    public function closeDeleteSampleTypeConfirmModal(): void
+    {
+        $this->showDeleteSampleTypeConfirmModal = false;
+        $this->pendingDeleteSampleTypeId = null;
+        $this->pendingDeleteSampleTypeName = '';
+        $this->pendingDeleteSampleTypeItemCount = 0;
+    }
+
+    public function confirmDeleteSampleType(): void
+    {
+        if ($this->pendingDeleteSampleTypeId === null) {
+            return;
+        }
+
+        $sampleTypeId = $this->pendingDeleteSampleTypeId;
+
+        try {
+            $deleted = DB::transaction(function () use ($sampleTypeId): int {
+                $itemIds = PricelistItem::query()
+                    ->where('pricelist_id', $this->pricelistId)
+                    ->where('sample_type_id', $sampleTypeId)
+                    ->pluck('id')
+                    ->map(static fn ($id): string => (string) $id)
+                    ->all();
+
+                if ($itemIds === []) {
+                    return 0;
+                }
+
+                PricelistItemElement::query()
+                    ->whereIn('pricelist_item_id', $itemIds)
+                    ->delete();
+
+                return PricelistItem::query()
+                    ->where('pricelist_id', $this->pricelistId)
+                    ->whereIn('id', $itemIds)
+                    ->delete();
+            });
+
+            $this->selectedItemIds = [];
+            $this->showMessage(
+                'Removed '.$deleted.' item'.($deleted === 1 ? '' : 's').' for '.$this->pendingDeleteSampleTypeName.'.',
+                'success'
+            );
+        } catch (\Throwable $e) {
+            $this->showMessage('Failed to remove sample type items: '.$e->getMessage(), 'danger');
+        } finally {
+            $this->closeDeleteSampleTypeConfirmModal();
+        }
+    }
+
+    public function openDeletePackageParameterConfirmModal(string $packageItemId, string $pricelistItemElementId, string $label = ''): void
+    {
+        $packageItemId = trim($packageItemId);
+        $pricelistItemElementId = trim($pricelistItemElementId);
+
+        if ($packageItemId === '' || $pricelistItemElementId === '') {
+            return;
+        }
+
+        $belongsToPricelist = PricelistItem::query()
+            ->where('pricelist_id', $this->pricelistId)
+            ->where('id', $packageItemId)
+            ->where('is_package', true)
+            ->exists();
+
+        if (! $belongsToPricelist) {
+            $this->showMessage('Package item not found on this pricelist.', 'danger');
+
+            return;
+        }
+
+        $parameterExists = PricelistItemElement::query()
+            ->where('id', $pricelistItemElementId)
+            ->where('pricelist_item_id', $packageItemId)
+            ->exists();
+
+        if (! $parameterExists) {
+            $this->showMessage('Package parameter not found.', 'danger');
+
+            return;
+        }
+
+        $this->pendingDeletePackageItemId = $packageItemId;
+        $this->pendingDeletePackageParameterElementId = $pricelistItemElementId;
+        $this->pendingDeletePackageParameterLabel = trim($label) !== '' ? trim($label) : 'Parameter';
+        $this->showDeletePackageParameterConfirmModal = true;
+    }
+
+    public function closeDeletePackageParameterConfirmModal(): void
+    {
+        $this->showDeletePackageParameterConfirmModal = false;
+        $this->pendingDeletePackageItemId = null;
+        $this->pendingDeletePackageParameterElementId = null;
+        $this->pendingDeletePackageParameterLabel = '';
+    }
+
+    public function confirmDeletePackageParameter(): void
+    {
+        if ($this->pendingDeletePackageItemId === null || $this->pendingDeletePackageParameterElementId === null) {
+            return;
+        }
+
+        $packageItemId = $this->pendingDeletePackageItemId;
+        $elementId = $this->pendingDeletePackageParameterElementId;
+        $label = $this->pendingDeletePackageParameterLabel;
+
+        try {
+            $deleted = DB::transaction(function () use ($packageItemId, $elementId): int {
+                $packageExists = PricelistItem::query()
+                    ->where('pricelist_id', $this->pricelistId)
+                    ->where('id', $packageItemId)
+                    ->where('is_package', true)
+                    ->exists();
+
+                if (! $packageExists) {
+                    return 0;
+                }
+
+                return PricelistItemElement::query()
+                    ->where('id', $elementId)
+                    ->where('pricelist_item_id', $packageItemId)
+                    ->delete();
+            });
+
+            if ($deleted === 0) {
+                $this->showMessage('Package parameter not found.', 'danger');
+            } else {
+                $this->showMessage('Removed '.$label.' from this package.', 'success');
+            }
+        } catch (\Throwable $e) {
+            $this->showMessage('Failed to remove package parameter: '.$e->getMessage(), 'danger');
+        } finally {
+            $this->closeDeletePackageParameterConfirmModal();
         }
     }
 

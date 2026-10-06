@@ -271,6 +271,33 @@
 		line-height: 1.25;
 		font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
 	}
+
+	@media (max-width: 767.98px) {
+		.lab-msw-dialog {
+			width: calc(100vw - 1rem);
+			max-height: calc(100vh - 1rem);
+			margin: 0.5rem;
+			border-radius: 14px;
+		}
+
+		.lab-msw-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.55rem;
+			padding: 0.85rem;
+			overflow-y: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.lab-msw-card {
+			min-height: var(--touch-min, 44px);
+			padding: 0.85rem 0.45rem;
+		}
+
+		.lab-msw-close {
+			width: var(--touch-min, 44px);
+			height: var(--touch-min, 44px);
+		}
+	}
 </style>
 
 <script>

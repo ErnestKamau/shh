@@ -73,7 +73,8 @@ class CustomerContactPrefillService
     }
 
     /**
-     * Customer-only TRF prefill (walk-in): name and address — no contact or communication fields.
+     * Customer-level TRF prefill (walk-in): name, address, and customer communication defaults.
+     * Contact person is selected separately (optionally auto-picked by the form) so unit filtering stays correct.
      *
      * @return array<string, string>
      */
@@ -81,6 +82,9 @@ class CustomerContactPrefillService
     {
         $address = (string) ($customer->physical_address ?? $customer->postal_address ?? '');
         $canonicalName = trim((string) ($customer->name ?? ''));
+        $telFax = (string) ($customer->telephone1 ?? $customer->telephone2 ?? '');
+        $mobile = (string) ($customer->telephone2 ?? $customer->telephone1 ?? '');
+        $email = (string) ($customer->email ?? '');
 
         return [
             'customer_name' => $canonicalName,
@@ -91,6 +95,16 @@ class CustomerContactPrefillService
             'address' => $address,
             'physical_address' => (string) ($customer->physical_address ?? ''),
             'postal_address' => (string) ($customer->postal_address ?? ''),
+            'customer_phone' => $telFax,
+            'mobile_number' => $mobile,
+            'customer_email' => $email,
+            'phone' => $telFax,
+            'telephone' => $telFax,
+            'phone_number' => $telFax,
+            'telephone_number' => $telFax,
+            'tel_fax_no' => $telFax,
+            'email' => $email,
+            'email_address' => $email,
         ];
     }
 

@@ -116,10 +116,17 @@
                                     <span class="dropdown-item text-danger" style="cursor: pointer;" data-target="#delete-quotation" data-toggle="modal"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
                                     @if(sizeof($details)>0)
                                     <div class="dropdown-divider"></div>
+                                    @if($skipsQuotationApproval ?? false)
+                                    <span class="dropdown-item text-dark" style="cursor: pointer;"
+                                          onclick="window.Livewire && window.Livewire.dispatch('billing-quotation-open-send-for-approval')">
+                                        <i class="mdi mdi-check-circle-outline"></i> Mark as Complete
+                                    </span>
+                                    @else
                                     <span class="dropdown-item text-dark" style="cursor: pointer;"
                                           onclick="window.Livewire && window.Livewire.dispatch('billing-quotation-open-send-for-approval')">
                                         <i class="mdi mdi-share-circle"></i> Request For Approval
                                     </span>
+                                    @endif
                                     @endif
                                     @endif
                                     @if($header->status == 'Quote In Approval' && sizeof($details)>0 && (int) $header->is_approved !== 1 && ($canApproveQuotation ?? false))

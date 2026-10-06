@@ -97,8 +97,11 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="card-title mb-0">Analysis Types</h5>
+                    <small class="text-muted">
+                        Use the <i class="mdi mdi-content-copy"></i> action on a row to copy that analysis type to other sample types.
+                    </small>
                 </div>
                 <div class="card-body">
                     @if($this->analysisTypes->count() > 0)
@@ -132,6 +135,13 @@
                                                             class="rm-act-btn rm-act-btn--edit" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button type="button"
+                                                            wire:click="openCopyToSampleTypesModal(@js($analysisType->id))"
+                                                            class="rm-act-btn rm-act-btn--clone"
+                                                            title="Copy this analysis type to other sample types">
+                                                        <i class="mdi mdi-content-copy"></i>
+                                                        <span class="sr-only">Copy to other sample types</span>
                                                     </button>
                                                     <button wire:click="deleteAnalysisType('{{ $analysisType->id }}')" 
                                                             class="rm-act-btn rm-act-btn--delete" 
@@ -232,6 +242,85 @@
             </div>
         </div>
     </div>
+
+    @if($showCopyToSampleTypesModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-export-variant text-primary"></i>
+                            Copy Analysis Type to Sample Types
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeCopyToSampleTypesModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">
+                            Copy <strong>{{ $copySourceAnalysisTypeLabel }}</strong> and its parameters onto other sample types.
+                            Existing analysis types with the same code on a target are skipped.
+                        </p>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Target sample types <span class="text-danger">*</span></label>
+                            <div class="tag-select-container"
+                                 wire:click="$set('showCopySampleTypeDropdown', true)"
+                                 wire:click.outside="$set('showCopySampleTypeDropdown', false)">
+                                <div class="tag-select-input">
+                                    @foreach($this->selectedCopyTargetSampleTypes as $sampleType)
+                                        <span class="tag-badge" wire:key="copy-target-{{ $sampleType->id }}">
+                                            {{ $sampleType->name }}
+                                            <i class="mdi mdi-close-circle"
+                                               wire:click.stop="removeCopyTargetSampleType(@js($sampleType->id))"></i>
+                                        </span>
+                                    @endforeach
+                                    <input type="text"
+                                           wire:model.live.debounce.200ms="copySampleTypeSearch"
+                                           class="tag-input"
+                                           placeholder="{{ count($this->selectedCopyTargetSampleTypes) > 0 ? '' : 'Search sample types...' }}"
+                                           autocomplete="off">
+                                </div>
+                                @if($showCopySampleTypeDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredCopyTargetSampleTypes as $sampleType)
+                                            <div class="tag-dropdown-item"
+                                                 wire:key="copy-option-{{ $sampleType->id }}"
+                                                 wire:click.stop="addCopyTargetSampleType(@js($sampleType->id))">
+                                                {{ $sampleType->name }}
+                                                @if($sampleType->code)
+                                                    <small class="text-muted ms-1">({{ $sampleType->code }})</small>
+                                                @endif
+                                            </div>
+                                        @empty
+                                            <div class="tag-dropdown-item text-muted">No matching sample types</div>
+                                        @endforelse
+                                    </div>
+                                @endif
+                            </div>
+                            @error('copyTargetSampleTypeIds')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                            @error('copyTargetSampleTypeIds.*')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" wire:click="closeCopyToSampleTypesModal">Cancel</button>
+                        <button type="button"
+                                class="btn btn-primary"
+                                wire:click="copyAnalysisTypeToSampleTypes"
+                                wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="copyAnalysisTypeToSampleTypes">
+                                <i class="mdi mdi-content-copy me-1"></i> Copy
+                            </span>
+                            <span wire:loading wire:target="copyAnalysisTypeToSampleTypes">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span> Copying...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Analysis Type Modal -->
     @if($showAnalysisTypeModal)
@@ -828,6 +917,18 @@
     .analysis-add-btn {
         border-radius: 8px;
         padding: 0.48rem 1rem;
+    }
+
+    .rm-act-btn--clone {
+        border-color: #c4b5fd;
+        color: #6d28d9;
+        background: #f5f3ff;
+    }
+
+    .rm-act-btn--clone:hover {
+        background: #ede9fe;
+        border-color: #a78bfa;
+        color: #5b21b6;
     }
     
     /* Modern Select Styling */

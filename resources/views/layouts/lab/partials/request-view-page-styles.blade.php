@@ -259,19 +259,24 @@
 		text-align: center;
 	}
 
+	.request-view-page .rv-quote-bell {
+		position: relative;
+	}
+
+	/* Placed under the approve control; JS clamps left to #main-container-body
+	   so the panel stays in the page and never covers the sidebar. */
 	.request-view-page .rv-quote-bell__menu {
-		position: absolute;
-		top: 100%;
-		right: 0;
-		margin-top: 0.35rem;
+		position: fixed;
 		min-width: 17rem;
-		max-width: 22rem;
+		max-width: min(22rem, calc(100vw - 1rem));
+		max-height: min(70vh, 520px);
+		overflow-y: auto;
 		padding: 0.5rem 0;
 		background: #fff;
 		border: 1px solid #dbe5f0;
 		border-radius: 10px;
-		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
-		z-index: 1060;
+		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+		z-index: 1055;
 	}
 
 	.request-view-page .rv-quote-bell__item {
@@ -672,6 +677,20 @@
 		margin-top: 0.65rem;
 	}
 
+	.request-view-page .rv-rail-mobile-toggle {
+		display: none;
+	}
+
+	.request-view-page .rv-rail-head-contact {
+		margin: 0.35rem 0 0;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: #475569;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+
 	@media (max-width: 991.98px) {
 		.request-view-page .rv-console {
 			grid-template-columns: 1fr;
@@ -682,6 +701,73 @@
 			max-height: none;
 			overflow: visible;
 		}
+
+		.request-view-page .rv-rail-mobile-toggle {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			width: 100%;
+			min-height: var(--touch-min, 44px);
+			margin: 0.35rem 0 0;
+			padding: 0.55rem 0.75rem;
+			border: 1px solid #e2e8f0;
+			border-radius: 8px;
+			background: #f8fafc;
+			color: #334155;
+			font-size: 0.8125rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.request-view-page .rv-rail-mobile-toggle + .rv-rail-collapsible {
+			display: none;
+		}
+
+		.request-view-page .rv-rail-mobile-toggle + .rv-rail-collapsible.is-open {
+			display: block;
+			margin-top: 0.65rem;
+		}
+
+		.request-view-page .batch-tabs-panel .batch-nav-tabs {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+			scrollbar-width: thin;
+			position: sticky;
+			top: 0;
+			z-index: 5;
+			background: #fff;
+		}
+
+		.request-view-page .batch-tabs-panel .batch-nav-tabs .nav-link {
+			white-space: nowrap;
+			min-height: var(--touch-min, 44px);
+			flex: 0 0 auto;
+		}
+
+		.request-view-page .rv-tests-table-wrap,
+		.request-view-page .ls-table-wrap {
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+			max-width: 100%;
+		}
+
+		.request-view-page .rv-tests-table .btn,
+		.request-view-page .rv-tests-table .rm-act-btn,
+		.request-view-page .rv-tests-table button {
+			min-width: var(--touch-min, 44px);
+			min-height: var(--touch-min, 44px);
+		}
+
+		.request-view-page .rv-rail-doc-link {
+			min-height: var(--touch-min, 44px);
+		}
+	}
+
+	@media (min-width: 992px) {
+		.request-view-page .rv-rail-collapsible {
+			display: block !important;
+		}
 	}
 
 	/* Header pill — Slice 1 authorized snapshot (dark burgundy × blue + stars) */
@@ -690,6 +776,9 @@
 		--rv-blue-accent: var(--lab-chrome-blue-accent, #8ac0ff);
 		--rv-blue-soft: var(--lab-chrome-blue-soft, #eff6ff);
 		margin-bottom: 1rem;
+		/* Above fixed sidebar (z-index 1000) so approve / Actions menus are not covered */
+		position: relative;
+		z-index: 1100;
 	}
 
 	/* Scenario G — current request burgundy×blue pill + white identity; Acc/Sub CTAs + green approve from F */
@@ -710,7 +799,7 @@
 		) !important;
 		border: 1px solid color-mix(in srgb, var(--rv-burgundy, #6d0a0e) 55%, #dbeafe) !important;
 		box-shadow: 0 2px 10px color-mix(in srgb, var(--rv-burgundy, #6d0a0e) 28%, transparent) !important;
-		z-index: 5;
+		z-index: 1;
 	}
 
 	/* Subtle white stars — bottom right of pill */

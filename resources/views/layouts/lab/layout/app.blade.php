@@ -117,6 +117,7 @@
 	}
 </style>
 @include('layouts.lab.sample-workflow.partials.responsive-styles')
+@include('layouts.billing.partials.responsive-styles')
 @yield('title2')
 @endsection
 

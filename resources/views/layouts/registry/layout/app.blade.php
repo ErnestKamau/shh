@@ -38,7 +38,7 @@
 @section('content')
 @php $currentRoute = request()->route()->getName(); @endphp
 <div class="row" id="body-row">
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block col-sm-4 col-md-3 col-lg-2">
 		<ul class="list-group sticky-top sticky-offset">
 			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-email-multiple fa-3x"></i><br>

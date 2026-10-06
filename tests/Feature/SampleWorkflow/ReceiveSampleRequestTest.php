@@ -4,6 +4,7 @@ namespace Tests\Feature\SampleWorkflow;
 
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
 use App\Livewire\Sampleworkflow\WorkflowBoard;
+use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\SampleSubmissionRequest;
@@ -393,6 +394,7 @@ class ReceiveSampleRequestTest extends TestCase
             ['customer_address', 'Address', 'textarea'],
             ['customer_phone', 'Tel / Fax no.', 'text'],
             ['customer_email', 'Email', 'text'],
+            ['company_unit_id', 'Company unit', 'client_unit_select'],
             ['contact_person', 'Contact person', 'client_contact_select'],
         ] as $index => [$name, $label, $type]) {
             SubmissionFormElement::query()->create([
@@ -415,15 +417,26 @@ class ReceiveSampleRequestTest extends TestCase
             'email' => 'nuvemiteprojects@gmail.com',
         ]);
 
-        CustomerContact::query()->create([
+        $companyId = (string) Str::uuid7();
+        $unit = CRMCompanyUnit::query()->create([
             'id' => (string) Str::uuid7(),
             'crm_customer_id' => $customer->id,
-            'company_id' => (string) Str::uuid7(),
+            'company_id' => $companyId,
+            'name' => 'Main Site',
+            'active' => 1,
+        ]);
+
+        $contact = CustomerContact::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $customer->id,
+            'crm_company_unit_id' => $unit->id,
+            'company_id' => $companyId,
             'first_name' => 'Alex',
             'last_name' => 'Contact',
             'email' => 'alex@example.test',
             'telephone' => '0700000000',
             'active' => 1,
+            'is_main_customer_contact' => true,
             'receive_price_list' => 0,
             'receive_invoice' => 0,
             'receive_report' => 0,
@@ -440,10 +453,113 @@ class ReceiveSampleRequestTest extends TestCase
             ->assertSet('selectedCrmCustomerId', $customer->id)
             ->assertSet('formData.customer_name', 'Nuvemite')
             ->assertSet('formData.customer_address', '2588')
-            ->assertSet('formData.customer_email', 'nuvemiteprojects@gmail.com')
+            ->assertSet('formData.company_unit_id', $unit->id)
+            ->assertSet('formData.contact_person', $contact->id)
+            ->assertSet('formData.customer_email', 'alex@example.test')
+            ->assertSet('formData.customer_phone', '0700000000')
+            ->assertCount('customerContacts', 1)
+            ->assertCount('customerCompanyUnits', 1)
             ->call('openWalkInAddContactModal')
             ->assertHasNoErrors(['formData.customer_name'])
             ->assertSet('showWalkInAddContactModal', true);
+    }
+
+    public function test_walk_in_customer_change_clears_stale_unit_and_reloads_contacts(): void
+    {
+        $sampleType = $this->createSampleType('Food', 'SMP-FOOD-SWITCH');
+        $portalForm = $this->createCommercialTrfForm();
+        $portalForm->sampleTypes()->sync([$sampleType->id]);
+        $section = $this->createWalkInCustomerDetailsSection($portalForm);
+        $holderId = $section->elementHolders()->value('id');
+
+        foreach ([
+            ['company_unit_id', 'Company unit', 'client_unit_select'],
+            ['contact_person', 'Contact person', 'client_contact_select'],
+            ['customer_email', 'Email', 'text'],
+        ] as $index => [$name, $label, $type]) {
+            SubmissionFormElement::query()->create([
+                'id' => (string) Str::uuid7(),
+                'submission_form_element_holder_id' => $holderId,
+                'element_type' => $type,
+                'label' => $label,
+                'name' => $name,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        $firstCustomer = CRMCustomer::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'First Client',
+            'code' => 'FIRST',
+            'active' => 1,
+            'email' => 'first@example.test',
+        ]);
+        $firstCompanyId = (string) Str::uuid7();
+        $firstUnit = CRMCompanyUnit::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $firstCustomer->id,
+            'company_id' => $firstCompanyId,
+            'name' => 'First Unit',
+            'active' => 1,
+        ]);
+        CustomerContact::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $firstCustomer->id,
+            'crm_company_unit_id' => $firstUnit->id,
+            'company_id' => $firstCompanyId,
+            'first_name' => 'First',
+            'last_name' => 'Contact',
+            'email' => 'first.contact@example.test',
+            'active' => 1,
+            'receive_price_list' => 0,
+            'receive_invoice' => 0,
+            'receive_report' => 0,
+        ]);
+
+        $secondCustomer = CRMCustomer::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Second Client',
+            'code' => 'SECOND',
+            'active' => 1,
+            'email' => 'second@example.test',
+        ]);
+        $secondCompanyId = (string) Str::uuid7();
+        $secondUnit = CRMCompanyUnit::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $secondCustomer->id,
+            'company_id' => $secondCompanyId,
+            'name' => 'Second Unit',
+            'active' => 1,
+        ]);
+        $secondContact = CustomerContact::query()->create([
+            'id' => (string) Str::uuid7(),
+            'crm_customer_id' => $secondCustomer->id,
+            'crm_company_unit_id' => $secondUnit->id,
+            'company_id' => $secondCompanyId,
+            'first_name' => 'Second',
+            'last_name' => 'Contact',
+            'email' => 'second.contact@example.test',
+            'active' => 1,
+            'receive_price_list' => 0,
+            'receive_invoice' => 0,
+            'receive_report' => 0,
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [],
+                'pageMode' => true,
+                'wizardOnly' => true,
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('selectedCrmCustomerId', $firstCustomer->id)
+            ->assertSet('formData.company_unit_id', $firstUnit->id)
+            ->set('selectedCrmCustomerId', $secondCustomer->id)
+            ->assertSet('formData.company_unit_id', $secondUnit->id)
+            ->assertSet('formData.contact_person', $secondContact->id)
+            ->assertSet('formData.customer_email', 'second.contact@example.test')
+            ->assertCount('customerContacts', 1)
+            ->assertCount('customerCompanyUnits', 1);
     }
 
     public function test_walk_in_customer_name_with_trailing_whitespace_still_resolves_for_contacts(): void

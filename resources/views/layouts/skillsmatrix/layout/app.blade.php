@@ -12,7 +12,7 @@
 
 @section('content')
 <div class="row" id="body-row">
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block col-sm-3 col-lg-2">
 		@php
 			$user = auth()->user();
 			$canDashboard = $user->can('matrix.module.access');

@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ asset('css/crm.css') }}">
+  @include('layouts.crm.partials.responsive-styles')
   <style type="text/css">
     .tab-card {
       border:1px solid #eee;
@@ -62,7 +63,7 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block col-sm-3 col-lg-2">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group sticky-top sticky-offset">

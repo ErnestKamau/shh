@@ -62,7 +62,11 @@
 	<div class="ls-soft-card__header" style="cursor: default;">
 		<span>
 			<i class="mdi mdi-information-outline" aria-hidden="true"></i>
-			Batch details
+			@if(! empty($exportationSampleInfo))
+				Sample verification
+			@else
+				Batch details
+			@endif
 		</span>
 	</div>
 	<div class="ls-soft-card__body">
@@ -70,6 +74,90 @@
 			method="POST" autocomplete="off">
 			@csrf
 
+			@if(! empty($exportationSampleInfo))
+				@php
+					$expFields = $exportationSampleInfo['fields'] ?? [];
+					$expLabels = [
+						'sample' => 'Sample / Product',
+						'date_received' => 'Date received',
+						'packaging' => 'Packaging',
+						'sample_weight' => 'Sample weight',
+						'sample_information' => 'Sample information',
+						'ship_name' => 'Ship / vessel',
+						'port_of_loading' => 'Port of loading',
+						'port_of_discharge' => 'Port of discharge',
+						'seal_number' => 'Seal',
+					];
+				@endphp
+
+				{{-- Preserve existing batch values while hiding non-exportation fields. --}}
+				<input type="hidden" name="date_collected" value="{{ $dateCollected }}">
+				<input type="hidden" name="receipt_date" value="{{ $receiptDate }}">
+				<input type="hidden" name="radio_active_levels" value="{{ $batch->radio_active_levels ?? '' }}">
+				<input type="hidden" name="crm_customer_id" value="{{ $selectedClientId }}">
+				@if($defaultClient !== false)
+					<input type="hidden" name="is_client_order" value="1" />
+				@endif
+				<input type="hidden" name="crm_contact_id" value="{{ $selectedContactId }}">
+				<input type="hidden" name="customer_email" value="{{ isset($batch->id) ? $batch->schedule_customer_email : '' }}">
+				<input type="hidden" name="crm_unit_name" value="{{ $selectedUnitId }}">
+				<input type="hidden" name="sample_type_id" value="{{ $batch->sample_type_id ?? ($batchSampleTypes[0]['id'] ?? '') }}">
+				<input type="hidden" name="reference_number" value="{{ $batch->reference_number ?? '' }}">
+				<input type="hidden" name="batch_scope" value="{{ $modeOfService }}">
+				<input type="hidden" name="lab_id" value="{{ $selectedLabId ?: '' }}">
+				<input type="hidden" name="payment_done_by" value="{{ isset($batch->id) ? $batch->payment_done_by : '' }}">
+				<input type="hidden" name="sample_by" value="{{ $batch->sampling_officer_name ?? '' }}">
+				<input type="hidden" name="submit_by" value="{{ $batch->submit_by ?? '' }}">
+				<input type="hidden" name="description" value="{{ $batch->description ?? '' }}">
+				@if(isset($batch->id) && $batch->is_qc_batch == 1)
+					<input type="hidden" name="is_qc_batch" value="1">
+				@endif
+				@if(isset($batch->require_mu) && $batch->require_mu == 1)
+					<input type="hidden" name="require_mu" value="1">
+				@endif
+				@if(! isset($batch->client_instruction_clear) || $batch->client_instruction_clear == 1)
+					<input type="hidden" name="client_instruction_clear" value="1">
+				@endif
+				@if(! isset($batch->lab_capable) || $batch->lab_capable == 1)
+					<input type="hidden" name="lab_capable" value="1">
+				@endif
+
+				<div class="ls-form-panel batch-details-export-panel mb-2">
+					<h4 class="ls-form-panel__title">
+						<i class="mdi mdi-ferry"></i>
+						SAMPLE INFORMATION
+						<span class="ls-field__hint mb-0 ml-1" style="display:inline;font-weight:400;text-transform:none;letter-spacing:0;">
+							({{ $exportationSampleInfo['form_name'] ?? 'TRF Exportation' }} — check before approval)
+						</span>
+					</h4>
+					<div class="ls-form-grid ls-form-grid--4">
+						@foreach($expLabels as $key => $label)
+							<div class="ls-field mb-0 is-disabled">
+								<span class="ls-field__label">{{ $label }}</span>
+								<div class="ls-field__control">
+									<div class="ls-field__input" style="background:#f8fafc;">
+										{{ filled(trim((string) ($expFields[$key] ?? ''))) ? $expFields[$key] : '—' }}
+									</div>
+								</div>
+							</div>
+						@endforeach
+					</div>
+				</div>
+
+				<div class="ls-form-grid ls-form-grid--4 batch-details-fields mt-2">
+					@include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
+						'label' => 'Received By',
+						'lsId' => 'batch-received-by',
+						'lsName' => 'receive_by',
+						'required' => true,
+						'placeholder' => 'Select user...',
+						'options' => $receiverSearchOptions,
+						'selected' => $selectedReceiverId !== '' ? $selectedReceiverId : null,
+						'disableSuccess' => true,
+						'extraFieldClass' => 'mb-0',
+					])
+				</div>
+			@else
 			<div class="ls-form-grid ls-form-grid--4 batch-details-fields">
 				@include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
 					'label' => 'Date Collected',
@@ -311,43 +399,6 @@
 				])
 			</div>
 
-			@if(! empty($exportationSampleInfo))
-				@php
-					$expFields = $exportationSampleInfo['fields'] ?? [];
-					$expLabels = [
-						'date_received' => 'Date received',
-						'packaging' => 'Packaging',
-						'sample_weight' => 'Sample weight',
-						'sample_information' => 'Sample information',
-						'ship_name' => 'Ship / vessel',
-						'port_of_loading' => 'Port of loading',
-						'port_of_discharge' => 'Port of discharge',
-						'seal_number' => 'Seal',
-					];
-				@endphp
-				<div class="ls-form-panel batch-details-export-panel mt-3 mb-2">
-					<h4 class="ls-form-panel__title">
-						<i class="mdi mdi-ferry"></i>
-						Exportation sample information
-						<span class="ls-field__hint mb-0 ml-1" style="display:inline;font-weight:400;text-transform:none;letter-spacing:0;">
-							({{ $exportationSampleInfo['form_name'] ?? 'TRF Exportation' }} — check before approval)
-						</span>
-					</h4>
-					<div class="ls-form-grid ls-form-grid--4">
-						@foreach($expLabels as $key => $label)
-							<div class="ls-field mb-0 is-disabled">
-								<span class="ls-field__label">{{ $label }}</span>
-								<div class="ls-field__control">
-									<div class="ls-field__input" style="background:#f8fafc;">
-										{{ filled(trim((string) ($expFields[$key] ?? ''))) ? $expFields[$key] : '—' }}
-									</div>
-								</div>
-							</div>
-						@endforeach
-					</div>
-				</div>
-			@endif
-
 			<div class="ls-form-grid ls-form-grid--3 qc-params mt-2 {{ $batch && $batch->is_qc_batch == 1 ? '' : 'hidden' }}">
 				<div class="ls-field mb-0">
 					<label class="ls-field__label" for="batch-qc-scheme">QC Scheme</label>
@@ -382,6 +433,7 @@
 					</div>
 				</div>
 			</div>
+			@endif
 
 			<div class="batch-details-actions text-center pt-3 mt-2">
 				@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')

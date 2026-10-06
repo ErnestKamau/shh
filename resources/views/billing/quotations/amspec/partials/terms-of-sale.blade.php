@@ -19,10 +19,19 @@
 
     <p class="amspec-terms-title" style="font-weight: 700; margin-bottom: 8px;">Additional Information</p>
     <p style="margin-bottom: 8px;">
-        <strong>Technical questions / Inquiries / Complaints:</strong><br>
-        {!! nl2br(e($termsOfSale['additional_info'] ?? '')) !!}<br>
-        <strong>Information for Purchase Order / Sample Shipment:</strong><br>
-        {!! nl2br(e($termsOfSale['payment_info'] ?? '')) !!}
+        @if($isBrazilQuotation)
+            {!! nl2br(e(trim((string) ($termsOfSale['payment_info'] ?? '')))) !!}
+            @if(filled(trim((string) ($termsOfSale['additional_info'] ?? ''))))
+                <br><br>
+                <strong>Technical questions / Inquiries / Complaints:</strong><br>
+                {!! nl2br(e($termsOfSale['additional_info'])) !!}
+            @endif
+        @else
+            <strong>Technical questions / Inquiries / Complaints:</strong><br>
+            {!! nl2br(e($termsOfSale['additional_info'] ?? '')) !!}<br>
+            <strong>Information for Purchase Order / Sample Shipment:</strong><br>
+            {!! nl2br(e($termsOfSale['payment_info'] ?? '')) !!}
+        @endif
     </p>
 
     @if($isBrazilQuotation)

@@ -2,6 +2,7 @@
 
 @section('title2')
 <title>Worksheet Executor | Lab Management</title>
+@include('worksheets.partials.responsive-styles')
 <style type="text/css">
     .tab-card {
         border: 1px solid #eee;

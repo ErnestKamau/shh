@@ -93,7 +93,11 @@
                                         <button type="button" class="btn btn-primary btn-sm" wire:click="openSendForApprovalModal" wire:loading.attr="disabled" @disabled($lines === [])>
                                             <span wire:loading.remove wire:target="openSendForApprovalModal,submitQuotationForApproval">
                                                 <i class="mdi mdi-account-check"></i>
-                                                Send for Approval
+                                                @if(app(\App\Services\Commercial\QuotationApprovalService::class)->skipsApproval())
+                                                    Complete quotation
+                                                @else
+                                                    Send for Approval
+                                                @endif
                                             </span>
                                             <span wire:loading wire:target="openSendForApprovalModal,submitQuotationForApproval">Submitting…</span>
                                         </button>

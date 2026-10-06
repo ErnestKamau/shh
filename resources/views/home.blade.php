@@ -391,33 +391,67 @@
     }
 
     @media (max-width: 768px) {
+        .landing-container {
+            padding-top: 96px;
+            padding-bottom: 1.25rem;
+        }
+
         .apps-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            padding: 0 1rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+            padding: 0 0.75rem 1rem;
+            width: 100%;
+            max-width: 100%;
         }
 
         .app-card {
-            padding: 1.2rem;
+            min-height: 112px;
+            padding: 1rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .app-icon {
-            width: 45px;
-            height: 45px;
+            width: 48px;
+            height: 48px;
             font-size: 1.6rem;
         }
 
         .app-title {
             font-size: 0.85rem;
+            line-height: 1.25;
         }
 
         .welcome-text {
-            font-size: 1.8rem;
+            font-size: 1.55rem;
+            padding: 0 0.75rem;
+        }
+
+        .welcome-subtitle {
+            font-size: 0.95rem;
+            padding: 0 0.75rem;
         }
 
         .company-logo {
-            width: 80px;
-            height: 80px;
+            width: 72px;
+            height: 72px;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .apps-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .app-card {
+            min-height: 88px;
+            flex-direction: row;
+            justify-content: flex-start;
+            gap: 0.85rem;
+            padding: 0.85rem 1rem;
         }
     }
 

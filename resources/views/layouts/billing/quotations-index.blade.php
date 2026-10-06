@@ -8,6 +8,7 @@
     <main class="container-fluid lab-surface-theme ls-admin-page ls-quotation-shell ls-ui-kit" data-ls-type="plex">
         @include('layouts.lab.partials.lab-surface-theme-styles')
         @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
+        @include('layouts.billing.partials.responsive-styles')
         <?php
             $items = [
                 [

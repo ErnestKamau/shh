@@ -7,6 +7,7 @@
 @endsection
 
 @section('title')
+  @include('layouts.equipment.partials.responsive-styles')
   @yield('title2')
 @endsection
 
@@ -20,7 +21,7 @@
 </style>
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
@@ -125,7 +126,7 @@
 <!-- sidebar-container END -->
 
 <!-- MAIN -->
-<div class="py-3" id="main-container-body">
+<div class="py-3 equipment-page" id="main-container-body">
 		<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 
 

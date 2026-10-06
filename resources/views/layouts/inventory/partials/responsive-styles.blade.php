@@ -1,6 +1,5 @@
 {{--
-  Shared mobile / tablet responsivity for Inventory module surfaces.
-  Mirrors lab sample-workflow responsive patterns.
+  Inventory module surfaces — supplements layouts.partials.responsive-shell-styles.
 --}}
 <style>
 	.inventory-page,
@@ -17,14 +16,14 @@
 		.inventory-page .btn,
 		.inventory-page .btn-action-sm,
 		.inventory-page .rm-act-btn {
-			min-height: 44px;
+			min-height: var(--touch-min, 44px);
 		}
 
 		.inventory-page .form-control,
 		.inventory-page .custom-select,
 		.inventory-page select.form-control {
-			min-height: 44px;
-			font-size: 16px;
+			min-height: var(--touch-min, 44px);
+			font-size: var(--touch-input-font, 16px);
 		}
 
 		.inventory-page .workflow-board-panel-header,
@@ -47,6 +46,17 @@
 			-webkit-overflow-scrolling: touch;
 		}
 
+		.inventory-page .nav-tabs {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.inventory-page .nav-tabs .nav-link {
+			white-space: nowrap;
+			min-height: var(--touch-min, 44px);
+		}
+
 		.inventory-page h2.p-4,
 		.inventory-page h3.p-4 {
 			padding-left: 0 !important;
@@ -67,7 +77,13 @@
 		}
 
 		.inventory-quick-actions a {
-			min-height: 44px;
+			min-height: var(--touch-min, 44px);
+		}
+	}
+
+	@media (max-width: 767.98px) {
+		.inventory-pipeline {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
