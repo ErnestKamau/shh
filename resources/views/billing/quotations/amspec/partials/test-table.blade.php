@@ -136,8 +136,14 @@
                         ));
                         $rowTat = $row['tat'] ?? null;
                         $packageRowspan = max(0, (int) ($row['package_rowspan'] ?? 0));
-                        $useBrazilPackageRowspan = $isBrazilQuotation && $packageRowspan > 1 && $showCommercial;
-                        $skipBrazilPackageCommercial = $isBrazilQuotation
+                        // DomPDF often drops every rowspan column after the first, so PDF keeps a
+                        // full cell grid (values only on the commercial lead row). Screen can rowspan.
+                        $useBrazilPackageRowspan = ! $isPdf
+                            && $isBrazilQuotation
+                            && $packageRowspan > 1
+                            && $showCommercial;
+                        $skipBrazilPackageCommercial = ! $isPdf
+                            && $isBrazilQuotation
                             && ! $showCommercial
                             && ! empty($row['is_package_member'])
                             && (int) ($row['package_rowspan'] ?? -1) === 0;

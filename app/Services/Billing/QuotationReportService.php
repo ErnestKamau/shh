@@ -162,7 +162,10 @@ class QuotationReportService
             'showMuColumn' => $isBrazilQuotation ? false : (bool) ($header->show_mu_column ?? true),
             'showTatColumn' => true,
             'showQuantityColumn' => true,
-            'showUnitPriceColumn' => (bool) ($header->show_unit_price_column ?? true),
+            // Brazil package groups need Qty + Unit Price on the commercial lead row.
+            'showUnitPriceColumn' => $isBrazilQuotation
+                ? true
+                : (bool) ($header->show_unit_price_column ?? true),
             'showTotalPriceColumn' => false,
             'reportViewUrl' => $reportViewUrl,
             'qrCode' => $this->buildQrCode(
@@ -698,17 +701,22 @@ class QuotationReportService
                     continue;
                 }
 
-                $isFirstParameter = true;
-                foreach ($childRows as $childRow) {
-                    if ($isFirstParameter) {
+                $memberCount = count($childRows);
+                foreach ($childRows as $index => $childRow) {
+                    if ($index === 0) {
                         $childRow['unit_price'] = (float) $detail->unit_price;
                         $childRow['quantity'] = max(1, (int) $detail->quantity);
                         $childRow['total_price'] = round($childRow['unit_price'] * $childRow['quantity'], 2);
                         $childRow['tat'] = $packageTat;
                         $childRow['is_package_price_row'] = true;
                         $childRow['show_commercial_cells'] = true;
-                        $isFirstParameter = false;
+                        $childRow['package_rowspan'] = $memberCount;
+                    } else {
+                        $childRow['is_package_price_row'] = false;
+                        $childRow['show_commercial_cells'] = false;
+                        $childRow['package_rowspan'] = 0;
                     }
+                    $childRow['is_package_member'] = true;
                     $grouped[$sampleTypeName][] = $childRow;
                 }
 

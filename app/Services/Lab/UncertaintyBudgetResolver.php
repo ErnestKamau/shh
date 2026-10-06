@@ -155,9 +155,17 @@ final class UncertaintyBudgetResolver
 
             $code = trim((string) ($method->code ?? ''));
             $name = trim((string) ($method->name ?? ''));
+            $normalize = static fn (string $value): string => strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $value));
 
             if ($preferMethodCode && $code !== '') {
-                if ($name !== '' && strcasecmp($code, $name) !== 0 && ! str_contains(strtolower($name), strtolower($code))) {
+                // Treat AMS_M_SOP_047 and AMS/M/SOP/047 as the same label.
+                $codeKey = $normalize($code);
+                $nameKey = $normalize($name);
+                $nameAlreadyIncludesCode = $nameKey !== ''
+                    && $codeKey !== ''
+                    && (str_contains($nameKey, $codeKey) || str_contains($codeKey, $nameKey));
+
+                if ($name !== '' && $codeKey !== $nameKey && ! $nameAlreadyIncludesCode) {
                     return $code.' ('.$name.')';
                 }
 
