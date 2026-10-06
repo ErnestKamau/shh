@@ -80,6 +80,7 @@ class DatabaseSeeder extends Seeder
             SubmissionFormTrfFoodSeeder::class,
             SubmissionFormTrfFoodAndFeedSeeder::class,
             SubmissionFormTrfWasteWaterSeeder::class,
+            AmspecBrazilTrfSeeder::class,
             LabAnalysisAcceptanceFormSeeder::class,
             Phase13FoodStandardsAndPricelistSeeder::class,
             Phase14CommercialDemoSeeder::class,

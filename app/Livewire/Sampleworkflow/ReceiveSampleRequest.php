@@ -295,13 +295,36 @@ class ReceiveSampleRequest extends Component
 
     private function limsCompanyId(): ?string
     {
-        $companyId = function_exists('getUserCompany') ? getUserCompany() : null;
+        $candidates = array_values(array_filter([
+            function_exists('getUserCompany') ? getUserCompany() : null,
+            auth()->user()?->company_id,
+            function_exists('currentCompanyForFeatures') ? currentCompanyForFeatures()?->id : null,
+        ], static fn ($id): bool => filled($id)));
 
-        if ($companyId === null || $companyId === '') {
-            return null;
+        foreach ($candidates as $candidate) {
+            $companyId = (string) $candidate;
+            $hasTrf = SubmissionForm::query()
+                ->forCompany($companyId)
+                ->where('is_active', true)
+                ->where('is_published', true)
+                ->where('form_type', 'template')
+                ->where(function ($q): void {
+                    $q->where('document_code', 'like', 'TRF%')
+                        ->orWhereRaw('lower(name) like ?', ['%test request form%']);
+                })
+                ->exists();
+
+            if ($hasTrf) {
+                return $companyId;
+            }
         }
 
-        return (string) $companyId;
+        // Last resort for Brazil local DBs: use the brl company that owns seeded TRFs.
+        $brazilId = \App\Company::query()
+            ->whereRaw('LOWER(TRIM(code)) = ?', ['brl'])
+            ->value('id');
+
+        return $brazilId !== null ? (string) $brazilId : ($candidates[0] ?? null);
     }
 
     private function resolveSubmissionFormForSampleTypeCategory(string $categoryId): ?SubmissionForm
@@ -3530,6 +3553,18 @@ class ReceiveSampleRequest extends Component
 
             $this->formData[$fieldName] = array_map(static fn (): string => '', $this->formData[$fieldName]);
         }
+
+        $customerId = $this->resolveSelectedCustomerId();
+        if ($customerId === null) {
+            return;
+        }
+
+        $customer = CRMCustomer::query()->find($customerId);
+        if ($customer === null) {
+            return;
+        }
+
+        $this->autoSelectDefaultContactForCustomer($customer);
     }
 
     public function openWalkInAddCustomerModal(): void
@@ -5539,6 +5574,10 @@ class ReceiveSampleRequest extends Component
     {
         $this->selectedCrmCustomerId = (string) $customer->id;
 
+        if (! $onlyEmpty) {
+            $this->resetCustomerDependentCrmFields();
+        }
+
         $prefillService = app(CustomerContactPrefillService::class);
         $prefill = $prefillService->buildWalkInCustomerPrefillMap($customer);
 
@@ -5562,22 +5601,109 @@ class ReceiveSampleRequest extends Component
                 ->first();
 
             if ($contact !== null) {
-                $this->applyContactCommunicationPrefill($contact, $onlyEmpty);
+                $this->applyContactCommunicationPrefill($contact, $onlyEmpty, withCustomerFallbacks: true);
                 $this->applyCustomerRepresentativeFromContact($contact);
 
                 return;
             }
         }
 
-        if (! $onlyEmpty) {
-            $this->clearContactPersonAndCommunicationFields();
+        if ($onlyEmpty) {
+            return;
+        }
+
+        $this->autoSelectSoleCompanyUnit($customer);
+        $this->autoSelectDefaultContactForCustomer($customer);
+    }
+
+    private function resetCustomerDependentCrmFields(): void
+    {
+        if (array_key_exists('company_unit_id', $this->formData)) {
+            $this->formData['company_unit_id'] = '';
+        }
+
+        $this->clearContactPersonAndCommunicationFields();
+
+        foreach (['sampling_point', 'sampling_location', 'location'] as $fieldName) {
+            if (! array_key_exists($fieldName, $this->formData)) {
+                continue;
+            }
+
+            if (! is_array($this->formData[$fieldName])) {
+                $this->formData[$fieldName] = '';
+
+                continue;
+            }
+
+            $this->formData[$fieldName] = array_map(static fn (): string => '', $this->formData[$fieldName]);
         }
     }
 
-    private function applyContactCommunicationPrefill(CustomerContact $contact, bool $onlyEmpty = false): void
+    private function autoSelectSoleCompanyUnit(CRMCustomer $customer): void
     {
-        $communicationFields = app(CustomerContactPrefillService::class)
-            ->buildSelectedContactCommunicationFields($contact);
+        if (! array_key_exists('company_unit_id', $this->formData)) {
+            return;
+        }
+
+        $unitIds = CRMCompanyUnit::query()
+            ->where('crm_customer_id', $customer->id)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->pluck('id');
+
+        if ($unitIds->count() !== 1) {
+            return;
+        }
+
+        $this->formData['company_unit_id'] = (string) $unitIds->first();
+    }
+
+    private function autoSelectDefaultContactForCustomer(CRMCustomer $customer): void
+    {
+        $prefillService = app(CustomerContactPrefillService::class);
+        $unitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        $contact = $prefillService->resolveDefaultContact($customer);
+
+        if ($contact !== null && $unitId !== '' && ! $contact->isLinkedToCompanyUnit($unitId)) {
+            $contact = CustomerContact::query()
+                ->where('crm_customer_id', $customer->id)
+                ->where('active', 1)
+                ->orderByDesc('is_main_customer_contact')
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get()
+                ->first(fn (CustomerContact $candidate): bool => $candidate->isLinkedToCompanyUnit($unitId));
+        }
+
+        if ($contact === null) {
+            return;
+        }
+
+        if (array_key_exists('contact_person', $this->formData)) {
+            $this->formData['contact_person'] = (string) $contact->id;
+        }
+
+        $this->applyContactCommunicationPrefill($contact, onlyEmpty: false, withCustomerFallbacks: true);
+        $this->applyCustomerRepresentativeFromContact($contact);
+    }
+
+    private function applyContactCommunicationPrefill(
+        CustomerContact $contact,
+        bool $onlyEmpty = false,
+        bool $withCustomerFallbacks = false
+    ): void {
+        $prefillService = app(CustomerContactPrefillService::class);
+
+        if ($withCustomerFallbacks) {
+            $customer = CRMCustomer::query()->find($contact->crm_customer_id)
+                ?? CRMCustomer::query()->find($this->selectedCrmCustomerId);
+            $communicationFields = $customer !== null
+                ? $prefillService->buildContactCommunicationFields($contact, $customer)
+                : $prefillService->buildSelectedContactCommunicationFields($contact);
+            $communicationFields['crm_contact_id'] = (string) $contact->id;
+        } else {
+            $communicationFields = $prefillService->buildSelectedContactCommunicationFields($contact);
+        }
 
         foreach ($communicationFields as $key => $fieldValue) {
             if (! array_key_exists($key, $this->formData)) {

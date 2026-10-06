@@ -36,7 +36,7 @@
             border: 1px solid #dbe5f0;
             border-radius: 10px;
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
-            z-index: 1050;
+            z-index: 1200;
             background: #fff;
             font-family: var(--ls-font-ui, "IBM Plex Sans", system-ui, sans-serif);
             font-size: 0.8rem;
@@ -176,18 +176,83 @@
             <div class="d-flex align-items-center flex-wrap batch-header-actions rv-header-actions" style="gap: 6px;">
                 @if($showQuoteApproveControl)
                     <div class="rv-quote-bell rv-quote-approve"
-                         x-data="{ open: false, rejectOpen: false }"
-                         @click.outside="open = false; rejectOpen = false">
+                         x-data="{
+                            open: false,
+                            rejectOpen: false,
+                            menuStyle: {},
+                            contentLeft() {
+                                const main = document.getElementById('main-container-body');
+                                let left = main ? main.getBoundingClientRect().left : 0;
+                                const sidebar = document.getElementById('sidebar-container');
+                                if (
+                                    sidebar
+                                    && sidebar.offsetParent !== null
+                                    && ! sidebar.classList.contains('hidden')
+                                    && ! sidebar.classList.contains('d-none')
+                                ) {
+                                    // Keep the panel inside the page, clear of a docked or floating sidebar.
+                                    left = Math.max(left, sidebar.getBoundingClientRect().right);
+                                }
+                                return left;
+                            },
+                            placeMenu() {
+                                const btn = this.$refs.approveBtn;
+                                if (!btn) {
+                                    return;
+                                }
+                                const rect = btn.getBoundingClientRect();
+                                const menuWidth = Math.min(288, window.innerWidth - 16);
+                                const gutter = 8;
+                                const minLeft = this.contentLeft() + gutter;
+                                const maxRight = window.innerWidth - gutter;
+                                // Prefer under the button, right-aligned into the page (never into the sidebar).
+                                let left = rect.right - menuWidth;
+                                if (left < minLeft) {
+                                    left = minLeft;
+                                }
+                                if (left + menuWidth > maxRight) {
+                                    left = Math.max(minLeft, maxRight - menuWidth);
+                                }
+                                this.menuStyle = {
+                                    position: 'fixed',
+                                    top: (rect.bottom + 6) + 'px',
+                                    left: left + 'px',
+                                    right: 'auto',
+                                    width: menuWidth + 'px',
+                                    zIndex: 1055,
+                                };
+                            },
+                            toggle() {
+                                this.rejectOpen = false;
+                                this.open = !this.open;
+                                if (this.open) {
+                                    this.$nextTick(() => this.placeMenu());
+                                }
+                            },
+                            close() {
+                                this.open = false;
+                                this.rejectOpen = false;
+                            }
+                         }"
+                         @click.outside="close()"
+                         @keydown.escape.window="close()"
+                         @resize.window="open && placeMenu()"
+                         @scroll.window.capture="open && placeMenu()">
                         <button type="button"
+                            x-ref="approveBtn"
                             class="btn btn-sm rv-header-chip-btn rv-quote-bell__btn rv-quote-approve__btn is-awaiting"
-                            @click.stop="open = !open; rejectOpen = false"
+                            @click.stop="toggle()"
                             :aria-expanded="open"
                             title="Quotation awaiting your approval"
                             aria-label="Quotation awaiting your approval">
                             <i class="mdi mdi-check-circle" aria-hidden="true"></i>
                             <span class="rv-quote-bell__badge rv-quote-approve__badge">1</span>
                         </button>
-                        <div class="rv-quote-bell__menu" x-show="open" x-cloak @click.stop>
+                        <div class="rv-quote-bell__menu"
+                             x-show="open"
+                             x-cloak
+                             x-bind:style="menuStyle"
+                             @click.stop>
                             @if($quotationHeader)
                                 @php
                                     $quoteBellLabSections = $quotationHeader->relationLoaded('labSections')
@@ -215,7 +280,7 @@
                             <button type="button"
                                 class="rv-quote-bell__item"
                                 wire:click="openApproveQuotationModal"
-                                @click="open = false">
+                                @click="close()">
                                 <i class="mdi mdi-check-decagram text-success" aria-hidden="true"></i>
                                 Approve quotation
                             </button>

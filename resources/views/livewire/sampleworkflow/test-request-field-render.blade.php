@@ -371,6 +371,10 @@
     </div>
 @elseif($useCrmSelectors && (($field['type'] ?? '') === 'client_contact_select' || $fieldName === 'contact_person'))
     @php
+        $contactCustomerId = trim((string) ($this->selectedCrmCustomerId ?? ''));
+        if ($contactCustomerId === '') {
+            $contactCustomerId = 'none';
+        }
         $contactOptions = $this->customerContacts->map(function ($contact) {
             $contactLabel = trim(implode(' ', array_filter([
                 (string) ($contact->first_name ?? ''),
@@ -383,17 +387,23 @@
                 'label' => $contactLabel !== '' ? $contactLabel : 'Contact',
                 'meta' => [
                     'email' => (string) ($contact->email ?? ''),
-                    'phone' => (string) ($contact->phone ?? $contact->mobile ?? ''),
+                    'phone' => (string) ($contact->telephone ?? $contact->mobile ?? ''),
                 ],
             ];
         })->values()->all();
         $contactSelected = (string) data_get($this, $wirePrefix, '');
         $unitIdForContacts = trim((string) ($this->formData['company_unit_id'] ?? ''));
-        $unitGateHint = $unitIdForContacts === ''
-            ? 'Select a company unit first…'
-            : (count($contactOptions) === 0 ? 'No CRM contacts linked to this company unit.' : null);
+        if ($contactCustomerId === 'none') {
+            $unitGateHint = 'Select a client first…';
+        } elseif (count($contactOptions) === 0) {
+            $unitGateHint = $unitIdForContacts === ''
+                ? 'No CRM contacts for this client'
+                : 'No CRM contacts linked to this company unit.';
+        } else {
+            $unitGateHint = null;
+        }
     @endphp
-    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-contact-{{ $unitIdForContacts !== '' ? $unitIdForContacts : 'none' }}-{{ count($contactOptions) }}">
+    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-contact-{{ $contactCustomerId }}-{{ $unitIdForContacts !== '' ? $unitIdForContacts : 'none' }}-{{ count($contactOptions) }}">
         <div class="trf-field-col__main">
             @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
                 'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Contact person'),
@@ -435,12 +445,16 @@
             array_unshift($pointOptions, ['value' => $orphanLocation, 'label' => $orphanLocation]);
         }
         $selectedUnitId = trim((string) ($this->formData['company_unit_id'] ?? ''));
+        $pointCustomerId = trim((string) ($this->selectedCrmCustomerId ?? ''));
+        if ($pointCustomerId === '') {
+            $pointCustomerId = 'none';
+        }
         $locationHint = $selectedUnitId === ''
             ? 'Select a company unit first'
             : ($pointOptions === [] ? 'No sampling locations for '.($this->selectedCompanyUnitName ?? 'selected unit') : null);
         $locationWireLive = false;
     @endphp
-    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-point-{{ $selectedUnitId !== '' ? $selectedUnitId : 'none' }}-{{ count($pointOptions) }}-{{ $rowIndex ?? 'x' }}-{{ md5($locationWireValue) }}">
+    <div class="trf-field-col {{ $showCrmActions ? 'trf-field-col--with-action' : '' }}" wire:key="walk-in-point-{{ $pointCustomerId }}-{{ $selectedUnitId !== '' ? $selectedUnitId : 'none' }}-{{ count($pointOptions) }}-{{ $rowIndex ?? 'x' }}-{{ md5($locationWireValue) }}">
         <div class="trf-field-col__main">
             @include('layouts.lab.partials.ls-ui.fields.ls-field-search-basic', [
                 'label' => ($hideLabel ?? false) ? null : ($field['label'] ?? 'Sampling location'),

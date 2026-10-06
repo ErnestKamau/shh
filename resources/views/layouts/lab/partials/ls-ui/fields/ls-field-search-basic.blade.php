@@ -4,6 +4,9 @@
 	       $disableSuccess (bool), $id / $lsId, $name / $lsName, $required, $placeholder,
 	       $attrs (html string on wrap), $extraFieldClass, $allowCustom (bool),
 	       Livewire: $wireModel, $wireLive (bool, default true when wireModel set)
+
+	Options/selected sync via data-* attributes so Livewire morphs refresh Alpine state
+	(x-data @js(...) alone stays stale after dependent dropdown updates).
 --}}
 @php
 	$id = $lsId ?? $id ?? 'ls-sbasic-'.uniqid();
@@ -31,11 +34,16 @@
 	$wireLive = isset($wireLive) ? (bool) $wireLive : ($wireModel !== null && $wireModel !== '');
 	$allowCustom = (bool) ($allowCustom ?? false);
 	$fieldClass = trim('ls-field ls-combo ls-search-basic ls-compact '.($extraFieldClass ?? '').' '.($showSuccess ? 'is-success' : '').' '.(! empty($error) ? 'is-error' : ''));
+	$selectedAttr = ($selected !== null && $selected !== '') ? (string) $selected : '';
+	$selectedLabelAttr = (string) ($selectedLabel ?? '');
 @endphp
 <div
 	class="{{ $fieldClass }}"
 	data-ls-search-basic="1"
 	data-ls-disable-success="{{ $disableSuccess ? '1' : '0' }}"
+	data-options="{{ json_encode($normalized, JSON_UNESCAPED_UNICODE) }}"
+	data-selected="{{ $selectedAttr }}"
+	data-selected-label="{{ $selectedLabelAttr }}"
 	@if(! empty($attrs)) {!! $attrs !!} @endif
 	x-data="{
 		open: false,
@@ -46,6 +54,7 @@
 		wireModel: @js($wireModel),
 		wireLive: @js($wireLive),
 		allowCustom: @js($allowCustom),
+		_syncingFromDom: false,
 		get filtered() {
 			const q = (this.q || '').trim().toLowerCase();
 			if (!q || (this.selected && this.q === this.labelFor(this.selected))) return this.options;
@@ -54,6 +63,33 @@
 		labelFor(value) {
 			const hit = this.options.find(o => String(o.value) === String(value));
 			return hit ? hit.label : '';
+		},
+		syncFromDom() {
+			if (this.open) {
+				return;
+			}
+			this._syncingFromDom = true;
+			try {
+				const raw = this.$el.getAttribute('data-options') || '[]';
+				const next = JSON.parse(raw);
+				this.options = Array.isArray(next) ? next : [];
+			} catch (e) {
+				this.options = [];
+			}
+			const sel = this.$el.getAttribute('data-selected') || '';
+			this.selected = sel !== '' ? sel : null;
+			const labelAttr = this.$el.getAttribute('data-selected-label');
+			if (this.selected) {
+				this.q = (labelAttr !== null && labelAttr !== '')
+					? labelAttr
+					: (this.labelFor(this.selected) || this.selected);
+			} else {
+				this.q = '';
+			}
+			if (this.$refs.hidden) {
+				this.$refs.hidden.value = this.selected || '';
+			}
+			this._syncingFromDom = false;
 		},
 		syncWire(value) {
 			if (!this.wireModel || typeof this.$wire?.set !== 'function') {
@@ -108,6 +144,15 @@
 			this.options = Array.isArray(next) ? next : [];
 		}
 	}"
+	x-init="
+		syncFromDom();
+		const observer = new MutationObserver(() => {
+			if (!open) {
+				syncFromDom();
+			}
+		});
+		observer.observe($el, { attributes: true, attributeFilter: ['data-options', 'data-selected', 'data-selected-label'] });
+	"
 	:class="{ 'is-open': open, 'is-success': !disableSuccess && !!selected && !open }"
 	@click.outside="open = false; if (allowCustom) commitCustom()"
 >

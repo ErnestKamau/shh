@@ -451,7 +451,7 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">

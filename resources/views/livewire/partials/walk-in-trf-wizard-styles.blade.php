@@ -760,4 +760,89 @@
             border-radius: 0.85rem;
         }
     }
+
+    /* PR3 — Walk-in TRF narrow viewports */
+    @media (max-width: 991.98px) {
+        .walk-in-trf-wizard-shell {
+            padding: 0.85rem 0.75rem 5.5rem;
+            border-radius: 10px;
+        }
+
+        .walk-in-trf-wizard__steps {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            padding-bottom: 0.35rem;
+        }
+
+        .walk-in-trf-wizard__step {
+            flex: 0 0 auto;
+            min-width: 4.5rem;
+        }
+
+        .walk-in-trf-wizard__step-label {
+            font-size: 0.65rem;
+        }
+
+        .rft-wizard-nav,
+        .submission-instance-actions .rft-wizard-nav {
+            position: sticky;
+            bottom: 0;
+            z-index: 20;
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.4rem;
+            width: 100%;
+            margin-top: 0.75rem;
+            padding: 0.65rem 0.5rem;
+            background: rgba(255, 255, 255, 0.96);
+            border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.06);
+        }
+
+        .rft-wizard-nav .btn {
+            flex: 1 1 0;
+            min-height: var(--touch-min, 44px);
+            white-space: nowrap;
+        }
+
+        .receive-sample-modal-body .walk-in-trf-rows-table,
+        .receive-sample-modal-body .walk-in-trf-table-scroll,
+        .receive-sample-modal-body .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+
+        .receive-sample-modal-body .ls-combo__item,
+        .walk-in-trf-wizard-shell .ls-combo__item {
+            min-height: var(--touch-min, 44px);
+            display: flex;
+            align-items: center;
+        }
+
+        .receive-walk-in-entity-modal .modal-dialog,
+        .walk-in-trf-desc-modal .modal-dialog {
+            margin: 0.35rem auto;
+            max-width: calc(100vw - 0.7rem);
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        #receive-sample-modal .modal-dialog,
+        #receive-sample-modal.receive-sample-modal--direct-registration .modal-dialog {
+            max-width: 100vw;
+            width: 100%;
+            height: 100vh;
+            max-height: 100vh;
+            margin: 0;
+            border-radius: 0;
+        }
+
+        #receive-sample-modal .modal-content {
+            border-radius: 0;
+            min-height: 100vh;
+        }
+    }
 </style>

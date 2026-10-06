@@ -81,6 +81,8 @@
 
 		/* Component sizing */
 		--ls-control-h: var(--control-h, 34px);
+		--ls-touch-min: var(--touch-min, 44px);
+		--ls-touch-input-font: var(--touch-input-font, 16px);
 		--ls-btn-h: var(--btn-h, 34px);
 		--ls-btn-h-sm: var(--btn-h-sm, 30px);
 		--ls-btn-pad-x: 0.85rem;

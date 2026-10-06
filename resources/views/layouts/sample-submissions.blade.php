@@ -12,6 +12,60 @@
     @include('partials.favicon')
 
     @yield('title')
+
+    <style>
+        :root {
+            --touch-min: 44px;
+            --touch-input-font: 16px;
+            --page-pad-x: 0.75rem;
+        }
+
+        body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .btn,
+        .btn-sm {
+            min-height: var(--touch-min);
+        }
+
+        .form-control,
+        .custom-select,
+        select.form-control {
+            min-height: var(--touch-min);
+            font-size: var(--touch-input-font) !important;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+
+        .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tabs .nav-link {
+            white-space: nowrap;
+            min-height: var(--touch-min);
+        }
+
+        @media (max-width: 767.98px) {
+            .tablet-intake-header {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.75rem;
+            }
+
+            .tablet-intake-header .btn {
+                width: 100%;
+            }
+        }
+    </style>
     
     @livewireStyles
 

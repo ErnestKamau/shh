@@ -38,6 +38,7 @@
     @include('layouts.partials.workflow-page-styles')
     @include('layouts.lab.partials.lab-surface-theme-styles')
     @include('layouts.partials.tag-select-styles')
+    @include('layouts.partials.responsive-shell-styles')
     <style type="text/css">
         /* legacy layout rules — tokens in global-styling partial */
 
@@ -1154,6 +1155,15 @@
         }
 
         .hidden {
+            display: none !important;
+        }
+
+        /*
+         * Must beat Bootstrap .d-lg-block { display:block !important } so the
+         * hamburger can actually hide a docked sidebar on desktop.
+         */
+        #sidebar-container.hidden,
+        #sidebar-container.d-none {
             display: none !important;
         }
 
@@ -2546,7 +2556,11 @@
         }
 
         function syncSidebarToggleAria() {
-            var isOpen = !$('#sidebar-container').hasClass('hidden');
+            var $sidebar = $('#sidebar-container');
+            var isOpen = $sidebar.length > 0
+                && ! $sidebar.hasClass('hidden')
+                && ! $sidebar.hasClass('d-none')
+                && $sidebar.is(':visible');
             $('#toggle-main-sidebar').attr('aria-expanded', isOpen ? 'true' : 'false');
         }
 
@@ -2560,7 +2574,7 @@
 
         function closeOverlaySidebar() {
             var $sidebar = $('#sidebar-container');
-            $sidebar.addClass('hidden').removeClass('floating-sidebar');
+            $sidebar.addClass('hidden d-none').removeClass('floating-sidebar');
             setMainContentFullWidth();
             hideSidebarBackdrop();
             syncSidebarToggleAria();
@@ -2574,34 +2588,39 @@
 
             if (isSidebarOverlayViewport()) {
                 setMainContentFullWidth();
-                if ($sidebar.hasClass('hidden')) {
-                    $sidebar.removeClass('floating-sidebar');
+                if ($sidebar.hasClass('hidden') || $sidebar.hasClass('d-none') || ! $sidebar.is(':visible')) {
+                    $sidebar.addClass('hidden d-none').removeClass('floating-sidebar');
                     hideSidebarBackdrop();
                 } else {
-                    $sidebar.addClass('floating-sidebar').removeClass('d-none');
+                    $sidebar.addClass('floating-sidebar').removeClass('hidden d-none');
                     showSidebarBackdrop();
                 }
             } else {
                 hideSidebarBackdrop();
                 $sidebar.removeClass('floating-sidebar');
-                setMainContentDockedMargin();
+                if ($sidebar.hasClass('hidden')) {
+                    setMainContentFullWidth();
+                } else {
+                    $sidebar.removeClass('d-none').addClass('d-lg-block');
+                    setMainContentDockedMargin();
+                }
             }
             syncSidebarToggleAria();
         }
 
-        // Tablet + mobile: start closed so content gets the full viewport.
+        // Default: sidebar open. User can close it via the hamburger (and reopen).
         if (isSidebarOverlayViewport()) {
-            $('#sidebar-container').addClass('hidden').removeClass('floating-sidebar');
-            setMainContentFullWidth();
-            hideSidebarBackdrop();
+            openOverlaySidebar();
         } else {
+            $('#sidebar-container').removeClass('hidden d-none floating-sidebar').addClass('d-lg-block');
             setMainContentDockedMargin();
+            hideSidebarBackdrop();
+            syncSidebarToggleAria();
         }
-        syncSidebarToggleAria();
 
         $('#toggle-main-sidebar').on('click', function() {
             var $sidebar = $('#sidebar-container');
-            var willOpen = $sidebar.hasClass('hidden');
+            var willOpen = $sidebar.hasClass('hidden') || $sidebar.hasClass('d-none') || !$sidebar.is(':visible');
 
             if (isSidebarOverlayViewport()) {
                 if (willOpen) {
@@ -2612,13 +2631,12 @@
                 return;
             }
 
-            $sidebar.toggleClass('hidden');
-            if ($sidebar.hasClass('hidden')) {
-                $sidebar.removeClass('floating-sidebar');
-                setMainContentFullWidth();
-            } else {
-                $sidebar.removeClass('floating-sidebar');
+            if (willOpen) {
+                $sidebar.removeClass('hidden d-none floating-sidebar').addClass('d-lg-block');
                 setMainContentDockedMargin();
+            } else {
+                $sidebar.addClass('hidden').removeClass('floating-sidebar');
+                setMainContentFullWidth();
             }
             syncSidebarToggleAria();
         });
@@ -2642,12 +2660,7 @@
         $(window).on('resize', function() {
             clearTimeout(sidebarResizeTimer);
             sidebarResizeTimer = setTimeout(function() {
-                if (isSidebarOverlayViewport()) {
-                    // Crossing into tablet/mobile: force closed so layout stays usable.
-                    if (!$('#sidebar-container').hasClass('floating-sidebar')) {
-                        $('#sidebar-container').addClass('hidden').removeClass('floating-sidebar');
-                    }
-                }
+                // Preserve open/closed preference across breakpoints; do not force-close.
                 applySidebarLayoutForViewport();
             }, 120);
         });

@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/crm.css') }}">
+@include('layouts.crm.partials.responsive-styles')
 <style type="text/css">
 	.tab-card {
 		border: 1px solid #eee;
@@ -43,7 +44,7 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group sticky-top sticky-offset">
@@ -131,7 +132,7 @@
 	<!-- sidebar-container END -->
 
 	<!-- MAIN -->
-	<div class="py-3 crm-main-content" id="main-container-body">
+	<div class="py-3 crm-main-content crm-page" id="main-container-body">
 		<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 
 

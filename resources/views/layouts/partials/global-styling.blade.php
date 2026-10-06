@@ -72,6 +72,8 @@
 		--control-h: 34px;
 		--btn-h: 34px;
 		--btn-h-sm: 30px;
+		--touch-min: 44px;
+		--touch-input-font: 16px;
 		--page-max-width: 1280px;
 		--page-pad-x: 1.5rem;
 		--page-pad-x-md: 2rem;

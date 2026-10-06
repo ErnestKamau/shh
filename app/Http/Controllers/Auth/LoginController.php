@@ -120,6 +120,11 @@ class LoginController extends Controller
       session()->forget('is_account_locked');
       session()->forget('login_attempts_warning');
 
+      // Keep RFT / company-scoped features on the user's home company after login.
+      if (filled($user->company_id)) {
+        Session::put('company_id', (string) $user->company_id);
+      }
+
   			if ((int) $user->failed_login_attempts > 0 || (bool) $user->login_locked_by_admin_reset) {
   				$user->failed_login_attempts = 0;
   				$user->login_locked_by_admin_reset = false;

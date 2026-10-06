@@ -5,8 +5,9 @@
 @endsection
 
 @section('content2')
-    <main>
+    <main class="pricelist-page lab-surface-theme">
         @include('layouts.lab.partials.ls-ui.ls-ui-tokens-and-styles')
+        @include('layouts.billing.partials.responsive-styles')
         <?php
             $items = [
                 [
