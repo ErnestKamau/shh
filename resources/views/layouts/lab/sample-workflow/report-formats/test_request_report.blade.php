@@ -37,7 +37,7 @@
         padding-bottom: 2px !important;
     }
     .report-title-bar {
-        margin: 4px 0 4px !important;
+        margin: 4px 0 10px !important;
         padding: 4px 0 2px !important;
     }
     @endif
@@ -221,7 +221,7 @@
         text-transform: uppercase;
         letter-spacing: 1.2px;
         padding: 6px 0 2px;
-        margin: 2px 0 4px;
+        margin: 2px 0 10px;
         color: #111;
         border-top: none;
         border-bottom: 3px solid #8B1A1A;
@@ -242,6 +242,22 @@
         border: 1px solid #000;
         background: #fff;
         color: #111;
+    }
+    .info-table col.info-label-col { width: 24%; }
+    .info-table col.info-colon-col { width: 2%; }
+    .info-table td.info-label {
+        font-weight: bold;
+        border-right: none;
+    }
+    .info-table td.info-colon {
+        padding-left: 0;
+        padding-right: 0;
+        text-align: center;
+        border-left: none;
+        border-right: none;
+    }
+    .info-table td.info-value {
+        border-left: none;
     }
 
     /* ── DETAILS GRID (2-column, bordered) ──────── */
@@ -635,7 +651,7 @@
         size: A4 portrait;
     }
     html {
-        margin: 35mm 12mm 28mm 12mm;
+        margin: 50mm 12mm 28mm 12mm;
         padding: 0;
     }
     body, main {
@@ -654,7 +670,7 @@
     }
     .pdf-doc-header {
         position: fixed;
-        top: -33mm;
+        top: -47mm;
         left: 0;
         right: 0;
         width: auto;

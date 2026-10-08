@@ -38,6 +38,30 @@ class BatchAttachment extends Model implements Auditable
         return basename($this->attachment_url);
     }
 
+    /**
+     * Title without the trailing report language marker, e.g. "Test Report · 261008055-R02 (EN)".
+     */
+    public function getDisplayTitleAttribute(): string
+    {
+        return trim((string) preg_replace('/\s*\((EN|AR|PT)\)\s*$/i', '', (string) $this->title));
+    }
+
+    /**
+     * Human-readable report language parsed from the trailing title marker, if any.
+     */
+    public function getReportLanguageAttribute(): ?string
+    {
+        if (! preg_match('/\((EN|AR|PT)\)\s*$/i', (string) $this->title, $matches)) {
+            return null;
+        }
+
+        return [
+            'EN' => 'English',
+            'AR' => 'Arabic',
+            'PT' => 'Portuguese',
+        ][strtoupper($matches[1])];
+    }
+
     public function getFileTypeAttribute()
     {
         if (!$this->attachment_url) {

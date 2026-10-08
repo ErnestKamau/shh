@@ -319,9 +319,9 @@
                                         @foreach($reportAttachments as $ra)
                                         <tr>
                                             <td class="align-middle font-weight-bold text-success">
-                                                {{ $ra->title }}
-                                                @if(!empty($ra->file_name))
-                                                    <div class="small text-muted font-weight-normal mt-1">{{ $ra->file_name }}</div>
+                                                {{ $ra->display_title ?? $ra->title }}
+                                                @if(!empty($ra->report_language))
+                                                    <div class="small text-muted font-weight-normal mt-1">{{ $ra->report_language }}</div>
                                                 @endif
                                             </td>
                                             <td class="align-middle"><span class="badge badge-light border">{{ $ra->attachtypename }}</span></td>

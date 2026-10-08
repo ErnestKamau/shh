@@ -4564,7 +4564,7 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Failed to merge PDFs with the Test Report: '.$exception->getMessage());
         }
 
-        $fileName = 'TRR_Merged_'.time().'.pdf';
+        $fileName = 'TR_Merged_'.time().'.pdf';
         $storagePath = 'batch-attachments/'.$fileName;
         Storage::put($storagePath, $mergedContent);
 
@@ -7095,7 +7095,7 @@ class SampleWorkFlowController extends Controller
 
             // Section-only prints stream only — do not persist / attach / bump official URL.
             if ($isSectionOnlyPrint) {
-                $filename = 'TRR_' . $reportNumber;
+                $filename = 'TR_' . $reportNumber;
                 $sectionSlug = preg_replace(
                     '/[^A-Za-z0-9\-\_]/',
                     '_',

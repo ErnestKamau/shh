@@ -115,7 +115,7 @@ class SampleTestReportDocumentService
         $customerFolder = trim((string) $customerFolder, '_') ?: 'customer';
 
         $safeNumber = preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($document->report_number ?: 'report')) ?: 'report';
-        $filename = 'TRR_'.$safeNumber.'-'.$document->language.'-'.now()->format('YmdHis').'-'.bin2hex(random_bytes(3)).'.pdf';
+        $filename = 'TR_'.$safeNumber.'-'.now()->format('YmdHis').'-'.bin2hex(random_bytes(3)).'.pdf';
 
         $relativePath = 'reports/'.$customerFolder.'/samples/'.$filename;
         $absoluteDir = storage_path('app/public/reports/'.$customerFolder.'/samples');

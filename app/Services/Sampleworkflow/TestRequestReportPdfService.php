@@ -239,7 +239,7 @@ class TestRequestReportPdfService
         $language = $this->normalizeLanguage($language);
         $customerName = preg_replace('/[^A-Za-z0-9\-\_]/', '_', (string) ($batch->customer->name ?? 'customer'));
         $customerName = trim((string) $customerName, '_') ?: 'customer';
-        $filename = $this->uniqueStoredFilename($reportNumber, $language, $isDraft);
+        $filename = $this->uniqueStoredFilename($reportNumber, $isDraft);
         $relativePath = '/reports/'.$customerName.'/'.$filename;
         $absoluteDir = storage_path('app/public/reports/'.$customerName);
 
@@ -582,7 +582,7 @@ class TestRequestReportPdfService
         ];
     }
 
-    private function uniqueStoredFilename(string $reportNumber, string $language, bool $isDraft = false): string
+    private function uniqueStoredFilename(string $reportNumber, bool $isDraft = false): string
     {
         // Keep the report number human-readable in the filename (e.g. "261001055_(001 - 045)_(M, C)-R03")
         // — only strip characters that are actually unsafe in a filename/URL path segment.
@@ -590,9 +590,9 @@ class TestRequestReportPdfService
         $safeNumber = trim($safeNumber);
         $stamp = now()->format('YmdHis');
         $suffix = bin2hex(random_bytes(3));
-        $prefix = $isDraft ? 'TRR_DRAFT_' : 'TRR_';
+        $prefix = $isDraft ? 'TR_DRAFT_' : 'TR_';
 
-        return $prefix.$safeNumber.'-'.$language.'-'.$stamp.'-'.$suffix.'.pdf';
+        return $prefix.$safeNumber.'-'.$stamp.'-'.$suffix.'.pdf';
     }
 
     /**

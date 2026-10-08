@@ -803,7 +803,7 @@ class TestRequestReportDataService
                     ? $normalizedRows
                     : $this->appendAdditionalDetailRows($normalizedRows, $additionalDetails),
                 'lab_section' => $labSectionNames,
-                'conducted_by' => $this->conductedByEmployeeIds($sampleResults, $usersById),
+                'conducted_by' => $this->conductedByNames($sampleResults, $usersById),
                 'sample_photo_data_uri' => $samplePhotoDataUri,
             ];
         }
@@ -2125,7 +2125,7 @@ class TestRequestReportDataService
      * @param  \Illuminate\Support\Collection<int, CapturedResult>  $sampleResults
      * @param  \Illuminate\Support\Collection<string, User>  $usersById
      */
-    private function conductedByEmployeeIds($sampleResults, $usersById): string
+    private function conductedByNames($sampleResults, $usersById): string
     {
         $ids = [];
 
@@ -2148,20 +2148,19 @@ class TestRequestReportDataService
             }
         }
 
-        $labels = [];
+        $names = [];
         foreach (array_keys($ids) as $userId) {
             $user = $usersById->get($userId) ?? $sampleResults->firstWhere('user_id', $userId)?->user;
             if ($user === null) {
                 continue;
             }
 
-            $employeeId = trim((string) ($user->id_number ?? ''));
-            $label = $employeeId !== '' ? $employeeId : trim((string) ($user->name ?? ''));
-            if ($label !== '') {
-                $labels[] = $label;
+            $name = trim((string) ($user->name ?? ''));
+            if ($name !== '') {
+                $names[] = $name;
             }
         }
 
-        return implode(', ', array_values(array_unique($labels)));
+        return implode(', ', array_values(array_unique($names)));
     }
 }

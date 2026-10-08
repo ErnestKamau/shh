@@ -242,6 +242,22 @@
         background: #fff;
         color: #111;
     }
+    .info-table col.info-label-col { width: 24%; }
+    .info-table col.info-colon-col { width: 2%; }
+    .info-table td.info-label {
+        font-weight: bold;
+        border-right: none;
+    }
+    .info-table td.info-colon {
+        padding-left: 0;
+        padding-right: 0;
+        text-align: center;
+        border-left: none;
+        border-right: none;
+    }
+    .info-table td.info-value {
+        border-left: none;
+    }
 
     /* ── DETAILS GRID (2-column, bordered) ──────── */
     .detail-grid {

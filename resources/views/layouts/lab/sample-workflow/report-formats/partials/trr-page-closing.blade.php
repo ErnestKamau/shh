@@ -7,7 +7,7 @@
 <table class="meta-box">
     <tr>
         <td>
-            {{ $labels['analysis_conducted'] }}: {{ $labels['employee_id'] ?? 'Employee ID' }} - {{ $conductedBy }}
+            {{ $labels['analysis_conducted'] }}: {{ $conductedBy }}
         </td>
         <td>
             {{ $labels['test_method_dev'] }}
