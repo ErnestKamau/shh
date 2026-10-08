@@ -242,7 +242,7 @@ class CommentsInterpretationsDefaultsService
         ];
 
         if ($batch === null || (int) ($batch->sampled_by_company_personnel ?? 0) !== 1) {
-            $notes[] = 'Results apply only to the sample as received';
+            $notes[] = 'Sample received from the client and tested as received';
         }
 
         if ($this->sampleHasPesticide($results)) {
