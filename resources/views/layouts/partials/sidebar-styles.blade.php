@@ -51,7 +51,7 @@
 
 	#sidebar-container .list-group a {
 		height: 50px;
-		color: rgba(255, 255, 255, 0.78) !important;
+		color: rgba(255, 255, 255, 0.88) !important;
 		margin: 2px 0;
 		border-radius: 8px;
 		background: transparent !important;
@@ -59,6 +59,20 @@
 		transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 		position: relative;
 		overflow: hidden;
+	}
+
+	/* Menu labels — explicit size/weight so they read clearly against the
+	   burgundy chrome instead of inheriting a thin, ambiguous default. */
+	#sidebar-container .list-group .menu-collapsed {
+		font-size: var(--text-sidebar);
+		font-weight: var(--font-medium);
+		letter-spacing: 0.01em;
+		color: inherit;
+	}
+
+	#sidebar-container .list-group > .list-group-item.sidebar-module-div .menu-collapsed,
+	#sidebar-container .list-group > div.sidebar-module-div span.text-bold {
+		font-weight: var(--font-semibold);
 	}
 
 	#sidebar-container .list-group > a[aria-expanded] .mdi,
@@ -91,7 +105,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		color: rgba(255, 255, 255, 0.7) !important;
+		color: rgba(255, 255, 255, 0.8) !important;
 	}
 
 	#sidebar-container .list-group .sidebar-submenu a:hover,
