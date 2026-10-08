@@ -117,10 +117,10 @@
         <div class="row mb-4">
             <!-- Intake -->
             <div class="col-md-3">
-                <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Samples%20Reception'">
-                    <div class="stat-label text-info"><i class="fas fa-inbox"></i> {{ __('dashboard.samples_reception') }}</div>
-                    <div class="stat-value">{{ $draft_forms ?? 0 }} <span class="stat-value-secondary">/ {{ $pending_submission_forms ?? 0 }}</span></div>
-                    <div class="stat-subtext">{{ __('dashboard.drafts_total_pending_forms') }}</div>
+                <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Samples%20Receiving'">
+                    <div class="stat-label text-info"><i class="fas fa-inbox"></i> Samples Receiving</div>
+                    <div class="stat-value">{{ $samples_receiving ?? 0 }}</div>
+                    <div class="stat-subtext">Awaiting receipt at lab</div>
                     <i class="fas fa-chevron-right pipeline-arrow d-none d-md-block"></i>
                 </div>
             </div>

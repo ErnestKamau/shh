@@ -257,7 +257,7 @@
         margin-top: -1px;
     }
     .info-table + .detail-grid {
-        margin-top: -1px;
+        margin-top: 3mm;
     }
     .detail-grid td {
         border: 1px solid #000;
@@ -635,7 +635,7 @@
         size: A4 portrait;
     }
     html {
-        margin: 38mm 12mm 28mm 12mm;
+        margin: 35mm 12mm 28mm 12mm;
         padding: 0;
     }
     body, main {
@@ -654,7 +654,7 @@
     }
     .pdf-doc-header {
         position: fixed;
-        top: -36mm;
+        top: -33mm;
         left: 0;
         right: 0;
         width: auto;
@@ -746,7 +746,7 @@
         padding: 3px 6px;
     }
     .info-table + .detail-grid {
-        margin-top: -1px;
+        margin-top: 3mm;
     }
     .detail-grid {
         margin-bottom: 0;

@@ -24,14 +24,13 @@
 	#sidebar-container .sidebar-module-div {
 		position: sticky;
 		top: 0;
-		z-index: 2;
+		z-index: 3;
+		isolation: isolate;
 		padding: 1.275rem !important; /* p-4 (1.5rem) × 0.85 */
 		background:
 			linear-gradient(135deg, var(--lab-chrome-glass) 0%, rgba(255, 255, 255, 0.05) 100%),
 			var(--lab-chrome-sidebar-bg) !important;
 		border: 1px solid rgba(255, 255, 255, 0.22) !important;
-		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
 		box-shadow:
 			inset 3px 0 0 0 var(--lab-chrome-blue-accent),
 			inset 0 1px 0 rgba(255, 255, 255, 0.2),
@@ -60,9 +59,7 @@
 	#sidebar-container .list-group > a.list-group-item-action:hover,
 	#sidebar-container .list-group > a.list-group-item-action.active,
 	#sidebar-container .list-group > a[aria-expanded="true"] {
-		background: var(--lab-chrome-glass) !important;
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
+		background: linear-gradient(135deg, var(--lab-chrome-glass) 0%, rgba(255, 255, 255, 0.04) 100%), var(--lab-chrome-sidebar-bg) !important;
 		border: 1px solid rgba(255, 255, 255, 0.16) !important;
 		color: #fff !important;
 		box-shadow:
@@ -122,19 +119,17 @@
 	#sidebar-container .lab-sidebar-foot {
 		flex: 0 0 auto;
 		width: 100%;
-		padding: 0.55rem 0.55rem 0.65rem;
+		padding: 0.3rem 0.35rem 0.35rem;
 		border-top: 1px solid rgba(255, 255, 255, 0.12);
-		background: rgba(0, 0, 0, 0.18);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
+		background: linear-gradient(0deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)), var(--lab-chrome-sidebar-bg);
 		z-index: 2;
 	}
 
 	#sidebar-container .lab-sidebar-foot__actions {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
-		margin-bottom: 0.45rem;
+		gap: 0.35rem;
+		margin-bottom: 0;
 	}
 
 	#sidebar-container .lab-sidebar-signout,
@@ -142,14 +137,14 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.35rem;
+		gap: 0.3rem;
 		border: 1px solid rgba(255, 255, 255, 0.2);
 		background: var(--lab-chrome-glass);
 		color: #fff !important;
-		border-radius: 8px;
-		font-size: 0.72rem;
+		border-radius: 7px;
+		font-size: 0.7rem;
 		font-weight: 600;
-		padding: 0.45rem 0.6rem;
+		padding: 0.38rem 0.55rem;
 		cursor: pointer;
 		transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 	}
@@ -161,7 +156,7 @@
 	#sidebar-container .lab-sidebar-switch {
 		flex: 0 0 auto;
 		position: relative;
-		padding: 0.45rem 0.55rem;
+		padding: 0.38rem 0.5rem;
 	}
 
 	#sidebar-container .lab-sidebar-signout:hover,
@@ -174,7 +169,7 @@
 
 	#sidebar-container .lab-sidebar-signout .mdi,
 	#sidebar-container .lab-sidebar-switch .mdi {
-		font-size: 1rem;
+		font-size: 0.95rem;
 		color: #fff !important;
 	}
 
@@ -201,8 +196,9 @@
 
 	#sidebar-container .lab-sidebar-foot__copy {
 		text-align: center;
-		font-size: 0.65rem;
-		padding: 0.35rem 0.25rem 0.1rem !important;
+		font-size: 0.62rem;
+		line-height: 1.2;
+		padding: 0.2rem 0.25rem 0 !important;
 		background: transparent !important;
 		border: none !important;
 		color: rgba(255, 255, 255, 0.55) !important;
@@ -210,5 +206,25 @@
 
 	#sidebar-container .lab-sidebar-foot__copy .text-red {
 		color: #fff !important;
+	}
+
+	/* Top progress bar shown while navigating between lab-module pages, so a
+	   full page reload reads as "loading" rather than a frozen/blank glitch. */
+	#lab-page-loader {
+		position: fixed;
+		top: 0;
+		left: 0;
+		height: 3px;
+		width: 0%;
+		background: linear-gradient(90deg, var(--lab-chrome-blue-accent), var(--lab-chrome-burgundy));
+		box-shadow: 0 0 8px color-mix(in srgb, var(--lab-chrome-blue-accent) 60%, transparent);
+		z-index: 99999;
+		opacity: 0;
+		transition: width 0.25s ease, opacity 0.2s ease;
+		pointer-events: none;
+	}
+
+	#lab-page-loader.is-active {
+		opacity: 1;
 	}
 </style>

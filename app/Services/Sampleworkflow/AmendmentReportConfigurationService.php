@@ -4,6 +4,8 @@ namespace App\Services\Sampleworkflow;
 
 use App\Models\System\SystemConfiguration;
 use App\Models\System\SystemConfigurationsType;
+use App\SampleAnalysisStage;
+use App\SampleHeader;
 
 class AmendmentReportConfigurationService
 {
@@ -43,7 +45,7 @@ class AmendmentReportConfigurationService
             self::KEY_REVISION_LABEL => 'Revision No.',
             self::KEY_REASON_LABEL => 'Amendment Reason',
             self::KEY_SUPERSEDES_TEXT => 'This report supersedes the original report',
-            self::KEY_REPORT_NUMBER_FORMAT => '{job}-R{nn}',
+            self::KEY_REPORT_NUMBER_FORMAT => '{job}_({samples})_({sections})-R{nn}',
             self::KEY_SAMPLE_NUMBER_SUFFIX_FORMAT => '-V{n}',
         ];
     }
@@ -100,12 +102,77 @@ class AmendmentReportConfigurationService
         return $this->applyPlaceholders($this->get(self::KEY_REVISION_FORMAT), max(1, $version));
     }
 
-    public function formatReportNumber(string $jobNumber, int $revision): string
+    /**
+     * @param  list<int>  $sampleNumbers  Numeric sample sequence numbers (e.g. 1, 5, 45) covered by the report.
+     * @param  list<string>  $labSectionNames  Lab section names covered by the report (e.g. ["Microbiology", "Chemistry"]).
+     */
+    public function formatReportNumber(string $jobNumber, int $revision, array $sampleNumbers = [], array $labSectionNames = []): string
     {
         $revision = max(1, $revision);
         $format = $this->get(self::KEY_REPORT_NUMBER_FORMAT);
 
-        return $this->applyPlaceholders($format, $revision, $jobNumber);
+        return $this->applyPlaceholders($format, $revision, $jobNumber, $sampleNumbers, $labSectionNames);
+    }
+
+    /**
+     * Same as formatReportNumber(), but resolves {samples} / {sections} directly from the batch.
+     *
+     * @param  list<string>  $filterSampleIds  SampleDetails ids to restrict {samples} to (empty = every sample on the batch).
+     * @param  list<string>  $filterLabSectionIds  Lab section ids to restrict {sections} to (empty = every section on the batch).
+     */
+    public function formatReportNumberForBatch(
+        SampleHeader $batch,
+        int $revision,
+        array $filterSampleIds = [],
+        array $filterLabSectionIds = [],
+    ): string {
+        return $this->formatReportNumber(
+            (string) $batch->batch_code,
+            $revision,
+            $this->sampleSequenceNumbersForBatch($batch, $filterSampleIds),
+            $this->labSectionNamesForBatch($batch, $filterLabSectionIds),
+        );
+    }
+
+    /**
+     * @param  list<string>  $filterSampleIds
+     * @return list<int>
+     */
+    public function sampleSequenceNumbersForBatch(SampleHeader $batch, array $filterSampleIds = []): array
+    {
+        $query = $batch->samples();
+        if ($filterSampleIds !== []) {
+            $query = $query->whereIn('id', $filterSampleIds);
+        }
+
+        $numbers = [];
+        foreach ($query->pluck('sample_code') as $sampleCode) {
+            $sampleCode = $this->stripSampleNumberSuffix(trim((string) $sampleCode));
+            if (preg_match('/(\d+)$/', $sampleCode, $matches) === 1) {
+                $numbers[] = (int) $matches[1];
+            }
+        }
+
+        return $numbers;
+    }
+
+    /**
+     * @param  list<string>  $filterLabSectionIds
+     * @return list<string>
+     */
+    public function labSectionNamesForBatch(SampleHeader $batch, array $filterLabSectionIds = []): array
+    {
+        if ($filterLabSectionIds !== []) {
+            return SampleAnalysisStage::query()
+                ->whereIn('id', $filterLabSectionIds)
+                ->pluck('name')
+                ->map(fn ($name): string => (string) $name)
+                ->all();
+        }
+
+        $names = $batch->getLabSectionsNames();
+
+        return $names === '' ? [] : array_map('trim', explode(',', $names));
     }
 
     public function formatSampleNumberSuffix(int $version): string
@@ -156,7 +223,11 @@ class AmendmentReportConfigurationService
      *     sample_number_suffix: string
      * }
      */
-    public function amendmentViewData(int $version, ?string $jobNumber = null): array
+    /**
+     * @param  list<int>  $sampleNumbers
+     * @param  list<string>  $labSectionNames
+     */
+    public function amendmentViewData(int $version, ?string $jobNumber = null, array $sampleNumbers = [], array $labSectionNames = []): array
     {
         $version = max(1, $version);
 
@@ -166,7 +237,7 @@ class AmendmentReportConfigurationService
             'supersedes_text' => $this->get(self::KEY_SUPERSEDES_TEXT),
             'formatted_revision' => $this->formatRevision($version),
             'formatted_report_number' => $jobNumber !== null && $jobNumber !== ''
-                ? $this->formatReportNumber($jobNumber, $version)
+                ? $this->formatReportNumber($jobNumber, $version, $sampleNumbers, $labSectionNames)
                 : '',
             'sample_number_suffix' => $this->formatSampleNumberSuffix($version),
         ];
@@ -208,8 +279,17 @@ class AmendmentReportConfigurationService
         }
     }
 
-    private function applyPlaceholders(string $format, int $revision, ?string $jobNumber = null): string
-    {
+    /**
+     * @param  list<int>  $sampleNumbers
+     * @param  list<string>  $labSectionNames
+     */
+    private function applyPlaceholders(
+        string $format,
+        int $revision,
+        ?string $jobNumber = null,
+        array $sampleNumbers = [],
+        array $labSectionNames = [],
+    ): string {
         $n = (string) $revision;
         $nn = str_pad($n, 2, '0', STR_PAD_LEFT);
 
@@ -222,7 +302,67 @@ class AmendmentReportConfigurationService
             $replacements['{job}'] = $jobNumber;
         }
 
+        if (str_contains($format, '{samples}')) {
+            $replacements['{samples}'] = $this->formatSampleRange($sampleNumbers);
+        }
+
+        if (str_contains($format, '{sections}')) {
+            $replacements['{sections}'] = $this->formatSectionInitials($labSectionNames);
+        }
+
         return str_replace(array_keys($replacements), array_values($replacements), $format);
+    }
+
+    /**
+     * Sample numbers as "001" (single), "001 - 045" (contiguous range), or "001, 005, 045" (gaps).
+     *
+     * @param  list<int>  $sampleNumbers
+     */
+    private function formatSampleRange(array $sampleNumbers): string
+    {
+        $numbers = array_values(array_unique(array_filter($sampleNumbers, static fn (int $n): bool => $n > 0)));
+        sort($numbers);
+
+        if ($numbers === []) {
+            return '';
+        }
+
+        $pad = static fn (int $n): string => str_pad((string) $n, 3, '0', STR_PAD_LEFT);
+
+        if (count($numbers) === 1) {
+            return $pad($numbers[0]);
+        }
+
+        $min = $numbers[0];
+        $max = $numbers[count($numbers) - 1];
+        $isContiguous = ($max - $min + 1) === count($numbers);
+
+        return $isContiguous
+            ? $pad($min).' - '.$pad($max)
+            : implode(', ', array_map($pad, $numbers));
+    }
+
+    /**
+     * Lab section names reduced to unique first-letter initials, e.g. ["Microbiology", "Chemistry"] -> "M, C".
+     *
+     * @param  list<string>  $labSectionNames
+     */
+    private function formatSectionInitials(array $labSectionNames): string
+    {
+        $initials = [];
+        foreach ($labSectionNames as $name) {
+            $name = trim((string) $name);
+            if ($name === '') {
+                continue;
+            }
+
+            $initial = mb_strtoupper(mb_substr($name, 0, 1));
+            if (! in_array($initial, $initials, true)) {
+                $initials[] = $initial;
+            }
+        }
+
+        return implode(', ', $initials);
     }
 
     private function suffixFormatToRegex(string $format): string

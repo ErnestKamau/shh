@@ -225,6 +225,28 @@
 		border-color: rgba(255, 255, 255, 0.14);
 	}
 
+	/* K — slate base; burgundy demoted to a signal: brand card + active-nav accent only */
+	.cp-scenario-K .cp-sidebar__brand {
+		background: linear-gradient(135deg, color-mix(in srgb, var(--cp-burgundy) 58%, var(--cp-glass)) 0%, color-mix(in srgb, var(--cp-burgundy) 32%, rgba(255, 255, 255, 0.04)) 100%);
+		border-color: color-mix(in srgb, var(--cp-burgundy) 42%, rgba(255, 255, 255, 0.22));
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.18),
+			0 4px 14px rgba(0, 0, 0, 0.2),
+			0 0 0 1px color-mix(in srgb, var(--cp-burgundy) 28%, transparent);
+	}
+
+	.cp-scenario-K .cp-sidebar__link:hover {
+		background: rgba(255, 255, 255, 0.06);
+	}
+
+	.cp-scenario-K .cp-sidebar__link.is-active,
+	.cp-scenario-K .cp-sidebar__link.is-open,
+	.cp-scenario-K .cp-sidebar__sublink.is-active {
+		background: color-mix(in srgb, var(--cp-burgundy) 16%, var(--cp-glass));
+		border-color: color-mix(in srgb, var(--cp-burgundy) 30%, rgba(255, 255, 255, 0.14));
+		box-shadow: inset 3px 0 0 0 var(--cp-burgundy);
+	}
+
 	.cp-sidebar__brand {
 		position: relative;
 		z-index: 1;

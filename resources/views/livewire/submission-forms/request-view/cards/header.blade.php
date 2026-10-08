@@ -372,4 +372,60 @@
             </div>
         </div>
     </div>
+
+    {{-- Instant feedback while ProcessEnquiryWizard::openWizard() does its (synchronous,
+         can take a couple seconds) server-side work — otherwise the button just goes
+         disabled and nothing visible happens until the whole modal snaps in. --}}
+    <div class="rv-process-enquiry-loading" wire:loading.flex wire:target="openProcessEnquiry">
+        <div class="rv-process-enquiry-loading__card">
+            <div class="rv-process-enquiry-loading__shimmer rv-process-enquiry-loading__shimmer--title"></div>
+            <div class="rv-process-enquiry-loading__shimmer"></div>
+            <div class="rv-process-enquiry-loading__shimmer"></div>
+            <div class="rv-process-enquiry-loading__shimmer rv-process-enquiry-loading__shimmer--short"></div>
+        </div>
+    </div>
+
+    <style>
+        .rv-process-enquiry-loading {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1150;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .rv-process-enquiry-loading__card {
+            width: min(560px, calc(100vw - 2rem));
+            padding: 1.5rem;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+        }
+
+        .rv-process-enquiry-loading__shimmer {
+            height: 14px;
+            border-radius: 6px;
+            margin-bottom: 0.9rem;
+            background: linear-gradient(90deg, #e9edf2 25%, #f4f6f8 37%, #e9edf2 63%);
+            background-size: 400% 100%;
+            animation: rv-process-enquiry-shimmer 1.4s ease infinite;
+        }
+
+        .rv-process-enquiry-loading__shimmer--title {
+            width: 45%;
+            height: 20px;
+        }
+
+        .rv-process-enquiry-loading__shimmer--short {
+            width: 60%;
+            margin-bottom: 0;
+        }
+
+        @keyframes rv-process-enquiry-shimmer {
+            0% { background-position: 100% 50%; }
+            100% { background-position: 0 50%; }
+        }
+    </style>
 </div>

@@ -9,7 +9,7 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
  */
 class QrCodeImageService
 {
-    public function svgDataUri(string $content, int $size = 220): string
+    public function svgDataUri(string $content, int $size = 220, string $errorCorrection = 'M'): string
     {
         if ($content === '' || ! class_exists(QrCode::class)) {
             return '';
@@ -19,7 +19,7 @@ class QrCodeImageService
             QrCode::format('svg')
                 ->size($size)
                 ->margin(0)
-                ->errorCorrection('M')
+                ->errorCorrection($errorCorrection)
                 ->generate($content)
         );
     }

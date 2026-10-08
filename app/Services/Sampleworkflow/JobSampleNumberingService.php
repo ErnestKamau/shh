@@ -249,14 +249,17 @@ class JobSampleNumberingService
      * COA report number linked to job.
      * Example: 260428001-R01 (or configured amendment pattern when amended)
      */
-    public function reportNumber(string $jobNumber, int $revision = 1, bool $useAmendmentFormat = false): string
+    public function reportNumber(string $jobNumber, int $revision = 1, bool $useAmendmentFormat = false, ?SampleHeader $batch = null): string
     {
         $this->assertValidJobNumber($jobNumber);
         $revision = max(1, $revision);
 
         if ($useAmendmentFormat || $revision > 1) {
-            return app(AmendmentReportConfigurationService::class)
-                ->formatReportNumber($jobNumber, $revision);
+            $config = app(AmendmentReportConfigurationService::class);
+
+            return $batch !== null
+                ? $config->formatReportNumberForBatch($batch, $revision)
+                : $config->formatReportNumber($jobNumber, $revision);
         }
 
         return $jobNumber . '-R' . str_pad((string) $revision, 2, '0', STR_PAD_LEFT);
@@ -270,7 +273,7 @@ class JobSampleNumberingService
             return;
         }
 
-        $reportNumber = $this->reportNumber($jobNumber, $revision, $useAmendmentFormat);
+        $reportNumber = $this->reportNumber($jobNumber, $revision, $useAmendmentFormat, $batch);
 
         SampleDetails::query()
             ->where('sample_header_id', $batch->id)

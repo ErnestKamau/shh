@@ -558,9 +558,13 @@ class TestRequestReportPdfService
      *     sampleNumberSuffix: string
      * }
      */
-    public function amendmentDisplayData(array $labels, int $version, ?string $jobNumber = null): array
+    /**
+     * @param  list<int>  $sampleNumbers
+     * @param  list<string>  $labSectionNames
+     */
+    public function amendmentDisplayData(array $labels, int $version, ?string $jobNumber = null, array $sampleNumbers = [], array $labSectionNames = []): array
     {
-        $config = $this->amendmentReportConfig->amendmentViewData($version, $jobNumber);
+        $config = $this->amendmentReportConfig->amendmentViewData($version, $jobNumber, $sampleNumbers, $labSectionNames);
 
         return [
             'revisionLabel' => $config['revision_label'] !== ''
@@ -580,7 +584,10 @@ class TestRequestReportPdfService
 
     private function uniqueStoredFilename(string $reportNumber, string $language, bool $isDraft = false): string
     {
-        $safeNumber = preg_replace('/[^A-Za-z0-9\-_]/', '_', $reportNumber) ?: 'report';
+        // Keep the report number human-readable in the filename (e.g. "261001055_(001 - 045)_(M, C)-R03")
+        // — only strip characters that are actually unsafe in a filename/URL path segment.
+        $safeNumber = preg_replace('/[\/\\\\:*?"<>|]/', '_', $reportNumber) ?: 'report';
+        $safeNumber = trim($safeNumber);
         $stamp = now()->format('YmdHis');
         $suffix = bin2hex(random_bytes(3));
         $prefix = $isDraft ? 'TRR_DRAFT_' : 'TRR_';

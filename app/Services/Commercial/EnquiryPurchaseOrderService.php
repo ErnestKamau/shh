@@ -10,6 +10,7 @@ use App\Enums\Commercial\PurchaseOrderStatus;
 use App\Enums\Commercial\PurchaseOrderType;
 use App\Exceptions\Commercial\PurchaseOrderLedgerException;
 use App\Models\Commercial\CustomerPurchaseOrder;
+use App\Models\Commercial\CustomerPurchaseOrderLine;
 use App\Models\Commercial\EnquiryPurchaseOrderChange;
 use App\Models\EnquiryQuotation;
 use App\Models\SampleSubmissionRequest;
@@ -439,7 +440,7 @@ final class EnquiryPurchaseOrderService
      *     covered: int,
      *     uncovered: int,
      *     reserved: int,
-     *     rows: list<array{key: string, label: string, requested: int, covered: int, uncovered: int, reason: ?string}>
+     *     rows: list<array{key: string, label: string, sample_type: ?string, analysis_type: ?string, analyte: ?string, requested: int, covered: int, uncovered: int, reason: ?string}>
      * }
      */
     public function coverage(SampleSubmissionRequest $enquiry): array
@@ -461,7 +462,7 @@ final class EnquiryPurchaseOrderService
      *     covered: int,
      *     uncovered: int,
      *     reserved: int,
-     *     rows: list<array{key: string, label: string, requested: int, covered: int, uncovered: int, reason: ?string}>
+     *     rows: list<array{key: string, label: string, sample_type: ?string, analysis_type: ?string, analyte: ?string, package_name: ?string, package_parameters: list<array{name: string, covered: bool}>, requested: int, covered: int, uncovered: int, reason: ?string}>
      * }
      */
     public function previewFor(SampleSubmissionRequest $enquiry, ?CustomerPurchaseOrder $po): array
@@ -470,14 +471,53 @@ final class EnquiryPurchaseOrderService
         $labels = $this->demandLabels($demand);
         $result = $po !== null ? $this->allocation->preview($po, $demand, (string) $enquiry->id) : null;
 
+        $matchedLineIds = $result === null ? [] : array_values(array_unique(array_filter(
+            array_map(fn ($item) => $result->forDemand($item->key)?->lineId, $demand),
+        )));
+        $packageLines = $this->packageLineDetails($matchedLineIds);
+        $displayElementNames = $this->elementNames(array_merge(
+            [],
+            ...array_map(fn ($item): array => $item->displayElementIds, $demand),
+        ));
+
         $rows = [];
         foreach ($demand as $item) {
             $line = $result?->forDemand($item->key);
             $covered = $line?->covered ?? 0;
+            // Coverage is tracked per unit (sample count), not per parameter: a matched line covers
+            // every parameter listed under it, an unmatched one covers none of them.
+            $isCovered = $covered >= $item->quantity;
+            $parts = $labels[$item->key] ?? [];
+            $package = ($parts['analyte'] ?? null) === null ? ($packageLines[$line?->lineId ?? ''] ?? null) : null;
+
+            if ($package !== null) {
+                $package['parameters'] = array_map(
+                    fn (string $name): array => ['name' => $name, 'covered' => $isCovered],
+                    $package['parameters'],
+                );
+            } elseif ($item->displayElementIds !== [] && $item->displayElementIds !== $item->analysisElementIds) {
+                // No PO line to pull a package description from (e.g. uncovered): fall back to the
+                // requested sample type / analysis type with the leftover parameters listed under it,
+                // so the preview still shows what the "package" is rather than a bare, unexplained row.
+                $package = [
+                    'name' => $parts['sample_type'] ?? $parts['analysis_type'] ?? 'Requested parameters',
+                    'parameters' => array_values(array_filter(array_map(
+                        fn (string $id): ?array => isset($displayElementNames[$id])
+                            ? ['name' => $displayElementNames[$id], 'covered' => $isCovered]
+                            : null,
+                        $item->displayElementIds,
+                    ))),
+                ];
+            }
 
             $rows[] = [
                 'key' => $item->key,
-                'label' => $labels[$item->key] ?? 'Samples',
+                'label' => $parts['label'] ?? 'Samples',
+                'sample_type' => $parts['sample_type'] ?? null,
+                'analysis_type' => $parts['analysis_type'] ?? null,
+                'analyte' => $parts['analyte'] ?? null,
+                'package_name' => $package['name'] ?? null,
+                'package_parameters' => $package['parameters'] ?? [],
                 'requested' => $item->quantity,
                 'covered' => $covered,
                 'uncovered' => $item->quantity - $covered,
@@ -504,7 +544,7 @@ final class EnquiryPurchaseOrderService
     public function reasonLabel(?string $reason): string
     {
         return match ($reason) {
-            PurchaseOrderAllocationLine::REASON_NO_MATCHING_LINE => 'No line on the PO for this sample type / analysis.',
+            PurchaseOrderAllocationLine::REASON_NO_MATCHING_LINE => 'No line on the PO for this parameter.',
             PurchaseOrderAllocationLine::REASON_PO_NOT_ACTIVE => 'The PO is not active.',
             PurchaseOrderAllocationLine::REASON_OUTSIDE_VALIDITY => 'The PO is outside its validity dates.',
             PurchaseOrderAllocationLine::REASON_INSUFFICIENT_BALANCE => 'Not enough balance left on the PO line.',
@@ -600,7 +640,7 @@ final class EnquiryPurchaseOrderService
 
     /**
      * @param  list<\App\DTOs\Commercial\PurchaseOrderDemandItem>  $demand
-     * @return array<string, string>
+     * @return array<string, array{label: string, sample_type: ?string, analysis_type: ?string, analyte: ?string}>
      */
     private function demandLabels(array $demand): array
     {
@@ -611,23 +651,86 @@ final class EnquiryPurchaseOrderService
 
         $sampleTypes = $sampleTypeIds !== [] ? SampleType::query()->whereIn('id', $sampleTypeIds)->pluck('name', 'id') : collect();
         $analysisTypes = $analysisTypeIds !== [] ? AnalysisType::query()->whereIn('id', $analysisTypeIds)->pluck('name', 'id') : collect();
+        $elements = $this->elementNames($elementIds);
+
+        $labels = [];
+        foreach ($demand as $item) {
+            $sampleType = $item->sampleTypeId !== null ? ($sampleTypes[$item->sampleTypeId] ?? null) : null;
+            $analysisType = implode(', ', array_filter(array_map(fn (string $id): ?string => $analysisTypes[$id] ?? null, $item->analysisTypeIds))) ?: null;
+            $analyte = implode(', ', array_filter(array_map(fn (string $id): ?string => $elements[$id] ?? null, $item->analysisElementIds))) ?: null;
+
+            $parts = array_filter([$sampleType, $analysisType, $analyte]);
+
+            $labels[$item->key] = [
+                'label' => $parts !== [] ? implode(' — ', $parts) : 'Samples',
+                'sample_type' => $sampleType,
+                'analysis_type' => $analysisType,
+                'analyte' => $analyte,
+            ];
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @param  list<string>  $elementIds
+     * @return \Illuminate\Support\Collection<string, string>
+     */
+    private function elementNames(array $elementIds): \Illuminate\Support\Collection
+    {
+        $elementIds = array_values(array_unique($elementIds));
+
+        return $elementIds !== []
+            ? AnalysisElements::query()->with('analyte:id,name')->whereIn('id', $elementIds)->get(['id', 'analyte_id', 'report_display_name'])
+                ->mapWithKeys(fn (AnalysisElements $element): array => [(string) $element->id => $element->analyte?->name ?: $element->report_display_name])
+            : collect();
+    }
+
+    /**
+     * For demand rows covered by a package line (no per-test breakdown): the package's own
+     * name and the parameters bundled inside it, so the UI can show what the package covers
+     * instead of just the sample type.
+     *
+     * @param  list<string>  $lineIds
+     * @return array<string, array{name: string, parameters: list<string>}>
+     */
+    private function packageLineDetails(array $lineIds): array
+    {
+        if ($lineIds === []) {
+            return [];
+        }
+
+        $lines = CustomerPurchaseOrderLine::query()
+            ->whereIn('id', $lineIds)
+            ->where('is_package', true)
+            ->get(['id', 'description', 'analysis_element_ids']);
+
+        if ($lines->isEmpty()) {
+            return [];
+        }
+
+        $elementIds = $lines
+            ->flatMap(fn (CustomerPurchaseOrderLine $line): array => $line->analysisElementIdList())
+            ->unique()
+            ->values()
+            ->all();
+
         $elements = $elementIds !== []
             ? AnalysisElements::query()->with('analyte:id,name')->whereIn('id', $elementIds)->get(['id', 'analyte_id', 'report_display_name'])
                 ->mapWithKeys(fn (AnalysisElements $element): array => [(string) $element->id => $element->analyte?->name ?: $element->report_display_name])
             : collect();
 
-        $labels = [];
-        foreach ($demand as $item) {
-            $parts = array_filter([
-                $item->sampleTypeId !== null ? ($sampleTypes[$item->sampleTypeId] ?? null) : null,
-                implode(', ', array_filter(array_map(fn (string $id): ?string => $analysisTypes[$id] ?? null, $item->analysisTypeIds))),
-                implode(', ', array_filter(array_map(fn (string $id): ?string => $elements[$id] ?? null, $item->analysisElementIds))),
-            ]);
+        return $lines->mapWithKeys(function (CustomerPurchaseOrderLine $line) use ($elements): array {
+            $parameters = array_values(array_filter(array_map(
+                fn (string $id): ?string => $elements[$id] ?? null,
+                $line->analysisElementIdList(),
+            )));
 
-            $labels[$item->key] = $parts !== [] ? implode(' — ', $parts) : 'Samples';
-        }
-
-        return $labels;
+            return [(string) $line->id => [
+                'name' => trim((string) $line->description) ?: 'Package',
+                'parameters' => $parameters,
+            ]];
+        })->all();
     }
 
     private function enquiryQuotationId(SampleSubmissionRequest $enquiry): ?string

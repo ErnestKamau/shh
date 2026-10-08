@@ -21,6 +21,7 @@ use App\Observers\TicketObserver;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
@@ -119,16 +120,18 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom($paths);
 
         View::composer('layouts.lab.layout.app', function ($view): void {
-            $submissionRequestTotals = 0;
+            $submissionRequestTotals = Cache::remember('lab.sidebar.submission_request_totals', 30, function (): int {
+                if (!Schema::hasTable('sample_submission_requests')) {
+                    return 0;
+                }
 
-            if (Schema::hasTable('sample_submission_requests')) {
-                $submissionRequestTotals = SampleSubmissionRequest::query()
+                return SampleSubmissionRequest::query()
                     ->where(function ($query) {
                         $query->whereNull('status')
                             ->orWhere('status', '!=', 'received_at_lab');
                     })
                     ->count();
-            }
+            });
 
             $view->with('submissionRequestTotals', $submissionRequestTotals);
         });

@@ -9,6 +9,7 @@ use App\Models\SubmissionFormInstance;
 use App\Services\Sampleworkflow\CollectionQrCodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**
@@ -89,7 +90,43 @@ class CollectionQrCodeController extends Controller
             'layout' => $options['layout'],
             'copies' => $options['copies'],
             'companyName' => (string) (getActiveCompany()?->name ?? config('app.name')),
+            'logoDataUri' => $this->resolveLogoDataUri(),
         ]));
+    }
+
+    private function resolveLogoDataUri(): string
+    {
+        $path = getActiveCompany()?->logo;
+        if (! $path) {
+            return '';
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $path = parse_url($path, PHP_URL_PATH) ?? $path;
+        }
+
+        $relative = ltrim(preg_replace('#^/?storage/#', '', ltrim($path, '/')), '/');
+        $fullPath = Storage::disk('public')->path($relative);
+
+        if (! is_readable($fullPath)) {
+            return '';
+        }
+
+        $contents = @file_get_contents($fullPath);
+        if ($contents === false) {
+            return '';
+        }
+
+        $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+        $mime = match ($extension) {
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'svg' => 'image/svg+xml',
+            'webp' => 'image/webp',
+            default => 'image/png',
+        };
+
+        return 'data:'.$mime.';base64,'.base64_encode($contents);
     }
 
     /**
@@ -97,10 +134,10 @@ class CollectionQrCodeController extends Controller
      */
     private function printOptions(Request $request): array
     {
-        $layout = (string) $request->input('layout', 'a4');
+        $layout = (string) $request->input('layout', 'thermal');
 
         return [
-            'layout' => in_array($layout, ['a4', 'thermal'], true) ? $layout : 'a4',
+            'layout' => in_array($layout, ['a4', 'thermal'], true) ? $layout : 'thermal',
             'copies' => max(1, min(10, (int) $request->input('copies', 1))),
         ];
     }

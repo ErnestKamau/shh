@@ -107,6 +107,7 @@ final class PurchaseOrderDemandBuilder
                 $total['analysis_type_id'] !== null ? [$total['analysis_type_id']] : [],
                 $total['quantity'],
                 $total['element_ids'],
+                $total['display_element_ids'] ?? null,
             );
         }
 
@@ -161,7 +162,9 @@ final class PurchaseOrderDemandBuilder
         }
 
         if ($withoutPerTestLine !== [] || $units === []) {
-            $units[] = $analysisUnit;
+            // Stays type-level demand (empty element_ids keeps it matchable against package/analysis-type
+            // lines), but carries the leftover parameter ids separately so previews can list them.
+            $units[] = $analysisUnit + ['display_element_ids' => $withoutPerTestLine];
         }
 
         return $units;

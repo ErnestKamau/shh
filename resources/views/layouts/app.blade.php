@@ -1203,86 +1203,15 @@
             z-index: 2100 !important;
         }
 
-        .copyright-lims,
-        #sidebar-container {
-            background-color: var(--sys-sidebar-bg) !important;
-        }
-
-        .sidebar-module-div {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.1),
-                inset 0 -1px 3px rgba(0, 0, 0, 0.1),
-                0 4px 15px rgba(0, 0, 0, 0.2);
-            margin: 4px 0;
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            color: var(--sys-sidebar-text) !important;
-        }
-
-        .sidebar-module-div::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.6s ease;
-        }
-
-        .sidebar-module-div:hover {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.15),
-                inset 0 -1px 3px rgba(0, 0, 0, 0.15),
-                0 8px 25px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.3);
-        }
-
-        .sidebar-module-div:hover::before {
-            left: 100%;
-        }
-
+        /*
+            Sidebar chrome lives in layouts/partials/sidebar-styles.blade.php
+            (included in <head> above) — flat-glass treatment unified with the
+            Lab module sidebar. Only non-visual structure/sizing stays here.
+        */
         .sidebar-module-div i {
             font-size: 3.5rem !important;
-            color: #ffffff !important;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.45);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: block;
             margin-bottom: 8px;
-        }
-
-        .sidebar-module-div:hover i {
-            transform: scale(1.1) rotate(5deg);
-            text-shadow: 0 0 30px rgba(255, 255, 255, 0.55);
-        }
-
-        .sidebar-module-div span {
-            color: var(--sys-sidebar-text) !important;
-            font-size: var(--text-sidebar) !important;
-            font-weight: var(--font-semibold) !important;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .sidebar-module-div:hover span {
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-            transform: translateY(-1px);
-        }
-
-        .copyright-lims {
-            background-color: var(--sys-sidebar-bg) !important;
-            color: var(--sys-sidebar-text-muted) !important;
-            margin: 4px 0;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.03);
         }
 
         /* Modern list group styling */
@@ -1304,27 +1233,6 @@
             /* Firefox */
         }
 
-        /* Custom scrollbar for better cross-browser support */
-
-        #sidebar-container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 8px;
-            height: 100%;
-            background: transparent;
-            pointer-events: none;
-            transition: all 0.3s ease;
-        }
-
-        #sidebar-container:hover::after {
-            background: linear-gradient(180deg,
-                    rgba(255, 255, 255, 0.08) 0%,
-                    rgba(200, 200, 200, 0.06) 50%,
-                    rgba(255, 255, 255, 0.08) 100%);
-        }
-
         #sidebar-container .list-group-item {
             border: none;
             background: transparent;
@@ -1334,34 +1242,7 @@
         #sidebar-container .mdi {
             font-size: 1.1rem;
             opacity: 0.9;
-            transition: all 0.3s ease;
-        }
-
-        #sidebar-container .list-group a:hover .mdi {
-            transform: scale(1.1) rotate(5deg);
-            opacity: 1;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-
-        #sidebar-container .list-group a.active .mdi {
-            transform: scale(1.15);
-            opacity: 1;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.55);
-        }
-
-        /* Text effects */
-        #sidebar-container .list-group a:hover span {
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
-        }
-
-        #sidebar-container .list-group a.active span {
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
-            font-weight: 600;
-        }
-
-        /* Smooth transitions for all sidebar elements */
-        #sidebar-container * {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: color 0.2s ease, opacity 0.2s ease;
         }
 
         /* Modern Navigation Styles — lab slate chrome */
@@ -2678,7 +2559,10 @@
         $('[data-toggle="tooltip"]').tooltip();
 
         //Page Configuration Code
-        $('#body-row .collapse').collapse('hide');
+        // Collapse every submenu except ones the server already rendered open
+        // (i.e. the current page's menu, via the `show` class) — otherwise this
+        // call immediately closes the active sidebar dropdown on every load.
+        $('#body-row .collapse').not('.show').collapse('hide');
 
         // Collapse/Expand icon
         $('#collapse-icon').addClass('fa-angle-double-left');

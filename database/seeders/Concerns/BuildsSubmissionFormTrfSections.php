@@ -1530,10 +1530,13 @@ trait BuildsSubmissionFormTrfSections
                 ['value' => 'client', 'label' => 'Client'],
                 ['value' => 'company', 'label' => 'Company'],
             ]],
-            ['text', 'Customer representative name', 'customer_representative_name', 3],
-            ['text', 'Customer representative contact number', 'customer_representative_contact', 4],
-            ['signature', 'Customer representative signature', 'customer_representative_signature', 5],
-            ['textarea', 'Remarks', 'remarks', 6],
+            // Shown only when "Sampled by" = Company; see test-request-field-render.blade.php.
+            ['text', 'Sampler name', 'amspec_sampler_name', 3],
+            ['text', 'Sampler employee ID', 'amspec_sampler_employee_id', 4],
+            ['text', 'Customer representative name', 'customer_representative_name', 5],
+            ['text', 'Customer representative contact number', 'customer_representative_contact', 6],
+            ['signature', 'Customer representative signature', 'customer_representative_signature', 7],
+            ['textarea', 'Remarks', 'remarks', 8],
         ];
     }
 

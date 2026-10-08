@@ -485,8 +485,13 @@ class ReportHeaderDetailController extends Controller
 				app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
 					->clearSampleCodeSuffixesForBatch($batch);
 			}
-			$amendmentDisplay = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
-				->amendmentViewData(max(1, $amendmentVersion), (string) $batch->batch_code);
+			$amendmentConfig = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class);
+			$amendmentDisplay = $amendmentConfig->amendmentViewData(
+				max(1, $amendmentVersion),
+				(string) $batch->batch_code,
+				$amendmentConfig->sampleSequenceNumbersForBatch($batch),
+				$amendmentConfig->labSectionNamesForBatch($batch),
+			);
 
 			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.report_formats', compact('sample', 'company', 'qrcode', 'report_logo', 'sadc_logo', 'ilac_logo', 'batch_approvers', 'pdf', 'batch', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'amendmentDisplay'));
 			app(\App\Services\Reports\ReportWatermarkService::class)->applyToPdf($pdf, $company);
@@ -1240,8 +1245,13 @@ class ReportHeaderDetailController extends Controller
 			app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
 				->clearSampleCodeSuffixesForBatch($batch);
 		}
-		$data['amendmentDisplay'] = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
-			->amendmentViewData(max(1, $amendmentVersion), (string) $batch->batch_code);
+		$amendmentConfig = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class);
+		$data['amendmentDisplay'] = $amendmentConfig->amendmentViewData(
+			max(1, $amendmentVersion),
+			(string) $batch->batch_code,
+			$amendmentConfig->sampleSequenceNumbersForBatch($batch),
+			$amendmentConfig->labSectionNamesForBatch($batch),
+		);
 		$data['reportFormat'] = $reportFormatModel;
 		$data['grouped_samples'] = $groupedSamples;
 		$data['ungrouped_samples'] = $ungroupedSamples;

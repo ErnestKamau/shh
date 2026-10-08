@@ -23,6 +23,11 @@
                     <li><code>{n}</code> — revision number as entered (e.g. version 2 → <strong>2</strong>)</li>
                     <li><code>{nn}</code> — same number with a leading zero (e.g. version 2 → <strong>02</strong>)</li>
                     <li><code>{job}</code> — the job / batch number (e.g. <strong>260428001</strong>)</li>
+                    <li><code>{samples}</code> — report number format only. Sample numbers on the report: a single
+                        number (<strong>001</strong>), a range when they're consecutive (<strong>001 - 045</strong>),
+                        or a comma list when they're not (<strong>001, 005, 045</strong>)</li>
+                    <li><code>{sections}</code> — report number format only. Lab section initials on the report,
+                        comma-separated (e.g. Microbiology + Chemistry → <strong>M, C</strong>)</li>
                 </ul>
             </div>
 
@@ -68,9 +73,11 @@
                                wire:model.live="amendment_report_number_format"
                                placeholder="{job}-R{nn}">
                         <small class="text-muted d-block mt-1">
-                            Full report reference printed in the header (and stored on samples).<br>
+                            Full report reference printed in the header, stored on samples, and used as the
+                            downloaded PDF's filename.<br>
                             Examples: <code>{job}-R{nn}</code> → <em>260428001-R02</em> ·
-                            <code>{job}/{nn}</code> → <em>260428001/02</em>
+                            <code>{job}/{nn}</code> → <em>260428001/02</em> ·
+                            <code>{job}_({samples})_({sections})-R{nn}</code> → <em>261001055_(001 - 045)_(M, C)-R03</em>
                         </small>
                         @error('amendment_report_number_format') <div class="text-danger small">{{ $message }}</div> @enderror
                     </div>

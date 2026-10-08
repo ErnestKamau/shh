@@ -17,9 +17,18 @@ final class PurchaseOrderDemandItem
     public readonly array $analysisElementIds;
 
     /**
+     * @var list<string> Parameters to show for this item in PO coverage previews. Defaults to
+     *                    analysisElementIds; set separately for a type-level "leftover" bucket so the
+     *                    preview can list its parameters without turning the item into per-test demand
+     *                    (which would change which PO lines can cover it).
+     */
+    public readonly array $displayElementIds;
+
+    /**
      * @param  string  $key  Caller-defined identifier used to read the allocation back (e.g. acceptance line group).
      * @param  iterable<int, mixed>  $analysisTypeIds
      * @param  iterable<int, mixed>  $analysisElementIds
+     * @param  ?iterable<int, mixed>  $displayElementIds
      */
     public function __construct(
         public readonly string $key,
@@ -27,6 +36,7 @@ final class PurchaseOrderDemandItem
         iterable $analysisTypeIds,
         public readonly int $quantity,
         iterable $analysisElementIds = [],
+        ?iterable $displayElementIds = null,
     ) {
         if ($quantity < 0) {
             throw new InvalidArgumentException('Demand quantity cannot be negative.');
@@ -34,6 +44,9 @@ final class PurchaseOrderDemandItem
 
         $this->analysisTypeIds = self::normaliseIds($analysisTypeIds);
         $this->analysisElementIds = self::normaliseIds($analysisElementIds);
+        $this->displayElementIds = $displayElementIds !== null
+            ? self::normaliseIds($displayElementIds)
+            : $this->analysisElementIds;
     }
 
     public function isPerTest(): bool

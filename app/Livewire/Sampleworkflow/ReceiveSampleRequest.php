@@ -4657,6 +4657,8 @@ class ReceiveSampleRequest extends Component
                 $schedule->load('submissionFormInstances.values.element');
                 $progress = app(SamplingScheduleCollectionProgress::class)->refresh($schedule);
             }
+
+            $this->rememberAmspecSamplerFromFormData();
         } catch (\Throwable $exception) {
             report($exception);
             $message = $this->walkInSubmitFailureMessage($exception);
@@ -4841,7 +4843,46 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        // Collection / Misc / Sign may be empty; progress still advances.
+        if (in_array($title, ['Submit & sign', 'Submit and sign'], true)) {
+            $this->validateWalkInSubmitAndSign();
+            if ($this->getErrorBag()->isNotEmpty()) {
+                throw ValidationException::withMessages($this->getErrorBag()->toArray());
+            }
+
+            return;
+        }
+
+        // Collection / Misc may be empty; progress still advances.
+    }
+
+    private function validateWalkInSubmitAndSign(): void
+    {
+        $this->resetValidation(['formData.amspec_sampler_name']);
+
+        $sampledBy = \App\Services\Sampleworkflow\SampledByParty::normalize($this->formData['sampled_by'] ?? null);
+        $samplerName = trim((string) ($this->formData['amspec_sampler_name'] ?? ''));
+
+        if ($sampledBy === \App\Services\Sampleworkflow\SampledByParty::COMPANY && $samplerName === '') {
+            $this->addError('formData.amspec_sampler_name', 'Sampler name is required when sampled by the company.');
+        }
+    }
+
+    /**
+     * Grows the AmSpec sampler typeahead with whoever was just entered on "Submit & sign".
+     */
+    private function rememberAmspecSamplerFromFormData(): void
+    {
+        $sampledBy = \App\Services\Sampleworkflow\SampledByParty::normalize($this->formData['sampled_by'] ?? null);
+        if ($sampledBy !== \App\Services\Sampleworkflow\SampledByParty::COMPANY) {
+            return;
+        }
+
+        $name = trim((string) ($this->formData['amspec_sampler_name'] ?? ''));
+        if ($name === '') {
+            return;
+        }
+
+        \App\Models\AmspecSampler::remember($name, $this->formData['amspec_sampler_employee_id'] ?? null);
     }
 
     private function validateWalkInCustomerInfo(): void

@@ -23,8 +23,7 @@ class ShelfLifeStudyReportPdfService
         $batch->loadMissing(['customer', 'sample_type', 'samples']);
         $language = $this->testRequestReportPdfService->normalizeLanguage($language);
 
-        $jobNumber = (string) $batch->batch_code;
-        $reportNumber = $this->amendmentReportConfig->formatReportNumber($jobNumber, max(1, $sequence));
+        $reportNumber = $this->amendmentReportConfig->formatReportNumberForBatch($batch, max(1, $sequence));
 
         $viewData = $this->buildViewData($batch, $reportNumber, $sequence, $language, array_merge($options, [
             'isPdfMode' => true,

@@ -285,7 +285,7 @@ class CollectionQrCodeService
 
     /**
      * @param  Collection<int, CollectionQrCode>  $codes
-     * @return list<array{token: string, qr: string, client: string, collection_date: string, sample_type: string, tests: string}>
+     * @return list<array{token: string, qr: string, client: string, collection_date: string, sample_type: string, tests: string, sample_no: int}>
      */
     public function stickersForSchedule(SamplingSchedule $schedule, Collection $codes): array
     {
@@ -305,7 +305,7 @@ class CollectionQrCodeService
 
     /**
      * @param  Collection<int, CollectionQrCode>  $codes
-     * @return list<array{token: string, qr: string, client: string, collection_date: string, sample_type: string, tests: string}>
+     * @return list<array{token: string, qr: string, client: string, collection_date: string, sample_type: string, tests: string, sample_no: int}>
      */
     public function stickersForInstance(SubmissionFormInstance $instance, Collection $codes): array
     {
@@ -431,17 +431,18 @@ class CollectionQrCodeService
     }
 
     /**
-     * @return array{token: string, qr: string, client: string, collection_date: string, sample_type: string, tests: string}
+     * @return array{token: string, qr: string, client: string, collection_date: string, sample_type: string, tests: string, sample_no: int}
      */
     private function sticker(CollectionQrCode $code, string $client, string $collectionDate, string $sampleType, string $tests): array
     {
         return [
             'token' => (string) $code->token,
-            'qr' => $this->qrCodeImages->svgDataUri($code->publicUrl(), 200),
+            'qr' => $this->qrCodeImages->svgDataUri($code->publicUrl(), 200, 'H'),
             'client' => Str::limit($client, self::STICKER_TEXT_LIMIT),
             'collection_date' => $collectionDate,
             'sample_type' => Str::limit($sampleType, self::STICKER_TEXT_LIMIT),
             'tests' => Str::limit($tests, self::STICKER_TEXT_LIMIT),
+            'sample_no' => (int) $code->slot_no,
         ];
     }
 

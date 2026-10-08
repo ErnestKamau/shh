@@ -140,6 +140,15 @@ class SystemNotificationsBell extends Component
         return null;
     }
 
+    /**
+     * Safe handler when client-side code probes $wire.toJSON during serialization
+     * (e.g. JSON.stringify on an object holding the $wire proxy).
+     */
+    public function toJSON(mixed $value = null): array
+    {
+        return ['id' => $this->getId()];
+    }
+
     public function render()
     {
         $userId = (string) (auth()->id() ?? '');

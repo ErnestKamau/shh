@@ -43,7 +43,7 @@
 			},
 
 			isBluePill() {
-				return ['B', 'C', 'D', 'E', 'F'].includes(this.scenario);
+				return ['B', 'C', 'D', 'E', 'F', 'K'].includes(this.scenario);
 			},
 
 			isBurgundyInk() {
@@ -112,6 +112,7 @@
 					H: 'H — White pill + burgundy CTAs; rail Client info wash only; plain main card',
 					I: 'I — B blue pill + burgundy wash; main card without wash',
 					J: 'J — Same as I + softer / less rich burgundy sidebar',
+					K: 'K — Slate sidebar; burgundy demoted to signal (brand card + active-nav accent only)',
 				};
 				this.scenarioLabel = labels[s] || labels.B;
 
@@ -135,6 +136,11 @@
 					glassVal = `color-mix(in srgb, ${soft} 14%, rgba(255, 255, 255, ${glass}))`;
 					wash = '14%';
 					sidebarNote = 'softer burgundy, tight gradient range (I chrome)';
+				} else if (s === 'K') {
+					sidebarBg = `linear-gradient(180deg, color-mix(in srgb, ${b} 22%, #1e293b) 0%, #1e293b 24%, #0f172a 100%)`;
+					glassVal = `rgba(255, 255, 255, ${glass})`;
+					wash = '6%';
+					sidebarNote = 'slate base; burgundy confined to brand card + active-nav accent bar only';
 				}
 
 				let pill0 = `color-mix(in srgb, ${b} 92%, #1a0506)`;
@@ -253,7 +259,7 @@
 				<span class="batch-code-label">Chrome Playground</span>
 				<span class="batch-stage-pill">
 					<i class="mdi mdi-palette-swatch-outline" style="font-size:0.75rem;"></i>
-					Scenarios A–J — compare before authorize
+					Scenarios A–K — compare before authorize
 				</span>
 			</div>
 		</div>
@@ -382,6 +388,17 @@
 					<strong>J</strong>
 					<span>I + softer burgundy nav</span>
 				</button>
+				<button
+					type="button"
+					class="cp-scenario-btn"
+					:class="{ 'is-active': scenario === 'K' }"
+					@click="setScenario('K')"
+					role="tab"
+					:aria-selected="scenario === 'K'"
+				>
+					<strong>K</strong>
+					<span>Slate nav + burgundy signal only</span>
+				</button>
 			</div>
 
 			<div class="cp-scenario-notes" x-show="scenario === 'A'">
@@ -455,6 +472,16 @@
 					<li>Same chrome as I (blue wash pill, plain main card, Acc/Sub + green approve)</li>
 					<li>Sidebar burgundy dialed down — less rich than Slice 1, tight gradient (52→56%)</li>
 					<li>Subtle top wash; stops stay close so it doesn’t band</li>
+				</ul>
+			</div>
+			<div class="cp-scenario-notes" x-show="scenario === 'K'" x-cloak>
+				<ul>
+					<li>Sidebar base is slate (<code>#1e293b → #0f172a</code>), same as D — no burgundy fill</li>
+					<li>Faint burgundy-tinted top band (first ~24%) only, so the rail isn't flat slate</li>
+					<li>Brand card (logo block) carries full burgundy — the one place identity is "loud"</li>
+					<li>Active nav row = burgundy left-accent bar instead of blue, ties active state back to brand</li>
+					<li>Hover/footer stay neutral glass — burgundy never repeats across every row</li>
+					<li>Pill / CTAs reuse Scenario B (blue identity, Acc/Sub badges)</li>
 				</ul>
 			</div>
 

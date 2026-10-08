@@ -491,6 +491,7 @@ class LabDashboardController extends Controller
         $submitted_forms = SubmissionFormInstance::where('status', 'submitted')->count();
         $draft_forms = SubmissionFormInstance::where('status', 'draft')->count();
         $samples_reception = SampleHeader::where('status', 'Samples Reception')->where('isactive', 1)->get()->count();
+        $samples_receiving = getSampleWorkFLowTotals()['Samples Receiving'] ?? 0;
         $complaint = Complaint::where('complaint_workflow', '!=', 5)->get();
         $notification = getBatchNotificationUser();
         foreach ($notification as $note) {
@@ -508,6 +509,6 @@ class LabDashboardController extends Controller
                 $q->where('date', '<=', \Carbon\Carbon::now()->addDays(3)->format('Y-m-d'));
             })->count();
 
-        return view('layouts.lab.dashboard', compact('samples', 'samples_reception', 'samples_lab', 'complaint', 'samples_approval', 'samples_verification', 'notifications', 'pending_submission_forms', 'submitted_forms', 'draft_forms', 'tat_warnings_count'));
+        return view('layouts.lab.dashboard', compact('samples', 'samples_reception', 'samples_receiving', 'samples_lab', 'complaint', 'samples_approval', 'samples_verification', 'notifications', 'pending_submission_forms', 'submitted_forms', 'draft_forms', 'tat_warnings_count'));
     }
 }

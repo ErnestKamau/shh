@@ -74,17 +74,25 @@
 
         .sticker {
             display: flex;
+            flex-direction: column;
             align-items: center;
+            justify-content: center;
             overflow: hidden;
             outline: 1px dashed #cbd2db;
         }
-        .sticker-qr { flex: 0 0 auto; display: block; }
-        .sticker-text { flex: 1 1 auto; min-width: 0; line-height: 1.2; }
-        .sticker-client { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .sticker-line { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
-        .sticker-label { color: #555; font-weight: 600; }
-        .sticker-blank { display: inline-block; min-width: 60%; border-bottom: 0.2mm solid #333; }
-        .sticker-token { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; color: #666; letter-spacing: 0.04em; }
+        .sticker-header {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 1.5mm;
+        }
+        .sticker-header { justify-content: center; }
+        .sticker-header-logo { flex: 0 0 auto; min-width: 0; display: flex; align-items: center; justify-content: center; height: 100%; }
+        .sticker-header-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+        .sticker-qr-wrap { flex: 0 0 auto; display: block; }
+        .sticker-qr { display: block; width: 100%; height: 100%; }
 
         /* A4 sheet: 3 x 8 labels, 70 x 36 mm */
         .layout-a4 .sheet {
@@ -96,12 +104,9 @@
             grid-auto-rows: 36mm;
             align-content: start;
         }
-        .layout-a4 .sticker { padding: 2mm 2.5mm; gap: 2mm; }
-        .layout-a4 .sticker-qr { width: 28mm; height: 28mm; }
-        .layout-a4 .sticker-text { font-size: 7.5pt; }
-        .layout-a4 .sticker-client { font-size: 8.5pt; margin-bottom: 1mm; }
-        .layout-a4 .sticker-line { -webkit-line-clamp: 2; margin-bottom: 0.6mm; }
-        .layout-a4 .sticker-token { font-size: 6pt; margin-top: 0.6mm; }
+        .layout-a4 .sticker { padding: 2mm 2.5mm; gap: 0.8mm; }
+        .layout-a4 .sticker-header { height: 5.5mm; }
+        .layout-a4 .sticker-qr-wrap { width: 25mm; height: 25mm; }
         .layout-a4 .sticker:nth-child(24n) { break-after: page; }
 
         /* Thermal: one 50 x 30 mm label per page */
@@ -110,15 +115,12 @@
             width: 50mm;
             height: 30mm;
             padding: 1.5mm;
-            gap: 1.5mm;
+            gap: 0.6mm;
             margin-bottom: 4mm;
             background: #fff;
         }
-        .layout-thermal .sticker-qr { width: 24mm; height: 24mm; }
-        .layout-thermal .sticker-text { font-size: 6pt; }
-        .layout-thermal .sticker-client { font-size: 6.5pt; margin-bottom: 0.6mm; }
-        .layout-thermal .sticker-line { -webkit-line-clamp: 2; margin-bottom: 0.4mm; }
-        .layout-thermal .sticker-token { font-size: 5pt; }
+        .layout-thermal .sticker-header { height: 4.5mm; }
+        .layout-thermal .sticker-qr-wrap { width: 21mm; height: 21mm; }
 
         @media print {
             body { background: #fff; }
@@ -189,37 +191,18 @@
     <main class="sheet">
         @foreach($printStickers as $sticker)
             <div class="sticker">
-                @if($sticker['qr'] !== '')
-                    <img class="sticker-qr" src="{{ $sticker['qr'] }}" alt="QR code {{ $sticker['token'] }}">
-                @endif
-                <div class="sticker-text">
-                    <div class="sticker-client">{{ $sticker['client'] !== '' ? $sticker['client'] : 'Client: ____________' }}</div>
-                    <div class="sticker-line">
-                        <span class="sticker-label">Date:</span>
-                        @if($sticker['collection_date'] !== '')
-                            {{ $sticker['collection_date'] }}
-                        @else
-                            <span class="sticker-blank">&nbsp;</span>
-                        @endif
-                    </div>
-                    <div class="sticker-line">
-                        <span class="sticker-label">Sample:</span>
-                        @if($sticker['sample_type'] !== '')
-                            {{ $sticker['sample_type'] }}
-                        @else
-                            <span class="sticker-blank">&nbsp;</span>
-                        @endif
-                    </div>
-                    <div class="sticker-line">
-                        <span class="sticker-label">Tests:</span>
-                        @if($sticker['tests'] !== '')
-                            {{ $sticker['tests'] }}
-                        @else
-                            <span class="sticker-blank">&nbsp;</span>
-                        @endif
-                    </div>
-                    <div class="sticker-token">{{ $sticker['token'] }}</div>
+                <div class="sticker-header">
+                    @if($logoDataUri !== '')
+                        <span class="sticker-header-logo">
+                            <img src="{{ $logoDataUri }}" alt="{{ $companyName }}">
+                        </span>
+                    @endif
                 </div>
+                @if($sticker['qr'] !== '')
+                    <div class="sticker-qr-wrap">
+                        <img class="sticker-qr" src="{{ $sticker['qr'] }}" alt="QR code {{ $sticker['token'] }}">
+                    </div>
+                @endif
             </div>
         @endforeach
     </main>

@@ -176,7 +176,7 @@ final class BulkTestRequestReportService
                         );
 
                         $reportNumber = app(AmendmentReportConfigurationService::class)
-                            ->formatReportNumber((string) $batch->batch_code, $sequence);
+                            ->formatReportNumberForBatch($batch, $sequence, [], $filterLabSectionIds ?? []);
 
                         // Do not overwrite the stored official full Test Report file URL.
                         return [
@@ -222,7 +222,7 @@ final class BulkTestRequestReportService
                     );
 
                     $reportNumber = app(AmendmentReportConfigurationService::class)
-                        ->formatReportNumber((string) $batch->batch_code, (int) $batch->test_request_report_sequence);
+                        ->formatReportNumberForBatch($batch, (int) $batch->test_request_report_sequence);
 
                     $batch->batch_report_url = $stored['relative_path'];
                     $batch->batch_report_online_url = $stored['online_url'];

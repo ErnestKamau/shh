@@ -958,18 +958,20 @@ function getWorkflowStage_Stages($workflow)
 
 function getSampleWorkFLowTotals()
 {
-	$batches = App\SampleHeader::selectRaw('count(id) as count, status')->groupBy('status')->where('isactive',1)->get();
-	$arr = array("All Samples" => 0);
+	return \Illuminate\Support\Facades\Cache::remember('lab.sidebar.sample_workflow_totals', 30, function () {
+		$batches = App\SampleHeader::selectRaw('count(id) as count, status')->groupBy('status')->where('isactive',1)->get();
+		$arr = array("All Samples" => 0);
 
-	foreach ($batches as $batch) {
-		$arr[$batch->status] = $batch->count;
-		$arr['All Samples'] += intval($batch->count);
-	}
+		foreach ($batches as $batch) {
+			$arr[$batch->status] = $batch->count;
+			$arr['All Samples'] += intval($batch->count);
+		}
 
-	// Form-centric stages: match WorkflowBoard queue logic, not batch status alone.
-	$arr['Samples Receiving'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarReceivingRequestCount();
+		// Form-centric stages: match WorkflowBoard queue logic, not batch status alone.
+		$arr['Samples Receiving'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarReceivingRequestCount();
 
-	return $arr;
+		return $arr;
+	});
 }
 function getSampleTypeQualificationById($id)
 {

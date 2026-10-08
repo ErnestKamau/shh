@@ -2114,7 +2114,8 @@
 	.request-view-page .rv-attachment-modal-backdrop {
 		position: fixed;
 		inset: 0;
-		z-index: 1055;
+		/* Above .rv-header (z-index 1100) so this modal isn't covered by the header pill */
+		z-index: 1150;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -2295,7 +2296,8 @@
 	.request-view-page .rv-modal-backdrop {
 		position: fixed;
 		inset: 0;
-		z-index: 1055;
+		/* Above .rv-header (z-index 1100) so these modals aren't covered by the header pill */
+		z-index: 1150;
 		background: rgba(15, 23, 42, 0.45);
 		display: flex;
 		align-items: center;

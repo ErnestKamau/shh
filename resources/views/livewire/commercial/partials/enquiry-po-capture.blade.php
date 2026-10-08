@@ -66,13 +66,17 @@
         @if(($poCaptureCoverage['rows'] ?? []) !== [])
             <div class="border rounded p-2 mb-3 small" wire:loading.class="opacity-50" wire:target="poCaptureBlanketId,poCaptureMode">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <strong>Coverage preview</strong>
+                    <strong>Tests covered by po</strong>
                     @if(($poCaptureCoverage['uncovered'] ?? 0) === 0)
                         <span class="badge badge-success">All {{ $poCaptureCoverage['requested'] }} covered</span>
                     @else
                         <span class="badge badge-warning">{{ $poCaptureCoverage['covered'] }} of {{ $poCaptureCoverage['requested'] }} covered</span>
                     @endif
                 </div>
+                @php
+                    $poCaptureCoverageGroups = collect($poCaptureCoverage['rows'])
+                        ->groupBy(fn ($row) => $row['analysis_type'] ?: 'Other');
+                @endphp
                 <table class="table table-sm mb-1">
                     <thead>
                         <tr>
@@ -82,17 +86,38 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($poCaptureCoverage['rows'] as $row)
+                        @foreach($poCaptureCoverageGroups as $analysisType => $groupRows)
                             <tr>
-                                <td>
-                                    {{ $row['label'] }}
-                                    @if($row['reason'])
-                                        <div class="text-muted">{{ $row['reason'] }}</div>
-                                    @endif
-                                </td>
-                                <td class="text-right">{{ $row['requested'] }}</td>
-                                <td class="text-right {{ $row['uncovered'] > 0 ? 'text-warning font-weight-bold' : '' }}">{{ $row['covered'] }}</td>
+                                <td colspan="3" class="font-weight-bold bg-light">{{ $analysisType }}</td>
                             </tr>
+                            @foreach($groupRows as $row)
+                                <tr>
+                                    <td class="pl-3">
+                                        @if($row['analyte'])
+                                            {{ $row['analyte'] }}
+                                        @elseif($row['package_name'])
+                                            <div>{{ $row['package_name'] }} <span class="text-muted">(package)</span></div>
+                                            @if($row['package_parameters'] !== [])
+                                                <ul class="list-unstyled mb-0 mt-1">
+                                                    @foreach($row['package_parameters'] as $parameter)
+                                                        <li class="{{ $parameter['covered'] ? 'text-success' : 'text-muted' }}">
+                                                            <i class="mdi {{ $parameter['covered'] ? 'mdi-check-circle' : 'mdi-close-circle-outline' }}"></i>
+                                                            {{ $parameter['name'] }}
+                                                        </li>
+                                                    @endforeach
+                                                </ul>
+                                            @endif
+                                        @else
+                                            {{ $row['sample_type'] ?: $row['label'] }}
+                                        @endif
+                                        @if($row['reason'])
+                                            <div class="text-muted">{{ $row['reason'] }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="text-right">{{ $row['requested'] }}</td>
+                                    <td class="text-right {{ $row['uncovered'] > 0 ? 'text-warning font-weight-bold' : '' }}">{{ $row['covered'] }}</td>
+                                </tr>
+                            @endforeach
                         @endforeach
                     </tbody>
                 </table>

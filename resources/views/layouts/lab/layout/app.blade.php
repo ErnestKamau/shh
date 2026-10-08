@@ -4,6 +4,13 @@
 <li class="nav-item d-flex align-items-center">
 	<a class="nav-link module-name" href="{{ route('dashboard-lab') }}"><i class="mdi mdi-flask"></i> {{ __('lab.module_name') }}</a>
 </li>
+@can('laboratory.components.rft form.view')
+<li class="nav-item d-flex align-items-center ml-2">
+	<a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ route('sample-workflow.request-for-testing') }}">
+		<i class="mdi mdi-file-document-edit-outline mr-1"></i>{{ __('lab.request_for_testing') === 'lab.request_for_testing' ? 'Request For Testing' : __('lab.request_for_testing') }}
+	</a>
+</li>
+@endcan
 @endsection
 
 @section('title')
@@ -124,6 +131,7 @@
 
 @section('content')
 @include('layouts.lab.partials.lab-chrome-slice1-styles')
+<div id="lab-page-loader"></div>
 <div class="row" id="body-row">
 	<!-- Sidebar -->
 	<div id="sidebar-container" class="sidebar-expanded d-none d-lg-block">
@@ -179,6 +187,49 @@
 			);
 			$isWorkflowKpisActive = request()->routeIs('sample-workflow.kpis', 'lab-reports-home');
 			$isRequestForTestingActive = request()->routeIs('sample-workflow.request-for-testing', 'sample-workflow.request-for-testing.fill');
+			$isInBilling = request()->routeIs(
+				'billing.invoices',
+				'billing.currencies',
+				'view-pricelists',
+				'billing.tax-regime',
+				'quotation-index',
+				'add-qoute-details-view',
+				'view_quotation_final',
+				'billing.customer-purchase-orders*'
+			);
+			$isInMethodValidation = request()->routeIs(
+				'analysis-methods',
+				'method-validation.registration',
+				'method-validation.registration.show',
+				'method-validation.data-review*'
+			);
+			$isAnalytesActive = request()->routeIs('analytes');
+			$isShelfLifeActive = request()->routeIs('shelf-life.*');
+			$isSampleTypesActive = request()->routeIs('livewire.sample-types');
+			$isStandardsActive = request()->routeIs('livewire.standards');
+			$isLabsActive = request()->routeIs('labs');
+			$isLabSectionsActive = request()->routeIs('sample-analysis-stages');
+			$isReportingUnitsActive = request()->routeIs('reporting-units');
+			$isInQcWorkflow = request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show');
+			$isMonitoringActive = request()->routeIs('livewire.monitoring');
+			$isUncertaintyBudgetActive = request()->routeIs('uncertainty-budgets.*');
+			$isInStockMonitoring = request()->routeIs(
+				'stock-monitoring-categories',
+				'stock_management_index',
+				'solution-movement-index',
+				'solutions-preparation-index'
+			);
+			$isInLabConfiguration = request()->routeIs(
+				'sample-product-index',
+				'sample-type-category-index',
+				'sample_condition_index',
+				'lab.amendment-report-configuration',
+				'livewire.workflow-approvals',
+				'submission-forms.index',
+				'templates.index',
+				'lab.whatsapp-configuration'
+			);
+			$isInLabReports = request()->routeIs('module-reports.index', 'lab-report-tat', 'lab-report-disposal');
 			$isSampleWorkflowStageActive = static function (string $stage) use ($labWorkflowStatus, $labRouteName): bool {
 				if ($labWorkflowStatus === $stage) {
 					return true;
@@ -251,6 +302,7 @@
 					</div>
 				</a>
 				@endif
+				{{-- Request For Testing moved to the Lab Management navbar header.
 				@if($canRftForms)
 				<a href="{{ route('sample-workflow.request-for-testing') }}" class="list-group-item list-group-item-action {{ $isRequestForTestingActive ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
@@ -258,6 +310,7 @@
 					</div>
 				</a>
 				@endif
+				--}}
 				@if($canAllSamples)
 				<a href="{{ route('sample-workflow', ['status' => 'Samples Receiving']) }}" class="list-group-item list-group-item-action {{ $isSampleWorkflowStageActive('Samples Receiving') ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-between align-items-center">
@@ -319,35 +372,35 @@
 			</div>
 			@endif
 			@if($canProformaInvoices || $canTaxRegime || $canQuotation || $canPurchaseOrders || $canPricelists)
-			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#billing-menu" data-toggle="collapse" aria-expanded="{{ $isInBilling ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInBilling ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.billing') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-		<div id="billing-menu" class="collapse sidebar-submenu">
+		<div id="billing-menu" class="collapse sidebar-submenu {{ $isInBilling ? 'show' : '' }}">
 			@if($canProformaInvoices)
-			<a href="{{route('billing.invoices')}}" class="list-group-item list-group-item-action">
+			<a href="{{route('billing.invoices')}}" class="list-group-item list-group-item-action {{ request()->routeIs('billing.invoices') ? 'active' : '' }}">
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.draft_invoices') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 
-		<a href="{{route('billing.currencies')}}" class="list-group-item list-group-item-action">
+		<a href="{{route('billing.currencies')}}" class="list-group-item list-group-item-action {{ request()->routeIs('billing.currencies') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.currencies') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 			@endif
 
 			@if($canPricelists)
-		<a href="{{ route('view-pricelists') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('view-pricelists') }}" class="list-group-item list-group-item-action {{ request()->routeIs('view-pricelists') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.pricelists') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 			@endif
 
 			@if($canTaxRegime)
-		<a href="{{route('billing.tax-regime')}}" class="list-group-item list-group-item-action">
+		<a href="{{route('billing.tax-regime')}}" class="list-group-item list-group-item-action {{ request()->routeIs('billing.tax-regime') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.tax_regime') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
@@ -385,31 +438,31 @@
 			@endif
 			--}}
 			@if($canMethodValidationRegistration || $canMethodValidationDataReview)
-				<a href="#method-validation-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+				<a href="#method-validation-menu" data-toggle="collapse" aria-expanded="{{ $isInMethodValidation ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInMethodValidation ? 'active' : '' }}">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-clipboard-check-outline mr-3"></span>
 						<span class="menu-collapsed">{{ __('lab.method_validation') }}</span>
 						<span class="submenu-icon ml-auto"></span>
 					</div>
 				</a>
-				<div id="method-validation-menu" class="collapse sidebar-submenu">
-					<a href="/analysis-methods" class="list-group-item list-group-item-action">
+				<div id="method-validation-menu" class="collapse sidebar-submenu {{ $isInMethodValidation ? 'show' : '' }}">
+					<a href="{{ route('analysis-methods') }}" class="list-group-item list-group-item-action {{ request()->routeIs('analysis-methods') ? 'active' : '' }}">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.methods') }}</span>
 					</a>
 					@if($canMethodValidationRegistration)
-					<a href="{{ route('method-validation.registration') }}" class="list-group-item list-group-item-action">
+					<a href="{{ route('method-validation.registration') }}" class="list-group-item list-group-item-action {{ request()->routeIs('method-validation.registration', 'method-validation.registration.show') ? 'active' : '' }}">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.method_registration') }}</span>
 					</a>
 					@endif
 					@if($canMethodValidationDataReview)
-					<a href="{{ route('method-validation.data-review') }}" class="list-group-item list-group-item-action">
+					<a href="{{ route('method-validation.data-review') }}" class="list-group-item list-group-item-action {{ request()->routeIs('method-validation.data-review*') ? 'active' : '' }}">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.data_review_analysis') }}</span>
 					</a>
 					@endif
 				</div>
 			@endif
 			@if($canAnalytes)
-			<a href="/analytes" class="list-group-item list-group-item-action">
+			<a href="{{ route('analytes') }}" class="list-group-item list-group-item-action {{ $isAnalytesActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-molecule fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.analytes') }}</span>
@@ -417,7 +470,7 @@
 			</a>
 			@endif
 			@if($canShelfLife)
-			<a href="{{ route('shelf-life.studies.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('shelf-life.*') ? 'active' : '' }}">
+			<a href="{{ route('shelf-life.studies.index') }}" class="list-group-item list-group-item-action {{ $isShelfLifeActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Shelf Life Studies</span>
@@ -425,13 +478,13 @@
 			</a>
 			@endif
 			@if($canSampleTypes)
-			<a href="{{ route('livewire.sample-types') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('livewire.sample-types') }}" class="list-group-item list-group-item-action {{ $isSampleTypesActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-test-tube fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.sample_types') }}</span>
 				</div>
 			</a>
-			<a href="{{ route('livewire.standards') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('livewire.standards') }}" class="list-group-item list-group-item-action {{ $isStandardsActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.standards') }}</span>
@@ -445,7 +498,7 @@
 			</a>
 			@endif
 			@if($canLabs)
-			<a href="{{ route('labs') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('labs') }}" class="list-group-item list-group-item-action {{ $isLabsActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.labs') }}</span>
@@ -453,7 +506,7 @@
 			</a>
 			@endif
 			@if($canSampleTrackingStages)
-			<a href="/sample-analysis-stages" class="list-group-item list-group-item-action">
+			<a href="{{ route('sample-analysis-stages') }}" class="list-group-item list-group-item-action {{ $isLabSectionsActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
 					<span class="menu-collapsed">Lab Sections</span>
@@ -461,7 +514,7 @@
 			</a>
 			@endif
 			@if($canReportingUnits)
-			<a href="/reporting-units" class="list-group-item list-group-item-action">
+			<a href="{{ route('reporting-units') }}" class="list-group-item list-group-item-action {{ $isReportingUnitsActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.reporting_units') }}</span>
@@ -469,31 +522,31 @@
 			</a>
 			@endif
 			@if($canQc)
-			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="{{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'active' : '' }}">
+			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="{{ $isInQcWorkflow ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInQcWorkflow ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.qc_workflow') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="qc-workflow-menu" class="collapse sidebar-submenu {{ request()->routeIs('qcWorkflowIndex', 'showUnProcessed', 'qc-reports', 'qc_configuration_index', 'qc_StandardShow', 'qc-result-show') ? 'show' : '' }}">
+			<div id="qc-workflow-menu" class="collapse sidebar-submenu {{ $isInQcWorkflow ? 'show' : '' }}">
 				<!-- <a href="" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dashboard
 						<small class="float-right badge badge-pill"></small></span>
 				</a> -->
-				<a href="{{route('qcWorkflowIndex')}}" class="list-group-item list-group-item-action">
+				<a href="{{route('qcWorkflowIndex')}}" class="list-group-item list-group-item-action {{ request()->routeIs('qcWorkflowIndex') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.qc_history') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
-				<a href="{{ route('showUnProcessed') }}" class="list-group-item list-group-item-action">
+				<a href="{{ route('showUnProcessed') }}" class="list-group-item list-group-item-action {{ request()->routeIs('showUnProcessed') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.awaiting_processing') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
-				<a href="{{ route('qc-reports') }}" class="list-group-item list-group-item-action">
+				<a href="{{ route('qc-reports') }}" class="list-group-item list-group-item-action {{ request()->routeIs('qc-reports', 'qc-result-show') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.qc_reports') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
-				<a href="{{route('qc_configuration_index')}}" class="list-group-item list-group-item-action">
+				<a href="{{route('qc_configuration_index')}}" class="list-group-item list-group-item-action {{ request()->routeIs('qc_configuration_index', 'qc_StandardShow') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.configurations') }}
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
@@ -501,7 +554,7 @@
 			</div>
 			@endif
 			@if($canMonitoring)
-			<a href="{{ route('livewire.monitoring') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('livewire.monitoring') }}" class="list-group-item list-group-item-action {{ $isMonitoringActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-monitor-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.monitoring') }}</span>
@@ -509,7 +562,7 @@
 			</a>
 			@endif
 			@if($canUncertaintyBudget)
-			<a href="{{ route('uncertainty-budgets.index') }}" class="list-group-item list-group-item-action">
+			<a href="{{ route('uncertainty-budgets.index') }}" class="list-group-item list-group-item-action {{ $isUncertaintyBudgetActive ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-calculator fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.uncertainty_budget') }}</span>
@@ -518,28 +571,28 @@
 			@endif
 
 			@if($canStockMonitoring)
-			<a href="#stock-monitoring-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#stock-monitoring-menu" data-toggle="collapse" aria-expanded="{{ $isInStockMonitoring ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInStockMonitoring ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
 					<span class="menu-collapsed">{{ __('lab.solutions_monitoring') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="stock-monitoring-menu" class="collapse sidebar-submenu">
+			<div id="stock-monitoring-menu" class="collapse sidebar-submenu {{ $isInStockMonitoring ? 'show' : '' }}">
 
-				<a href="{{route('stock-monitoring-categories')}}" class="list-group-item list-group-item-action">
+				<a href="{{route('stock-monitoring-categories')}}" class="list-group-item list-group-item-action {{ request()->routeIs('stock-monitoring-categories') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.categories') }}
 				<small class="float-right badge badge-pill"></small></span>
 			</a>
-			<a href="{{route('stock_management_index')}}" class="list-group-item list-group-item-action">
+			<a href="{{route('stock_management_index')}}" class="list-group-item list-group-item-action {{ request()->routeIs('stock_management_index') ? 'active' : '' }}">
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.solutions_management') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
-			<a href="{{route('solution-movement-index')}}" class="list-group-item list-group-item-action">
+			<a href="{{route('solution-movement-index')}}" class="list-group-item list-group-item-action {{ request()->routeIs('solution-movement-index') ? 'active' : '' }}">
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.solutions_movement') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
-			<a href="{{route('solutions-preparation-index')}}" class="list-group-item list-group-item-action">
+			<a href="{{route('solutions-preparation-index')}}" class="list-group-item list-group-item-action {{ request()->routeIs('solutions-preparation-index') ? 'active' : '' }}">
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.preparation_tracking') }}
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
@@ -555,55 +608,55 @@
 		</div>
 	</a> --}}
 	@if($canProducts || $canSampleTypes || $canChecklistApprovals || $canConfigRouteAccess || $canRftForms || auth()->user()->can('settings.module.access'))
-	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="{{ $isInLabConfiguration ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInLabConfiguration ? 'active' : '' }}">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
 			<span class="menu-collapsed">{{ __('lab.configurations') }}</span>
 			<span class="submenu-icon ml-auto"></span>
 		</div>
 	</a>
-	<div id="configuration-menu" class="collapse sidebar-submenu">
+	<div id="configuration-menu" class="collapse sidebar-submenu {{ $isInLabConfiguration ? 'show' : '' }}">
 
 		@if($canProducts)
-		<a href="{{ route('sample-product-index') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('sample-product-index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('sample-product-index') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Products
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 		@if($canSampleTypes)
-		<a href="{{ route('sample-type-category-index') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('sample-type-category-index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('sample-type-category-index') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Type Category
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
-		<a href="{{route('sample_condition_index')}}" class="list-group-item list-group-item-action">
+		<a href="{{route('sample_condition_index')}}" class="list-group-item list-group-item-action {{ request()->routeIs('sample_condition_index') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.sample_conditions') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
-		<a href="{{ route('lab.amendment-report-configuration') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('lab.amendment-report-configuration') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab.amendment-report-configuration') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Amendment Report Configuration
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 		@if($canChecklistApprovals)
-		<a href="{{ route('livewire.workflow-approvals') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('livewire.workflow-approvals') }}" class="list-group-item list-group-item-action {{ request()->routeIs('livewire.workflow-approvals') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.checklist_approvals') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 		@if($canRftForms)
-		<a href="{{route('submission-forms.index')}}" class="list-group-item list-group-item-action">
+		<a href="{{route('submission-forms.index')}}" class="list-group-item list-group-item-action {{ request()->routeIs('submission-forms.index') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.submission_form_templates') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 
-		<a href="{{route('templates.index')}}" class="list-group-item list-group-item-action">
+		<a href="{{route('templates.index')}}" class="list-group-item list-group-item-action {{ request()->routeIs('templates.index') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.report_templates') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
 
 		@if(auth()->user()->can('settings.module.access'))
-		<a href="{{ route('lab.whatsapp-configuration') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('lab.whatsapp-configuration') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab.whatsapp-configuration') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.whatsapp_configuration') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
@@ -620,28 +673,28 @@
 	</a>
 	
 	@if($canLabReports)
-	<a href="#report-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
+	<a href="#report-menu" data-toggle="collapse" aria-expanded="{{ $isInLabReports ? 'true' : 'false' }}" class="list-group-item list-group-item-action flex-column align-items-start {{ $isInLabReports ? 'active' : '' }}">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
 			<span class="menu-collapsed">{{ __('lab.reports') }}</span>
 			<span class="submenu-icon ml-auto"></span>
 		</div>
 	</a>
-	<div id="report-menu" class="collapse sidebar-submenu">
+	<div id="report-menu" class="collapse sidebar-submenu {{ $isInLabReports ? 'show' : '' }}">
 
-		<a href="{{ route('module-reports.index') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('module-reports.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('module-reports.index') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('lab.centralized_module_reports') }}
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
-		<a href="{{ route('lab-report-tat') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('lab-report-tat') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab-report-tat') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> TAT Reports
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
-		<a href="{{ route('lab-report-disposal') }}" class="list-group-item list-group-item-action">
+		<a href="{{ route('lab-report-disposal') }}" class="list-group-item list-group-item-action {{ request()->routeIs('lab-report-disposal') ? 'active' : '' }}">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Disposal Reports
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
-		
+
 	</div>
 	@endif
 
@@ -1360,6 +1413,59 @@
 @section('script')
 <script>
 	(function () {
+		// ── Top loading bar for lab-module navigation (full page reloads) ──────
+		var loaderEl = document.getElementById('lab-page-loader');
+		var loaderHideTimer = null;
+
+		function showLoader() {
+			if (!loaderEl) return;
+			clearTimeout(loaderHideTimer);
+			loaderEl.classList.add('is-active');
+			loaderEl.style.width = '0%';
+			// Force reflow so the width transition below actually animates.
+			void loaderEl.offsetWidth;
+			loaderEl.style.width = '70%';
+		}
+
+		function finishLoader() {
+			if (!loaderEl) return;
+			loaderEl.style.width = '100%';
+			loaderHideTimer = setTimeout(function () {
+				loaderEl.classList.remove('is-active');
+				loaderEl.style.width = '0%';
+			}, 250);
+		}
+
+		window.addEventListener('pageshow', finishLoader);
+		document.addEventListener('DOMContentLoaded', finishLoader);
+
+		document.addEventListener('click', function (e) {
+			var link = e.target.closest('a[href]');
+			if (!link) return;
+			if (link.closest('.sf-inline-modal')) return;
+
+			var href = link.getAttribute('href') || '';
+			var isHash = href.charAt(0) === '#';
+			var isJs = href.indexOf('javascript:') === 0;
+			var opensNewTab = link.target && link.target !== '_self';
+			var isDownload = link.hasAttribute('download');
+			var isModifiedClick = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+			var isDataToggle = link.hasAttribute('data-toggle') || link.classList.contains('sf-open-inline-form');
+
+			if (isHash || isJs || opensNewTab || isDownload || isModifiedClick || isDataToggle) {
+				return;
+			}
+
+			showLoader();
+		}, true);
+
+		document.addEventListener('submit', function (e) {
+			var form = e.target;
+			if (form && form.tagName === 'FORM' && !form.closest('.sf-inline-modal') && !form.hasAttribute('data-no-loader')) {
+				showLoader();
+			}
+		}, true);
+
 		var unlockTimer = null;
 
 		function unlockStuckScroll() {

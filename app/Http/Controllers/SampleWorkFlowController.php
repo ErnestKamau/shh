@@ -6465,9 +6465,8 @@ class SampleWorkFlowController extends Controller
             $sequence = $batch->test_request_report_sequence ?: 1;
         }
 
-        $jobNumber = $batch->batch_code;
         $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
-            ->formatReportNumber((string) $jobNumber, (int) $sequence);
+            ->formatReportNumberForBatch($batch, (int) $sequence);
 
         $pdfService = app(\App\Services\Sampleworkflow\ShelfLifeStudyReportPdfService::class);
         $language = app(\App\Services\Sampleworkflow\TestRequestReportPdfService::class)
@@ -6509,11 +6508,14 @@ class SampleWorkFlowController extends Controller
         $viewData['reportNumber'] = $reportNumber;
         $ammendment = BatchAmmendment::resolveForBatch($batch);
         $viewData['ammendment'] = $ammendment;
+        $amendmentConfig = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class);
         $viewData['amendmentDisplay'] = app(\App\Services\Sampleworkflow\TestRequestReportPdfService::class)
             ->amendmentDisplayData(
                 $viewData['labels'],
                 (int) ($ammendment?->version_number ?? $batch->is_amendment ?? $sequence),
-                (string) $batch->batch_code
+                (string) $batch->batch_code,
+                $amendmentConfig->sampleSequenceNumbersForBatch($batch),
+                $amendmentConfig->labSectionNamesForBatch($batch),
             );
 
         if (! empty($viewData['signatureWarning'])) {
@@ -6601,9 +6603,8 @@ class SampleWorkFlowController extends Controller
         $company    = getActiveCompany();
         $companyName = $company->name ?? config('app.name', 'Laboratory');
         $revisionNo  = $batch->test_request_report_sequence ?? 1;
-        $jobNumber   = $batch->batch_code;
         $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
-            ->formatReportNumber((string) $jobNumber, (int) $revisionNo);
+            ->formatReportNumberForBatch($batch, (int) $revisionNo);
 
         // Build download URL — prefer online URL, then storage URL
         $downloadUrl = null;
@@ -6982,13 +6983,13 @@ class SampleWorkFlowController extends Controller
             $sequence = $batch->test_request_report_sequence ?: 1;
         }
 
-        $jobNumber    = $batch->batch_code;
-        $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
-            ->formatReportNumber((string) $jobNumber, (int) $sequence);
-
         $reportDataService = app(\App\Services\Sampleworkflow\TestRequestReportDataService::class);
         $filterLabSectionIds = $filterLabSectionIdsEarly;
         $filterSampleIds = $reportDataService->normalizeSampleIds($request->query('sample_ids'));
+
+        $reportNumber = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class)
+            ->formatReportNumberForBatch($batch, (int) $sequence, $filterSampleIds, $filterLabSectionIds);
+
         $reportData = $reportDataService->build($batch, $reportNumber, [
             'logoPublicUrlFallback' => ! $isPdfMode,
             'lab_section_ids' => $filterLabSectionIds,
@@ -7036,10 +7037,13 @@ class SampleWorkFlowController extends Controller
             app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
                 ->clearSampleCodeSuffixesForBatch($batch);
         }
+        $amendmentConfig = app(\App\Services\Sampleworkflow\AmendmentReportConfigurationService::class);
         $amendmentDisplay = $pdfService->amendmentDisplayData(
             $labels,
             $amendmentVersion,
-            (string) $batch->batch_code
+            (string) $batch->batch_code,
+            $amendmentConfig->sampleSequenceNumbersForBatch($batch, $filterSampleIds),
+            $amendmentConfig->labSectionNamesForBatch($batch, $filterLabSectionIds),
         );
 
         $batchBackUrl = route('view-batch-details', [

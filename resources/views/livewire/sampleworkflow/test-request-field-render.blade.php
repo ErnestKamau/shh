@@ -36,7 +36,7 @@
     $outerLabelShown = ! $hideLabel
         && ! $compact
         && ! in_array($field['type'] ?? '', ['client_select', 'client_unit_select', 'client_contact_select', 'customer_sample_point_select', 'signature'], true)
-        && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'company_unit_id', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id', 'state_of_sample', 'sample_type_id', 'sample_type', 'analysis_type_id', 'analysis_type', 'analysis_types', 'parameters', 'parameter', 'sample_temp', 'field_sample_temp', 'sample_temperature', 'field_data_temperature'], true);
+        && ! in_array($fieldName, ['customer_name', 'client_name', 'customer', 'client', 'company_unit_id', 'contact_person', 'sampling_location', 'sampling_point', 'customer_email', 'email', 'customer_tax_id', 'state_of_sample', 'sample_type_id', 'sample_type', 'analysis_type_id', 'analysis_type', 'analysis_types', 'parameters', 'parameter', 'sample_temp', 'field_sample_temp', 'sample_temperature', 'field_data_temperature', 'amspec_sampler_name', 'amspec_sampler_employee_id'], true);
     // When parent already printed a label (hideLabel) or this partial printed one, LS includes must not repeat it.
     $lsFieldLabel = ($hideLabel || $compact || $outerLabelShown)
         ? null
@@ -481,6 +481,73 @@
     </div>
 @elseif($fieldName === 'customer_tax_id')
     {{-- Removed from walk-in TRF --}}
+@elseif($fieldName === 'amspec_sampler_name')
+    <div
+        x-data="{
+            open: false,
+            results: [],
+            timer: null,
+            search(q) {
+                clearTimeout(this.timer);
+                if (!q || q.length < 2) { this.results = []; this.open = false; return; }
+                this.timer = setTimeout(() => {
+                    fetch('{{ route('amspec-samplers.search') }}?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+                        .then((r) => r.ok ? r.json() : [])
+                        .then((data) => { this.results = data; this.open = data.length > 0; })
+                        .catch(() => {});
+                }, 220);
+            },
+            pick(item) {
+                this.$wire.formData.amspec_sampler_name = item.name;
+                this.$wire.formData.amspec_sampler_employee_id = item.employee_id ?? '';
+                this.open = false;
+            },
+        }"
+        x-show="$wire.formData.sampled_by === 'company'"
+        x-cloak
+        style="position: relative;"
+    >
+        @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+            'label' => $lsFieldLabel,
+            'id' => 'field_'.$fieldId,
+            'name' => $wirePrefix,
+            'wireModel' => $wirePrefix,
+            'placeholder' => 'Start typing a name…',
+            'required' => true,
+            'success' => filled(data_get($this, $wirePrefix)),
+            'error' => $fieldError,
+            'inputAttrs' => 'x-on:input="search($event.target.value)" x-on:focus="search($event.target.value)" x-on:blur="setTimeout(() => open = false, 150)" autocomplete="off"',
+        ])
+        <ul
+            x-show="open && results.length > 0"
+            x-cloak
+            class="list-group shadow-sm"
+            style="position: absolute; z-index: 50; width: 100%; max-height: 220px; overflow-y: auto; margin-top: -2px; padding-left: 0;"
+        >
+            <template x-for="item in results" :key="item.id">
+                <li
+                    class="list-group-item list-group-item-action py-1 px-2 small"
+                    style="cursor: pointer;"
+                    x-on:mousedown.prevent="pick(item)"
+                >
+                    <span x-text="item.name"></span>
+                    <span class="text-muted" x-show="item.employee_id" x-text="item.employee_id ? ' — ' + item.employee_id : ''"></span>
+                </li>
+            </template>
+        </ul>
+    </div>
+@elseif($fieldName === 'amspec_sampler_employee_id')
+    <div x-show="$wire.formData.sampled_by === 'company'" x-cloak>
+        @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
+            'label' => $lsFieldLabel,
+            'id' => 'field_'.$fieldId,
+            'name' => $wirePrefix,
+            'wireModel' => $wirePrefix,
+            'placeholder' => 'Employee ID (optional)',
+            'success' => filled(data_get($this, $wirePrefix)),
+            'error' => $fieldError,
+        ])
+    </div>
 @elseif($fieldName === 'customer_email' || $fieldName === 'email')
     @include('layouts.lab.partials.ls-ui.fields.ls-field-text', [
         'label' => $lsFieldLabel,

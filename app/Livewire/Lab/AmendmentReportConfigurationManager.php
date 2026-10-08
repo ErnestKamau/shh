@@ -125,6 +125,10 @@ class AmendmentReportConfigurationManager extends Component
         $replacements = [
             '{nn}' => $nn,
             '{n}' => $n,
+            // Sample demo values so the preview reads naturally — real reports resolve these
+            // from the batch's own samples / lab sections.
+            '{samples}' => '001 - 045',
+            '{sections}' => 'M, C',
         ];
         if ($jobNumber !== null) {
             $replacements['{job}'] = $jobNumber;

@@ -41,6 +41,11 @@
 		--sys-sidebar-link-bg: var(--color-sidebar-link-bg);
 		--sys-sidebar-text: var(--color-sidebar-text);
 		--sys-sidebar-text-muted: var(--color-sidebar-text-muted);
+		/* Lab chrome parity — same flat-glass treatment as the Lab module sidebar */
+		--sys-sidebar-bg-mixed: color-mix(in srgb, var(--sys-sidebar-bg) 90%, #0f172a);
+		--sys-sidebar-glass: rgba(255, 255, 255, 0.16);
+		--sys-sidebar-accent: #8ac0ff;
+		--sys-sidebar-blue-soft: #eff6ff;
 		/* Type scale — aligned to lab-surface (Receiving / Request View / RFT) density */
 		--text-xs: 0.6875rem;     /* 11px */
 		--text-caption: 0.75rem;  /* 12px */
