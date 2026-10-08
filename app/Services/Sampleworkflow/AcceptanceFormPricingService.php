@@ -4,6 +4,7 @@ namespace App\Services\Sampleworkflow;
 
 use App\AnalysisElements;
 use App\AnalysisType;
+use App\Enums\CompanyCode;
 use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
@@ -1013,23 +1014,29 @@ class AcceptanceFormPricingService
         $removedIndexes = [];
         $packageLineByFirstIndex = [];
 
+        // Brazil prices packages per analysis type only; the sample-type-wide
+        // panel (covering every analysis type under a sample type) never applies.
+        $allowSampleTypePanel = ! companyHasCode(CompanyCode::Brl);
+
         $sampleGroups = [];
-        foreach ($lines as $index => $line) {
-            if (! empty($line['is_package'])) {
-                continue;
-            }
+        if ($allowSampleTypePanel) {
+            foreach ($lines as $index => $line) {
+                if (! empty($line['is_package'])) {
+                    continue;
+                }
 
-            $elementId = (string) ($line['analysis_element_id'] ?? '');
-            $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
-            if ($elementId === '' || $sampleTypeId === '') {
-                continue;
-            }
+                $elementId = (string) ($line['analysis_element_id'] ?? '');
+                $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
+                if ($elementId === '' || $sampleTypeId === '') {
+                    continue;
+                }
 
-            $key = implode('::', [
-                (string) ($line['acceptance_config_key'] ?? ''),
-                $sampleTypeId,
-            ]);
-            $sampleGroups[$key][] = $index;
+                $key = implode('::', [
+                    (string) ($line['acceptance_config_key'] ?? ''),
+                    $sampleTypeId,
+                ]);
+                $sampleGroups[$key][] = $index;
+            }
         }
 
         foreach ($sampleGroups as $indexes) {

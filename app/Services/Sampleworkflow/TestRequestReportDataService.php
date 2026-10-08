@@ -745,6 +745,8 @@ class TestRequestReportDataService
                 $rows = $this->brazilExportationSampleDetailRows(
                     $sampleDescription,
                     $quantity,
+                    $normalizedRow,
+                    $rawRow,
                     $trfCollectionExtras,
                     $shared,
                 );
@@ -815,6 +817,12 @@ class TestRequestReportDataService
      * SAMPLE INFORMATION rows for Brazil Exportation TRF only (p2 product + p3 misc).
      * Single-column rows for the bilingual label/value table.
      *
+     * Exportation info (packaging, ship, ports, seal, …) is captured per sample row.
+     * Older instances only have it as a job-level value ($trfCollectionExtras); that's
+     * kept as a fallback so historical reports keep rendering.
+     *
+     * @param  array<string, mixed>  $normalizedRow
+     * @param  array<string, mixed>  $rawRow
      * @param  array<string, mixed>  $trfCollectionExtras
      * @param  array<string, string|null>  $shared
      * @return list<array{left: array{label: string, value: string, emphasize?: bool}, right: null}>
@@ -822,27 +830,59 @@ class TestRequestReportDataService
     private function brazilExportationSampleDetailRows(
         string $sampleDescription,
         string $quantity,
+        array $normalizedRow,
+        array $rawRow,
         array $trfCollectionExtras,
         array $shared,
     ): array {
         $sampleWeight = $this->firstNonEmptyFromMixed(
+            $rawRow['sample_weight'] ?? null,
+            $normalizedRow['sample_weight'] ?? null,
             $trfCollectionExtras['sample_weight'] ?? null,
             $quantity,
         ) ?? '-';
 
-        $dateReceived = (string) ($shared['dateReceived']
-            ?? ($trfCollectionExtras['date_received'] ?? '-'));
+        $dateReceived = $this->firstNonEmptyFromMixed(
+            $rawRow['date_received'] ?? null,
+            $normalizedRow['date_received'] ?? null,
+            $shared['dateReceived'] ?? null,
+            $trfCollectionExtras['date_received'] ?? null,
+        ) ?? '-';
 
         $fields = [
             'sample' => $sampleDescription,
             'date_received' => $dateReceived,
-            'packaging' => (string) ($trfCollectionExtras['packaging'] ?? '-'),
+            'packaging' => $this->firstNonEmptyFromMixed(
+                $rawRow['packaging'] ?? null,
+                $normalizedRow['packaging'] ?? null,
+                $trfCollectionExtras['packaging'] ?? null,
+            ) ?? '-',
             'sample_weight' => $sampleWeight,
-            'sample_information' => (string) ($trfCollectionExtras['sample_information'] ?? '-'),
-            'ship_name' => (string) ($trfCollectionExtras['ship_name'] ?? '-'),
-            'port_of_loading' => (string) ($trfCollectionExtras['port_of_loading'] ?? '-'),
-            'port_of_discharge' => (string) ($trfCollectionExtras['port_of_discharge'] ?? '-'),
-            'seal_number' => (string) ($trfCollectionExtras['seal_number'] ?? '-'),
+            'sample_information' => $this->firstNonEmptyFromMixed(
+                $rawRow['sample_information'] ?? null,
+                $normalizedRow['sample_information'] ?? null,
+                $trfCollectionExtras['sample_information'] ?? null,
+            ) ?? '-',
+            'ship_name' => $this->firstNonEmptyFromMixed(
+                $rawRow['ship_name'] ?? null,
+                $normalizedRow['ship_name'] ?? null,
+                $trfCollectionExtras['ship_name'] ?? null,
+            ) ?? '-',
+            'port_of_loading' => $this->firstNonEmptyFromMixed(
+                $rawRow['port_of_loading'] ?? null,
+                $normalizedRow['port_of_loading'] ?? null,
+                $trfCollectionExtras['port_of_loading'] ?? null,
+            ) ?? '-',
+            'port_of_discharge' => $this->firstNonEmptyFromMixed(
+                $rawRow['port_of_discharge'] ?? null,
+                $normalizedRow['port_of_discharge'] ?? null,
+                $trfCollectionExtras['port_of_discharge'] ?? null,
+            ) ?? '-',
+            'seal_number' => $this->firstNonEmptyFromMixed(
+                $rawRow['seal_number'] ?? null,
+                $normalizedRow['seal_number'] ?? null,
+                $trfCollectionExtras['seal_number'] ?? null,
+            ) ?? '-',
         ];
 
         $rows = [];

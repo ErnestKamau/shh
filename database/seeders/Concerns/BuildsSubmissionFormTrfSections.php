@@ -987,6 +987,131 @@ trait BuildsSubmissionFormTrfSections
         $this->removeMiscellaneousFieldsFromCollectionSection($form);
     }
 
+    /**
+     * Brazil exportation TRF only: packaging/shipping/seal details captured per sample row
+     * ("Exportation info") instead of once per job ("Miscellaneous").
+     */
+    protected function createExportationInfoSection(SubmissionForm $form, int $sortOrder): void
+    {
+        if ($form->sections()->where('section_type', 'rows_section')->where('title', 'Exportation info')->exists()) {
+            return;
+        }
+
+        $section = $form->sections()->create([
+            'title' => 'Exportation info',
+            'description' => 'Packaging, shipping, and other sample handling details, captured per sample.',
+            'section_type' => 'rows_section',
+            'sort_order' => $sortOrder,
+        ]);
+
+        $fields = $this->miscellaneousTrfFields();
+
+        $holder = $section->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => count($fields),
+            'sort_order' => 1,
+        ]);
+
+        foreach ($fields as $field) {
+            $this->upsertScalarElement($holder, $field);
+        }
+    }
+
+    protected function patchExportationInfoSection(SubmissionForm $form): void
+    {
+        $rowsSection = $form->sections()
+            ->where('section_type', 'rows_section')
+            ->where('title', 'Test & sample information')
+            ->first();
+
+        $sortOrder = $rowsSection !== null
+            ? ((int) $rowsSection->sort_order + 1)
+            : 4;
+
+        $section = $form->sections()
+            ->where('section_type', 'rows_section')
+            ->where('title', 'Exportation info')
+            ->first();
+
+        if ($section === null) {
+            $this->createExportationInfoSection($form, $sortOrder);
+
+            $section = $form->sections()
+                ->where('section_type', 'rows_section')
+                ->where('title', 'Exportation info')
+                ->first();
+        }
+
+        if ($section === null) {
+            return;
+        }
+
+        $section->update(['sort_order' => $sortOrder]);
+
+        $holder = $section->elementHolders()->where('holder_type', 'field')->first();
+        if ($holder === null) {
+            $holder = $section->elementHolders()->create([
+                'id' => (string) Str::uuid7(),
+                'holder_type' => 'field',
+                'max_elements' => count($this->miscellaneousTrfFields()),
+                'sort_order' => 1,
+            ]);
+        }
+
+        foreach ($this->miscellaneousTrfFields() as $field) {
+            $this->upsertScalarElement($holder, $field);
+        }
+
+        $form->sections()
+            ->whereIn('title', ['Submit & sign', 'Submit and sign'])
+            ->update(['sort_order' => $sortOrder + 1]);
+
+        $this->migrateMiscellaneousSectionIntoExportationInfo($form, $holder);
+    }
+
+    /**
+     * Older exportation TRF instances captured these fields on the job-level "Miscellaneous"
+     * section before it became per-sample. Move any existing values across by field name
+     * (they land on sample row 0 — see SubmissionFormValueNormalizer's legacy-scalar fallback)
+     * and drop the now-empty "Miscellaneous" section so it stops showing on the form.
+     */
+    protected function migrateMiscellaneousSectionIntoExportationInfo(SubmissionForm $form, SubmissionFormElementHolder $exportationInfoHolder): void
+    {
+        $miscSection = $form->sections()
+            ->where('section_type', 'regular')
+            ->where('title', 'Miscellaneous')
+            ->first();
+
+        if ($miscSection === null) {
+            return;
+        }
+
+        $miscHolder = $miscSection->elementHolders()->where('holder_type', 'field')->first();
+        if ($miscHolder === null) {
+            $miscSection->delete();
+
+            return;
+        }
+
+        foreach ($this->miscellaneousTrfFieldNames() as $name) {
+            $fromElement = $miscHolder->elements()->where('name', $name)->first();
+            if ($fromElement === null) {
+                continue;
+            }
+
+            $toElement = $exportationInfoHolder->elements()->where('name', $name)->first();
+            if ($toElement !== null) {
+                $this->migrateSubmissionFormElementValues((string) $fromElement->id, (string) $toElement->id);
+            }
+
+            $fromElement->delete();
+        }
+
+        if (! $miscHolder->elements()->exists()) {
+            $miscSection->delete();
+        }
+    }
+
     protected function removeMiscellaneousFieldsFromCollectionSection(SubmissionForm $form): void
     {
         $miscHolder = $form->sections()

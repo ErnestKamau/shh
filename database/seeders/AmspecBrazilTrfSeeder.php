@@ -38,6 +38,7 @@ class AmspecBrazilTrfSeeder extends Seeder
             namingFormat: 'TRBEX-{YYYY}{MM}-{0000}',
             categoryNames: ['Food & Feed', 'Food and Feed', 'Food'],
             detachFoodAndFeedFromFoodOnly: false,
+            perSampleExportationInfo: true,
         );
 
         $this->seedFoodLikeForm(
@@ -79,6 +80,7 @@ class AmspecBrazilTrfSeeder extends Seeder
         string $namingFormat,
         array $categoryNames,
         bool $detachFoodAndFeedFromFoodOnly,
+        bool $perSampleExportationInfo = false,
     ): void {
         // Prefer an existing Brazil form with the same name (may already use a Dubai-style code).
         $existingByName = null;
@@ -119,14 +121,22 @@ class AmspecBrazilTrfSeeder extends Seeder
             $this->patchCustomerDetailsSection($form);
             $this->patchCollectionDataSection($form, true, $extraSamplingApparatus);
             $this->patchSampleRowsSection($form, $this->foodTrfRowFields());
-            $this->patchMiscellaneousSection($form);
+            if ($perSampleExportationInfo) {
+                $this->patchExportationInfoSection($form);
+            } else {
+                $this->patchMiscellaneousSection($form);
+            }
             $this->patchSubmitAndSignSection($form);
             $this->promoteCollectionFieldsToSampleRows($form, $extraSamplingApparatus);
         } else {
             $this->createCustomerDetailsSection($form, 1);
             $this->createCollectionDataSection($form, 2, true, $extraSamplingApparatus);
             $this->createSampleRowsSection($form, 3, 'Test & sample information', $this->foodTrfRowFields());
-            $this->createMiscellaneousSection($form, 4);
+            if ($perSampleExportationInfo) {
+                $this->createExportationInfoSection($form, 4);
+            } else {
+                $this->createMiscellaneousSection($form, 4);
+            }
             $this->createSubmitAndSignSection($form, 5);
             $this->promoteCollectionFieldsToSampleRows($form, $extraSamplingApparatus);
         }
